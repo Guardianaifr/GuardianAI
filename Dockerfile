@@ -25,8 +25,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install spaCy model for Presidio (Natural Language Processing)
-# using en_core_web_lg for better accuracy
-RUN python -m spacy download en_core_web_lg
+# Using sm (small) model for cloud deployment to save memory/space
+# and prevent build timeouts on platforms like Railway.
+RUN python -m spacy download en_core_web_sm
 
 # Copy the rest of the application
 COPY . .
@@ -40,12 +41,10 @@ EXPOSE 8081 8501
 ENV PORT=8081
 ENV HOST=0.0.0.0
 
-# Create a startup script to run both services
+# Create a startup script
 RUN echo '#!/bin/bash\n\
-    # Start the Dashboard in the background\n\
-    streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0 &\n\
-    \n\
-    # Start the GuardianAI Proxy in the foreground\n\
+    # Database initialization is handled by main.py\n\
+    echo "🚀 Starting GuardianAI Backend on port 8081..."\n\
     uvicorn backend.main:app --host 0.0.0.0 --port 8081\n\
     ' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 

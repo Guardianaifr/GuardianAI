@@ -25,11 +25,6 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install spaCy model for Presidio (Natural Language Processing)
-# Using sm (small) model for cloud deployment to save memory/space
-# and prevent build timeouts on platforms like Railway.
-RUN python -m spacy download en_core_web_sm
-
 # Copy the rest of the application
 COPY . .
 

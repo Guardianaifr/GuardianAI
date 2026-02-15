@@ -1,0 +1,25 @@
+# Exclude large binaries
+cloudflared-windows-amd64.exe
+0213.mp4
+GuardianAI.exe
+
+# Exclude archive
+_archive/
+
+# Exclude Python junk
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+
+# Exclude local DB
+guardian.db
+
+# Exclude node_modules (we don't build React in Docker yet)
+node_modules/
+
+# Exclude Git
+.git/
+.gitignore

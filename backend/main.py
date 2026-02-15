@@ -255,6 +255,10 @@ async def export_csv(username: str = Depends(get_current_user)):
         headers={"Content-Disposition": "attachment; filename=guardian_audit_log.csv"}
     )
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": time.time()}
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(username: str = Depends(get_current_user)):
     conn = sqlite3.connect(DB_PATH)

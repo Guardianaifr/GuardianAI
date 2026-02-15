@@ -5,8 +5,7 @@ requests
 flask
 psutil
 pyyaml
-sentence-transformers
-scikit-learn
+# sentence-transformers and scikit-learn removed for cloud memory limits (fallback enabled)
 numpy
 presidio-analyzer
 presidio-anonymizer

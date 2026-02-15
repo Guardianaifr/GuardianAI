@@ -100,7 +100,10 @@ class AIPromptFirewall:
         }
 
         try:
-            vector_path = "f:/Saas/guardianai/guardian/config/jailbreak_vectors.yaml"
+            # Use relative path from the current file's directory
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            vector_path = os.path.join(base_dir, "config", "jailbreak_vectors.yaml")
+            
             if os.path.exists(vector_path):
                 with open(vector_path, "r", encoding="utf-8") as f:
                     data = yaml.safe_load(f)

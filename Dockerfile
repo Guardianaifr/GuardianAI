@@ -44,8 +44,8 @@ ENV HOST=0.0.0.0
 # Create a startup script
 RUN echo '#!/bin/bash\n\
     # Database initialization is handled by main.py\n\
-    echo "🚀 Starting GuardianAI Backend on port 8081..."\n\
-    uvicorn backend.main:app --host 0.0.0.0 --port 8081\n\
+    echo "🚀 Starting GuardianAI Backend on port ${PORT:-8081}..."\n\
+    uvicorn backend.main:app --host 0.0.0.0 --port "${PORT:-8081}"\n\
     ' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Set entrypoint

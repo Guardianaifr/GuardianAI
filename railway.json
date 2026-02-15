@@ -3,7 +3,12 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
-    "watchPatterns": ["backend/**", "dashboard/**", "guardian/**", "requirements.txt"]
+    "watchPatterns": [
+      "backend/**",
+      "dashboard/**",
+      "guardian/**",
+      "requirements.txt"
+    ]
   },
   "deploy": {
     "startCommand": "/app/entrypoint.sh",
@@ -19,8 +24,7 @@
       "required": true
     },
     "PORT": {
-      "description": "Port for the Proxy (Internal)",
-      "defaultValue": "8081",
+      "description": "Railway assigned port (leave blank)",
       "required": false
     },
     "LOG_LEVEL": {

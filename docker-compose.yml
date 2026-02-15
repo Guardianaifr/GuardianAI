@@ -7,8 +7,7 @@ services:
     # Restart automatically unless stopped
     restart: unless-stopped
     ports:
-      - "8081:8081" # GuardianAI Proxy
-      - "8501:8501" # Dashboard
+      - "8081:8081" # GuardianAI Proxy + Dashboard (http://localhost:8081/)
     environment:
       # === Security Configuration ===
       # Set your admin password here!

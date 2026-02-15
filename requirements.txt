@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 requests
 flask
@@ -12,3 +12,4 @@ presidio-analyzer
 presidio-anonymizer
 spacy
 jsonschema
+python-multipart

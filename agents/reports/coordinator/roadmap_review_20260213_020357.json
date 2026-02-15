@@ -1,0 +1,30 @@
+{
+  "lead_engineer": {
+    "role": "Lead Engineer",
+    "progress": "11/11 tasks (100%)",
+    "done": 11,
+    "pending": 0,
+    "blocked": 0
+  },
+  "qa_lead": {
+    "role": "QA Lead",
+    "progress": "10/10 tasks (100%)",
+    "done": 10,
+    "pending": 0,
+    "blocked": 0
+  },
+  "perf_engineer": {
+    "role": "Performance Engineer",
+    "progress": "10/10 tasks (100%)",
+    "done": 10,
+    "pending": 0,
+    "blocked": 0
+  },
+  "devops_security": {
+    "role": "DevOps + Security Lead",
+    "progress": "13/13 tasks (100%)",
+    "done": 13,
+    "pending": 0,
+    "blocked": 0
+  }
+}

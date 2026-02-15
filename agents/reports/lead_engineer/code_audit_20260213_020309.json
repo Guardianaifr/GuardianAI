@@ -1,0 +1,63 @@
+{
+  "total_files": 13,
+  "total_lines": 998,
+  "quality_issues": 6,
+  "issues_by_severity": {
+    "high": 4,
+    "medium": 2,
+    "low": 0
+  },
+  "details": [
+    {
+      "file": "main.py",
+      "issue": "long_function",
+      "detail": "main() is 77 lines",
+      "severity": "medium"
+    },
+    {
+      "file": "interceptor.py",
+      "issue": "long_function",
+      "detail": "proxy() is 184 lines",
+      "severity": "medium"
+    },
+    {
+      "file": "interceptor.py",
+      "issue": "bare_except",
+      "detail": "Bare except at line 80",
+      "severity": "high"
+    },
+    {
+      "file": "interceptor.py",
+      "issue": "bare_except",
+      "detail": "Bare except at line 239",
+      "severity": "high"
+    },
+    {
+      "file": "interceptor.py",
+      "issue": "bare_except",
+      "detail": "Bare except at line 194",
+      "severity": "high"
+    },
+    {
+      "file": "monitor.py",
+      "issue": "bare_except",
+      "detail": "Bare except at line 28",
+      "severity": "high"
+    }
+  ],
+  "files_analyzed": [
+    "F:\\Saas\\guardianai\\guardian\\main.py",
+    "F:\\Saas\\guardianai\\guardian\\guardrails\\ai_firewall.py",
+    "F:\\Saas\\guardianai\\guardian\\guardrails\\fast_path.py",
+    "F:\\Saas\\guardianai\\guardian\\guardrails\\input_filter.py",
+    "F:\\Saas\\guardianai\\guardian\\guardrails\\output_validator.py",
+    "F:\\Saas\\guardianai\\guardian\\guardrails\\rate_limiter.py",
+    "F:\\Saas\\guardianai\\guardian\\guardrails\\skill_scanner.py",
+    "F:\\Saas\\guardianai\\guardian\\guardrails\\threat_feed.py",
+    "F:\\Saas\\guardianai\\guardian\\mock_skills\\evil_skill.py",
+    "F:\\Saas\\guardianai\\guardian\\mock_skills\\safe_skill.py",
+    "F:\\Saas\\guardianai\\guardian\\runtime\\interceptor.py",
+    "F:\\Saas\\guardianai\\guardian\\runtime\\monitor.py",
+    "F:\\Saas\\guardianai\\guardian\\utils\\logger.py"
+  ]
+}

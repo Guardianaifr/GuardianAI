@@ -1,0 +1,76 @@
+{
+  "phases": [
+    {
+      "phase": 1,
+      "agent": "lead_engineer",
+      "tasks": "LE-001 to LE-004",
+      "desc": "Assessment"
+    },
+    {
+      "phase": 1,
+      "agent": "qa_lead",
+      "tasks": "QA-001 to QA-004",
+      "desc": "Plan validation"
+    },
+    {
+      "phase": 1,
+      "agent": "perf_engineer",
+      "tasks": "PE-001 to PE-004",
+      "desc": "Profile & plan"
+    },
+    {
+      "phase": 1,
+      "agent": "devops_security",
+      "tasks": "DS-001 to DS-004",
+      "desc": "Audit"
+    },
+    {
+      "phase": 2,
+      "agent": "qa_lead",
+      "tasks": "QA-005 to QA-008",
+      "desc": "Build test corpus"
+    },
+    {
+      "phase": 2,
+      "agent": "perf_engineer",
+      "tasks": "PE-005 to PE-007",
+      "desc": "Instrument & benchmark"
+    },
+    {
+      "phase": 2,
+      "agent": "lead_engineer",
+      "tasks": "LE-005 to LE-008",
+      "desc": "Code audit deep dive"
+    },
+    {
+      "phase": 3,
+      "agent": "qa_lead",
+      "tasks": "QA-009",
+      "desc": "Run benchmark"
+    },
+    {
+      "phase": 3,
+      "agent": "perf_engineer",
+      "tasks": "PE-008 to PE-010",
+      "desc": "Optimize"
+    },
+    {
+      "phase": 3,
+      "agent": "devops_security",
+      "tasks": "DS-009 to DS-013",
+      "desc": "Harden"
+    },
+    {
+      "phase": 4,
+      "agent": "qa_lead",
+      "tasks": "QA-010",
+      "desc": "Publish validation"
+    },
+    {
+      "phase": 4,
+      "agent": "lead_engineer",
+      "tasks": "LE-009 to LE-011",
+      "desc": "Quality checklist"
+    }
+  ]
+}

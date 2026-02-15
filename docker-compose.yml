@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  guardian:
+    build: .
+    container_name: guardian_ai
+    # Restart automatically unless stopped
+    restart: unless-stopped
+    ports:
+      - "8081:8081" # GuardianAI Proxy
+      - "8501:8501" # Dashboard
+    environment:
+      # === Security Configuration ===
+      # Set your admin password here!
+      # If left as 'guardian2026', you will see a warning in the logs.
+      - GUARDIAN_ADMIN_PASS=guardian2026
+
+      # === Operation Configuration ===
+      - LOG_LEVEL=INFO
+
+    # Optional: Persist logs/database
+    volumes:
+      - ./guardian_data:/app/data

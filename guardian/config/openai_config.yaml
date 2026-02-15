@@ -1,0 +1,42 @@
+app_name: "GuardianAI [OpenAI Shield]"
+version: "2.0.0"
+guardian_id: "shield-openai-001"
+
+security_policies:
+  block_prompt_injection: true
+  validate_output: true
+  security_mode: "strict"
+  show_block_reason: true
+  leak_prevention_strategy: "block"
+  admin_token: "change_me_to_secure_openai_token"
+
+scanner:
+  skills_directory: "./skills"
+  blocked_imports: [os, subprocess]
+  blocked_functions: [eval, exec]
+
+runtime_monitoring:
+  blocked_processes:
+    - nc.exe
+    - ncat.exe
+    - powershell.exe
+  max_cpu_percent: 95.0
+  max_memory_percent: 90.0
+  check_interval_seconds: 5
+
+proxy:
+  enabled: true
+  listen_port: 8084               # Port for OpenAI Shield
+  target_url: "https://api.openai.com" # Cloud Target
+  upstream_key: "sk-proj-real-key-here" # Guardian will inject this key into requests
+
+backend:
+  enabled: true
+  url: "http://127.0.0.1:8001/api/v1/telemetry"
+
+rate_limiting:
+  enabled: true
+  requests_per_minute: 50
+
+threat_feed:
+  enabled: false

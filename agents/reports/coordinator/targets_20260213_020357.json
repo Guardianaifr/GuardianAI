@@ -1,0 +1,14 @@
+{
+  "must_have": [
+    "Validation report published (FP/FN/precision/recall)",
+    "Latency optimized (p95 <50ms)",
+    "Operations formalized (TTL, backups, monitoring)",
+    "Code coverage \u226580%",
+    "Security review completed"
+  ],
+  "should_have": [
+    "Documentation complete",
+    "Multi-instance plan drafted",
+    "Threat modeling initiated"
+  ]
+}

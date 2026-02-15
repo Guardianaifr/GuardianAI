@@ -1,0 +1,79 @@
+{
+  "corpus_size": 180,
+  "note": "SIMULATED",
+  "results": [
+    {
+      "threshold": 0.6,
+      "tp": 143,
+      "fp": 4,
+      "tn": 31,
+      "fn": 2,
+      "fp_rate": 12.0,
+      "fn_rate": 1.0,
+      "precision": 0.973,
+      "recall": 0.986,
+      "f1": 0.979
+    },
+    {
+      "threshold": 0.65,
+      "tp": 139,
+      "fp": 3,
+      "tn": 32,
+      "fn": 6,
+      "fp_rate": 10.0,
+      "fn_rate": 4.0,
+      "precision": 0.979,
+      "recall": 0.959,
+      "f1": 0.969
+    },
+    {
+      "threshold": 0.7,
+      "tp": 134,
+      "fp": 2,
+      "tn": 33,
+      "fn": 11,
+      "fp_rate": 8.0,
+      "fn_rate": 7.0,
+      "precision": 0.985,
+      "recall": 0.924,
+      "f1": 0.954
+    },
+    {
+      "threshold": 0.75,
+      "tp": 130,
+      "fp": 2,
+      "tn": 33,
+      "fn": 15,
+      "fp_rate": 6.0,
+      "fn_rate": 10.0,
+      "precision": 0.985,
+      "recall": 0.897,
+      "f1": 0.939
+    },
+    {
+      "threshold": 0.8,
+      "tp": 126,
+      "fp": 1,
+      "tn": 34,
+      "fn": 19,
+      "fp_rate": 4.0,
+      "fn_rate": 13.0,
+      "precision": 0.992,
+      "recall": 0.869,
+      "f1": 0.926
+    },
+    {
+      "threshold": 0.85,
+      "tp": 121,
+      "fp": 0,
+      "tn": 35,
+      "fn": 24,
+      "fp_rate": 2.0,
+      "fn_rate": 16.0,
+      "precision": 1.0,
+      "recall": 0.834,
+      "f1": 0.91
+    }
+  ],
+  "recommended": 0.7
+}

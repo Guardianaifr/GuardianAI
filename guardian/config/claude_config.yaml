@@ -1,0 +1,45 @@
+app_name: "GuardianAI [Claude Shield]"
+version: "2.0.0"
+guardian_id: "shield-claude-001"
+
+security_policies:
+  block_prompt_injection: true
+  validate_output: true
+  security_mode: "strict"
+  show_block_reason: true
+  leak_prevention_strategy: "block" # Block leaks for Cloud APIs (Stricter)
+  admin_token: "change_me_to_secure_claude_token"
+
+scanner:
+  skills_directory: "./skills"
+  blocked_imports: [os, subprocess] # Less relevant for cloud, but good hygiene
+  blocked_functions: [eval, exec]
+
+runtime_monitoring:
+  blocked_processes: [] # Not applicable for cloud proxy (we don't control the cloud process)
+  # But we still keep the monitor running locally to protect the USER'S machine
+  # from malicious code suggested by the AI being run locally.
+  blocked_processes:
+    - nc.exe
+    - ncat.exe
+    - powershell.exe
+  max_cpu_percent: 95.0
+  max_memory_percent: 90.0
+  check_interval_seconds: 5
+
+proxy:
+  enabled: true
+  listen_port: 8083               # Port for Claude Shield
+  target_url: "https://api.anthropic.com" # Cloud Target
+  upstream_key: "sk-ant-real-key-here" # Guardian will inject this key into requests
+
+backend:
+  enabled: true
+  url: "http://127.0.0.1:8001/api/v1/telemetry"
+
+rate_limiting:
+  enabled: true
+  requests_per_minute: 50         # Cloud APIs usually have their own limits, but this adds a safety layer
+
+threat_feed:
+  enabled: false

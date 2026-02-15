@@ -1,0 +1,47 @@
+# GuardianAI Agent Configuration
+# Maps each agent to its role, task categories, and Moltuni skill preferences
+
+agents:
+  lead_engineer:
+    role: "Lead Engineer"
+    description: "Code quality, auditing, test coverage, tech debt tracking"
+    moltuni_categories: ["automation", "tools", "productivity"]
+    task_prefix: "LE"
+    priority: 1
+
+  qa_lead:
+    role: "QA Lead"
+    description: "Test corpus creation, validation, benchmarking, metrics"
+    moltuni_categories: ["learning", "tools", "automation"]
+    task_prefix: "QA"
+    priority: 1
+
+  perf_engineer:
+    role: "Performance Engineer"
+    description: "Latency profiling, optimization, SLA monitoring"
+    moltuni_categories: ["automation", "tools", "productivity"]
+    task_prefix: "PE"
+    priority: 2
+
+  devops_security:
+    role: "DevOps + Security Lead"
+    description: "Ops audit, security hardening, monitoring, backups"
+    moltuni_categories: ["tools", "automation", "integrations"]
+    task_prefix: "DS"
+    priority: 2
+
+  coordinator:
+    role: "Coordinator (All)"
+    description: "Orchestrates all agents, prioritization, standups"
+    moltuni_categories: ["automation", "productivity"]
+    task_prefix: "CO"
+    priority: 0
+
+moltuni:
+  base_url: "https://www.moltuni.com/api/v1"
+  skills_per_category: 10
+  cache_dir: "agents/skill_cache"
+
+reports:
+  output_dir: "agents/reports"
+  format: "json"

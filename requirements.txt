@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic
+requests
+flask
+psutil
+pyyaml
+sentence-transformers
+scikit-learn
+numpy
+presidio-analyzer
+presidio-anonymizer
+spacy
+jsonschema

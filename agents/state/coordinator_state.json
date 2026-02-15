@@ -1,0 +1,265 @@
+{
+  "name": "coordinator",
+  "role": "Coordinator (All)",
+  "created_at": "2026-02-14T01:28:20.119490",
+  "tasks": [
+    {
+      "task_id": "CO-001",
+      "description": "Review all roadmaps from specialist agents",
+      "day": "Day 7",
+      "status": "done",
+      "result": {
+        "lead_engineer": {
+          "role": "Lead Engineer",
+          "progress": "11/11 tasks (100%)",
+          "done": 11,
+          "pending": 0,
+          "blocked": 0
+        },
+        "qa_lead": {
+          "role": "QA Lead",
+          "progress": "10/10 tasks (100%)",
+          "done": 10,
+          "pending": 0,
+          "blocked": 0
+        },
+        "perf_engineer": {
+          "role": "Performance Engineer",
+          "progress": "10/10 tasks (100%)",
+          "done": 10,
+          "pending": 0,
+          "blocked": 0
+        },
+        "devops_security": {
+          "role": "DevOps + Security Lead",
+          "progress": "13/13 tasks (100%)",
+          "done": 13,
+          "pending": 0,
+          "blocked": 0
+        }
+      },
+      "started_at": "2026-02-13T02:03:57.419252",
+      "completed_at": "2026-02-13T02:03:57.420333"
+    },
+    {
+      "task_id": "CO-002",
+      "description": "Prioritize critical path",
+      "day": "Day 7",
+      "status": "done",
+      "result": {
+        "phases": [
+          {
+            "phase": 1,
+            "agent": "lead_engineer",
+            "tasks": "LE-001 to LE-004",
+            "desc": "Assessment"
+          },
+          {
+            "phase": 1,
+            "agent": "qa_lead",
+            "tasks": "QA-001 to QA-004",
+            "desc": "Plan validation"
+          },
+          {
+            "phase": 1,
+            "agent": "perf_engineer",
+            "tasks": "PE-001 to PE-004",
+            "desc": "Profile & plan"
+          },
+          {
+            "phase": 1,
+            "agent": "devops_security",
+            "tasks": "DS-001 to DS-004",
+            "desc": "Audit"
+          },
+          {
+            "phase": 2,
+            "agent": "qa_lead",
+            "tasks": "QA-005 to QA-008",
+            "desc": "Build test corpus"
+          },
+          {
+            "phase": 2,
+            "agent": "perf_engineer",
+            "tasks": "PE-005 to PE-007",
+            "desc": "Instrument & benchmark"
+          },
+          {
+            "phase": 2,
+            "agent": "lead_engineer",
+            "tasks": "LE-005 to LE-008",
+            "desc": "Code audit deep dive"
+          },
+          {
+            "phase": 3,
+            "agent": "qa_lead",
+            "tasks": "QA-009",
+            "desc": "Run benchmark"
+          },
+          {
+            "phase": 3,
+            "agent": "perf_engineer",
+            "tasks": "PE-008 to PE-010",
+            "desc": "Optimize"
+          },
+          {
+            "phase": 3,
+            "agent": "devops_security",
+            "tasks": "DS-009 to DS-013",
+            "desc": "Harden"
+          },
+          {
+            "phase": 4,
+            "agent": "qa_lead",
+            "tasks": "QA-010",
+            "desc": "Publish validation"
+          },
+          {
+            "phase": 4,
+            "agent": "lead_engineer",
+            "tasks": "LE-009 to LE-011",
+            "desc": "Quality checklist"
+          }
+        ]
+      },
+      "started_at": "2026-02-13T02:03:57.420344",
+      "completed_at": "2026-02-13T02:03:57.420774"
+    },
+    {
+      "task_id": "CO-003",
+      "description": "Commit to 30-day targets",
+      "day": "Day 7",
+      "status": "done",
+      "result": {
+        "must_have": [
+          "Validation report published (FP/FN/precision/recall)",
+          "Latency optimized (p95 <50ms)",
+          "Operations formalized (TTL, backups, monitoring)",
+          "Code coverage \u226580%",
+          "Security review completed"
+        ],
+        "should_have": [
+          "Documentation complete",
+          "Multi-instance plan drafted",
+          "Threat modeling initiated"
+        ]
+      },
+      "started_at": "2026-02-13T02:03:57.420784",
+      "completed_at": "2026-02-13T02:03:57.421073"
+    },
+    {
+      "task_id": "CO-004",
+      "description": "Assign owners and set daily standups",
+      "day": "Day 7",
+      "status": "done",
+      "result": {
+        "lead_engineer": {
+          "role": "Lead Engineer",
+          "task_count": 11,
+          "tasks": [
+            "LE-001: Run full code audit (code quality, coverage, tech debt)",
+            "LE-002: Identify all assumptions (claims without data)",
+            "LE-003: Profile performance (measure actual latency)",
+            "LE-004: Review all documentation (what's documented vs missing)",
+            "LE-005: Measure test coverage (pytest --cov)",
+            "LE-006: Identify untested code paths",
+            "LE-007: Document technical debt",
+            "LE-008: Plan refactoring (if needed)",
+            "LE-009: Verify code coverage \u226580%",
+            "LE-010: Verify all components tested",
+            "LE-011: Verify documentation complete (API, deployment, troubleshooting)"
+          ]
+        },
+        "qa_lead": {
+          "role": "QA Lead",
+          "task_count": 10,
+          "tasks": [
+            "QA-001: Design test corpus plan (1000 benign + 500 jailbreak)",
+            "QA-002: Define metrics (FP, FN, precision, recall)",
+            "QA-003: Choose sources (OWASP, community)",
+            "QA-004: Create evaluation framework",
+            "QA-005: Collect 500 jailbreak prompts",
+            "QA-006: Collect 1000 benign prompts",
+            "QA-007: Label all examples",
+            "QA-008: Create test data format (JSON)",
+            "QA-009: Run full benchmark across thresholds",
+            "QA-010: Generate validation report"
+          ]
+        },
+        "perf_engineer": {
+          "role": "Performance Engineer",
+          "task_count": 10,
+          "tasks": [
+            "PE-001: Profile latency per component (embed, Presidio, regex, logging)",
+            "PE-002: Identify bottleneck (which component is slowest?)",
+            "PE-003: Plan optimization (cache, async, GPU)",
+            "PE-004: Set SLA targets",
+            "PE-005: Add timing instrumentation to all components",
+            "PE-006: Run 1000-request latency benchmark",
+            "PE-007: Create detailed latency report (p50, p95, p99)",
+            "PE-008: Implement embedding cache (LRU 10k entries)",
+            "PE-009: Implement async Presidio (background thread)",
+            "PE-010: Implement fast-path bypass for obvious-safe queries"
+          ]
+        },
+        "devops_security": {
+          "role": "DevOps + Security Lead",
+          "task_count": 13,
+          "tasks": [
+            "DS-001: Audit operational gaps (TTL, backups, monitoring)",
+            "DS-002: Audit security gaps (threat model, audit logs, secrets)",
+            "DS-003: Create remediation plan",
+            "DS-004: Estimate effort for remediation",
+            "DS-005: Document all operational procedures",
+            "DS-006: Identify missing monitoring",
+            "DS-007: Security checklist (protected vs not)",
+            "DS-008: Create remediation tickets",
+            "DS-009: Implement context buffer TTL (5 min expiry)",
+            "DS-010: Implement memory monitoring (alert >500MB)",
+            "DS-011: Implement daily SQLite backup",
+            "DS-012: Create monitoring dashboard config",
+            "DS-013: Implement alerting on critical metrics"
+          ]
+        }
+      },
+      "started_at": "2026-02-13T02:03:57.421081",
+      "completed_at": "2026-02-13T02:03:57.421449"
+    },
+    {
+      "task_id": "CO-005",
+      "description": "Run weekly check-in (Friday sync)",
+      "day": "Weekly",
+      "status": "done",
+      "result": {
+        "timestamp": "2026-02-13T02:03:57.421463",
+        "agents": {
+          "lead_engineer": {
+            "progress": "11/11 tasks (100%)",
+            "blocked": 0,
+            "completed_this_week": 11
+          },
+          "qa_lead": {
+            "progress": "10/10 tasks (100%)",
+            "blocked": 0,
+            "completed_this_week": 10
+          },
+          "perf_engineer": {
+            "progress": "10/10 tasks (100%)",
+            "blocked": 0,
+            "completed_this_week": 10
+          },
+          "devops_security": {
+            "progress": "13/13 tasks (100%)",
+            "blocked": 0,
+            "completed_this_week": 13
+          }
+        },
+        "overall_progress": "44/44 (100%)"
+      },
+      "started_at": "2026-02-13T02:03:57.421458",
+      "completed_at": "2026-02-13T02:03:57.422256"
+    }
+  ],
+  "skills": [],
+  "saved_at": "2026-02-14T01:28:20.124881"
+}

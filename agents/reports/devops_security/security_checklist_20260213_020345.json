@@ -1,0 +1,16 @@
+{
+  "protected": [
+    "Input filter (regex)",
+    "AI firewall (embedding)",
+    "Rate limiter",
+    "Skill scanner",
+    "Output validator (Presidio)"
+  ],
+  "not_protected": [
+    "HTTPS/TLS",
+    "Secrets management",
+    "Full audit trail",
+    "CORS policy",
+    "Session management"
+  ]
+}

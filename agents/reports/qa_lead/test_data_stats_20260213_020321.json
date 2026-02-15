@@ -1,0 +1,13 @@
+{
+  "total": 180,
+  "by_label": {
+    "jailbreak": 145,
+    "benign": 35
+  },
+  "by_category": {
+    "unknown": 109,
+    "builtin": 45,
+    "synthetic": 16,
+    "extra": 10
+  }
+}

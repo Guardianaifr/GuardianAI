@@ -1,0 +1,32 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile",
+    "watchPatterns": ["backend/**", "dashboard/**", "guardian/**", "requirements.txt"]
+  },
+  "deploy": {
+    "startCommand": "/app/entrypoint.sh",
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  },
+  "variables": {
+    "GUARDIAN_ADMIN_PASS": {
+      "description": "Password for the GuardianAI Admin Dashboard",
+      "defaultValue": "guardian2026",
+      "required": true
+    },
+    "PORT": {
+      "description": "Port for the Proxy (Internal)",
+      "defaultValue": "8081",
+      "required": false
+    },
+    "LOG_LEVEL": {
+      "description": "Logging Verbosity",
+      "defaultValue": "INFO",
+      "required": false
+    }
+  }
+}

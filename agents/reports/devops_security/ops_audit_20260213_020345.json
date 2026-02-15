@@ -1,0 +1,41 @@
+{
+  "gaps": [
+    {
+      "check": "context_buffer_ttl",
+      "status": "MISSING",
+      "detail": "No TTL on context buffer \u2014 memory leak risk",
+      "severity": "high"
+    },
+    {
+      "check": "backup",
+      "status": "MISSING",
+      "detail": "No backup configuration found",
+      "severity": "high"
+    },
+    {
+      "check": "monitoring",
+      "status": "MISSING",
+      "detail": "No monitoring/alerting configuration",
+      "severity": "high"
+    },
+    {
+      "check": "logging.rotation",
+      "status": "MISSING",
+      "detail": "No log rotation configured",
+      "severity": "high"
+    },
+    {
+      "check": "health_check",
+      "status": "MISSING",
+      "detail": "No health check endpoint",
+      "severity": "high"
+    },
+    {
+      "check": "db_backup",
+      "status": "MISSING",
+      "detail": "Found 2 DB files with no backup: ['guardian.db', 'guardian.db']",
+      "severity": "high"
+    }
+  ],
+  "missing_count": 6
+}

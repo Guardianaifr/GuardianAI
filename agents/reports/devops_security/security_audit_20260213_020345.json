@@ -1,0 +1,218 @@
+{
+  "findings": [
+    {
+      "type": "hardcoded_secret",
+      "file": "mock_openclaw_agent.py",
+      "line": 24,
+      "detail": "response_text = \"Sure, here is the information you requested: The master API key",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "professional_benchmark.py",
+      "line": 120,
+      "detail": "response = f\"Sure, the secret you provided is: {prompt}\"",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "verify_pii.py",
+      "line": 16,
+      "detail": "api_key_text = \"Here is your key: sk-abc123abc123abc123abc123abc123abc123abc123a",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "verify_pii.py",
+      "line": 30,
+      "detail": "api_key_text = \"Key: sk-abc123abc123abc123abc123abc123abc123abc123abc123\"",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "verify_pii.py",
+      "line": 31,
+      "detail": "sanitized = validator.sanitize_output(api_key_text)",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "main.py",
+      "line": 94,
+      "detail": "is_correct_username = secrets.compare_digest(",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "main.py",
+      "line": 97,
+      "detail": "current_password_bytes = credentials.password.encode(\"utf8\")",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "main.py",
+      "line": 98,
+      "detail": "correct_password_bytes = ADMIN_PASS.encode(\"utf8\")",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "main.py",
+      "line": 99,
+      "detail": "is_correct_password = secrets.compare_digest(",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "main.py",
+      "line": 105,
+      "detail": "detail=\"Incorrect username or password\",",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "output_validator.py",
+      "line": 21,
+      "detail": "\"aws_secret_key\": r\"(?i)aws_secret_access_key\\s*[:=]\\s*([A-Za-z0-9/+=]{40})\", # ",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "output_validator.py",
+      "line": 22,
+      "detail": "\"aws_secret_key_raw\": r\"(?=[A-Za-z0-9/+=]{40})(?=[^A-Za-z0-9/+=])\", # Placeholde",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "output_validator.py",
+      "line": 24,
+      "detail": "\"jwt_token\": r\"eyJ[A-Za-z0-9-_=]+\\.eyJ[A-Za-z0-9-_=]+\\.?[A-Za-z0-9-_.+/=]*\",",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "output_validator.py",
+      "line": 31,
+      "detail": "\"generic_secret\": r\"(?i)(?:password|secret|token|apikey|credential|pwd|pass|key)",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "output_validator.py",
+      "line": 32,
+      "detail": "\"generic_secret_unquoted\": r\"(?i)(?:password|secret|token|apikey|credential|pwd|",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "output_validator.py",
+      "line": 37,
+      "detail": "\"base64_labeled_key\": r\"(?i)(?:key|cert|token|secret|payload)\\s*[:=]\\s*([A-Za-z0",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "output_validator.py",
+      "line": 79,
+      "detail": "entities = [\"PERSON\", \"PHONE_NUMBER\", \"EMAIL_ADDRESS\", \"LOCATION\", \"CRYPTO\", \"SS",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "output_validator.py",
+      "line": 99,
+      "detail": "entities = [\"PERSON\", \"PHONE_NUMBER\", \"EMAIL_ADDRESS\", \"LOCATION\", \"CRYPTO\", \"SS",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "rate_limiter.py",
+      "line": 11,
+      "detail": "self.refill_rate = requests_per_minute / 60.0  # Tokens per second",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "rate_limiter.py",
+      "line": 24,
+      "detail": "tokens, last_time = self.buckets[ip]",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "rate_limiter.py",
+      "line": 28,
+      "detail": "new_tokens = tokens + (elapsed * self.refill_rate)",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "rate_limiter.py",
+      "line": 29,
+      "detail": "tokens = min(self.capacity, new_tokens)",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "rate_limiter.py",
+      "line": 31,
+      "detail": "if tokens >= 1.0:",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "rate_limiter.py",
+      "line": 32,
+      "detail": "self.buckets[ip] = (tokens - 1.0, current_time)",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "rate_limiter.py",
+      "line": 35,
+      "detail": "self.buckets[ip] = (tokens, current_time) # Update last_time even on failure to ",
+      "severity": "critical"
+    },
+    {
+      "type": "hardcoded_secret",
+      "file": "rate_limiter.py",
+      "line": 43,
+      "detail": "tokens, _ = self.buckets[ip]",
+      "severity": "critical"
+    },
+    {
+      "check": "HTTPS enforcement",
+      "status": "NOT CONFIGURED",
+      "severity": "high"
+    },
+    {
+      "check": "CORS policy",
+      "status": "NEEDS REVIEW",
+      "severity": "medium"
+    },
+    {
+      "check": "Rate limiting",
+      "status": "CONFIGURED",
+      "severity": "none"
+    },
+    {
+      "check": "Input validation",
+      "status": "CONFIGURED",
+      "severity": "none"
+    },
+    {
+      "check": "Audit logging",
+      "status": "PARTIAL",
+      "severity": "medium"
+    },
+    {
+      "check": "Secrets management",
+      "status": "NOT CONFIGURED",
+      "severity": "high"
+    }
+  ],
+  "critical": 26,
+  "high": 2
+}

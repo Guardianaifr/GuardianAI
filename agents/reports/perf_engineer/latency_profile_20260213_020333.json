@@ -1,0 +1,75 @@
+{
+  "components": [
+    {
+      "name": "output_validator",
+      "functions": 3,
+      "lines": 119,
+      "has_model_call": false,
+      "has_network_io": true,
+      "has_file_io": false,
+      "estimated_latency_ms": 55,
+      "risk_level": "high"
+    },
+    {
+      "name": "rate_limiter",
+      "functions": 3,
+      "lines": 44,
+      "has_model_call": false,
+      "has_network_io": true,
+      "has_file_io": false,
+      "estimated_latency_ms": 55,
+      "risk_level": "high"
+    },
+    {
+      "name": "threat_feed",
+      "functions": 4,
+      "lines": 66,
+      "has_model_call": false,
+      "has_network_io": true,
+      "has_file_io": false,
+      "estimated_latency_ms": 55,
+      "risk_level": "high"
+    },
+    {
+      "name": "ai_firewall",
+      "functions": 3,
+      "lines": 96,
+      "has_model_call": true,
+      "has_network_io": false,
+      "has_file_io": true,
+      "estimated_latency_ms": 45,
+      "risk_level": "high"
+    },
+    {
+      "name": "skill_scanner",
+      "functions": 3,
+      "lines": 81,
+      "has_model_call": false,
+      "has_network_io": false,
+      "has_file_io": true,
+      "estimated_latency_ms": 15,
+      "risk_level": "medium"
+    },
+    {
+      "name": "fast_path",
+      "functions": 3,
+      "lines": 32,
+      "has_model_call": false,
+      "has_network_io": false,
+      "has_file_io": false,
+      "estimated_latency_ms": 5,
+      "risk_level": "low"
+    },
+    {
+      "name": "input_filter",
+      "functions": 2,
+      "lines": 27,
+      "has_model_call": false,
+      "has_network_io": false,
+      "has_file_io": false,
+      "estimated_latency_ms": 5,
+      "risk_level": "low"
+    }
+  ],
+  "total_estimated_ms": 235
+}

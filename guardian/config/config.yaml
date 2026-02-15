@@ -1,0 +1,50 @@
+app_name: "GuardianAI"
+version: "0.2.0"
+guardian_id: "guardian-001"
+security_policies:
+  block_prompt_injection: true
+  validate_output: true
+  security_mode: "balanced"  # Options: strict, balanced, lenient
+  show_block_reason: true    # Provide feedback to users when blocked
+  leak_prevention_strategy: "redact" # Options: block, redact
+  admin_token: "s3cr3t_admin_key_123" # REQUIRED for Admin Bypass
+scanner:
+  skills_directory: "./mock_skills"
+  blocked_imports:
+    - os
+    - subprocess
+    - sys
+    - socket
+  blocked_functions:
+    - eval
+    - exec
+    - open
+runtime_monitoring:
+  blocked_processes:
+    - nc.exe
+    - ncat.exe
+    - netcat.exe
+    - calc.exe
+    - calculator.exe
+    - calculatorapp.exe
+    - win32calc.exe
+  max_cpu_percent: 95.0
+  max_memory_percent: 90.0
+  check_interval_seconds: 2
+proxy:
+  enabled: true
+  listen_port: 8081
+  target_url: "http://127.0.0.1:8080"
+backend:
+  enabled: true
+  url: "http://127.0.0.1:8001/api/v1/telemetry"
+rate_limiting:
+  enabled: true
+  requests_per_minute: 60
+threat_feed:
+  enabled: false  # Set to true and provide URL below
+  url: "https://raw.githubusercontent.com/OpenClaw-Community/GuardianAI-Threats/main/feed.yaml"
+  update_interval_seconds: 3600
+
+
+

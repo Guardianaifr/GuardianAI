@@ -11,8 +11,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies required for building some python packages
-# (e.g., psutil often needsgcc)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python3-dev \
     gcc \
     iputils-ping \
     curl \
@@ -33,9 +34,8 @@ RUN python -m spacy download en_core_web_sm
 COPY . .
 
 # Exposure ports
-# 8081: GuardianAI Proxy
-# 8501: Streamlit Dashboard
-EXPOSE 8081 8501
+# 8081: GuardianAI Proxy + Dashboard
+EXPOSE 8081
 
 # Define environment variables (Can be overridden by docker-compose)
 ENV PORT=8081

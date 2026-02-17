@@ -19,6 +19,7 @@ import threading
 import requests
 import psutil
 from collections import deque
+import socket
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -40,6 +41,10 @@ AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
 AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
 AUDIT_SINK_RETRIES = int(os.getenv("GUARDIAN_AUDIT_RETRIES", "2"))
 AUDIT_SINK_STRICT = os.getenv("GUARDIAN_AUDIT_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
+AUDIT_SYSLOG_HOST = os.getenv("GUARDIAN_AUDIT_SYSLOG_HOST", "").strip()
+AUDIT_SYSLOG_PORT = int(os.getenv("GUARDIAN_AUDIT_SYSLOG_PORT", "514"))
+AUDIT_SYSLOG_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_SYSLOG_TIMEOUT_SEC", "1.0"))
+AUDIT_SYSLOG_STRICT = os.getenv("GUARDIAN_AUDIT_SYSLOG_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
 ENFORCE_HTTPS = os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
 TLS_CERT_FILE = os.getenv("GUARDIAN_TLS_CERT_FILE", "").strip()
 TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
@@ -244,6 +249,40 @@ def _forward_external_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_SI
             detail="External audit log delivery failed",
         )
     return False
+
+
+def _forward_syslog_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_SYSLOG_STRICT) -> bool:
+    if not AUDIT_SYSLOG_HOST:
+        return True
+
+    message = json.dumps(
+        {
+            "app": "guardian-backend",
+            "event": "audit_log",
+            "payload": payload,
+        },
+        separators=(",", ":"),
+    )
+    pri = "<134>"  # local0.info
+    frame = f"{pri}guardian-backend: {message}".encode("utf-8")
+
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(AUDIT_SYSLOG_TIMEOUT_SEC)
+        sock.sendto(frame, (AUDIT_SYSLOG_HOST, AUDIT_SYSLOG_PORT))
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Syslog audit sink delivery failed: %s", exc)
+        if strict:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Syslog audit delivery failed",
+            ) from exc
+        return False
+    finally:
+        if sock is not None:
+            sock.close()
 
 
 def _is_https_request(scheme: str, forwarded_proto: str = "") -> bool:
@@ -825,9 +864,10 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
     conn.commit()
     conn.close()
 
-    # 3. External Audit Sink (best effort unless strict mode enabled)
+    # 3. External Audit Sinks (best effort unless strict mode enabled)
     if audit_payload is not None:
         _forward_external_audit_log(audit_payload)
+        _forward_syslog_audit_log(audit_payload)
 
     # 4. Fire Webhook Alert
     await send_webhook_alert(event)

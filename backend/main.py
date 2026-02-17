@@ -429,6 +429,13 @@ def init_db():
         expires_at REAL
     )
     """)
+    # Backward-compatible schema upgrades for existing installations.
+    cur.execute("PRAGMA table_info(audit_logs)")
+    audit_cols = {row[1] for row in cur.fetchall()}
+    if "prev_hash" not in audit_cols:
+        cur.execute("ALTER TABLE audit_logs ADD COLUMN prev_hash TEXT")
+    if "entry_hash" not in audit_cols:
+        cur.execute("ALTER TABLE audit_logs ADD COLUMN entry_hash TEXT")
     conn.commit()
     conn.close()
     logger.info(f"SQLite DB initialized at {DB_PATH}")
@@ -638,6 +645,29 @@ def _is_token_revoked(jti: str) -> bool:
     return row is not None
 
 
+def _compute_audit_entry_hash(
+    guardian_id: str,
+    action: str,
+    user: str,
+    details_json: str,
+    timestamp: float,
+    signature: str,
+    prev_hash: str,
+) -> str:
+    material = "|".join(
+        [
+            guardian_id or "",
+            action or "",
+            user or "",
+            details_json or "",
+            str(timestamp),
+            signature or "",
+            prev_hash or "",
+        ]
+    )
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
 @app.post("/api/v1/auth/token", response_model=TokenResponse)
 async def create_access_token(
     credentials: HTTPBasicCredentials = Depends(HTTPBasic()),
@@ -841,8 +871,21 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
     if event.event_type == "admin_action":
         import hashlib
         # Simulate cryptographic signing of the log entry
-        payload = f"{event.guardian_id}:{event.timestamp}:{json.dumps(event.details)}"
+        details_json = json.dumps(event.details)
+        payload = f"{event.guardian_id}:{event.timestamp}:{details_json}"
         signature = hashlib.sha256(payload.encode()).hexdigest()
+        cur.execute("SELECT entry_hash FROM audit_logs ORDER BY id DESC LIMIT 1")
+        prev_row = cur.fetchone()
+        prev_hash = prev_row[0] if prev_row and prev_row[0] else ""
+        entry_hash = _compute_audit_entry_hash(
+            guardian_id=event.guardian_id,
+            action=event.details.get("action", "unknown"),
+            user=event.details.get("user", "unknown"),
+            details_json=details_json,
+            timestamp=event.timestamp,
+            signature=signature,
+            prev_hash=prev_hash,
+        )
         audit_payload = {
             "guardian_id": event.guardian_id,
             "action": event.details.get("action", "unknown"),
@@ -850,11 +893,25 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
             "details": event.details,
             "timestamp": event.timestamp,
             "signature": signature,
+            "prev_hash": prev_hash,
+            "entry_hash": entry_hash,
         }
         
         cur.execute(
-            "INSERT INTO audit_logs (guardian_id, action, user, details, timestamp, signature) VALUES (?, ?, ?, ?, ?, ?)",
-            (event.guardian_id, event.details.get("action", "unknown"), event.details.get("user", "unknown"), json.dumps(event.details), event.timestamp, signature)
+            """
+            INSERT INTO audit_logs (guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.guardian_id,
+                event.details.get("action", "unknown"),
+                event.details.get("user", "unknown"),
+                details_json,
+                event.timestamp,
+                signature,
+                prev_hash,
+                entry_hash,
+            ),
         )
 
 
@@ -1480,9 +1537,61 @@ async def get_audit_log(limit: int = 50, username: str = Depends(enforce_user_ra
             "user": r[3],
             "details": r[4],
             "timestamp": r[5],
-            "signature": r[6]
+            "signature": r[6],
+            "prev_hash": r[7] if len(r) > 7 else None,
+            "entry_hash": r[8] if len(r) > 8 else None,
         } for r in rows
     ]
+
+
+@app.get("/api/v1/audit-log/verify")
+async def verify_audit_log_chain(username: str = Depends(enforce_user_rate_limit)):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT id, guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash
+            FROM audit_logs ORDER BY id ASC
+            """
+        )
+        rows = cur.fetchall()
+    except sqlite3.OperationalError:
+        conn.close()
+        return {"ok": True, "entries": 0, "message": "No audit log table"}
+    conn.close()
+
+    expected_prev_hash = ""
+    checked = 0
+    for row in rows:
+        row_id, guardian_id, action, user, details, ts, signature, prev_hash, entry_hash = row
+        computed = _compute_audit_entry_hash(
+            guardian_id=guardian_id,
+            action=action,
+            user=user,
+            details_json=details,
+            timestamp=ts,
+            signature=signature,
+            prev_hash=prev_hash or "",
+        )
+        if (prev_hash or "") != expected_prev_hash:
+            return {
+                "ok": False,
+                "entries": checked,
+                "failed_id": row_id,
+                "reason": "prev_hash mismatch",
+            }
+        if (entry_hash or "") != computed:
+            return {
+                "ok": False,
+                "entries": checked,
+                "failed_id": row_id,
+                "reason": "entry_hash mismatch",
+            }
+        expected_prev_hash = entry_hash or ""
+        checked += 1
+
+    return {"ok": True, "entries": checked}
 
 @app.websocket("/ws/threats")
 async def websocket_endpoint(websocket: WebSocket):

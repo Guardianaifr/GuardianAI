@@ -1,5 +1,5 @@
 ﻿from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -35,6 +35,9 @@ AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
 AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
 AUDIT_SINK_RETRIES = int(os.getenv("GUARDIAN_AUDIT_RETRIES", "2"))
 AUDIT_SINK_STRICT = os.getenv("GUARDIAN_AUDIT_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
+ENFORCE_HTTPS = os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
+TLS_CERT_FILE = os.getenv("GUARDIAN_TLS_CERT_FILE", "").strip()
+TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
 
 if ADMIN_PASS == "guardian_default":
     logger.warning("USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
@@ -196,6 +199,13 @@ def _forward_external_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_SI
     return False
 
 
+def _is_https_request(scheme: str, forwarded_proto: str = "") -> bool:
+    if (scheme or "").lower() == "https":
+        return True
+    forwarded_values = [segment.strip().lower() for segment in (forwarded_proto or "").split(",") if segment.strip()]
+    return "https" in forwarded_values
+
+
 def _to_ms(value):
     if value is None:
         return None
@@ -271,6 +281,16 @@ class ConnectionManager:
             await connection.send_text(message)
 
 manager = ConnectionManager()
+
+
+@app.middleware("http")
+async def enforce_https_middleware(request: Request, call_next):
+    if ENFORCE_HTTPS and not _is_https_request(request.url.scheme, request.headers.get("x-forwarded-proto", "")):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "HTTPS required. Set GUARDIAN_ENFORCE_HTTPS=false only for local development."},
+        )
+    return await call_next(request)
 
 # Security / Auth
 security = HTTPBasic(auto_error=False)
@@ -1008,5 +1028,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8001)
+    ssl_kwargs = {}
+    if TLS_CERT_FILE and TLS_KEY_FILE:
+        ssl_kwargs = {"ssl_certfile": TLS_CERT_FILE, "ssl_keyfile": TLS_KEY_FILE}
+    uvicorn.run(app, host="127.0.0.1", port=8001, **ssl_kwargs)
 

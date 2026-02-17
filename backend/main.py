@@ -429,6 +429,17 @@ def init_db():
         expires_at REAL
     )
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS audit_delivery_failures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sink_type TEXT,
+        payload TEXT,
+        error TEXT,
+        retry_count INTEGER DEFAULT 0,
+        created_at REAL,
+        last_attempt_at REAL
+    )
+    """)
     # Backward-compatible schema upgrades for existing installations.
     cur.execute("PRAGMA table_info(audit_logs)")
     audit_cols = {row[1] for row in cur.fetchall()}
@@ -666,6 +677,77 @@ def _compute_audit_entry_hash(
         ]
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+def _queue_audit_delivery_failure(sink_type: str, payload: Dict[str, Any], error: str):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO audit_delivery_failures (sink_type, payload, error, retry_count, created_at, last_attempt_at)
+        VALUES (?, ?, ?, 0, ?, ?)
+        """,
+        (sink_type, json.dumps(payload), error[:500], time.time(), time.time()),
+    )
+    conn.commit()
+    conn.close()
+
+
+def _retry_failed_audit_deliveries(limit: int = 100) -> Dict[str, int]:
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, sink_type, payload, retry_count
+        FROM audit_delivery_failures
+        ORDER BY id ASC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    rows = cur.fetchall()
+
+    retried = 0
+    resolved = 0
+    failed = 0
+    for row in rows:
+        row_id, sink_type, payload_raw, retry_count = row
+        retried += 1
+        try:
+            payload = json.loads(payload_raw)
+        except Exception:  # noqa: BLE001
+            payload = {}
+
+        ok = False
+        error = ""
+        try:
+            if sink_type == "http":
+                ok = _forward_external_audit_log(payload, strict=False)
+            elif sink_type == "syslog":
+                ok = _forward_syslog_audit_log(payload, strict=False)
+            else:
+                error = f"unknown sink_type={sink_type}"
+        except Exception as exc:  # noqa: BLE001
+            error = str(exc)
+            ok = False
+
+        if ok:
+            cur.execute("DELETE FROM audit_delivery_failures WHERE id = ?", (row_id,))
+            resolved += 1
+        else:
+            cur.execute(
+                """
+                UPDATE audit_delivery_failures
+                SET retry_count = ?, last_attempt_at = ?, error = ?
+                WHERE id = ?
+                """,
+                (int(retry_count) + 1, time.time(), (error or "delivery failed")[:500], row_id),
+            )
+            failed += 1
+
+    conn.commit()
+    conn.close()
+    return {"retried": retried, "resolved": resolved, "failed": failed}
 
 
 @app.post("/api/v1/auth/token", response_model=TokenResponse)
@@ -936,8 +1018,21 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
 
     # 3. External Audit Sinks (best effort unless strict mode enabled)
     if audit_payload is not None:
-        _forward_external_audit_log(audit_payload)
-        _forward_syslog_audit_log(audit_payload)
+        try:
+            http_ok = _forward_external_audit_log(audit_payload)
+            if not http_ok:
+                _queue_audit_delivery_failure("http", audit_payload, "http delivery failed")
+        except HTTPException as exc:
+            _queue_audit_delivery_failure("http", audit_payload, str(exc.detail))
+            raise
+
+        try:
+            syslog_ok = _forward_syslog_audit_log(audit_payload)
+            if not syslog_ok:
+                _queue_audit_delivery_failure("syslog", audit_payload, "syslog delivery failed")
+        except HTTPException as exc:
+            _queue_audit_delivery_failure("syslog", audit_payload, str(exc.detail))
+            raise
 
     # 4. Fire Webhook Alert
     await send_webhook_alert(event)
@@ -1592,6 +1687,40 @@ async def verify_audit_log_chain(username: str = Depends(enforce_user_rate_limit
         checked += 1
 
     return {"ok": True, "entries": checked}
+
+
+@app.get("/api/v1/audit-log/failures")
+async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_user_rate_limit)):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, sink_type, payload, error, retry_count, created_at, last_attempt_at
+        FROM audit_delivery_failures
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return [
+        {
+            "id": row[0],
+            "sink_type": row[1],
+            "payload": json.loads(row[2]) if row[2] else {},
+            "error": row[3],
+            "retry_count": row[4],
+            "created_at": row[5],
+            "last_attempt_at": row[6],
+        }
+        for row in rows
+    ]
+
+
+@app.post("/api/v1/audit-log/retry-failures")
+async def retry_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_user_rate_limit)):
+    return _retry_failed_audit_deliveries(limit=limit)
 
 @app.websocket("/ws/threats")
 async def websocket_endpoint(websocket: WebSocket):

@@ -6,10 +6,6 @@
 [![Coverage](https://img.shields.io/badge/coverage-80%25-yellow)]()
 
 
-> [!CAUTION]
-> **DEFAULT CREDENTIALS:** The dashboard defaults to `admin` / `guardian_default`. 
-> Set the `GUARDIAN_ADMIN_PASS` environment variable before deploying to production!
-
 ---
 
 ## Quick Start (Windows)

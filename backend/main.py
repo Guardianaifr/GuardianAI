@@ -34,6 +34,7 @@ API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
 TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
 USER_RATE_LIMITS_JSON = os.getenv("GUARDIAN_USER_RATE_LIMITS_JSON", "").strip()
 TELEMETRY_KEY_RATE_LIMITS_JSON = os.getenv("GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON", "").strip()
+TELEMETRY_REQUIRE_API_KEY = os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", "false").strip().lower() in {"1", "true", "yes", "on"}
 AUDIT_SINK_URL = os.getenv("GUARDIAN_AUDIT_SINK_URL", "").strip()
 AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
 AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
@@ -351,6 +352,18 @@ def init_db():
         signature TEXT -- Cryptographic proof (simulated)
     )
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS api_keys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key_name TEXT UNIQUE,
+        key_prefix TEXT,
+        key_hash TEXT UNIQUE,
+        is_active INTEGER DEFAULT 1,
+        created_by TEXT,
+        created_at REAL,
+        last_used_at REAL
+    )
+    """)
     conn.commit()
     conn.close()
     logger.info(f"SQLite DB initialized at {DB_PATH}")
@@ -445,6 +458,16 @@ def enforce_user_rate_limit(request: Request, username: str = Depends(get_curren
 
 def enforce_telemetry_rate_limit(request: Request):
     identity = request.headers.get("x-api-key", "").strip()
+    api_key_record = None
+    if identity:
+        api_key_record = _lookup_api_key(identity)
+        if TELEMETRY_REQUIRE_API_KEY and not api_key_record:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+        if api_key_record:
+            identity = api_key_record["key_name"]
+    elif TELEMETRY_REQUIRE_API_KEY:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
+
     if not identity:
         identity = request.headers.get("x-forwarded-for", "").strip() or request.client.host
     _enforce_rate_limit(f"telemetry:{identity}", _get_telemetry_rate_limit(identity))
@@ -458,6 +481,61 @@ class TokenResponse(BaseModel):
     user: str
 
 
+class CreateApiKeyRequest(BaseModel):
+    key_name: str
+
+
+class ApiKeyResponse(BaseModel):
+    id: int
+    key_name: str
+    key_prefix: str
+    is_active: bool
+    created_by: str
+    created_at: float
+    last_used_at: float | None = None
+
+
+class CreatedApiKeyResponse(ApiKeyResponse):
+    api_key: str
+
+
+def _hash_api_key(raw_key: str) -> str:
+    return hashlib.sha256(f"{JWT_SECRET}:{raw_key}".encode("utf-8")).hexdigest()
+
+
+def _generate_api_key_material() -> tuple[str, str]:
+    token = secrets.token_urlsafe(24)
+    raw_key = f"gk_{token}"
+    return raw_key, raw_key[:10]
+
+
+def _lookup_api_key(raw_key: str) -> Dict[str, Any] | None:
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    key_hash = _hash_api_key(raw_key)
+    cur.execute(
+        "SELECT id, key_name, key_prefix, key_hash, is_active, created_by, created_at, last_used_at FROM api_keys WHERE key_hash = ?",
+        (key_hash,),
+    )
+    row = cur.fetchone()
+    if row and int(row[4]) == 1:
+        cur.execute("UPDATE api_keys SET last_used_at = ? WHERE id = ?", (time.time(), row[0]))
+        conn.commit()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "key_name": row[1],
+        "key_prefix": row[2],
+        "key_hash": row[3],
+        "is_active": bool(row[4]),
+        "created_by": row[5],
+        "created_at": row[6],
+        "last_used_at": row[7],
+    }
+
+
 @app.post("/api/v1/auth/token", response_model=TokenResponse)
 async def create_access_token(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
     username = _validate_basic(credentials)
@@ -467,6 +545,129 @@ async def create_access_token(credentials: HTTPBasicCredentials = Depends(HTTPBa
         token_type="bearer",
         expires_in=JWT_EXPIRES_MIN * 60,
         user=username,
+    )
+
+
+@app.post("/api/v1/api-keys", response_model=CreatedApiKeyResponse)
+async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(enforce_user_rate_limit)):
+    key_name = payload.key_name.strip()
+    if not key_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="key_name is required")
+
+    raw_key, key_prefix = _generate_api_key_material()
+    key_hash = _hash_api_key(raw_key)
+    created_at = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            INSERT INTO api_keys (key_name, key_prefix, key_hash, is_active, created_by, created_at, last_used_at)
+            VALUES (?, ?, ?, 1, ?, ?, NULL)
+            """,
+            (key_name, key_prefix, key_hash, username, created_at),
+        )
+        key_id = cur.lastrowid
+        conn.commit()
+    except sqlite3.IntegrityError as exc:
+        conn.close()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="key_name already exists") from exc
+    conn.close()
+
+    return CreatedApiKeyResponse(
+        id=key_id,
+        key_name=key_name,
+        key_prefix=key_prefix,
+        is_active=True,
+        created_by=username,
+        created_at=created_at,
+        last_used_at=None,
+        api_key=raw_key,
+    )
+
+
+@app.get("/api/v1/api-keys", response_model=List[ApiKeyResponse])
+async def list_api_keys(username: str = Depends(enforce_user_rate_limit)):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, key_name, key_prefix, is_active, created_by, created_at, last_used_at FROM api_keys ORDER BY created_at DESC"
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return [
+        ApiKeyResponse(
+            id=row[0],
+            key_name=row[1],
+            key_prefix=row[2],
+            is_active=bool(row[3]),
+            created_by=row[4],
+            created_at=row[5],
+            last_used_at=row[6],
+        )
+        for row in rows
+    ]
+
+
+@app.post("/api/v1/api-keys/{key_id}/revoke", response_model=ApiKeyResponse)
+async def revoke_api_key(key_id: int, username: str = Depends(enforce_user_rate_limit)):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("UPDATE api_keys SET is_active = 0 WHERE id = ?", (key_id,))
+    if cur.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
+    conn.commit()
+    cur.execute(
+        "SELECT id, key_name, key_prefix, is_active, created_by, created_at, last_used_at FROM api_keys WHERE id = ?",
+        (key_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return ApiKeyResponse(
+        id=row[0],
+        key_name=row[1],
+        key_prefix=row[2],
+        is_active=bool(row[3]),
+        created_by=row[4],
+        created_at=row[5],
+        last_used_at=row[6],
+    )
+
+
+@app.post("/api/v1/api-keys/{key_id}/rotate", response_model=CreatedApiKeyResponse)
+async def rotate_api_key(key_id: int, username: str = Depends(enforce_user_rate_limit)):
+    raw_key, key_prefix = _generate_api_key_material()
+    key_hash = _hash_api_key(raw_key)
+
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT key_name, created_by, created_at, last_used_at FROM api_keys WHERE id = ?", (key_id,))
+    existing = cur.fetchone()
+    if not existing:
+        conn.close()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
+
+    cur.execute(
+        """
+        UPDATE api_keys
+        SET key_prefix = ?, key_hash = ?, is_active = 1
+        WHERE id = ?
+        """,
+        (key_prefix, key_hash, key_id),
+    )
+    conn.commit()
+    conn.close()
+
+    return CreatedApiKeyResponse(
+        id=key_id,
+        key_name=existing[0],
+        key_prefix=key_prefix,
+        is_active=True,
+        created_by=existing[1],
+        created_at=existing[2],
+        last_used_at=existing[3],
+        api_key=raw_key,
     )
 
 async def send_webhook_alert(event: SecurityEvent):

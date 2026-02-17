@@ -16,6 +16,7 @@ import base64
 import hmac
 import hashlib
 import threading
+import requests
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +30,11 @@ JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
 JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
 API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
 TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
+AUDIT_SINK_URL = os.getenv("GUARDIAN_AUDIT_SINK_URL", "").strip()
+AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
+AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
+AUDIT_SINK_RETRIES = int(os.getenv("GUARDIAN_AUDIT_RETRIES", "2"))
+AUDIT_SINK_STRICT = os.getenv("GUARDIAN_AUDIT_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 if ADMIN_PASS == "guardian_default":
     logger.warning("USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
@@ -149,6 +155,45 @@ def _enforce_rate_limit(identity: str, limit_per_minute: int):
             )
         entries.append(now)
         _rate_limit_state[identity] = entries
+
+
+def _forward_external_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_SINK_STRICT) -> bool:
+    if not AUDIT_SINK_URL:
+        return True
+
+    headers = {"Content-Type": "application/json"}
+    if AUDIT_SINK_TOKEN:
+        headers["Authorization"] = f"Bearer {AUDIT_SINK_TOKEN}"
+
+    attempts = max(0, AUDIT_SINK_RETRIES) + 1
+    for attempt in range(attempts):
+        try:
+            response = requests.post(
+                AUDIT_SINK_URL,
+                json=payload,
+                headers=headers,
+                timeout=AUDIT_SINK_TIMEOUT_SEC,
+            )
+            if 200 <= response.status_code < 300:
+                return True
+            logger.warning(
+                "External audit sink rejected event (status=%s, attempt=%s/%s)",
+                response.status_code,
+                attempt + 1,
+                attempts,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("External audit sink request failed (attempt=%s/%s): %s", attempt + 1, attempts, exc)
+
+        if attempt < attempts - 1:
+            time.sleep(min(0.1 * (2 ** attempt), 0.5))
+
+    if strict:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="External audit log delivery failed",
+        )
+    return False
 
 
 def _to_ms(value):
@@ -326,12 +371,22 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
         (event.guardian_id, event.event_type, event.severity, json.dumps(event.details), event.timestamp)
     )
 
+    audit_payload = None
+
     # 2. Immutable Audit Log (Critical Events)
     if event.event_type == "admin_action":
         import hashlib
         # Simulate cryptographic signing of the log entry
         payload = f"{event.guardian_id}:{event.timestamp}:{json.dumps(event.details)}"
         signature = hashlib.sha256(payload.encode()).hexdigest()
+        audit_payload = {
+            "guardian_id": event.guardian_id,
+            "action": event.details.get("action", "unknown"),
+            "user": event.details.get("user", "unknown"),
+            "details": event.details,
+            "timestamp": event.timestamp,
+            "signature": signature,
+        }
         
         cur.execute(
             "INSERT INTO audit_logs (guardian_id, action, user, details, timestamp, signature) VALUES (?, ?, ?, ?, ?, ?)",
@@ -358,7 +413,11 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
     conn.commit()
     conn.close()
 
-    # 3. Fire Webhook Alert
+    # 3. External Audit Sink (best effort unless strict mode enabled)
+    if audit_payload is not None:
+        _forward_external_audit_log(audit_payload)
+
+    # 4. Fire Webhook Alert
     await send_webhook_alert(event)
     
     return {"status": "persisted", "event_id": event.guardian_id}
@@ -366,7 +425,6 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
 from fastapi.responses import StreamingResponse
 import io
 import csv
-import threading
 
 @app.get("/api/v1/export/json")
 async def export_json(username: str = Depends(enforce_user_rate_limit)):

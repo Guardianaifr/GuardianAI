@@ -46,7 +46,6 @@ License: MIT
 """
 import logging
 from collections import OrderedDict
-import numpy as np
 import os
 import yaml
 
@@ -64,9 +63,9 @@ class AIPromptFirewall:
     def __init__(self):
         self.enabled = AI_FIREWALL_AVAILABLE
         self.thresholds = {
-            "strict": 0.35,     # Aggressive detection
-            "balanced": 0.45,   # Balanced (Optimal mix found in sweep)
-            "lenient": 0.60     # Conservative
+            "strict": 0.55,     # Aggressive detection
+            "balanced": 0.65,   # Balanced default threshold
+            "lenient": 0.80     # Conservative
         }
         self.vector_data = {}
         self.bad_prompts = []
@@ -170,12 +169,24 @@ class AIPromptFirewall:
                     # Evict if full
                     if len(self.cache) > self.cache_size:
                         self.cache.popitem(last=False)
-                sims = cosine_similarity(emb, self.bad_embeddings)[0]
+                sims_raw = cosine_similarity(emb, self.bad_embeddings)
+                if isinstance(sims_raw, (list, tuple)) and sims_raw and isinstance(sims_raw[0], (list, tuple)):
+                    sims = [float(v) for v in sims_raw[0]]
+                elif isinstance(sims_raw, (list, tuple)):
+                    sims = [float(v) for v in sims_raw]
+                else:
+                    sims = []
+
+                if not sims:
+                    return False
                 
                 # Find the best match and its category
-                max_idx = int(np.argmax(sims))
+                max_idx = max(range(len(sims)), key=lambda i: sims[i])
                 max_sim = float(sims[max_idx])
-                category = self.bad_categories[max_idx]
+                if self.bad_categories:
+                    category = self.bad_categories[min(max_idx, len(self.bad_categories) - 1)]
+                else:
+                    category = "jailbreak"
                 
                 threshold = self._get_category_threshold(category, mode)
                 

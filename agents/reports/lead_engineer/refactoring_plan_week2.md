@@ -1,4 +1,4 @@
-# Refactoring Plan (Week 2)
+﻿# Refactoring Plan (Cycle 2)
 
 **Goal**: Clean up instrumentation technical debt and improve testability.
 
@@ -43,4 +43,5 @@ Load implementation based on available libraries/config.
 **Effort**: Medium.
 
 ## Recommendation
-Proceed with **Item 1 (Timing Decorator)** in Week 3 to clean up the codebase before adding more features.
+Proceed with **Item 1 (Timing Decorator)** in Cycle 3 to clean up the codebase before adding more features.
+

@@ -3,6 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Shield, Activity, Lock, AlertTriangle, Terminal } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+const BLOCKED_EVENT_TYPES = new Set([
+  "injection",
+  "injection_ai",
+  "threat_feed_match",
+  "obfuscation",
+  "rate_limit",
+  "data_leak"
+])
+
+const isBlockedEvent = (evt) => BLOCKED_EVENT_TYPES.has((evt?.event_type || "").toLowerCase())
+
 function App() {
   const [stats, setStats] = useState({
     requests: 0,
@@ -14,6 +25,49 @@ function App() {
   const [isConnected, setIsConnected] = useState(false)
   const [vectorData, setVectorData] = useState({ prompt: 0, pii: 0, admin: 0 })
   const bottomRef = useRef(null)
+  const lastEventTimeRef = useRef(0)
+
+  const handleNewEvent = (data) => {
+    // 1. Dedup: Prevent duplicate events (common in dev mode / network retry)
+    if (data.timestamp === lastEventTimeRef.current) return
+    lastEventTimeRef.current = data.timestamp
+
+    // Update Stats
+    setStats(prev => {
+      const newStats = { ...prev, requests: prev.requests + 1 }
+      if (isBlockedEvent(data)) newStats.blocked++
+
+      // PII / Data Loss Events
+      if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(data.event_type)) {
+        newStats.redacted++
+      }
+
+      if (data.event_type === "admin_action") newStats.admin++
+      return newStats
+    })
+
+    // Update Attack Vectors
+    setVectorData(prev => {
+      const nu = { ...prev }
+
+      // Prompt Injection / Jailbreak
+      if (["prompt_injection", "injection", "injection_ai", "threat_feed_match"].includes(data.event_type) ||
+        data.details?.reason?.includes("Prompt injection")) {
+        nu.prompt++
+      }
+
+      // PII Leaks
+      if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(data.event_type)) {
+        nu.pii++
+      }
+
+      if (data.event_type === "admin_action") nu.admin++
+      return nu
+    })
+
+    // Add to Log (Limit 50)
+    setEvents(prev => [data, ...prev].slice(0, 50))
+  }
 
   useEffect(() => {
     // Connect directly to Backend (bypass proxy)
@@ -56,8 +110,6 @@ function App() {
     }
   }, [])
 
-  const lastEventTimeRef = useRef(0)
-
   // Fetch history on mount
   useEffect(() => {
     const fetchHistory = async () => {
@@ -75,8 +127,7 @@ function App() {
 
           sorted.forEach(evt => {
             newStats.requests++
-            if (evt.severity === "HIGH" || evt.severity === "CRITICAL") newStats.blocked++
-            if (evt.severity === "HIGH" || evt.severity === "CRITICAL") newStats.blocked++
+            if (isBlockedEvent(evt)) newStats.blocked++
 
             // PII / Data Loss Events
             if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(evt.event_type)) {
@@ -117,48 +168,6 @@ function App() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [events])
-
-  const handleNewEvent = (data) => {
-    // 1. Dedup: Prevent duplicate events (common in dev mode / network retry)
-    if (data.timestamp === lastEventTimeRef.current) return
-    lastEventTimeRef.current = data.timestamp
-
-    // Update Stats
-    setStats(prev => {
-      const newStats = { ...prev, requests: prev.requests + 1 }
-      if (data.severity === "HIGH" || data.severity === "CRITICAL") newStats.blocked++
-
-      // PII / Data Loss Events
-      if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(data.event_type)) {
-        newStats.redacted++
-      }
-
-      if (data.event_type === "admin_action") newStats.admin++
-      return newStats
-    })
-
-    // Update Attack Vectors
-    setVectorData(prev => {
-      const nu = { ...prev }
-
-      // Prompt Injection / Jailbreak
-      if (["prompt_injection", "injection", "injection_ai", "threat_feed_match"].includes(data.event_type) ||
-        data.details?.reason?.includes("Prompt injection")) {
-        nu.prompt++
-      }
-
-      // PII Leaks
-      if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(data.event_type)) {
-        nu.pii++
-      }
-
-      if (data.event_type === "admin_action") nu.admin++
-      return nu
-    })
-
-    // Add to Log (Limit 50)
-    setEvents(prev => [data, ...prev].slice(0, 50))
-  }
 
   return (
     <div className="min-h-screen bg-background text-foreground p-8 font-sans">

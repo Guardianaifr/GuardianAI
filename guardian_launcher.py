@@ -1,4 +1,4 @@
-import multiprocessing
+﻿import multiprocessing
 import sys
 import os
 import time
@@ -15,14 +15,14 @@ def run_backend():
     sys.path.append(os.getcwd())
     
     # Set environment variables for default config if not present
-    os.environ["GUARDIAN_ADMIN_PASS"] = os.environ.get("GUARDIAN_ADMIN_PASS", "guardian2026")
+    os.environ["GUARDIAN_ADMIN_PASS"] = os.environ.get("GUARDIAN_ADMIN_PASS", "guardian_default")
     
-    print("🚀 Starting GuardianAI Backend on port 8081...")
+    print("ðŸš€ Starting GuardianAI Backend on port 8081...")
     # Note: backend.main serves the SOC dashboard on the root path (/)
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8081, log_level="info")
 
 if __name__ == "__main__":
-    print("🛡️  GuardianAI Launcher")
+    print("ðŸ›¡ï¸  GuardianAI Launcher")
     print("=========================")
     
     # Run the backend in a single process for simplicity in the frozen exe
@@ -34,3 +34,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n[ERROR] GuardianAI failed to start: {e}")
         input("Press Enter to exit...")
+

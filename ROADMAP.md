@@ -1,51 +1,35 @@
-# 🗺️ GuardianAI Roadmap (v2.0 & Beyond)
+﻿# GuardianAI Roadmap
 
-**Vision:** expand from "LLM Firewall" to "Comprehensive AI Infrastructure Security".
+Vision: expand from an LLM firewall into broader AI infrastructure security.
 
----
+## Next Milestone: Universal Auth Proxy
 
-## 🚀 v2.0: The "Universal Auth Proxy" (Q3 2026)
-**Goal:** Protect the "Eyes" (Vision) and "Memory" (Vector DBs), not just the "Brains" (LLM).
+1. Generic Auth Proxy Mode
+- Add pass-through auth enforcement for any HTTP AI service.
+- Use case: protect tools that do not ship with strong auth by default.
 
-1.  **Generic Auth Proxy Mode:**
-    *   **Feature:** A "Pass-through" mode that enforces Bearer Token Authentication on *any* HTTP service.
-    *   **Use Case:** Put Guardian in front of **ComfyUI**, **Qdrant**, or **Ollama** Web UIs.
-    *   **Result:** Adds a login screen to tools that don't have one.
+2. SSH Tunnel Manager
+- Add built-in tunnel management for remote GPU and AI services.
+- Goal: reduce manual command complexity and setup mistakes.
 
-2.  **SSH Tunnel Manager:**
-    *   **Feature:** Built-in UI to manage secure tunnels to remote GPU servers.
-    *   **Benefit:** Replaces manual CLI commands for connecting to `localhost:8188`.
+## Following Milestone: Advanced Threat Detection
 
----
+3. Adversarial Training
+- Continuously update jailbreak detection vectors.
 
-## 🛡️ v2.1: Advanced Threat Detection (Q4 2026)
-**Goal:** Catch sophisticated attackers who bypass basic filters.
+4. Custom NER Models
+- Add domain-specific PII detection profiles.
 
-3.  **Adversarial Training (AI Firewall):**
-    *   **Feature:** Train the semantic analyzer on new, evolving jailbreak datasets monthly.
-    *   **Benefit:** Proactive defense against "zero-day" prompt injections.
+5. Hash-Based Process Blocking
+- Validate process signatures by hash instead of name only.
 
-4.  **Custom NER Models (PII):**
-    *   **Feature:** Replace generic Presidio with fine-tuned models for specific industries (Healthcare/Finance).
-    *   **Benefit:** Higher precision, fewer false positives (target <0.1% FP).
+## Following Milestone: Team Controls
 
-5.  **Hash-Based Process Blocking:**
-    *   **Feature:** Verify process signatures (SHA256) instead of just names.
-    *   **Benefit:** Prevents attackers from bypassing the "Rogue Process" filter by renaming `nc.exe` to `notepad.exe`.
+6. Role-based permissions
+- Add role-scoped access policies.
 
----
+7. JWT authentication
+- Add expiring, verifiable tokens.
 
-## 🔐 v2.2: Enterprise Controls (2027)
-**Goal:** Support teams and compliance.
-
-6.  **Role-Based Access Control (RBAC):**
-    *   **Feature:** granular permissions (e.g., "Read-Only User", "Admin", "Auditor").
-    *   **Benefit:** Secure collaboration for larger teams.
-
-7.  **JWT Authentication:**
-    *   **Feature:** Replace static API tokens with cryptographic JSON Web Tokens.
-    *   **Benefit:** Stateless, verifiable auth with expiration times.
-
-8.  **SIEM Integration:**
-    *   **Feature:** Forward logs to Splunk, Datadog, or Elastic.
-    *   **Benefit:** Enterprise-grade monitoring and alerting.
+8. External log integrations
+- Forward events to external monitoring stacks.

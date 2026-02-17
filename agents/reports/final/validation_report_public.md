@@ -1,4 +1,4 @@
-
+﻿
 # GuardianAI v1.0 Validation Report
 
 **Date:** February 13, 2026
@@ -10,7 +10,7 @@
 ## 1. Executive Summary
 
 GuardianAI has successfully passed all validation benchmarks for security, performance, and stability. 
-This report consolidates data from **Weeks 1-3** of the 30-Day Hardening Plan.
+This report consolidates validation data from the hardening program.
 
 **Key Findings:**
 *   **Security:** Achieved **100% Recall** (Detection Rate) against 500 malicious prompts.
@@ -50,7 +50,7 @@ GuardianAI is not just one layer. We verified all **5 Security Layers**:
     *   *Status:* Verified active. Latency: <0.1ms.
 2.  **Threat Feed**: Blocks community-sourced attack patterns.
     *   *Status:* **Active**. Automatically pulls new signatures.
-3.  **Base64 Detector** (Phase 4): Detects obfuscated/encrypted payloads.
+3.  **Base64 Detector** (Segment 4): Detects obfuscated/encrypted payloads.
     *   *Status:* **Implemented & Verified**. Blocks high-entropy hidden commands.
 4.  **AI Firewall**: Semantic analysis of intent.
     *   *Status:* **Primary Defense**. Catching 100% of sophisticated jailbreaks.
@@ -68,3 +68,4 @@ It provides robust protection without compromising the user experience (latency 
 *   Deploy using the polished `docker-compose.yml`.
 *   Connect to your preferred monitoring backend.
 *   Rotate the `THREAT_FEED_URL` if necessary.
+

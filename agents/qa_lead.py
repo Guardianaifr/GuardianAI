@@ -1,11 +1,11 @@
-"""
-QALeadAgent — Test corpus creation, validation, benchmarking, and metrics.
+﻿"""
+QALeadAgent â€” Test corpus creation, validation, benchmarking, and metrics.
 
-Owns Tasks from 30-Day Plan:
-  Day 3-4: Design test corpus, define metrics, choose sources, evaluation framework
-  Week 2 Track A: Collect jailbreak/benign prompts, label, format
-  Week 3: Run full benchmark across thresholds
-  Week 4: Publish validation report
+Owns Tasks from Roadmap:
+  Window 3-4: Design test corpus, define metrics, choose sources, evaluation framework
+  Cycle 2 Track A: Collect jailbreak/benign prompts, label, format
+  Cycle 3: Run full benchmark across thresholds
+  Cycle 4: Publish validation report
 """
 
 import os
@@ -70,7 +70,7 @@ BENIGN_SAMPLES = [
 
 
 class QALeadAgent(BaseAgent):
-    """QA Lead — owns test corpus creation, validation, and benchmarking."""
+    """QA Lead â€” owns test corpus creation, validation, and benchmarking."""
 
     def __init__(self):
         super().__init__(
@@ -83,16 +83,16 @@ class QALeadAgent(BaseAgent):
 
     def _init_tasks(self):
         self.tasks = [
-            Task("QA-001", "Design test corpus plan (1000 benign + 500 jailbreak)", "Day 3-4"),
-            Task("QA-002", "Define metrics (FP, FN, precision, recall)", "Day 3-4"),
-            Task("QA-003", "Choose sources (OWASP, community)", "Day 3-4"),
-            Task("QA-004", "Create evaluation framework", "Day 3-4"),
-            Task("QA-005", "Collect 500 jailbreak prompts", "Week 2"),
-            Task("QA-006", "Collect 1000 benign prompts", "Week 2"),
-            Task("QA-007", "Label all examples", "Week 2"),
-            Task("QA-008", "Create test data format (JSON)", "Week 2"),
-            Task("QA-009", "Run full benchmark across thresholds", "Week 3"),
-            Task("QA-010", "Generate validation report", "Week 4"),
+            Task("QA-001", "Design test corpus plan (1000 benign + 500 jailbreak)", "Window 3-4"),
+            Task("QA-002", "Define metrics (FP, FN, precision, recall)", "Window 3-4"),
+            Task("QA-003", "Choose sources (OWASP, community)", "Window 3-4"),
+            Task("QA-004", "Create evaluation framework", "Window 3-4"),
+            Task("QA-005", "Collect 500 jailbreak prompts", "Cycle 2"),
+            Task("QA-006", "Collect 1000 benign prompts", "Cycle 2"),
+            Task("QA-007", "Label all examples", "Cycle 2"),
+            Task("QA-008", "Create test data format (JSON)", "Cycle 2"),
+            Task("QA-009", "Run full benchmark across thresholds", "Cycle 3"),
+            Task("QA-010", "Generate validation report", "Cycle 4"),
         ]
 
     def execute_task(self, task_id: str) -> dict:
@@ -194,7 +194,7 @@ class QALeadAgent(BaseAgent):
 
         path = self.corpus_dir / "jailbreak_prompts.json"
         with open(path, "w") as f: json.dump(jailbreaks, f, indent=2)
-        print(f"    ⚔️  Collected {len(jailbreaks)} jailbreak prompts")
+        print(f"    âš”ï¸  Collected {len(jailbreaks)} jailbreak prompts")
         return {"total": len(jailbreaks), "path": str(path)}
 
     def _collect_benign(self) -> dict:
@@ -211,7 +211,7 @@ class QALeadAgent(BaseAgent):
 
         path = self.corpus_dir / "benign_prompts.json"
         with open(path, "w") as f: json.dump(benign, f, indent=2)
-        print(f"    🕊️  Collected {len(benign)} benign prompts")
+        print(f"    ðŸ•Šï¸  Collected {len(benign)} benign prompts")
         return {"total": len(benign), "path": str(path)}
 
     def _label_examples(self) -> dict:
@@ -224,7 +224,7 @@ class QALeadAgent(BaseAgent):
                         labeled.append({"id": f"{label[:2].upper()}-{i+1:04d}", "text": item["text"], "label": label, "category": item.get("category","unknown")})
         path = self.corpus_dir / "labeled_corpus.json"
         with open(path, "w") as f: json.dump(labeled, f, indent=2)
-        print(f"    🏷️  Labeled {len(labeled)} examples")
+        print(f"    ðŸ·ï¸  Labeled {len(labeled)} examples")
         return {"total": len(labeled), "path": str(path)}
 
     def _format_test_data(self) -> dict:
@@ -240,7 +240,7 @@ class QALeadAgent(BaseAgent):
 
     def _run_benchmark(self) -> dict:
         cp = self.corpus_dir / "labeled_corpus.json"
-        if not cp.exists(): return {"error": "Run QA-005–QA-008 first"}
+        if not cp.exists(): return {"error": "Run QA-005â€“QA-008 first"}
         with open(cp) as f: corpus = json.load(f)
         jb_n = sum(1 for c in corpus if c["label"] == "jailbreak")
         bn_n = sum(1 for c in corpus if c["label"] == "benign")
@@ -281,4 +281,6 @@ class QALeadAgent(BaseAgent):
         rd.mkdir(parents=True, exist_ok=True)
         p = rd / f"{name}_{datetime.now():%Y%m%d_%H%M%S}.json"
         with open(p, "w") as f: json.dump(data, f, indent=2)
-        print(f"    💾 Report: {p.name}")
+        print(f"    ðŸ’¾ Report: {p.name}")
+
+

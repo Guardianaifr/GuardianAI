@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "perf_engineer",
   "role": "Performance Engineer",
   "created_at": "2026-02-14T01:28:20.118690",
@@ -6,7 +6,7 @@
     {
       "task_id": "PE-001",
       "description": "Profile latency per component (embed, Presidio, regex, logging)",
-      "day": "Day 5",
+      "day": "Window 5",
       "status": "done",
       "result": {
         "components": [
@@ -89,7 +89,7 @@
     {
       "task_id": "PE-002",
       "description": "Identify bottleneck (which component is slowest?)",
-      "day": "Day 5",
+      "day": "Window 5",
       "status": "done",
       "result": {
         "bottleneck": "output_validator",
@@ -103,7 +103,7 @@
     {
       "task_id": "PE-003",
       "description": "Plan optimization (cache, async, GPU)",
-      "day": "Day 5",
+      "day": "Window 5",
       "status": "done",
       "result": {
         "optimizations": [
@@ -142,7 +142,7 @@
     {
       "task_id": "PE-004",
       "description": "Set SLA targets",
-      "day": "Day 5",
+      "day": "Window 5",
       "status": "done",
       "result": {
         "latency": {
@@ -166,7 +166,7 @@
     {
       "task_id": "PE-005",
       "description": "Add timing instrumentation to all components",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "instrumentation_path": "F:\\Saas\\guardianai\\guardian\\utils\\timing.py"
@@ -177,7 +177,7 @@
     {
       "task_id": "PE-006",
       "description": "Run 1000-request latency benchmark",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "requests": 1000,
@@ -195,7 +195,7 @@
     {
       "task_id": "PE-007",
       "description": "Create detailed latency report (p50, p95, p99)",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "report": "F:\\Saas\\guardianai\\agents\\reports\\perf_engineer\\performance_report.md"
@@ -206,7 +206,7 @@
     {
       "task_id": "PE-008",
       "description": "Implement embedding cache (LRU 10k entries)",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "status": "ready",
@@ -218,7 +218,7 @@
     {
       "task_id": "PE-009",
       "description": "Implement async Presidio (background thread)",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "status": "ready",
@@ -230,7 +230,7 @@
     {
       "task_id": "PE-010",
       "description": "Implement fast-path bypass for obvious-safe queries",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "status": "exists",

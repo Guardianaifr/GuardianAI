@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 import json
 import time
 import argparse
@@ -9,7 +9,7 @@ from datetime import datetime
 # Configuration
 PROXY_URL = "http://localhost:8081/v1/chat/completions"
 # Using the fixed credentials for now
-AUTH = ("admin", "guardian2026")
+AUTH = ("admin", "guardian_default")
 
 class GuardianTestHarness:
     def __init__(self, vectors_path):
@@ -111,7 +111,7 @@ class GuardianTestHarness:
             ]
             for r in self.results:
                 prompt_preview = r['prompt'][:50].replace('\n', ' ') + "..."
-                status_emoji = "✅ BLOCKED" if r['status'] == "BLOCKED" else "❌ ALLOWED"
+                status_emoji = "âœ… BLOCKED" if r['status'] == "BLOCKED" else "âŒ ALLOWED"
                 lines.append(f"| {r['id']} | {prompt_preview} | {status_emoji} | {r.get('latency_ms', 'N/A')}ms |")
             
             file_path = f"{report_name}.md"
@@ -136,3 +136,4 @@ if __name__ == "__main__":
     
     print("-" * 50)
     print(f"Audit Complete! Report saved to: {report_file}")
+

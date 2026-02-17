@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
@@ -20,7 +20,7 @@
   "variables": {
     "GUARDIAN_ADMIN_PASS": {
       "description": "Password for the GuardianAI Admin Dashboard",
-      "defaultValue": "guardian2026",
+      "defaultValue": "guardian_default",
       "required": true
     },
     "PORT": {

@@ -1,4 +1,4 @@
-from flask import Flask, request, Response
+﻿from flask import Flask, request, Response
 import requests
 import threading
 import logging
@@ -83,6 +83,8 @@ class GuardianProxy:
 
         self._thread = None
         self.last_debug_info = {}
+        self._input_filter_cache = collections.OrderedDict()
+        self._input_filter_cache_size = 2000
 
     def health_check(self):
         return {"status": "ok", "component": "guardian_proxy"}
@@ -144,17 +146,28 @@ class GuardianProxy:
     # HELPER METHODS - Extracted from proxy() for better maintainability
     # ============================================================================
     
-    def _check_rate_limit(self) -> Optional[Response]:
+    def _check_rate_limit(self, start_time: Optional[float] = None, path: str = "") -> Optional[Response]:
         """Check if request should be rate limited.
         
         Returns:
             Response object if rate limited, None otherwise
         """
+        if start_time is None:
+            start_time = time.time()
+
         if not self.config.get('rate_limiting', {}).get('enabled'):
             return None
         
         if not self.rate_limiter.is_allowed(request.remote_addr):
             logger.warning(f"Rate limit exceeded for {request.remote_addr}")
+            latency_ms = (time.time() - start_time) * 1000
+            self._report_event("rate_limit", "HIGH", {
+                "reason": "Rate limit exceeded.",
+                "path": "rate_limit",
+                "target_path": path,
+                "ip": request.remote_addr,
+                "latency_ms": f"{latency_ms:.2f}ms",
+            })
             return Response("Too Many Requests: Rate limit exceeded.", status=429)
         
         return None
@@ -187,7 +200,16 @@ class GuardianProxy:
     def _check_keyword_filter(self, prompt: str, start_time: float, timings: Dict[str, float], show_reason: bool = True) -> Optional[Response]:
         """Check prompt against keyword/regex patterns."""
         t_start = time.perf_counter()
-        is_blocked = self.input_filter.check_prompt(prompt) is False
+
+        if prompt in self._input_filter_cache:
+            is_blocked = self._input_filter_cache[prompt]
+            self._input_filter_cache.move_to_end(prompt)
+        else:
+            is_blocked = self.input_filter.check_prompt(prompt) is False
+            self._input_filter_cache[prompt] = is_blocked
+            if len(self._input_filter_cache) > self._input_filter_cache_size:
+                self._input_filter_cache.popitem(last=False)
+
         timings['input_filter_ms'] = (time.perf_counter() - t_start) * 1000
 
         if not is_blocked:
@@ -197,7 +219,7 @@ class GuardianProxy:
         reason = "Prompt injection attempt detected (Pattern Match)."
         latency_ms = (time.time() - start_time) * 1000
         
-        logger.warning(f"🚫  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
+        logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
         self._report_event("injection", "high", {
             "prompt_preview": prompt[:100],
             "reason": reason,
@@ -220,7 +242,7 @@ class GuardianProxy:
                 reason = "Blocked by Community Threat Feed."
                 latency_ms = (time.time() - start_time) * 1000
                 
-                logger.warning(f"🚫  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
+                logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
                 self._report_event("threat_feed_match", "HIGH", {
                     "prompt_preview": prompt[:100],
                     "reason": reason,
@@ -265,7 +287,7 @@ class GuardianProxy:
         if is_malicious:
             reason = f"AI Firewall detected malicious intent (Mode: {mode})."
             latency_ms = (time.time() - start_time) * 1000
-            logger.warning(f"🚫  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
+            logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
             self._report_event("injection_ai", "HIGH", {
                 "prompt_preview": prompt[:100],
                 "reason": reason,
@@ -286,15 +308,19 @@ class GuardianProxy:
         
         # Targeted validation for JSON responses (OpenAI format)
         content_to_check = raw_content
+        parsed_json = None
+        has_message_content = False
         try:
             out_data = json.loads(raw_content)
             if isinstance(out_data, dict):
+                parsed_json = out_data
                 # Extract the actual AI message content if present
                 choices = out_data.get('choices', [])
                 if choices and isinstance(choices, list):
                     msg_content = choices[0].get('message', {}).get('content', '')
                     if msg_content:
                         content_to_check = msg_content
+                        has_message_content = True
         except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
             logger.debug(f"Could not parse response JSON: {e}")
 
@@ -305,7 +331,7 @@ class GuardianProxy:
             strategy = self.config.get('security_policies', {}).get('leak_prevention_strategy', 'block')
             
             if strategy == "block":
-                logger.warning("🚨  DATA LEAK PREVENTED: Sensitive information detected in agent output. Blocking response.")
+                logger.warning("ðŸš¨  DATA LEAK PREVENTED: Sensitive information detected in agent output. Blocking response.")
                 sanitized_content, detected = self.output_validator.sanitize_output(content_to_check)
                 timings['output_validator_ms'] = (time.perf_counter() - t_start) * 1000
                 self._report_event("data_leak", "critical", {
@@ -317,7 +343,7 @@ class GuardianProxy:
                 })
                 raise ValueError("Data leak blocked")
             else:
-                logger.warning("🛡️  DATA LEAK DETECTED: Redacting sensitive information (Privacy Strategy: REDACT).")
+                logger.warning("ðŸ›¡ï¸  DATA LEAK DETECTED: Redacting sensitive information (Privacy Strategy: REDACT).")
                 sanitized_content, detected = self.output_validator.sanitize_output(content_to_check)
                 self._report_event("data_redaction", "INFO", {
                     "path": path,
@@ -326,9 +352,19 @@ class GuardianProxy:
                     "prompt_preview": (sanitized_content[:75] + "...") if len(sanitized_content) > 75 else sanitized_content, # Always mask sensitive data
                      "component_timings": timings
                 })
-        
-        # 2. Proactive Sanitization (Redact PII in allowed responses)
-        sanitized_content, detected = self.output_validator.sanitize_output(raw_content)
+                timings['output_validator_ms'] = (time.perf_counter() - t_start) * 1000
+                if parsed_json is not None and has_message_content:
+                    parsed_json['choices'][0]['message']['content'] = sanitized_content
+                    return json.dumps(parsed_json)
+                return sanitized_content
+
+        # Output is safe, so avoid a second sanitize pass for lower latency.
+        timings['output_validator_ms'] = (time.perf_counter() - t_start) * 1000
+        if is_valid:
+            return raw_content
+
+        # 2. Proactive sanitization on model text only (faster, fewer false positives)
+        sanitized_content, detected = self.output_validator.sanitize_output(content_to_check)
         timings['output_validator_ms'] = (time.perf_counter() - t_start) * 1000
         
         if detected:
@@ -338,8 +374,12 @@ class GuardianProxy:
                 "prompt_preview": (sanitized_content[:75] + "...") if len(sanitized_content) > 75 else sanitized_content, # Always mask sensitive data
                 "component_timings": timings
             })
+            if parsed_json is not None and has_message_content:
+                parsed_json['choices'][0]['message']['content'] = sanitized_content
+                return json.dumps(parsed_json)
+            return sanitized_content
         
-        return sanitized_content, bool(detected)
+        return raw_content
 
     def _report_event(self, event_type: str, severity: str, details: Dict[str, Any]):
         backend_config = self.config.get('backend', {})
@@ -369,7 +409,7 @@ class GuardianProxy:
         logger.info(f"DEBUG: Proxy received request for /{path}")
         
         # 1. Rate Limiting Check
-        rl_resp = self._check_rate_limit()
+        rl_resp = self._check_rate_limit(start_time, path)
         if rl_resp:
             return rl_resp
 
@@ -428,7 +468,7 @@ class GuardianProxy:
             
             if request.headers.get("X-Guardian-Role") == "admin":
                 if admin_token and request_token == admin_token:
-                    logger.warning(f"⚠️  ADMIN BYPASS: Authorized request (Token Match) from {request.remote_addr}.")
+                    logger.warning(f"âš ï¸  ADMIN BYPASS: Authorized request (Token Match) from {request.remote_addr}.")
                     path_taken = "admin_allowlist"
                     # Audit Log Event (Immutable Record)
                     self._report_event("admin_action", "critical", {
@@ -438,7 +478,7 @@ class GuardianProxy:
                         "prompt_preview": prompt[:50]
                     })
                 else:
-                    logger.warning(f"🛑  ADMIN FAIL: Invalid or missing token from {request.remote_addr}. ConfigToken={admin_token}, ReqToken={request_token}")
+                    logger.warning(f"ðŸ›‘  ADMIN FAIL: Invalid or missing token from {request.remote_addr}. ConfigToken={admin_token}, ReqToken={request_token}")
                     # Fall through to normal checks (don't block, just treat as untrusted)
             
             if path_taken != "admin_allowlist":
@@ -447,10 +487,10 @@ class GuardianProxy:
                 if kw_resp:
                     return kw_resp
                 
-                # 3b. Base64 Obfuscation Check (Phase 4)
+                # 3b. Base64 Obfuscation Check (Segment 4)
                 if self.base64_detector.is_suspicious(prompt, entropy_threshold=5.0):
                     reason = "Obfuscated payload detected (Base64/High Entropy)."
-                    logger.warning(f"🚫  ATTACK PREVENTED: {reason}")
+                    logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason}")
                     self._report_event("obfuscation", "MEDIUM", {
                         "prompt_preview": "HIDDEN_BASE64_PAYLOAD",
                         "reason": reason,
@@ -509,7 +549,8 @@ class GuardianProxy:
             was_redacted = False
             if self.config.get('security_policies', {}).get('validate_output'):
                 try:
-                    content, was_redacted = self._process_output_validation(raw_content, path, start_time, timings)
+                    content = self._process_output_validation(raw_content, path, start_time, timings)
+                    was_redacted = content != raw_content
                 except ValueError:
                     # Blocked leak
                     return Response("Forbidden: Potential data leak blocked by GuardianAI.", status=403)
@@ -561,3 +602,4 @@ if __name__ == "__main__":
     proxy = GuardianProxy(test_config)
     # Run in main thread for debugging
     proxy._run_server()
+

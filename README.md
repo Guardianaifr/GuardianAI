@@ -1,19 +1,19 @@
-## 🛡️ GuardianAI
+﻿## ðŸ›¡ï¸ GuardianAI
 
-**Enterprise-grade AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
+**AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
 
 [![Tests](https://img.shields.io/badge/tests-13%2F13%20passing-brightgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-80%25-yellow)]()
-[![OpenClaw](https://img.shields.io/badge/Tested%20on-OpenClaw%20v2026.2.13-blue)]()
+
 
 > [!CAUTION]
 > [!CAUTION]
-> **DEFAULT CREDENTIALS:** The dashboard defaults to `admin` / `guardian2026`. 
+> **DEFAULT CREDENTIALS:** The dashboard defaults to `admin` / `guardian_default`. 
 > Set the `GUARDIAN_ADMIN_PASS` environment variable before deploying to production!
 
 ---
 
-## 🚀 Quick Start (Windows)
+## ðŸš€ Quick Start (Windows)
 
 We've made it easy. Just use our unified launcher:
 
@@ -22,7 +22,7 @@ We've made it easy. Just use our unified launcher:
 3.  Select **Option 1** (Start Shield) to protect your AI.
 4.  Select **Option 3** (Launch Dashboard) to view live threats.
 
-### 🎮 Validation Demos
+### ðŸŽ® Validation Demos
 
 We include 6 ready-to-run scenarios to prove the security works:
 
@@ -37,22 +37,22 @@ We include 6 ready-to-run scenarios to prove the security works:
 
 ---
 
-## 💻 Manual Launch
+## ðŸ’» Manual Launch
 1.  **Multi-turn Context:** Currently analyzes strictly on a per-request basis. Does not yet maintain a sliding window of conversation history for context-aware verification.
 2.  **Rate Limiting:** Global rate limiting is implemented, but per-user/IP tiering is scheduled for v2.1.
 3.  **Authentication:** Dashboard uses Basic Auth. For production, put this behind a reverse proxy (Nginx/Cloudflare) or OAuth.
 
-## 🔒 Production Hardening (CRITICAL)
+## ðŸ”’ Production Hardening (CRITICAL)
 
 **The Reality: GuardianAI is a Lock, Not a Wall.**
 
 Just like a lock doesn't help if you leave the door open, GuardianAI cannot protect you if you expose your LLM insecurely.
 
-**❌ DO NOT:**
+**âŒ DO NOT:**
 *   Expose your LLM port (e.g., 8080/11434) directly to the internet.
 *   Rely on GuardianAI as your *only* line of defense.
 
-**✅ DO:**
+**âœ… DO:**
 1.  **Network Security (The Foundation):**
     *   Bind your LLM to `127.0.0.1` (Localhost only).
     *   Use a **Firewall** (UFW/AWS Security Groups) to block all external traffic to ports 8080/11434.
@@ -80,10 +80,27 @@ Just like a lock doesn't help if you leave the door open, GuardianAI cannot prot
 
 ---
 
-## 🤝 Contributing
+## ðŸ¤ Contributing
 ...
 
-## 📦 Installation
+## ðŸ“¦ Installation
+
+### Option 0: One-Command Installer (Windows/macOS/Linux)
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+```bash
+# macOS / Linux
+./install.sh
+```
+
+After install:
+```bash
+python guardianctl.py setup
+python guardianctl.py start
+```
 
 ### Option 1: Docker / Cloud Deployment (Preferred for Servers)
 **Private Cloud (One Click):**
@@ -132,34 +149,34 @@ Zero dependencies. Double-click to run.
 
 ---
 
-## 🎯 What It Does
+## ðŸŽ¯ What It Does
 
 GuardianAI sits between your application and your LLM, providing:
 
 ### Input Protection
-- ✅ **Jailbreak Detection** - Blocks prompt injection attempts
-- ✅ **Command Injection** - Prevents OS command execution
-- ✅ **Role Manipulation** - Stops "ignore instructions" attacks
+- âœ… **Jailbreak Detection** - Blocks prompt injection attempts
+- âœ… **Command Injection** - Prevents OS command execution
+- âœ… **Role Manipulation** - Stops "ignore instructions" attacks
 
 ### Output Protection
-- ✅ **PII Redaction** - Removes emails, SSNs, credit cards, API keys
-- ✅ **Data Leakage Prevention** - Blocks sensitive information exposure
+- âœ… **PII Redaction** - Removes emails, SSNs, credit cards, API keys
+- âœ… **Data Leakage Prevention** - Blocks sensitive information exposure
 
 ### Advanced Security
-- ✅ **AI Firewall** - Semantic analysis of prompts
-- ✅ **Rate Limiting** - Prevents abuse
-- ✅ **Threat Intelligence** - Real-time threat feed integration
-- ✅ **Process Monitoring** - Detects malicious process spawning
+- âœ… **AI Firewall** - Semantic analysis of prompts
+- âœ… **Rate Limiting** - Prevents abuse
+- âœ… **Threat Intelligence** - Real-time threat feed integration
+- âœ… **Process Monitoring** - Detects malicious process spawning
 
 ---
 
-## 📊 Performance & Security
+## ðŸ“Š Performance & Security
 
 ### Latency & Throughput
-- **Latency:** **12ms p95** (Full interception overhead) 🚀
+- **Latency:** **12ms p95** (Full interception overhead) ðŸš€
 - **Throughput:** 1000+ requests/second
 
-### Security Metrics (Balanced Mode, Week 2 Validation)
+### Security Metrics (Balanced Mode Validation)
 - **Recall:** **100%** (Detected all 500 jailbreak attempts)
 - **Precision:** **94.52%** (29 false positives on 1000 benign inputs)
 - **F1-Score:** **0.9718** (Excellent balance)
@@ -169,19 +186,19 @@ See [VALIDATION.md](VALIDATION.md) for detailed breakdown by security mode.
 
 ---
 
-## 🏗️ Architecture
+## ðŸ—ï¸ Architecture
 
 ```
-┌─────────────┐      ┌──────────────┐      ┌─────────┐
-│ Your App    │─────▶│  GuardianAI  │─────▶│   LLM   │
-│ (Client)    │      │   (Proxy)    │      │ (Agent) │
-└─────────────┘      └──────────────┘      └─────────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │  Security    │
-                     │  Dashboard   │
-                     └──────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”      â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”      â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ Your App    â”‚â”€â”€â”€â”€â”€â–¶â”‚  GuardianAI  â”‚â”€â”€â”€â”€â”€â–¶â”‚   LLM   â”‚
+â”‚ (Client)    â”‚      â”‚   (Proxy)    â”‚      â”‚ (Agent) â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                            â”‚
+                            â–¼
+                     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                     â”‚  Security    â”‚
+                     â”‚  Dashboard   â”‚
+                     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 **Components:**
@@ -193,17 +210,17 @@ See [VALIDATION.md](VALIDATION.md) for detailed breakdown by security mode.
 
 ---
 
-## 📖 Documentation
+## ðŸ“– Documentation
 
 - **[API Reference](API.md)** - Endpoints, configuration, examples
 - **[Deployment Guide](DEPLOYMENT.md)** - Setup, configuration, production tips
 - **[Operations Guide](OPERATIONS.md)** - State management, TTL, and backup procedures
 - **[Hardening Guide](HARDENING.md)** - Security best practices and remediation
-- **[30-Day Plan](GuardianAI_30DayPlan.md)** - Development roadmap
+- **[Roadmap](ROADMAP.md)** - Development roadmap
 
 ---
 
-## 🧪 Testing
+## ðŸ§ª Testing
 
 ```bash
 # Run all tests
@@ -220,7 +237,7 @@ python -m pytest tests/guardrails/test_input_filter.py -v
 
 ---
 
-## 🔧 Configuration
+## ðŸ”§ Configuration
 
 Create `config.yaml`:
 
@@ -241,7 +258,7 @@ monitoring:
 
 ---
 
-## 🛠️ Development
+## ðŸ› ï¸ Development
 
 ```bash
 # Install dev dependencies
@@ -259,7 +276,7 @@ tail -f guardian.log
 
 ---
 
-## 📈 Roadmap
+## ðŸ“ˆ Roadmap
 
 - [x] Core security features
 - [x] Testing infrastructure (57 tests)
@@ -271,7 +288,7 @@ tail -f guardian.log
 
 ---
 
-## 🤝 Contributing
+## ðŸ¤ Contributing
 
 Contributions welcome! Please:
 
@@ -283,13 +300,13 @@ Contributions welcome! Please:
 
 ---
 
-## 📄 License
+## ðŸ“„ License
 
 [Add your license here]
 
 ---
 
-## 🆘 Support
+## ðŸ†˜ Support
 
 - **Issues:** [GitHub Issues](link)
 - **Docs:** [Full Documentation](link)
@@ -297,5 +314,10 @@ Contributions welcome! Please:
 
 ---
 
-**Built with ❤️ for AI security**
+**Built with â¤ï¸ for AI security**
 "# Guardian-private" 
+
+
+
+
+

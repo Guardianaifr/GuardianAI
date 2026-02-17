@@ -9,6 +9,8 @@ env/
 venv/
 .env
 .venv/
+.venv312/
+.guardian_node.sha256
 
 # Distribution / Packaging
 build/

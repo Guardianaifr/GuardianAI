@@ -1,4 +1,4 @@
-# 📦 Deployment Strategy: "One Click" for Everyone
+﻿# ðŸ“¦ Deployment Strategy: "One Click" for Everyone
 
 To make GuardianAI accessible to both "Vibe Coders" (Desktop Users) and "DevOps Engineers" (Cloud Users), we will implement a dual-track deployment strategy.
 
@@ -29,7 +29,7 @@ To make GuardianAI accessible to both "Vibe Coders" (Desktop Users) and "DevOps 
 *   **Technology:** `Dockerfile` + `railway.json`
 *   **How to Deploy (Step-by-Step):**
 
-    **Phase 1: Put Code on GitHub (Private)**
+    **Step  Put Code on GitHub (Private)**
     1.  Go to [GitHub.com](https://github.com/new) and create a **New Repository**.
     2.  Select **Private**.
     3.  Push your code:
@@ -42,7 +42,7 @@ To make GuardianAI accessible to both "Vibe Coders" (Desktop Users) and "DevOps 
         git push -u origin main
         ```
 
-    **Phase 2: Connect Railway**
+    **Step  Connect Railway**
     1.  Go to [Railway.app](https://railway.app) and Login with GitHub.
     2.  Click **New Project** > **Deploy from GitHub repo**.
     3.  Select your new **Private Repo**.
@@ -53,13 +53,13 @@ To make GuardianAI accessible to both "Vibe Coders" (Desktop Users) and "DevOps 
     **Result:**
     *   Railway builds your Docker image privately.
     *   It gives you a URL (e.g., `https://guardian-production.up.railway.app`).
-    *   **Done.** 🚀
+    *   **Done.** ðŸš€
 
 ---
 
-## 📅 Implementation Plan (Phase 5)
+## ðŸ“… Implementation Plan
 
-### Step 1: Dockerize (Priority: High) - ✅ COMPLETE
+### Step 1: Dockerize (Priority: High) - âœ… COMPLETE
 *   [x] Create `Dockerfile` (optimized python:3.9-slim).
 *   [x] Create `docker-compose.yml` (orchestrates Guardian + Dashboard).
 *   [x] Create `railway.json` for One-Click Cloud Deploy.
@@ -74,7 +74,8 @@ To make GuardianAI accessible to both "Vibe Coders" (Desktop Users) and "DevOps 
 
 ---
 
-## ❓ Decision Required
+## â“ Decision Required
 We will implement **BOTH** to cover 100% of the market.
 *   **Servers** need Docker.
 *   **People** need Exes.
+

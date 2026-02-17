@@ -1,8 +1,8 @@
-"""
-CoordinatorAgent — Orchestrates all specialist agents.
+﻿"""
+CoordinatorAgent â€” Orchestrates all specialist agents.
 
-Owns Tasks from 30-Day Plan:
-  Day 7: Review roadmaps, prioritize critical path, commit targets, assign owners
+Owns Tasks from Roadmap:
+  Window 7: Review roadmaps, prioritize critical path, commit targets, assign owners
   Weekly: Friday check-ins, status tracking
 """
 
@@ -13,7 +13,7 @@ from agents.base_agent import BaseAgent, Task, PROJECT_ROOT
 
 
 class CoordinatorAgent(BaseAgent):
-    """Coordinator — orchestrates all specialist agents."""
+    """Coordinator â€” orchestrates all specialist agents."""
 
     def __init__(self):
         super().__init__(
@@ -25,10 +25,10 @@ class CoordinatorAgent(BaseAgent):
 
     def _init_tasks(self):
         self.tasks = [
-            Task("CO-001", "Review all roadmaps from specialist agents", "Day 7"),
-            Task("CO-002", "Prioritize critical path", "Day 7"),
-            Task("CO-003", "Commit to 30-day targets", "Day 7"),
-            Task("CO-004", "Assign owners and set daily standups", "Day 7"),
+            Task("CO-001", "Review all roadmaps from specialist agents", "Window 7"),
+            Task("CO-002", "Prioritize critical path", "Window 7"),
+            Task("CO-003", "Commit to 30-day targets", "Window 7"),
+            Task("CO-004", "Assign owners and set daily standups", "Window 7"),
             Task("CO-005", "Run weekly check-in (Friday sync)", "Weekly"),
         ]
 
@@ -52,7 +52,7 @@ class CoordinatorAgent(BaseAgent):
     def run_all_specialists(self, dry_run=False):
         """Run all registered specialist agents."""
         print(f"\n{'='*60}")
-        print(f"  🎯 COORDINATOR: Running all specialists")
+        print(f"  ðŸŽ¯ COORDINATOR: Running all specialists")
         print(f"  Agents: {len(self._specialists)}")
         print(f"{'='*60}")
 
@@ -73,7 +73,7 @@ class CoordinatorAgent(BaseAgent):
 
     def _review_roadmaps(self) -> dict:
         """CO-001: Collect and review all specialist reports."""
-        print("    📊 Reviewing specialist roadmaps...")
+        print("    ðŸ“Š Reviewing specialist roadmaps...")
         summary = {}
         for agent in self._specialists:
             status = agent.report_status()
@@ -113,7 +113,7 @@ class CoordinatorAgent(BaseAgent):
                 "Validation report published (FP/FN/precision/recall)",
                 "Latency optimized (p95 <50ms)",
                 "Operations formalized (TTL, backups, monitoring)",
-                "Code coverage ≥80%",
+                "Code coverage â‰¥80%",
                 "Security review completed",
             ],
             "should_have": [
@@ -139,7 +139,7 @@ class CoordinatorAgent(BaseAgent):
 
     def _weekly_checkin(self) -> dict:
         """CO-005: Generate weekly check-in report."""
-        print("    📋 Generating weekly check-in...")
+        print("    ðŸ“‹ Generating weekly check-in...")
         checkin = {"timestamp": datetime.now().isoformat(), "agents": {}}
         total_done = 0
         total_tasks = 0
@@ -161,7 +161,7 @@ class CoordinatorAgent(BaseAgent):
     def _generate_combined_report(self, results: dict):
         """Generate a combined status report."""
         lines = [
-            "# GuardianAI 30-Day Plan — Combined Status",
+            "# GuardianAI Roadmap â€” Combined Status",
             f"\nGenerated: {datetime.now():%Y-%m-%d %H:%M}",
             "\n## Agent Summary",
             "\n| Agent | Role | Tasks | Done | Pending | Blocked |",
@@ -186,4 +186,6 @@ class CoordinatorAgent(BaseAgent):
         rd.mkdir(parents=True, exist_ok=True)
         p = rd / f"{name}_{datetime.now():%Y%m%d_%H%M%S}.json"
         with open(p, "w") as f: json.dump(data, f, indent=2)
-        print(f"    💾 Report: {p.name}")
+        print(f"    ðŸ’¾ Report: {p.name}")
+
+

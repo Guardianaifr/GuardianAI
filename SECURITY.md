@@ -1,4 +1,4 @@
-# Security Policy
+﻿# Security Policy
 
 ## Supported Versions
 
@@ -17,7 +17,7 @@ Instead, please report them via email to `security@guardianai.io`.
 
 You can expect:
 *   An acknowledgement of your report within 24 hours.
-*   A timeline for investigation and resolution.
+*   A response process for investigation and resolution.
 *   Credit for your discovery (if desired).
 *   A coordinated disclosure process.
 
@@ -38,3 +38,4 @@ GuardianAI is designed as a **defense-in-depth layer** for LLM applications.
 *   **Model Theft:** We do not DRM model weights.
 
 For more details on securing your deployment, please read our [Hardening Guide](HARDENING.md).
+

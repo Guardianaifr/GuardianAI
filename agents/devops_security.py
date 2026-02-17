@@ -1,10 +1,10 @@
-"""
-DevOpsSecurityAgent — Ops audit, security hardening, monitoring, and backups.
+﻿"""
+DevOpsSecurityAgent â€” Ops audit, security hardening, monitoring, and backups.
 
-Owns Tasks from 30-Day Plan:
-  Day 6: Audit ops/security gaps, create remediation plan
-  Week 2 Track D: Document procedures, identify monitoring gaps, security checklist
-  Week 3: TTL, memory monitoring, backups, dashboard, alerting
+Owns Tasks from Roadmap:
+  Window 6: Audit ops/security gaps, create remediation plan
+  Cycle 2 Track D: Document procedures, identify monitoring gaps, security checklist
+  Cycle 3: TTL, memory monitoring, backups, dashboard, alerting
 """
 
 import json
@@ -16,7 +16,7 @@ from agents.base_agent import BaseAgent, Task, PROJECT_ROOT
 
 
 class DevOpsSecurityAgent(BaseAgent):
-    """DevOps + Security Lead — operations, monitoring, and hardening."""
+    """DevOps + Security Lead â€” operations, monitoring, and hardening."""
 
     def __init__(self):
         super().__init__(
@@ -27,19 +27,19 @@ class DevOpsSecurityAgent(BaseAgent):
 
     def _init_tasks(self):
         self.tasks = [
-            Task("DS-001", "Audit operational gaps (TTL, backups, monitoring)", "Day 6"),
-            Task("DS-002", "Audit security gaps (threat model, audit logs, secrets)", "Day 6"),
-            Task("DS-003", "Create remediation plan", "Day 6"),
-            Task("DS-004", "Estimate effort for remediation", "Day 6"),
-            Task("DS-005", "Document all operational procedures", "Week 2"),
-            Task("DS-006", "Identify missing monitoring", "Week 2"),
-            Task("DS-007", "Security checklist (protected vs not)", "Week 2"),
-            Task("DS-008", "Create remediation tickets", "Week 2"),
-            Task("DS-009", "Implement context buffer TTL (5 min expiry)", "Week 3"),
-            Task("DS-010", "Implement memory monitoring (alert >500MB)", "Week 3"),
-            Task("DS-011", "Implement daily SQLite backup", "Week 3"),
-            Task("DS-012", "Create monitoring dashboard config", "Week 3"),
-            Task("DS-013", "Implement alerting on critical metrics", "Week 3"),
+            Task("DS-001", "Audit operational gaps (TTL, backups, monitoring)", "Window 6"),
+            Task("DS-002", "Audit security gaps (threat model, audit logs, secrets)", "Window 6"),
+            Task("DS-003", "Create remediation plan", "Window 6"),
+            Task("DS-004", "Estimate effort for remediation", "Window 6"),
+            Task("DS-005", "Document all operational procedures", "Cycle 2"),
+            Task("DS-006", "Identify missing monitoring", "Cycle 2"),
+            Task("DS-007", "Security checklist (protected vs not)", "Cycle 2"),
+            Task("DS-008", "Create remediation tickets", "Cycle 2"),
+            Task("DS-009", "Implement context buffer TTL (5 min expiry)", "Cycle 3"),
+            Task("DS-010", "Implement memory monitoring (alert >500MB)", "Cycle 3"),
+            Task("DS-011", "Implement daily SQLite backup", "Cycle 3"),
+            Task("DS-012", "Create monitoring dashboard config", "Cycle 3"),
+            Task("DS-013", "Implement alerting on critical metrics", "Cycle 3"),
         ]
 
     def execute_task(self, task_id: str) -> dict:
@@ -65,7 +65,7 @@ class DevOpsSecurityAgent(BaseAgent):
 
     def _audit_ops(self) -> dict:
         """DS-001: Audit operational gaps."""
-        print("    🔧 Auditing operations...")
+        print("    ðŸ”§ Auditing operations...")
         import yaml
         config_path = PROJECT_ROOT / "guardian" / "config" / "config.yaml"
         gaps = []
@@ -76,7 +76,7 @@ class DevOpsSecurityAgent(BaseAgent):
 
         # Check for operational features
         checks = [
-            ("context_buffer_ttl", "No TTL on context buffer — memory leak risk", config),
+            ("context_buffer_ttl", "No TTL on context buffer â€” memory leak risk", config),
             ("backup", "No backup configuration found", config),
             ("monitoring", "No monitoring/alerting configuration", config),
             ("logging.rotation", "No log rotation configured", config),
@@ -105,7 +105,7 @@ class DevOpsSecurityAgent(BaseAgent):
 
     def _audit_security(self) -> dict:
         """DS-002: Audit security gaps."""
-        print("    🔒 Auditing security...")
+        print("    ðŸ”’ Auditing security...")
         findings = []
 
         # Check for hardcoded secrets
@@ -144,7 +144,7 @@ class DevOpsSecurityAgent(BaseAgent):
 
     def _remediation_plan(self) -> dict:
         """DS-003: Create remediation plan."""
-        print("    📋 Creating remediation plan...")
+        print("    ðŸ“‹ Creating remediation plan...")
         plan = {
             "priority_1_critical": [
                 "Move all secrets to environment variables or .env file",
@@ -173,7 +173,7 @@ class DevOpsSecurityAgent(BaseAgent):
 
     def _document_ops(self) -> dict:
         """DS-005: Document operational procedures."""
-        print("    📝 Generating ops documentation...")
+        print("    ðŸ“ Generating ops documentation...")
         doc = [
             "# GuardianAI Operational Procedures",
             "\n## Startup", "1. Start mock agent: `python mock_openclaw_agent.py`",
@@ -220,9 +220,9 @@ class DevOpsSecurityAgent(BaseAgent):
 
     def _implement_ttl(self) -> dict:
         """DS-009: Generate TTL implementation."""
-        print("    ⏰ Generating TTL implementation...")
+        print("    â° Generating TTL implementation...")
         code = '''
-"""Context Buffer TTL — expires entries after 5 minutes of inactivity."""
+"""Context Buffer TTL â€” expires entries after 5 minutes of inactivity."""
 import time
 import threading
 
@@ -271,9 +271,9 @@ class TTLBuffer:
 
     def _implement_memory_monitor(self) -> dict:
         """DS-010: Generate memory monitor."""
-        print("    🧠 Generating memory monitor...")
+        print("    ðŸ§  Generating memory monitor...")
         code = '''
-"""Memory Monitor — alerts when usage exceeds threshold."""
+"""Memory Monitor â€” alerts when usage exceeds threshold."""
 import psutil, threading, logging
 logger = logging.getLogger("guardian.memory")
 
@@ -305,7 +305,7 @@ class MemoryMonitor:
 
     def _implement_backup(self) -> dict:
         """DS-011: Generate backup script."""
-        print("    💾 Generating backup script...")
+        print("    ðŸ’¾ Generating backup script...")
         code = '''
 """Daily SQLite Backup Utility."""
 import shutil, os
@@ -349,4 +349,6 @@ if __name__ == "__main__":
         rd.mkdir(parents=True, exist_ok=True)
         p = rd / f"{name}_{datetime.now():%Y%m%d_%H%M%S}.json"
         with open(p, "w") as f: json.dump(data, f, indent=2)
-        print(f"    💾 Report: {p.name}")
+        print(f"    ðŸ’¾ Report: {p.name}")
+
+

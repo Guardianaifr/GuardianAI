@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status
+﻿from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import secrets
 import time
@@ -12,6 +12,10 @@ from typing import List, Dict, Any
 import json
 
 import os
+import base64
+import hmac
+import hashlib
+import threading
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -19,10 +23,17 @@ logger = logging.getLogger("guardian_backend")
 
 # Configuration (Env Vars -> Defaults)
 ADMIN_USER = os.getenv("GUARDIAN_ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("GUARDIAN_ADMIN_PASS", "guardian2026") # Simple default for local demo
+ADMIN_PASS = os.getenv("GUARDIAN_ADMIN_PASS", "guardian_default") # Simple default for local demo
+JWT_SECRET = os.getenv("GUARDIAN_JWT_SECRET", "guardian_jwt_dev_secret_change_me")
+JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
+JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
+API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
+TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
 
-if ADMIN_PASS == "guardian2026":
-    logger.warning("⚠️  USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
+if ADMIN_PASS == "guardian_default":
+    logger.warning("USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
+if JWT_SECRET == "guardian_jwt_dev_secret_change_me":
+    logger.warning("USING DEFAULT JWT SECRET! Set GUARDIAN_JWT_SECRET environment variable for production.")
 
 app = FastAPI(title="GuardianAI Backend v1.0")
 
@@ -35,6 +46,123 @@ app.add_middleware(
 )
 
 DB_PATH = "guardian.db"
+PROXY_EVENT_TYPES = (
+    "allowed_request",
+    "injection",
+    "injection_ai",
+    "threat_feed_match",
+    "obfuscation",
+    "rate_limit",
+    "data_leak",
+    "data_redaction",
+    "redaction",
+    "admin_action",
+)
+BLOCKED_EVENT_TYPES = (
+    "injection",
+    "injection_ai",
+    "threat_feed_match",
+    "obfuscation",
+    "rate_limit",
+    "data_leak",
+)
+
+_rate_limit_lock = threading.Lock()
+_rate_limit_state: Dict[str, List[float]] = {}
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _b64url_decode(raw: str) -> bytes:
+    padding = "=" * (-len(raw) % 4)
+    return base64.urlsafe_b64decode((raw + padding).encode("ascii"))
+
+
+def _issue_jwt(subject: str, ttl_minutes: int = JWT_EXPIRES_MIN) -> str:
+    now = int(time.time())
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": subject,
+        "iat": now,
+        "exp": now + (ttl_minutes * 60),
+        "iss": JWT_ISSUER,
+        "jti": secrets.token_hex(12),
+    }
+    header_seg = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    payload_seg = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signing_input = f"{header_seg}.{payload_seg}".encode("ascii")
+    signature = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    return f"{header_seg}.{payload_seg}.{_b64url_encode(signature)}"
+
+
+def _decode_jwt(token: str) -> Dict[str, Any]:
+    try:
+        header_seg, payload_seg, sig_seg = token.split(".")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format") from exc
+
+    signing_input = f"{header_seg}.{payload_seg}".encode("ascii")
+    expected_sig = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    try:
+        provided_sig = _b64url_decode(sig_seg)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature") from exc
+
+    if not hmac.compare_digest(expected_sig, provided_sig):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature")
+
+    try:
+        header = json.loads(_b64url_decode(header_seg).decode("utf-8"))
+        payload = json.loads(_b64url_decode(payload_seg).decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token payload") from exc
+
+    if header.get("alg") != "HS256":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unsupported token algorithm")
+    if payload.get("iss") != JWT_ISSUER:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token issuer")
+
+    now = int(time.time())
+    exp = payload.get("exp")
+    if not isinstance(exp, int) or exp < now:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+
+    sub = payload.get("sub")
+    if not isinstance(sub, str) or not sub:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
+
+    return payload
+
+
+def _enforce_rate_limit(identity: str, limit_per_minute: int):
+    now = time.time()
+    window_start = now - 60.0
+    with _rate_limit_lock:
+        entries = _rate_limit_state.get(identity, [])
+        entries = [entry for entry in entries if entry >= window_start]
+        if len(entries) >= limit_per_minute:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded for {identity}",
+            )
+        entries.append(now)
+        _rate_limit_state[identity] = entries
+
+
+def _to_ms(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        cleaned = value.strip().lower().replace("ms", "")
+        try:
+            return float(cleaned)
+        except ValueError:
+            return None
+    return None
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -100,20 +228,69 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # Security / Auth
-security = HTTPBasic()
+security = HTTPBasic(auto_error=False)
+bearer_security = HTTPBearer(auto_error=False)
 
-def get_current_user(credentials: HTTPBasicCredentials = Depends(security)):
-    # Default Credentials - CHANGE IN PRODUCTION
+def _validate_basic(credentials: HTTPBasicCredentials) -> str:
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USER)
     correct_password = secrets.compare_digest(credentials.password, ADMIN_PASS)
-    
     if not (correct_username and correct_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Invalid credentials",
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username
+
+
+def get_current_user(
+    bearer: HTTPAuthorizationCredentials = Depends(bearer_security),
+    credentials: HTTPBasicCredentials = Depends(security),
+):
+    if bearer and bearer.scheme.lower() == "bearer":
+        payload = _decode_jwt(bearer.credentials)
+        return payload["sub"]
+
+    if credentials:
+        return _validate_basic(credentials)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def enforce_user_rate_limit(request: Request, username: str = Depends(get_current_user)):
+    _enforce_rate_limit(f"user:{username}", API_RATE_LIMIT_PER_MIN)
+    return username
+
+
+def enforce_telemetry_rate_limit(request: Request):
+    identity = request.headers.get("x-api-key", "").strip()
+    if not identity:
+        identity = request.headers.get("x-forwarded-for", "").strip() or request.client.host
+    _enforce_rate_limit(f"telemetry:{identity}", TELEMETRY_RATE_LIMIT_PER_MIN)
+    return True
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
+    user: str
+
+
+@app.post("/api/v1/auth/token", response_model=TokenResponse)
+async def create_access_token(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
+    username = _validate_basic(credentials)
+    token = _issue_jwt(username)
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=JWT_EXPIRES_MIN * 60,
+        user=username,
+    )
 
 async def send_webhook_alert(event: SecurityEvent):
     # Broadcast to Dashboard via WebSocket
@@ -130,7 +307,7 @@ async def send_webhook_alert(event: SecurityEvent):
     await manager.broadcast(message)
 
 @app.post("/api/v1/telemetry")
-async def ingest_telemetry(event: SecurityEvent):
+async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telemetry_rate_limit)):
     if event.timestamp == 0.0:
         event.timestamp = time.time()
         
@@ -174,7 +351,7 @@ async def ingest_telemetry(event: SecurityEvent):
         except:
             pass
     
-    # 2. Retention Policy: Auto-purge events older than 30 days
+    # 2. Retention Policy: Auto-purge events older than the configured retention window
     retention_cutoff = time.time() - (30 * 24 * 60 * 60)
     cur.execute("DELETE FROM security_events WHERE timestamp < ?", (retention_cutoff,))
     
@@ -192,7 +369,7 @@ import csv
 import threading
 
 @app.get("/api/v1/export/json")
-async def export_json(username: str = Depends(get_current_user)):
+async def export_json(username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT * FROM security_events ORDER BY timestamp DESC")
@@ -208,34 +385,88 @@ async def export_json(username: str = Depends(get_current_user)):
     return data
 
 @app.get("/api/v1/analytics")
-async def get_analytics(username: str = Depends(get_current_user)):
+async def get_analytics(username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
-    # Total Analytics
-    cur.execute("SELECT COUNT(*), AVG(latency_ms) FROM analytics")
-    total_count, avg_latency = cur.fetchone()
 
-    # Total Blocked (Lifetime)
-    cur.execute("SELECT COUNT(*) FROM security_events WHERE severity IN ('HIGH', 'CRITICAL')")
-    total_blocked = cur.fetchone()[0]
-    
-    # Path Breakdown
-    cur.execute("SELECT path, COUNT(*) FROM analytics GROUP BY path")
-    paths = dict(cur.fetchall())
-    
+    proxy_placeholders = ",".join("?" for _ in PROXY_EVENT_TYPES)
+    blocked_set = set(BLOCKED_EVENT_TYPES)
+
+    # Consistent ingress scope: only proxy pipeline events.
+    cur.execute(
+        f"SELECT event_type, details FROM security_events WHERE event_type IN ({proxy_placeholders})",
+        PROXY_EVENT_TYPES,
+    )
+    rows = cur.fetchall()
+
+    total_count = len(rows)
+    total_blocked = 0
+    paths = {}
+    end_to_end_samples = []
+    overhead_samples = []
+    upstream_samples = []
+
+    for event_type, details_raw in rows:
+        et = (event_type or "").lower()
+        if et in blocked_set:
+            total_blocked += 1
+
+        details = {}
+        if details_raw:
+            try:
+                details = json.loads(details_raw)
+            except Exception:  # noqa: BLE001
+                details = {}
+
+        path = details.get("path")
+        if isinstance(path, str) and path:
+            paths[path] = paths.get(path, 0) + 1
+
+        total_ms = _to_ms(details.get("latency_ms"))
+        if total_ms is not None:
+            end_to_end_samples.append(total_ms)
+
+        timings = details.get("component_timings")
+        if isinstance(timings, dict):
+            component_values = [_to_ms(v) for v in timings.values()]
+            component_values = [v for v in component_values if v is not None]
+            if component_values:
+                guardian_overhead = sum(component_values)
+                overhead_samples.append(guardian_overhead)
+                if total_ms is not None:
+                    upstream_samples.append(max(0.0, total_ms - guardian_overhead))
+
+    # Recent block rate over last 25 ingress events
+    cur.execute(
+        f"SELECT event_type FROM security_events WHERE event_type IN ({proxy_placeholders}) ORDER BY timestamp DESC LIMIT 25",
+        PROXY_EVENT_TYPES,
+    )
+    recent_rows = cur.fetchall()
+    recent_total = len(recent_rows)
+    recent_blocked = sum(1 for (evt_type,) in recent_rows if (evt_type or "").lower() in blocked_set)
+
     conn.close()
-    
+
+    avg_latency = (sum(end_to_end_samples) / len(end_to_end_samples)) if end_to_end_samples else 0.0
+    avg_overhead = (sum(overhead_samples) / len(overhead_samples)) if overhead_samples else 0.0
+    avg_upstream = (sum(upstream_samples) / len(upstream_samples)) if upstream_samples else avg_latency
+    global_block_rate = (total_blocked / total_count * 100) if total_count else 0.0
+    recent_block_rate = (recent_blocked / recent_total * 100) if recent_total else 0.0
+
     return {
         "total_requests": total_count or 0,
         "total_blocked": total_blocked or 0,
         "avg_latency_ms": round(avg_latency or 0, 2),
+        "avg_guardian_overhead_ms": round(avg_overhead or 0, 2),
+        "avg_upstream_ms": round(avg_upstream or 0, 2),
+        "global_block_rate_pct": round(global_block_rate, 1),
+        "recent_block_rate_pct": round(recent_block_rate, 1),
         "path_breakdown": paths,
         "fast_path_pct": round((sum(v for k,v in paths.items() if 'fast' in k) / total_count * 100) if total_count else 0, 1)
     }
 
 @app.get("/api/v1/export/csv")
-async def export_csv(username: str = Depends(get_current_user)):
+async def export_csv(username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT * FROM security_events ORDER BY timestamp DESC")
@@ -260,7 +491,7 @@ async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(username: str = Depends(get_current_user)):
+async def dashboard(username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -446,7 +677,7 @@ async def dashboard(username: str = Depends(get_current_user)):
 
                 <!-- Security Warning (Hidden for Demo) -->
                 <div style="background: rgba(255, 0, 60, 0.1); border: 1px solid var(--accent-red); padding: 10px; margin-bottom: 20px; text-align: center; color: var(--accent-red); font-weight: bold; font-size: 0.8rem; display: none;">
-                    ⚠️ WARNING: You are using default credentials. Set GUARDIAN_ADMIN_PASS environment variable immediately.
+                    âš ï¸ WARNING: You are using default credentials. Set GUARDIAN_ADMIN_PASS environment variable immediately.
                 </div>
 
                 <div class="mode-banner">
@@ -462,8 +693,10 @@ async def dashboard(username: str = Depends(get_current_user)):
                     </div>
                     <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
                          <i data-lucide="bar-chart-2" style="width: 18px; height: 18px; color: var(--text-dim);"></i>
-                         <span style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase;">BLOCK RATE:</span>
+                         <span style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase;">BLOCK RATE (GLOBAL):</span>
                          <span id="block-rate" class="badge" style="color: var(--accent-red); border-color: var(--accent-red);">0%</span>
+                         <span style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; margin-left: 10px;">RECENT(25):</span>
+                         <span id="block-rate-recent" class="badge" style="color: var(--accent-yellow); border-color: var(--accent-yellow);">0%</span>
                     </div>
                 </div>
                 
@@ -473,13 +706,14 @@ async def dashboard(username: str = Depends(get_current_user)):
                         <div id="stat-total" style="font-size: 2rem; font-weight: 800; color: var(--text-main); text-shadow: 0 0 5px var(--text-main);">0</div>
                     </div>
                     <div class="stat-card">
-                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Avg Latency</div>
+                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Upstream Latency</div>
                         <div id="stat-latency" style="font-size: 2rem; font-weight: 800; color: var(--accent-cyan); text-shadow: 0 0 5px var(--accent-cyan);">0ms</div>
-                        <div class="footnote">INCLUDES SIMULATION OVERHEAD<br>(Prod p95 ~30ms)</div>
+                        <div class="footnote">MODEL + NETWORK TIME<br>(EXCLUDES GUARDIAN CHECKS)</div>
                     </div>
                     <div class="stat-card">
-                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Fast-Path</div>
+                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Guardian Overhead</div>
                         <div id="stat-fastpath" style="font-size: 2rem; font-weight: 800; color: var(--accent-yellow); text-shadow: 0 0 5px var(--accent-yellow);">0</div>
+                        <div class="footnote">FAST-PATH HITS: <span id="stat-fastpath-hits">0</span></div>
                     </div>
                     <div class="stat-card">
                         <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Threats Blocked</div>
@@ -503,7 +737,6 @@ async def dashboard(username: str = Depends(get_current_user)):
             <script>
                 // Auto-inject credentials for dashboard API calls (this is a local tool)
                 const auth = 'Basic ' + btoa('{ADMIN_USER}:{ADMIN_PASS}');
-
                 function showToast(msg) {{
                     const t = document.getElementById('toast');
                     t.innerText = msg;
@@ -537,13 +770,16 @@ async def dashboard(username: str = Depends(get_current_user)):
                         const data = await res.json();
                         document.getElementById('stat-total').innerText = data.total_requests;
                         document.getElementById('stat-blocked').innerText = data.total_blocked;
-                        document.getElementById('stat-latency').innerText = data.avg_latency_ms + 'ms';
+                        document.getElementById('stat-latency').innerText = data.avg_upstream_ms + 'ms';
+                        document.getElementById('stat-fastpath').innerText = data.avg_guardian_overhead_ms + 'ms';
+                        document.getElementById('block-rate').innerText = data.global_block_rate_pct + '%';
+                        document.getElementById('block-rate-recent').innerText = data.recent_block_rate_pct + '%';
                         
                         const fastHits = (data.path_breakdown.fast_path_keyword || 0) + 
                                          (data.path_breakdown.fast_path_threat_feed || 0) + 
                                          (data.path_breakdown.fast_path_allowlist || 0) +
                                          (data.path_breakdown.base64_filter || 0);
-                        document.getElementById('stat-fastpath').innerText = fastHits;
+                        document.getElementById('stat-fastpath-hits').innerText = fastHits;
                     }} catch (e) {{ console.error("Analytics fetch failed", e); }}
                 }}
 
@@ -553,11 +789,6 @@ async def dashboard(username: str = Depends(get_current_user)):
                         const events = await res.json();
                         const eventsDiv = document.getElementById('events');
                         
-                        const blockedCount = events.filter(e => e.severity === 'CRITICAL' || e.severity === 'HIGH').length;
-                        const totalRecent = events.length;
-                        const blockRate = totalRecent ? Math.round((blockedCount / totalRecent) * 100) : 0;
-                        document.getElementById('block-rate').innerText = blockRate + '%';
-
                         eventsDiv.innerHTML = events.map(e => {{
                             const entities = e.details.detected_entities ? 
                                 `<div style="margin-top:10px; display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px dashed #333; padding-top: 10px;">${{e.details.detected_entities.map(ent => 
@@ -665,7 +896,7 @@ async def dashboard(username: str = Depends(get_current_user)):
     """
 
 @app.get("/api/v1/events")
-async def get_events(limit: int = 50):
+async def get_events(limit: int = 50, username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT * FROM security_events ORDER BY timestamp DESC LIMIT ?", (limit,))
@@ -684,7 +915,7 @@ async def get_events(limit: int = 50):
     ]
 
 @app.get("/api/v1/audit-log")
-async def get_audit_log(limit: int = 50, username: str = Depends(get_current_user)):
+async def get_audit_log(limit: int = 50, username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     # Check if table exists (it might not if init_db ran on old schema)
@@ -720,3 +951,4 @@ async def websocket_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8001)
+

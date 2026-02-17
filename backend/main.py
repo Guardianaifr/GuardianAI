@@ -44,6 +44,7 @@ ENFORCE_HTTPS = os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").strip().lower() in 
 TLS_CERT_FILE = os.getenv("GUARDIAN_TLS_CERT_FILE", "").strip()
 TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
 METRICS_ENABLED = os.getenv("GUARDIAN_METRICS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+APP_START_TIME = time.time()
 
 if ADMIN_PASS == "guardian_default":
     logger.warning("USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
@@ -305,6 +306,18 @@ def _build_metrics_payload() -> str:
     for code, count in sorted(status_counts.items()):
         lines.append(f'guardian_http_status_total{{code="{code}"}} {count}')
     return "\n".join(lines) + "\n"
+
+
+def _check_db_health() -> tuple[bool, str]:
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.fetchone()
+        conn.close()
+        return True, "ok"
+    except Exception as exc:  # noqa: BLE001
+        return False, str(exc)
 
 
 def _to_ms(value):
@@ -879,7 +892,23 @@ async def export_csv(username: str = Depends(enforce_user_rate_limit)):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": time.time()}
+    db_ok, db_message = _check_db_health()
+    now = time.time()
+    payload = {
+        "status": "healthy" if db_ok else "unhealthy",
+        "timestamp": now,
+        "uptime_sec": round(now - APP_START_TIME, 3),
+        "components": {
+            "database": {"ok": db_ok, "detail": db_message},
+            "metrics_enabled": METRICS_ENABLED,
+            "https_enforced": ENFORCE_HTTPS,
+            "telemetry_requires_api_key": TELEMETRY_REQUIRE_API_KEY,
+            "audit_sink_configured": bool(AUDIT_SINK_URL),
+        },
+    }
+    if db_ok:
+        return payload
+    return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=payload)
 
 
 @app.get("/metrics")

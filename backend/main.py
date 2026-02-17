@@ -32,6 +32,8 @@ JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
 JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
 API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
 TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
+USER_RATE_LIMITS_JSON = os.getenv("GUARDIAN_USER_RATE_LIMITS_JSON", "").strip()
+TELEMETRY_KEY_RATE_LIMITS_JSON = os.getenv("GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON", "").strip()
 AUDIT_SINK_URL = os.getenv("GUARDIAN_AUDIT_SINK_URL", "").strip()
 AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
 AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
@@ -87,6 +89,37 @@ _metrics_total_latency_ms = 0.0
 _metrics_latency_samples = 0
 _metrics_status_counts: Dict[int, int] = {}
 _metrics_recent_requests = deque()
+
+
+def _parse_limit_overrides(raw_value: str, label: str) -> Dict[str, int]:
+    if not raw_value:
+        return {}
+    try:
+        parsed = json.loads(raw_value)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Invalid %s JSON override config: %s", label, exc)
+        return {}
+    if not isinstance(parsed, dict):
+        logger.warning("Invalid %s JSON override config: expected object", label)
+        return {}
+    normalized: Dict[str, int] = {}
+    for key, value in parsed.items():
+        if not isinstance(key, str):
+            continue
+        try:
+            limit = int(value)
+        except Exception:  # noqa: BLE001
+            continue
+        if limit > 0:
+            normalized[key.strip()] = limit
+    return normalized
+
+
+_user_rate_limit_overrides = _parse_limit_overrides(USER_RATE_LIMITS_JSON, "GUARDIAN_USER_RATE_LIMITS_JSON")
+_telemetry_rate_limit_overrides = _parse_limit_overrides(
+    TELEMETRY_KEY_RATE_LIMITS_JSON,
+    "GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON",
+)
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -229,6 +262,14 @@ def _record_request_metric(status_code: int, latency_ms: float):
         one_minute_ago = now - 60.0
         while _metrics_recent_requests and _metrics_recent_requests[0] < one_minute_ago:
             _metrics_recent_requests.popleft()
+
+
+def _get_user_rate_limit(username: str) -> int:
+    return _user_rate_limit_overrides.get(username, API_RATE_LIMIT_PER_MIN)
+
+
+def _get_telemetry_rate_limit(identity: str) -> int:
+    return _telemetry_rate_limit_overrides.get(identity, TELEMETRY_RATE_LIMIT_PER_MIN)
 
 
 def _build_metrics_payload() -> str:
@@ -398,7 +439,7 @@ def get_current_user(
 
 
 def enforce_user_rate_limit(request: Request, username: str = Depends(get_current_user)):
-    _enforce_rate_limit(f"user:{username}", API_RATE_LIMIT_PER_MIN)
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
     return username
 
 
@@ -406,7 +447,7 @@ def enforce_telemetry_rate_limit(request: Request):
     identity = request.headers.get("x-api-key", "").strip()
     if not identity:
         identity = request.headers.get("x-forwarded-for", "").strip() or request.client.host
-    _enforce_rate_limit(f"telemetry:{identity}", TELEMETRY_RATE_LIMIT_PER_MIN)
+    _enforce_rate_limit(f"telemetry:{identity}", _get_telemetry_rate_limit(identity))
     return True
 
 

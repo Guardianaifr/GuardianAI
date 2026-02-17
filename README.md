@@ -1,4 +1,4 @@
-﻿## ðŸ›¡ï¸ GuardianAI
+## GuardianAI
 
 **AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
 
@@ -7,13 +7,12 @@
 
 
 > [!CAUTION]
-> [!CAUTION]
 > **DEFAULT CREDENTIALS:** The dashboard defaults to `admin` / `guardian_default`. 
 > Set the `GUARDIAN_ADMIN_PASS` environment variable before deploying to production!
 
 ---
 
-## ðŸš€ Quick Start (Windows)
+## Quick Start (Windows)
 
 We've made it easy. Just use our unified launcher:
 
@@ -22,7 +21,7 @@ We've made it easy. Just use our unified launcher:
 3.  Select **Option 1** (Start Shield) to protect your AI.
 4.  Select **Option 3** (Launch Dashboard) to view live threats.
 
-### ðŸŽ® Validation Demos
+### Validation Demos
 
 We include 6 ready-to-run scenarios to prove the security works:
 
@@ -37,22 +36,22 @@ We include 6 ready-to-run scenarios to prove the security works:
 
 ---
 
-## ðŸ’» Manual Launch
+## Manual Launch
 1.  **Multi-turn Context:** Currently analyzes strictly on a per-request basis. Does not yet maintain a sliding window of conversation history for context-aware verification.
 2.  **Rate Limiting:** Global rate limiting is implemented, but per-user/IP tiering is scheduled for v2.1.
 3.  **Authentication:** Dashboard uses Basic Auth. For production, put this behind a reverse proxy (Nginx/Cloudflare) or OAuth.
 
-## ðŸ”’ Production Hardening (CRITICAL)
+## Production Hardening (CRITICAL)
 
 **The Reality: GuardianAI is a Lock, Not a Wall.**
 
 Just like a lock doesn't help if you leave the door open, GuardianAI cannot protect you if you expose your LLM insecurely.
 
-**âŒ DO NOT:**
+**DO NOT:**
 *   Expose your LLM port (e.g., 8080/11434) directly to the internet.
 *   Rely on GuardianAI as your *only* line of defense.
 
-**âœ… DO:**
+**DO:**
 1.  **Network Security (The Foundation):**
     *   Bind your LLM to `127.0.0.1` (Localhost only).
     *   Use a **Firewall** (UFW/AWS Security Groups) to block all external traffic to ports 8080/11434.
@@ -80,10 +79,10 @@ Just like a lock doesn't help if you leave the door open, GuardianAI cannot prot
 
 ---
 
-## ðŸ¤ Contributing
+##  Contributing
 ...
 
-## ðŸ“¦ Installation
+##  Installation
 
 ### Option 0: One-Command Installer (Windows/macOS/Linux)
 ```powershell
@@ -149,31 +148,31 @@ Zero dependencies. Double-click to run.
 
 ---
 
-## ðŸŽ¯ What It Does
+##  What It Does
 
 GuardianAI sits between your application and your LLM, providing:
 
 ### Input Protection
-- âœ… **Jailbreak Detection** - Blocks prompt injection attempts
-- âœ… **Command Injection** - Prevents OS command execution
-- âœ… **Role Manipulation** - Stops "ignore instructions" attacks
+-  **Jailbreak Detection** - Blocks prompt injection attempts
+-  **Command Injection** - Prevents OS command execution
+-  **Role Manipulation** - Stops "ignore instructions" attacks
 
 ### Output Protection
-- âœ… **PII Redaction** - Removes emails, SSNs, credit cards, API keys
-- âœ… **Data Leakage Prevention** - Blocks sensitive information exposure
+-  **PII Redaction** - Removes emails, SSNs, credit cards, API keys
+-  **Data Leakage Prevention** - Blocks sensitive information exposure
 
 ### Advanced Security
-- âœ… **AI Firewall** - Semantic analysis of prompts
-- âœ… **Rate Limiting** - Prevents abuse
-- âœ… **Threat Intelligence** - Real-time threat feed integration
-- âœ… **Process Monitoring** - Detects malicious process spawning
+-  **AI Firewall** - Semantic analysis of prompts
+-  **Rate Limiting** - Prevents abuse
+-  **Threat Intelligence** - Real-time threat feed integration
+-  **Process Monitoring** - Detects malicious process spawning
 
 ---
 
-## ðŸ“Š Performance & Security
+##  Performance & Security
 
 ### Latency & Throughput
-- **Latency:** **12ms p95** (Full interception overhead) ðŸš€
+- **Latency:** **12ms p95** (Full interception overhead) 
 - **Throughput:** 1000+ requests/second
 
 ### Security Metrics (Balanced Mode Validation)
@@ -186,19 +185,19 @@ See [VALIDATION.md](VALIDATION.md) for detailed breakdown by security mode.
 
 ---
 
-## ðŸ—ï¸ Architecture
+##  Architecture
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”      â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”      â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚ Your App    â”‚â”€â”€â”€â”€â”€â–¶â”‚  GuardianAI  â”‚â”€â”€â”€â”€â”€â–¶â”‚   LLM   â”‚
-â”‚ (Client)    â”‚      â”‚   (Proxy)    â”‚      â”‚ (Agent) â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                            â”‚
-                            â–¼
-                     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-                     â”‚  Security    â”‚
-                     â”‚  Dashboard   â”‚
-                     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+            
+ Your App      GuardianAI     LLM   
+ (Client)             (Proxy)           (Agent) 
+            
+                            
+                            
+                     
+                       Security    
+                       Dashboard   
+                     
 ```
 
 **Components:**
@@ -210,7 +209,7 @@ See [VALIDATION.md](VALIDATION.md) for detailed breakdown by security mode.
 
 ---
 
-## ðŸ“– Documentation
+##  Documentation
 
 - **[API Reference](API.md)** - Endpoints, configuration, examples
 - **[Deployment Guide](DEPLOYMENT.md)** - Setup, configuration, production tips
@@ -220,7 +219,7 @@ See [VALIDATION.md](VALIDATION.md) for detailed breakdown by security mode.
 
 ---
 
-## ðŸ§ª Testing
+##  Testing
 
 ```bash
 # Run all tests
@@ -237,7 +236,7 @@ python -m pytest tests/guardrails/test_input_filter.py -v
 
 ---
 
-## ðŸ”§ Configuration
+##  Configuration
 
 Create `config.yaml`:
 
@@ -258,7 +257,7 @@ monitoring:
 
 ---
 
-## ðŸ› ï¸ Development
+##  Development
 
 ```bash
 # Install dev dependencies
@@ -276,7 +275,7 @@ tail -f guardian.log
 
 ---
 
-## ðŸ“ˆ Roadmap
+##  Roadmap
 
 - [x] Core security features
 - [x] Testing infrastructure (57 tests)
@@ -288,7 +287,7 @@ tail -f guardian.log
 
 ---
 
-## ðŸ¤ Contributing
+##  Contributing
 
 Contributions welcome! Please:
 
@@ -300,13 +299,13 @@ Contributions welcome! Please:
 
 ---
 
-## ðŸ“„ License
+##  License
 
 [Add your license here]
 
 ---
 
-## ðŸ†˜ Support
+##  Support
 
 - **Issues:** [GitHub Issues](link)
 - **Docs:** [Full Documentation](link)
@@ -314,8 +313,9 @@ Contributions welcome! Please:
 
 ---
 
-**Built with â¤ï¸ for AI security**
+**Built with  for AI security**
 "# Guardian-private" 
+
 
 
 

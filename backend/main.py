@@ -17,6 +17,8 @@ import hmac
 import hashlib
 import threading
 import requests
+import psutil
+from collections import deque
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -38,6 +40,7 @@ AUDIT_SINK_STRICT = os.getenv("GUARDIAN_AUDIT_STRICT", "false").strip().lower() 
 ENFORCE_HTTPS = os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
 TLS_CERT_FILE = os.getenv("GUARDIAN_TLS_CERT_FILE", "").strip()
 TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
+METRICS_ENABLED = os.getenv("GUARDIAN_METRICS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
 
 if ADMIN_PASS == "guardian_default":
     logger.warning("USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
@@ -78,6 +81,12 @@ BLOCKED_EVENT_TYPES = (
 
 _rate_limit_lock = threading.Lock()
 _rate_limit_state: Dict[str, List[float]] = {}
+_metrics_lock = threading.Lock()
+_metrics_request_count = 0
+_metrics_total_latency_ms = 0.0
+_metrics_latency_samples = 0
+_metrics_status_counts: Dict[int, int] = {}
+_metrics_recent_requests = deque()
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -206,6 +215,56 @@ def _is_https_request(scheme: str, forwarded_proto: str = "") -> bool:
     return "https" in forwarded_values
 
 
+def _record_request_metric(status_code: int, latency_ms: float):
+    now = time.time()
+    with _metrics_lock:
+        global _metrics_request_count
+        global _metrics_total_latency_ms
+        global _metrics_latency_samples
+        _metrics_request_count += 1
+        _metrics_total_latency_ms += latency_ms
+        _metrics_latency_samples += 1
+        _metrics_status_counts[status_code] = _metrics_status_counts.get(status_code, 0) + 1
+        _metrics_recent_requests.append(now)
+        one_minute_ago = now - 60.0
+        while _metrics_recent_requests and _metrics_recent_requests[0] < one_minute_ago:
+            _metrics_recent_requests.popleft()
+
+
+def _build_metrics_payload() -> str:
+    with _metrics_lock:
+        request_count = _metrics_request_count
+        avg_latency_ms = (_metrics_total_latency_ms / _metrics_latency_samples) if _metrics_latency_samples else 0.0
+        requests_last_minute = len(_metrics_recent_requests)
+        status_counts = dict(_metrics_status_counts)
+
+    process = psutil.Process()
+    cpu_percent = process.cpu_percent(interval=0.0)
+    memory_bytes = process.memory_info().rss
+    req_per_second = requests_last_minute / 60.0
+
+    lines = [
+        "# HELP guardian_http_requests_total Total HTTP requests handled.",
+        "# TYPE guardian_http_requests_total counter",
+        f"guardian_http_requests_total {request_count}",
+        "# HELP guardian_http_request_latency_avg_ms Average request latency in milliseconds.",
+        "# TYPE guardian_http_request_latency_avg_ms gauge",
+        f"guardian_http_request_latency_avg_ms {avg_latency_ms:.3f}",
+        "# HELP guardian_http_requests_per_second_1m Approximate requests per second over 1 minute.",
+        "# TYPE guardian_http_requests_per_second_1m gauge",
+        f"guardian_http_requests_per_second_1m {req_per_second:.3f}",
+        "# HELP guardian_process_cpu_percent Process CPU usage percent.",
+        "# TYPE guardian_process_cpu_percent gauge",
+        f"guardian_process_cpu_percent {cpu_percent:.3f}",
+        "# HELP guardian_process_memory_bytes Process resident memory in bytes.",
+        "# TYPE guardian_process_memory_bytes gauge",
+        f"guardian_process_memory_bytes {memory_bytes}",
+    ]
+    for code, count in sorted(status_counts.items()):
+        lines.append(f'guardian_http_status_total{{code="{code}"}} {count}')
+    return "\n".join(lines) + "\n"
+
+
 def _to_ms(value):
     if value is None:
         return None
@@ -291,6 +350,18 @@ async def enforce_https_middleware(request: Request, call_next):
             content={"detail": "HTTPS required. Set GUARDIAN_ENFORCE_HTTPS=false only for local development."},
         )
     return await call_next(request)
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    if not METRICS_ENABLED:
+        return await call_next(request)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    latency_ms = (time.perf_counter() - start) * 1000.0
+    _record_request_metric(response.status_code, latency_ms)
+    return response
 
 # Security / Auth
 security = HTTPBasic(auto_error=False)
@@ -567,6 +638,13 @@ async def export_csv(username: str = Depends(enforce_user_rate_limit)):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
+
+
+@app.get("/metrics")
+async def metrics():
+    if not METRICS_ENABLED:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metrics disabled")
+    return HTMLResponse(content=_build_metrics_payload(), media_type="text/plain")
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(username: str = Depends(enforce_user_rate_limit)):

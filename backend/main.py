@@ -33,6 +33,7 @@ JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
 JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
 API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
 TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
+AUTH_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_AUTH_RATE_LIMIT_PER_MIN", "60"))
 USER_RATE_LIMITS_JSON = os.getenv("GUARDIAN_USER_RATE_LIMITS_JSON", "").strip()
 TELEMETRY_KEY_RATE_LIMITS_JSON = os.getenv("GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON", "").strip()
 TELEMETRY_REQUIRE_API_KEY = os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", "false").strip().lower() in {"1", "true", "yes", "on"}
@@ -550,6 +551,12 @@ def enforce_telemetry_rate_limit(request: Request):
     return True
 
 
+def enforce_auth_rate_limit(request: Request):
+    identity = request.headers.get("x-forwarded-for", "").strip() or request.client.host
+    _enforce_rate_limit(f"auth:{identity}", AUTH_RATE_LIMIT_PER_MIN)
+    return True
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
@@ -632,7 +639,10 @@ def _is_token_revoked(jti: str) -> bool:
 
 
 @app.post("/api/v1/auth/token", response_model=TokenResponse)
-async def create_access_token(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
+async def create_access_token(
+    credentials: HTTPBasicCredentials = Depends(HTTPBasic()),
+    _: bool = Depends(enforce_auth_rate_limit),
+):
     username = _validate_basic(credentials)
     token = _issue_jwt(username)
     return TokenResponse(
@@ -644,7 +654,10 @@ async def create_access_token(credentials: HTTPBasicCredentials = Depends(HTTPBa
 
 
 @app.post("/api/v1/auth/revoke", response_model=RevokeTokenResponse)
-async def revoke_access_token(payload: Dict[str, Any] = Depends(get_current_token_payload)):
+async def revoke_access_token(
+    payload: Dict[str, Any] = Depends(get_current_token_payload),
+    _: bool = Depends(enforce_auth_rate_limit),
+):
     jti = payload.get("jti")
     exp = payload.get("exp")
     sub = payload.get("sub", "unknown")

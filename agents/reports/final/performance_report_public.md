@@ -1,4 +1,4 @@
-
+﻿
 # GuardianAI v1.0 Performance Benchmark
 
 **Date:** February 13, 2026
@@ -26,7 +26,7 @@ This measures how long GuardianAI spends processing a request *internally* (excl
 | **AI Firewall** | 9.55 ms | 11.90 ms | Embedding inference (the "heavy" lift). |
 | Output Validator | 0.10 ms | 0.11 ms | PII Regex scanning. |
 
-*Note: AI Firewall latency is dominated by embedding generation. GPU acceleration (Phase 5) could reduce this to <2ms.*
+*Note: AI Firewall latency is dominated by embedding generation. GPU acceleration (Segment 5) could reduce this to <2ms.*
 
 ---
 
@@ -58,3 +58,4 @@ For a standard deployment:
 *   **1 Instance (2 vCPU, 4GB RAM):** Supports ~50 concurrent users / ~20-30 req/sec.
 *   **Vertical Scaling:** Add CPU cores to increase throughput linear.
 *   **Horizontal Scaling:** GuardianAI is stateless. Deploy N instances behind a Load Balancer for infinite scale.
+

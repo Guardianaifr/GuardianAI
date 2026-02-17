@@ -1,4 +1,4 @@
-
+﻿
 # GuardianAI v1.0 Operational Readiness Report (Internal)
 
 **Date:** February 13, 2026
@@ -15,7 +15,7 @@
 - [x] **Configurable:** All secrets/settings via Environment Variables.
 - [x] **Persistence:** Local SQLite + WAL mode active. Recommendations to mount volume `/app/data`.
 
-### Security Hardening (Phase 3 & 4 Complete)
+### Security Hardening (Segment 3 & 4 Complete)
 - [x] **Security Modes:** `Strict`, `Balanced`, `Lenient` configurability active.
 - [x] **Base64 Detection:** `Base64Detector` active (blocks hidden payloads).
 - [x] **PII Redaction:** Default regex rules active for Emails, IPs, Credit Cards.
@@ -58,4 +58,5 @@ GuardianAI automatically pulls updates every 24 hours.
 
 ## 4. Known Limitations
 *   **Single Point of Failure:** In `docker-compose` setup, if the container dies, service stops. Use K8s/Swarm for HA.
-*   **SQLite:** Not suitable for >10k req/sec writes. Migrate to PostgreSQL (Phase 5) if creating a massive cluster.
+*   **SQLite:** Not suitable for >10k req/sec writes. Migrate to PostgreSQL (Segment 5) if creating a massive cluster.
+

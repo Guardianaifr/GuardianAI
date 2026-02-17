@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   guardian:
@@ -11,8 +11,8 @@ services:
     environment:
       # === Security Configuration ===
       # Set your admin password here!
-      # If left as 'guardian2026', you will see a warning in the logs.
-      - GUARDIAN_ADMIN_PASS=guardian2026
+      # If left as 'guardian_default', you will see a warning in the logs.
+      - GUARDIAN_ADMIN_PASS=guardian_default
 
       # === Operation Configuration ===
       - LOG_LEVEL=INFO
@@ -20,3 +20,4 @@ services:
     # Optional: Persist logs/database
     volumes:
       - ./guardian_data:/app/data
+

@@ -1,4 +1,4 @@
-
+﻿
 import json
 import time
 import statistics
@@ -98,18 +98,18 @@ class LatencyProfiler:
 
     def generate_report(self, output_path):
         report = []
-        report.append("# 🚀 GuardianAI Latency Profile (Week 2)")
+        report.append("# ðŸš€ GuardianAI Latency Profile (Cycle 2)")
         report.append(f"\n**Date**: {time.strftime('%Y-%m-%d')}")
         report.append(f"**Sample Size**: {len(self.results['total_latency'])} requests")
         
-        report.append("\n## 📊 Summary Metrics")
+        report.append("\n## ðŸ“Š Summary Metrics")
         stats = calculate_percentiles(self.results["total_latency"])
         report.append(f"- **p50 (Median)**: {stats['p50']:.2f}ms")
         report.append(f"- **p95**: {stats['p95']:.2f}ms")
         report.append(f"- **p99**: {stats['p99']:.2f}ms")
         report.append(f"- **Max**: {stats['max']:.2f}ms")
         
-        report.append("\n## 🧩 Component Breakdown")
+        report.append("\n## ðŸ§© Component Breakdown")
         
         components = ["input_filter", "threat_feed", "ai_firewall", "output_validator"]
         
@@ -157,3 +157,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

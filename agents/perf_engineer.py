@@ -1,10 +1,10 @@
-"""
-PerfEngineerAgent — Latency profiling, optimization, and SLA monitoring.
+﻿"""
+PerfEngineerAgent â€” Latency profiling, optimization, and SLA monitoring.
 
-Owns Tasks from 30-Day Plan:
-  Day 5: Profile latency, identify bottleneck, plan optimization, set SLA
-  Week 2 Track B: Timing instrumentation, 1000-request benchmark, latency report
-  Week 3: Embedding cache, async Presidio, fast-path bypass
+Owns Tasks from Roadmap:
+  Window 5: Profile latency, identify bottleneck, plan optimization, set SLA
+  Cycle 2 Track B: Timing instrumentation, 1000-request benchmark, latency report
+  Cycle 3: Embedding cache, async Presidio, fast-path bypass
 """
 
 import ast
@@ -16,7 +16,7 @@ from agents.base_agent import BaseAgent, Task, PROJECT_ROOT
 
 
 class PerfEngineerAgent(BaseAgent):
-    """Performance Engineer — latency profiling & optimization."""
+    """Performance Engineer â€” latency profiling & optimization."""
 
     def __init__(self):
         super().__init__(
@@ -27,16 +27,16 @@ class PerfEngineerAgent(BaseAgent):
 
     def _init_tasks(self):
         self.tasks = [
-            Task("PE-001", "Profile latency per component (embed, Presidio, regex, logging)", "Day 5"),
-            Task("PE-002", "Identify bottleneck (which component is slowest?)", "Day 5"),
-            Task("PE-003", "Plan optimization (cache, async, GPU)", "Day 5"),
-            Task("PE-004", "Set SLA targets", "Day 5"),
-            Task("PE-005", "Add timing instrumentation to all components", "Week 2"),
-            Task("PE-006", "Run 1000-request latency benchmark", "Week 2"),
-            Task("PE-007", "Create detailed latency report (p50, p95, p99)", "Week 2"),
-            Task("PE-008", "Implement embedding cache (LRU 10k entries)", "Week 3"),
-            Task("PE-009", "Implement async Presidio (background thread)", "Week 3"),
-            Task("PE-010", "Implement fast-path bypass for obvious-safe queries", "Week 3"),
+            Task("PE-001", "Profile latency per component (embed, Presidio, regex, logging)", "Window 5"),
+            Task("PE-002", "Identify bottleneck (which component is slowest?)", "Window 5"),
+            Task("PE-003", "Plan optimization (cache, async, GPU)", "Window 5"),
+            Task("PE-004", "Set SLA targets", "Window 5"),
+            Task("PE-005", "Add timing instrumentation to all components", "Cycle 2"),
+            Task("PE-006", "Run 1000-request latency benchmark", "Cycle 2"),
+            Task("PE-007", "Create detailed latency report (p50, p95, p99)", "Cycle 2"),
+            Task("PE-008", "Implement embedding cache (LRU 10k entries)", "Cycle 3"),
+            Task("PE-009", "Implement async Presidio (background thread)", "Cycle 3"),
+            Task("PE-010", "Implement fast-path bypass for obvious-safe queries", "Cycle 3"),
         ]
 
     def execute_task(self, task_id: str) -> dict:
@@ -59,7 +59,7 @@ class PerfEngineerAgent(BaseAgent):
 
     def _profile_latency(self) -> dict:
         """PE-001: Profile each guardrail component for latency hotspots."""
-        print("    ⏱️  Profiling guardrail components...")
+        print("    â±ï¸  Profiling guardrail components...")
         guardrails_dir = PROJECT_ROOT / "guardian" / "guardrails"
         components = []
 
@@ -97,12 +97,12 @@ class PerfEngineerAgent(BaseAgent):
         components.sort(key=lambda x: x["estimated_latency_ms"], reverse=True)
         report = {"components": components, "total_estimated_ms": sum(c["estimated_latency_ms"] for c in components)}
         self._save_report("latency_profile", report)
-        print(f"    ⏱️  Profiled {len(components)} components, total est: {report['total_estimated_ms']}ms")
+        print(f"    â±ï¸  Profiled {len(components)} components, total est: {report['total_estimated_ms']}ms")
         return report
 
     def _identify_bottleneck(self) -> dict:
         """PE-002: Identify the slowest component."""
-        print("    🔍 Identifying bottleneck...")
+        print("    ðŸ” Identifying bottleneck...")
         profile_result = self._profile_latency()
         components = profile_result.get("components", [])
         if not components:
@@ -113,13 +113,13 @@ class PerfEngineerAgent(BaseAgent):
             "bottleneck": bottleneck["name"],
             "estimated_latency_ms": bottleneck["estimated_latency_ms"],
             "risk_level": bottleneck["risk_level"],
-            "recommendation": f"Optimize {bottleneck['name']} first — "
+            "recommendation": f"Optimize {bottleneck['name']} first â€” "
                             f"{'model call' if bottleneck['has_model_call'] else 'I/O'} is the hotspot",
         }
 
     def _plan_optimization(self) -> dict:
         """PE-003: Create optimization plan."""
-        print("    📐 Planning optimizations...")
+        print("    ðŸ“ Planning optimizations...")
         plan = {
             "optimizations": [
                 {
@@ -156,7 +156,7 @@ class PerfEngineerAgent(BaseAgent):
 
     def _set_sla(self) -> dict:
         """PE-004: Define SLA targets."""
-        print("    🎯 Setting SLA targets...")
+        print("    ðŸŽ¯ Setting SLA targets...")
         sla = {
             "latency": {"p50": "18ms", "p95": "42ms", "p99": "98ms"},
             "throughput": {"single_instance": "500 req/sec", "error_rate": "0.01%"},
@@ -168,7 +168,7 @@ class PerfEngineerAgent(BaseAgent):
 
     def _add_instrumentation(self) -> dict:
         """PE-005: Generate timing instrumentation code."""
-        print("    📏 Generating timing instrumentation...")
+        print("    ðŸ“ Generating timing instrumentation...")
         decorator_code = '''
 """Timing instrumentation decorator for GuardianAI components."""
 import time
@@ -234,12 +234,12 @@ def get_timing_stats():
         path = PROJECT_ROOT / "guardian" / "utils" / "timing.py"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(decorator_code.strip(), encoding="utf-8")
-        print(f"    💾 Timing module saved: {path}")
+        print(f"    ðŸ’¾ Timing module saved: {path}")
         return {"instrumentation_path": str(path)}
 
     def _run_load_test(self) -> dict:
         """PE-006: Simulated 1000-request load test."""
-        print("    🏋️  Running load test (simulated)...")
+        print("    ðŸ‹ï¸  Running load test (simulated)...")
         import random
         latencies = [random.gauss(25, 10) for _ in range(1000)]
         latencies = [max(1.0, l) for l in latencies]
@@ -253,15 +253,15 @@ def get_timing_stats():
             "mean_ms": round(sum(latencies)/n, 2),
             "min_ms": round(min(latencies), 2),
             "max_ms": round(max(latencies), 2),
-            "note": "SIMULATED — run with live proxy for actual results",
+            "note": "SIMULATED â€” run with live proxy for actual results",
         }
         self._save_report("load_test", result)
-        print(f"    📊 p50={result['p50_ms']}ms p95={result['p95_ms']}ms p99={result['p99_ms']}ms")
+        print(f"    ðŸ“Š p50={result['p50_ms']}ms p95={result['p95_ms']}ms p99={result['p99_ms']}ms")
         return result
 
     def _create_latency_report(self) -> dict:
         """PE-007: Generate detailed latency report."""
-        print("    📄 Generating latency report...")
+        print("    ðŸ“„ Generating latency report...")
         rd = PROJECT_ROOT / "agents" / "reports" / self.name
         load_files = sorted(rd.glob("load_test_*.json")) if rd.exists() else []
         data = {}
@@ -286,17 +286,17 @@ def get_timing_stats():
 
     def _implement_embedding_cache(self) -> dict:
         """PE-008: Generate LRU embedding cache code."""
-        print("    🗃️  Generating embedding cache...")
+        print("    ðŸ—ƒï¸  Generating embedding cache...")
         return {"status": "ready", "implementation": "Add @functools.lru_cache(maxsize=10000) to encode() in ai_firewall.py"}
 
     def _implement_async_presidio(self) -> dict:
         """PE-009: Generate async Presidio wrapper."""
-        print("    ⚡ Generating async Presidio wrapper...")
+        print("    âš¡ Generating async Presidio wrapper...")
         return {"status": "ready", "implementation": "Wrap Presidio calls in ThreadPoolExecutor in output_validator.py"}
 
     def _implement_fast_path(self) -> dict:
-        """PE-010: Fast-path bypass already exists — verify."""
-        print("    🏎️  Checking fast-path module...")
+        """PE-010: Fast-path bypass already exists â€” verify."""
+        print("    ðŸŽï¸  Checking fast-path module...")
         fp = PROJECT_ROOT / "guardian" / "guardrails" / "fast_path.py"
         if fp.exists():
             return {"status": "exists", "path": str(fp), "lines": len(fp.read_text().splitlines())}
@@ -307,4 +307,6 @@ def get_timing_stats():
         rd.mkdir(parents=True, exist_ok=True)
         p = rd / f"{name}_{datetime.now():%Y%m%d_%H%M%S}.json"
         with open(p, "w") as f: json.dump(data, f, indent=2)
-        print(f"    💾 Report: {p.name}")
+        print(f"    ðŸ’¾ Report: {p.name}")
+
+

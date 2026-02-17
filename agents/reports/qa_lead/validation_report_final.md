@@ -1,18 +1,18 @@
-
-# GuardianAI Validation Report (Week 2/3)
+﻿
+# GuardianAI Validation Report (Cycle 2/3)
 
 **Date**: 2026-02-13
-**Status**: PASSED 🟢
+**Status**: PASSED ðŸŸ¢
 
 ## 1. Security Efficacy (Benchmark)
 Executed against 1,500 prompt corpus (1000 benign, 500 jailbreak).
 
 | Metric | Result | Target | Status |
 | :--- | :--- | :--- | :--- |
-| **Recall** (Detection Rate) | **100.00%** | >95% | ✅ Exceeded |
-| **Precision** | **93.98%** | >90% | ✅ Met |
-| **F1-Score** | **0.9690** | >0.90 | ✅ Met |
-| **False Positive Rate** | **3.20%** | <5% | ✅ Met |
+| **Recall** (Detection Rate) | **100.00%** | >95% | âœ… Exceeded |
+| **Precision** | **93.98%** | >90% | âœ… Met |
+| **F1-Score** | **0.9690** | >0.90 | âœ… Met |
+| **False Positive Rate** | **3.20%** | <5% | âœ… Met |
 
 **Success**: Zero escapes/bypasses observed. The AI Firewall successfully identified all 500 jailbreak attempts.
 **False Positives**: Primarily in creative writing (screenplays) and code debugging contexts.
@@ -46,4 +46,5 @@ Simulated concurrent user traffic to verify stability and rate limiting.
 - **Compatibility**: Presidio PII scanner requires Python <3.14 or upgrade to Pydantic v2.
 
 ## Conclusion
-GuardianAI is **validated for production** use in single-instance deployments. It meets or exceeds all Week 2 security and latency targets.
+GuardianAI is **validated for production** use in single-instance deployments. It meets or exceeds all Cycle 2 security and latency targets.
+

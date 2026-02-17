@@ -1,4 +1,4 @@
-# GuardianAI 30-Day Plan — Combined Status
+﻿# GuardianAI Roadmap â€” Combined Status
 
 Generated: 2026-02-14 01:28
 

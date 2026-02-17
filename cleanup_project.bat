@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 title GuardianAI Project Cleanup
 color 0E
 cls
@@ -33,7 +33,7 @@ move simulate_live_demo.py _archive\ >nul 2>&1
 move check_pii.py _archive\ >nul 2>&1
 
 REM --- 2. Documentation (Legacy) ---
-move "GuardianAI_30DayPlan.md" _archive\ >nul 2>&1
+move "ROADMAP.md" _archive\ >nul 2>&1
 move "GuardianAI_PII_FP_PROBLEM.md" _archive\ >nul 2>&1
 move "GuardianAI_Security_Benchmark_Report.md" _archive\ >nul 2>&1
 move "GUARDIAN_AI_WHITEPAPER.md" _archive\ >nul 2>&1
@@ -62,3 +62,4 @@ echo   Check the '_archive' folder.
 echo ========================================================
 echo.
 pause
+

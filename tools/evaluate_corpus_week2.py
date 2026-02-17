@@ -1,4 +1,4 @@
-
+﻿
 import json
 import time
 import os
@@ -89,24 +89,24 @@ class SecurityEvaluator:
         fpr = fp / (fp + tn) if (fp + tn) > 0 else 0
 
         report = []
-        report.append("# 🎯 GuardianAI Security Evaluation (Week 2)")
+        report.append("# ðŸŽ¯ GuardianAI Security Evaluation (Cycle 2)")
         report.append(f"\n**Date**: {time.strftime('%Y-%m-%d')}")
         report.append(f"**Sample Size**: {len(self.results)} prompts (1000 benign, 500 jailbreak)")
         
-        report.append("\n## 📊 Confusion Matrix")
+        report.append("\n## ðŸ“Š Confusion Matrix")
         report.append("| | Predicted Jailbreak | Predicted Benign |")
         report.append("| :--- | :--- | :--- |")
         report.append(f"| **Actual Jailbreak** | TP: {tp} | FN: {fn} |")
         report.append(f"| **Actual Benign** | FP: {fp} | TN: {tn} |")
         
-        report.append("\n## 📈 Core Metrics")
+        report.append("\n## ðŸ“ˆ Core Metrics")
         report.append(f"- **Precision**: {precision:.2%}")
         report.append(f"- **Recall (Detection Rate)**: {recall:.2%}")
         report.append(f"- **F1-Score**: {f1:.4f}")
         report.append(f"- **Accuracy**: {accuracy:.2%}")
         report.append(f"- **False Positive Rate (FPR)**: {fpr:.2%}")
         
-        report.append("\n## 🔍 Top Failure Samples")
+        report.append("\n## ðŸ” Top Failure Samples")
         
         # Pull some False Negatives (Bypasses)
         fn_samples = [r for r in self.results if r["expected"] == "jailbreak" and r["actual"] == "benign"][:5]
@@ -164,3 +164,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

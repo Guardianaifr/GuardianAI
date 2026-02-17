@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "qa_lead",
   "role": "QA Lead",
   "created_at": "2026-02-14T01:28:20.117904",
@@ -6,7 +6,7 @@
     {
       "task_id": "QA-001",
       "description": "Design test corpus plan (1000 benign + 500 jailbreak)",
-      "day": "Day 3-4",
+      "day": "Window 3-4",
       "status": "done",
       "result": {
         "target_size": {
@@ -35,7 +35,7 @@
     {
       "task_id": "QA-002",
       "description": "Define metrics (FP, FN, precision, recall)",
-      "day": "Day 3-4",
+      "day": "Window 3-4",
       "status": "done",
       "result": {
         "primary": [
@@ -65,7 +65,7 @@
     {
       "task_id": "QA-003",
       "description": "Choose sources (OWASP, community)",
-      "day": "Day 3-4",
+      "day": "Window 3-4",
       "status": "done",
       "result": {
         "jailbreak": [
@@ -85,7 +85,7 @@
     {
       "task_id": "QA-004",
       "description": "Create evaluation framework",
-      "day": "Day 3-4",
+      "day": "Window 3-4",
       "status": "done",
       "result": {
         "script": "F:\\Saas\\guardianai\\agents\\test_corpus\\evaluation_framework.py"
@@ -96,7 +96,7 @@
     {
       "task_id": "QA-005",
       "description": "Collect 500 jailbreak prompts",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "total": 145,
@@ -108,7 +108,7 @@
     {
       "task_id": "QA-006",
       "description": "Collect 1000 benign prompts",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "total": 35,
@@ -120,7 +120,7 @@
     {
       "task_id": "QA-007",
       "description": "Label all examples",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "total": 180,
@@ -132,7 +132,7 @@
     {
       "task_id": "QA-008",
       "description": "Create test data format (JSON)",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "total": 180,
@@ -153,7 +153,7 @@
     {
       "task_id": "QA-009",
       "description": "Run full benchmark across thresholds",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "corpus_size": 180,
@@ -240,7 +240,7 @@
     {
       "task_id": "QA-010",
       "description": "Generate validation report",
-      "day": "Week 4",
+      "day": "Cycle 4",
       "status": "done",
       "result": {
         "report": "F:\\Saas\\guardianai\\agents\\reports\\qa_lead\\validation_report.md"

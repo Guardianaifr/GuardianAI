@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "devops_security",
   "role": "DevOps + Security Lead",
   "created_at": "2026-02-14T01:28:20.119052",
@@ -6,7 +6,7 @@
     {
       "task_id": "DS-001",
       "description": "Audit operational gaps (TTL, backups, monitoring)",
-      "day": "Day 6",
+      "day": "Window 6",
       "status": "done",
       "result": {
         "gaps": [
@@ -55,7 +55,7 @@
     {
       "task_id": "DS-002",
       "description": "Audit security gaps (threat model, audit logs, secrets)",
-      "day": "Day 6",
+      "day": "Window 6",
       "status": "done",
       "result": {
         "findings": [
@@ -281,7 +281,7 @@
     {
       "task_id": "DS-003",
       "description": "Create remediation plan",
-      "day": "Day 6",
+      "day": "Window 6",
       "status": "done",
       "result": {
         "priority_1_critical": [
@@ -308,7 +308,7 @@
     {
       "task_id": "DS-004",
       "description": "Estimate effort for remediation",
-      "day": "Day 6",
+      "day": "Window 6",
       "status": "done",
       "result": {
         "critical": "2 days",
@@ -322,7 +322,7 @@
     {
       "task_id": "DS-005",
       "description": "Document all operational procedures",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "path": "F:\\Saas\\guardianai\\agents\\reports\\devops_security\\ops_procedures.md"
@@ -333,7 +333,7 @@
     {
       "task_id": "DS-006",
       "description": "Identify missing monitoring",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "missing": [
@@ -350,7 +350,7 @@
     {
       "task_id": "DS-007",
       "description": "Security checklist (protected vs not)",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "protected": [
@@ -374,7 +374,7 @@
     {
       "task_id": "DS-008",
       "description": "Create remediation tickets",
-      "day": "Week 2",
+      "day": "Cycle 2",
       "status": "done",
       "result": {
         "tickets": [
@@ -429,7 +429,7 @@
     {
       "task_id": "DS-009",
       "description": "Implement context buffer TTL (5 min expiry)",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "path": "F:\\Saas\\guardianai\\guardian\\utils\\ttl_buffer.py",
@@ -441,7 +441,7 @@
     {
       "task_id": "DS-010",
       "description": "Implement memory monitoring (alert >500MB)",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "path": "F:\\Saas\\guardianai\\guardian\\utils\\memory_monitor.py"
@@ -452,7 +452,7 @@
     {
       "task_id": "DS-011",
       "description": "Implement daily SQLite backup",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "path": "F:\\Saas\\guardianai\\guardian\\utils\\backup.py"
@@ -463,7 +463,7 @@
     {
       "task_id": "DS-012",
       "description": "Create monitoring dashboard config",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "metrics": [
@@ -480,7 +480,7 @@
     {
       "task_id": "DS-013",
       "description": "Implement alerting on critical metrics",
-      "day": "Week 3",
+      "day": "Cycle 3",
       "status": "done",
       "result": {
         "alerts": [

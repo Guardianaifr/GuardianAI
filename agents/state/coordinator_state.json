@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "coordinator",
   "role": "Coordinator (All)",
   "created_at": "2026-02-14T01:28:20.119490",
@@ -6,7 +6,7 @@
     {
       "task_id": "CO-001",
       "description": "Review all roadmaps from specialist agents",
-      "day": "Day 7",
+      "day": "Window 7",
       "status": "done",
       "result": {
         "lead_engineer": {
@@ -44,7 +44,7 @@
     {
       "task_id": "CO-002",
       "description": "Prioritize critical path",
-      "day": "Day 7",
+      "day": "Window 7",
       "status": "done",
       "result": {
         "phases": [
@@ -128,7 +128,7 @@
     {
       "task_id": "CO-003",
       "description": "Commit to 30-day targets",
-      "day": "Day 7",
+      "day": "Window 7",
       "status": "done",
       "result": {
         "must_have": [
@@ -150,7 +150,7 @@
     {
       "task_id": "CO-004",
       "description": "Assign owners and set daily standups",
-      "day": "Day 7",
+      "day": "Window 7",
       "status": "done",
       "result": {
         "lead_engineer": {

@@ -1,10 +1,10 @@
-"""
-LeadEngineerAgent — Code quality, auditing, test coverage, tech debt tracking.
+﻿"""
+LeadEngineerAgent â€” Code quality, auditing, test coverage, tech debt tracking.
 
-Owns Tasks from 30-Day Plan:
-  Day 1-2: Code audit, assumptions, profiling, documentation review
-  Week 2 Track C: Coverage, untested paths, tech debt, refactoring plan
-  Week 4: Code coverage ≥80%, all components tested, documentation complete
+Owns Tasks from Roadmap:
+  Window 1-2: Code audit, assumptions, profiling, documentation review
+  Cycle 2 Track C: Coverage, untested paths, tech debt, refactoring plan
+  Cycle 4: Code coverage â‰¥80%, all components tested, documentation complete
 """
 
 import os
@@ -17,7 +17,7 @@ from agents.base_agent import BaseAgent, Task, PROJECT_ROOT
 
 
 class LeadEngineerAgent(BaseAgent):
-    """Lead Engineer — owns code quality, auditing, and technical debt."""
+    """Lead Engineer â€” owns code quality, auditing, and technical debt."""
 
     def __init__(self):
         super().__init__(
@@ -28,20 +28,20 @@ class LeadEngineerAgent(BaseAgent):
 
     def _init_tasks(self):
         self.tasks = [
-            # Day 1-2: Assess Current State
-            Task("LE-001", "Run full code audit (code quality, coverage, tech debt)", "Day 1-2"),
-            Task("LE-002", "Identify all assumptions (claims without data)", "Day 1-2"),
-            Task("LE-003", "Profile performance (measure actual latency)", "Day 1-2"),
-            Task("LE-004", "Review all documentation (what's documented vs missing)", "Day 1-2"),
-            # Week 2 Track C: Code Audit
-            Task("LE-005", "Measure test coverage (pytest --cov)", "Week 2"),
-            Task("LE-006", "Identify untested code paths", "Week 2"),
-            Task("LE-007", "Document technical debt", "Week 2"),
-            Task("LE-008", "Plan refactoring (if needed)", "Week 2"),
-            # Week 4: Quality Checklist
-            Task("LE-009", "Verify code coverage ≥80%", "Week 4"),
-            Task("LE-010", "Verify all components tested", "Week 4"),
-            Task("LE-011", "Verify documentation complete (API, deployment, troubleshooting)", "Week 4"),
+            # Window 1-2: Assess Current State
+            Task("LE-001", "Run full code audit (code quality, coverage, tech debt)", "Window 1-2"),
+            Task("LE-002", "Identify all assumptions (claims without data)", "Window 1-2"),
+            Task("LE-003", "Profile performance (measure actual latency)", "Window 1-2"),
+            Task("LE-004", "Review all documentation (what's documented vs missing)", "Window 1-2"),
+            # Cycle 2 Track C: Code Audit
+            Task("LE-005", "Measure test coverage (pytest --cov)", "Cycle 2"),
+            Task("LE-006", "Identify untested code paths", "Cycle 2"),
+            Task("LE-007", "Document technical debt", "Cycle 2"),
+            Task("LE-008", "Plan refactoring (if needed)", "Cycle 2"),
+            # Cycle 4: Quality Checklist
+            Task("LE-009", "Verify code coverage â‰¥80%", "Cycle 4"),
+            Task("LE-010", "Verify all components tested", "Cycle 4"),
+            Task("LE-011", "Verify documentation complete (API, deployment, troubleshooting)", "Cycle 4"),
         ]
 
     def execute_task(self, task_id: str) -> dict:
@@ -63,11 +63,11 @@ class LeadEngineerAgent(BaseAgent):
             return {"error": f"Unknown task: {task_id}"}
         return handler()
 
-    # ── Task Implementations ──────────────────────────────────────
+    # â”€â”€ Task Implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _run_code_audit(self) -> dict:
-        """LE-001: Full code audit — scan all Python files, analyze quality metrics."""
-        print("    📂 Scanning codebase...")
+        """LE-001: Full code audit â€” scan all Python files, analyze quality metrics."""
+        print("    ðŸ“‚ Scanning codebase...")
         guardian_dir = PROJECT_ROOT / "guardian"
         files = self._scan_directory(str(guardian_dir), extensions=[".py"])
 
@@ -135,13 +135,13 @@ class LeadEngineerAgent(BaseAgent):
 
         # Save report
         self._save_report("code_audit", report)
-        print(f"    📊 Audit: {total_files} files, {total_lines} lines, "
+        print(f"    ðŸ“Š Audit: {total_files} files, {total_lines} lines, "
               f"{len(quality_issues)} issues found")
         return report
 
     def _identify_assumptions(self) -> dict:
         """LE-002: Find unvalidated assumptions in the codebase."""
-        print("    🔍 Scanning for unvalidated claims...")
+        print("    ðŸ” Scanning for unvalidated claims...")
         guardian_dir = PROJECT_ROOT / "guardian"
         assumptions = []
 
@@ -198,12 +198,12 @@ class LeadEngineerAgent(BaseAgent):
             "assumptions": assumptions[:30],
         }
         self._save_report("assumptions", report)
-        print(f"    📋 Found {len(assumptions)} unvalidated assumptions")
+        print(f"    ðŸ“‹ Found {len(assumptions)} unvalidated assumptions")
         return report
 
     def _profile_performance(self) -> dict:
         """LE-003: Profile actual latency of key components."""
-        print("    ⏱️  Profiling component latency (static analysis)...")
+        print("    â±ï¸  Profiling component latency (static analysis)...")
         # Since we can't run the server, do a static analysis of potential bottlenecks
         bottlenecks = []
 
@@ -224,14 +224,14 @@ class LeadEngineerAgent(BaseAgent):
                                 "file": py_file.name,
                                 "line": node.lineno,
                                 "type": "model_call",
-                                "detail": "ML model inference — potential latency hotspot",
+                                "detail": "ML model inference â€” potential latency hotspot",
                             })
                         if "requests" in call_str.lower() or "http" in call_str.lower():
                             bottlenecks.append({
                                 "file": py_file.name,
                                 "line": node.lineno,
                                 "type": "network_call",
-                                "detail": "Network I/O — blocking call",
+                                "detail": "Network I/O â€” blocking call",
                             })
 
                 # Check for sync file I/O
@@ -253,12 +253,12 @@ class LeadEngineerAgent(BaseAgent):
             "recommendation": "Add timing decorators to each guardrail for live profiling",
         }
         self._save_report("performance_profile", report)
-        print(f"    🔥 Found {len(bottlenecks)} potential bottlenecks")
+        print(f"    ðŸ”¥ Found {len(bottlenecks)} potential bottlenecks")
         return report
 
     def _review_documentation(self) -> dict:
         """LE-004: Review what's documented vs missing."""
-        print("    📖 Reviewing documentation...")
+        print("    ðŸ“– Reviewing documentation...")
         doc_files = []
         missing_docs = []
 
@@ -295,13 +295,13 @@ class LeadEngineerAgent(BaseAgent):
             "documentation_coverage": f"{len(doc_files)}/{len(expected_docs)} expected docs exist",
         }
         self._save_report("documentation_review", report)
-        print(f"    📚 Docs: {len(doc_files)} exist, {len(missing_docs)} missing, "
+        print(f"    ðŸ“š Docs: {len(doc_files)} exist, {len(missing_docs)} missing, "
               f"{len(modules_without_docstrings)} modules lack docstrings")
         return report
 
     def _measure_coverage(self) -> dict:
         """LE-005: Attempt to measure test coverage."""
-        print("    🧪 Checking test coverage...")
+        print("    ðŸ§ª Checking test coverage...")
         # Try running pytest --cov
         try:
             result = subprocess.run(
@@ -325,7 +325,7 @@ class LeadEngineerAgent(BaseAgent):
 
     def _find_untested_paths(self) -> dict:
         """LE-006: Identify code paths without tests."""
-        print("    🔎 Finding untested code paths...")
+        print("    ðŸ”Ž Finding untested code paths...")
         test_files = list((PROJECT_ROOT).rglob("test_*.py")) + list((PROJECT_ROOT).rglob("*_test.py"))
 
         # Find all modules and check if they have corresponding tests
@@ -355,13 +355,13 @@ class LeadEngineerAgent(BaseAgent):
             "coverage_estimate": f"{len(tested)}/{len(guardian_modules)} modules referenced in tests",
         }
         self._save_report("untested_paths", report)
-        print(f"    🎯 {len(tested)}/{len(guardian_modules)} modules have tests, "
+        print(f"    ðŸŽ¯ {len(tested)}/{len(guardian_modules)} modules have tests, "
               f"{len(untested)} untested")
         return report
 
     def _document_tech_debt(self) -> dict:
         """LE-007: Compile technical debt inventory."""
-        print("    📝 Documenting technical debt...")
+        print("    ðŸ“ Documenting technical debt...")
         debt_items = []
 
         for py_file in (PROJECT_ROOT / "guardian").rglob("*.py"):
@@ -402,12 +402,12 @@ class LeadEngineerAgent(BaseAgent):
             "items": debt_items,
         }
         self._save_report("tech_debt", report)
-        print(f"    💳 Technical debt: {len(debt_items)} items")
+        print(f"    ðŸ’³ Technical debt: {len(debt_items)} items")
         return report
 
     def _plan_refactoring(self) -> dict:
         """LE-008: Generate refactoring plan based on audit results."""
-        print("    📐 Planning refactoring...")
+        print("    ðŸ“ Planning refactoring...")
         recommendations = [
             "Add type hints to all public functions",
             "Extract shared utilities into common/ module",
@@ -433,14 +433,14 @@ class LeadEngineerAgent(BaseAgent):
         report = {
             "recommendations": recommendations,
             "large_files_to_split": sorted(large_files, key=lambda x: x["lines"], reverse=True),
-            "priority": "Start with guardrails module — highest impact",
+            "priority": "Start with guardrails module â€” highest impact",
         }
         self._save_report("refactoring_plan", report)
-        print(f"    🔧 Generated {len(recommendations)} refactoring recommendations")
+        print(f"    ðŸ”§ Generated {len(recommendations)} refactoring recommendations")
         return report
 
     def _verify_coverage_target(self) -> dict:
-        """LE-009: Verify code coverage meets ≥80% target."""
+        """LE-009: Verify code coverage meets â‰¥80% target."""
         return self._measure_coverage()
 
     def _verify_all_tested(self) -> dict:
@@ -451,7 +451,7 @@ class LeadEngineerAgent(BaseAgent):
         """LE-011: Final documentation completeness check."""
         return self._review_documentation()
 
-    # ── Utilities ─────────────────────────────────────────────────
+    # â”€â”€ Utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _save_report(self, report_name: str, data: dict):
         """Save a report to the reports directory."""
@@ -460,4 +460,6 @@ class LeadEngineerAgent(BaseAgent):
         path = reports_dir / f"{report_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        print(f"    💾 Report saved: {path.name}")
+        print(f"    ðŸ’¾ Report saved: {path.name}")
+
+

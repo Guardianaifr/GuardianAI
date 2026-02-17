@@ -1,4 +1,4 @@
-# GuardianAI Test Suite Setup
+﻿# GuardianAI Test Suite Setup
 
 ## Installation Commands
 
@@ -16,20 +16,20 @@ python -m pytest --version
 
 ```
 f:\Saas\guardianai\
-├── tests\
-│   ├── __init__.py
-│   ├── conftest.py              # Shared fixtures
-│   ├── guardrails\
-│   │   ├── __init__.py
-│   │   ├── test_input_filter.py
-│   │   ├── test_output_validator.py
-│   │   └── test_ai_firewall.py
-│   ├── runtime\
-│   │   ├── __init__.py
-│   │   └── test_interceptor.py
-│   └── utils\
-│       ├── __init__.py
-│       └── test_logger.py
+â”œâ”€â”€ tests\
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”œâ”€â”€ conftest.py              # Shared fixtures
+â”‚   â”œâ”€â”€ guardrails\
+â”‚   â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”‚   â”œâ”€â”€ test_input_filter.py
+â”‚   â”‚   â”œâ”€â”€ test_output_validator.py
+â”‚   â”‚   â””â”€â”€ test_ai_firewall.py
+â”‚   â”œâ”€â”€ runtime\
+â”‚   â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”‚   â””â”€â”€ test_interceptor.py
+â”‚   â””â”€â”€ utils\
+â”‚       â”œâ”€â”€ __init__.py
+â”‚       â””â”€â”€ test_logger.py
 ```
 
 ## Running Tests
@@ -50,6 +50,7 @@ pytest -v
 
 ## Coverage Goals
 
-- **Phase 1**: 30% coverage (core guardrails)
-- **Phase 2**: 60% coverage (add runtime tests)
-- **Phase 3**: 80% coverage (comprehensive suite)
+- **Level 1**: 30% coverage (core guardrails)
+- **Level 2**: 60% coverage (add runtime tests)
+- **Level 3**: 80% coverage (comprehensive suite)
+

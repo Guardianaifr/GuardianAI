@@ -1,4 +1,4 @@
-
+﻿
 import concurrent.futures
 import time
 import requests
@@ -83,13 +83,13 @@ def run_load_test(concurrent_users, total_requests):
     }
 
 if __name__ == "__main__":
-    print("GuardianAI Load Test Tool (Week 3)")
+    print("GuardianAI Load Test Tool (Cycle 3)")
     
     # Check if server is running
     try:
         requests.get("http://localhost:8081/health", timeout=2)
     except:
-        print("❌ Error: GuardianAI proxy is not running on http://localhost:8081")
+        print("âŒ Error: GuardianAI proxy is not running on http://localhost:8081")
         print("Please start the proxy before running load tests.")
         sys.exit(1)
 
@@ -110,3 +110,4 @@ if __name__ == "__main__":
     for r in report:
         if r:
             print(f"Users: {r['concurrent_users']} | TPS: {r['throughput']:.2f} | p95: {r['p95']:.2f}ms | Errors: {r['errors']}")
+

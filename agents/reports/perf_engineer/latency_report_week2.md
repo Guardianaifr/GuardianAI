@@ -1,15 +1,15 @@
-# 🚀 GuardianAI Latency Profile (Week 2)
+﻿# ðŸš€ GuardianAI Latency Profile (Cycle 2)
 
 **Date**: 2026-02-13
 **Sample Size**: 1500 requests
 
-## 📊 Summary Metrics
+## ðŸ“Š Summary Metrics
 - **p50 (Median)**: 8.84ms
 - **p95**: 11.96ms
 - **p99**: 17.37ms
 - **Max**: 5651.96ms
 
-## 🧩 Component Breakdown
+## ðŸ§© Component Breakdown
 
 ### Input Filter
 - Calls: 1500

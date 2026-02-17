@@ -185,6 +185,9 @@ def _decode_jwt(token: str) -> Dict[str, Any]:
     sub = payload.get("sub")
     if not isinstance(sub, str) or not sub:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
+    jti = payload.get("jti")
+    if isinstance(jti, str) and _is_token_revoked(jti):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
 
     return payload
 
@@ -377,6 +380,15 @@ def init_db():
         last_used_at REAL
     )
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS revoked_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        jti TEXT UNIQUE,
+        revoked_by TEXT,
+        revoked_at REAL,
+        expires_at REAL
+    )
+    """)
     conn.commit()
     conn.close()
     logger.info(f"SQLite DB initialized at {DB_PATH}")
@@ -464,6 +476,18 @@ def get_current_user(
     )
 
 
+def get_current_token_payload(
+    bearer: HTTPAuthorizationCredentials = Depends(bearer_security),
+):
+    if not bearer or bearer.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Bearer token required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return _decode_jwt(bearer.credentials)
+
+
 def enforce_user_rate_limit(request: Request, username: str = Depends(get_current_user)):
     _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
     return username
@@ -512,6 +536,12 @@ class CreatedApiKeyResponse(ApiKeyResponse):
     api_key: str
 
 
+class RevokeTokenResponse(BaseModel):
+    status: str
+    revoked_jti: str
+    revoked_by: str
+
+
 def _hash_api_key(raw_key: str) -> str:
     return hashlib.sha256(f"{JWT_SECRET}:{raw_key}".encode("utf-8")).hexdigest()
 
@@ -549,6 +579,19 @@ def _lookup_api_key(raw_key: str) -> Dict[str, Any] | None:
     }
 
 
+def _is_token_revoked(jti: str) -> bool:
+    if not jti:
+        return False
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM revoked_tokens WHERE expires_at < ?", (time.time(),))
+    cur.execute("SELECT 1 FROM revoked_tokens WHERE jti = ? LIMIT 1", (jti,))
+    row = cur.fetchone()
+    conn.commit()
+    conn.close()
+    return row is not None
+
+
 @app.post("/api/v1/auth/token", response_model=TokenResponse)
 async def create_access_token(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
     username = _validate_basic(credentials)
@@ -559,6 +602,29 @@ async def create_access_token(credentials: HTTPBasicCredentials = Depends(HTTPBa
         expires_in=JWT_EXPIRES_MIN * 60,
         user=username,
     )
+
+
+@app.post("/api/v1/auth/revoke", response_model=RevokeTokenResponse)
+async def revoke_access_token(payload: Dict[str, Any] = Depends(get_current_token_payload)):
+    jti = payload.get("jti")
+    exp = payload.get("exp")
+    sub = payload.get("sub", "unknown")
+    if not isinstance(jti, str) or not isinstance(exp, int):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required claims")
+
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT OR IGNORE INTO revoked_tokens (jti, revoked_by, revoked_at, expires_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (jti, sub, time.time(), float(exp)),
+    )
+    conn.commit()
+    conn.close()
+
+    return RevokeTokenResponse(status="revoked", revoked_jti=jti, revoked_by=sub)
 
 
 @app.post("/api/v1/api-keys", response_model=CreatedApiKeyResponse)

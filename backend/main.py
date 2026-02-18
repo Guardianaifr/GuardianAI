@@ -672,6 +672,88 @@ class RevokeTokenResponse(BaseModel):
     revoked_by: str
 
 
+class TelemetryIngestResponse(BaseModel):
+    status: str
+    event_id: str
+
+
+class AnalyticsResponse(BaseModel):
+    total_requests: int
+    total_blocked: int
+    avg_latency_ms: float
+    avg_guardian_overhead_ms: float
+    avg_upstream_ms: float
+    global_block_rate_pct: float
+    recent_block_rate_pct: float
+    path_breakdown: Dict[str, int]
+    fast_path_pct: float
+
+
+class HealthDatabaseComponent(BaseModel):
+    ok: bool
+    detail: str
+
+
+class HealthComponents(BaseModel):
+    database: HealthDatabaseComponent
+    metrics_enabled: bool
+    https_enforced: bool
+    telemetry_requires_api_key: bool
+    audit_sink_configured: bool
+
+
+class HealthResponse(BaseModel):
+    status: str
+    timestamp: float
+    uptime_sec: float
+    components: HealthComponents
+
+
+class SecurityEventResponse(BaseModel):
+    id: int
+    guardian_id: str
+    event_type: str
+    severity: str
+    details: Dict[str, Any]
+    timestamp: float
+
+
+class AuditLogEntryResponse(BaseModel):
+    id: int
+    guardian_id: str
+    action: str
+    user: str
+    details: str
+    timestamp: float
+    signature: str
+    prev_hash: str | None = None
+    entry_hash: str | None = None
+
+
+class AuditVerifyResponse(BaseModel):
+    ok: bool
+    entries: int
+    message: str | None = None
+    failed_id: int | None = None
+    reason: str | None = None
+
+
+class AuditDeliveryFailureResponse(BaseModel):
+    id: int
+    sink_type: str
+    payload: Dict[str, Any]
+    error: str
+    retry_count: int
+    created_at: float
+    last_attempt_at: float
+
+
+class RetryFailuresResponse(BaseModel):
+    retried: int
+    resolved: int
+    failed: int
+
+
 def _hash_api_key(raw_key: str) -> str:
     return hashlib.sha256(f"{JWT_SECRET}:{raw_key}".encode("utf-8")).hexdigest()
 
@@ -816,7 +898,26 @@ def _retry_failed_audit_deliveries(limit: int = 100) -> Dict[str, int]:
     return {"retried": retried, "resolved": resolved, "failed": failed}
 
 
-@app.post("/api/v1/auth/token", response_model=TokenResponse)
+@app.post(
+    "/api/v1/auth/token",
+    response_model=TokenResponse,
+    responses={
+        200: {
+            "description": "JWT issued successfully.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                        "token_type": "bearer",
+                        "expires_in": 3600,
+                        "user": "admin",
+                        "role": "admin",
+                    }
+                }
+            },
+        }
+    },
+)
 async def create_access_token(
     credentials: HTTPBasicCredentials = Depends(HTTPBasic()),
     _: bool = Depends(enforce_auth_rate_limit),
@@ -833,7 +934,11 @@ async def create_access_token(
     )
 
 
-@app.post("/api/v1/auth/revoke", response_model=RevokeTokenResponse)
+@app.post(
+    "/api/v1/auth/revoke",
+    response_model=RevokeTokenResponse,
+    responses={200: {"description": "Current bearer token revoked."}},
+)
 async def revoke_access_token(
     payload: Dict[str, Any] = Depends(get_current_token_payload),
     _: bool = Depends(enforce_auth_rate_limit),
@@ -859,7 +964,40 @@ async def revoke_access_token(
     return RevokeTokenResponse(status="revoked", revoked_jti=jti, revoked_by=sub)
 
 
-@app.post("/api/v1/api-keys", response_model=CreatedApiKeyResponse)
+@app.post(
+    "/api/v1/api-keys",
+    response_model=CreatedApiKeyResponse,
+    responses={
+        200: {
+            "description": "Managed API key created.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 1,
+                        "key_name": "telemetry_ingest",
+                        "key_prefix": "gk_abc123",
+                        "is_active": True,
+                        "created_by": "admin",
+                        "created_at": 1739835000.0,
+                        "last_used_at": None,
+                        "api_key": "gk_abc123_plaintext",
+                    }
+                }
+            },
+        }
+    },
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "default": {"summary": "Create key", "value": {"key_name": "telemetry_ingest"}}
+                    }
+                }
+            }
+        }
+    },
+)
 async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(enforce_admin_rate_limit)):
     key_name = payload.key_name.strip()
     if not key_name:
@@ -897,7 +1035,7 @@ async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(e
     )
 
 
-@app.get("/api/v1/api-keys", response_model=List[ApiKeyResponse])
+@app.get("/api/v1/api-keys", response_model=List[ApiKeyResponse], responses={200: {"description": "List API keys."}})
 async def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -920,7 +1058,7 @@ async def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
     ]
 
 
-@app.post("/api/v1/api-keys/{key_id}/revoke", response_model=ApiKeyResponse)
+@app.post("/api/v1/api-keys/{key_id}/revoke", response_model=ApiKeyResponse, responses={200: {"description": "API key revoked."}})
 async def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -946,7 +1084,7 @@ async def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate
     )
 
 
-@app.post("/api/v1/api-keys/{key_id}/rotate", response_model=CreatedApiKeyResponse)
+@app.post("/api/v1/api-keys/{key_id}/rotate", response_model=CreatedApiKeyResponse, responses={200: {"description": "API key rotated."}})
 async def rotate_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
     raw_key, key_prefix = _generate_api_key_material()
     key_hash = _hash_api_key(raw_key)
@@ -995,7 +1133,29 @@ async def send_webhook_alert(event: SecurityEvent):
     })
     await manager.broadcast(message)
 
-@app.post("/api/v1/telemetry")
+@app.post(
+    "/api/v1/telemetry",
+    response_model=TelemetryIngestResponse,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "admin_action": {
+                            "summary": "Admin action audit event",
+                            "value": {
+                                "guardian_id": "guardian-01",
+                                "event_type": "admin_action",
+                                "severity": "high",
+                                "details": {"action": "update_policy", "user": "admin"},
+                            },
+                        }
+                    }
+                }
+            }
+        }
+    },
+)
 async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telemetry_rate_limit)):
     if event.timestamp == 0.0:
         event.timestamp = time.time()
@@ -1111,7 +1271,7 @@ from fastapi.responses import StreamingResponse
 import io
 import csv
 
-@app.get("/api/v1/export/json")
+@app.get("/api/v1/export/json", response_model=List[SecurityEventResponse])
 async def export_json(username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1127,7 +1287,11 @@ async def export_json(username: str = Depends(enforce_user_rate_limit)):
     ]
     return data
 
-@app.get("/api/v1/analytics")
+@app.get(
+    "/api/v1/analytics",
+    response_model=AnalyticsResponse,
+    responses={200: {"description": "Aggregated analytics and block-rate summary."}},
+)
 async def get_analytics(username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1229,7 +1393,31 @@ async def export_csv(username: str = Depends(enforce_user_rate_limit)):
         headers={"Content-Disposition": "attachment; filename=guardian_audit_log.csv"}
     )
 
-@app.get("/health")
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+    responses={
+        503: {
+            "description": "One or more readiness dependencies are unhealthy.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "unhealthy",
+                        "timestamp": 1739835000.0,
+                        "uptime_sec": 42.5,
+                        "components": {
+                            "database": {"ok": False, "detail": "unable to open database file"},
+                            "metrics_enabled": True,
+                            "https_enforced": True,
+                            "telemetry_requires_api_key": True,
+                            "audit_sink_configured": False,
+                        },
+                    }
+                }
+            },
+        }
+    },
+)
 async def health_check():
     db_ok, db_message = _check_db_health()
     now = time.time()
@@ -1661,7 +1849,7 @@ async def dashboard(username: str = Depends(enforce_user_rate_limit)):
     </html>
     """
 
-@app.get("/api/v1/events")
+@app.get("/api/v1/events", response_model=List[SecurityEventResponse])
 async def get_events(limit: int = 50, username: str = Depends(enforce_user_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1680,7 +1868,11 @@ async def get_events(limit: int = 50, username: str = Depends(enforce_user_rate_
         } for r in rows
     ]
 
-@app.get("/api/v1/audit-log")
+@app.get(
+    "/api/v1/audit-log",
+    response_model=List[AuditLogEntryResponse],
+    responses={200: {"description": "Audit log entries in reverse timestamp order."}},
+)
 async def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1707,7 +1899,18 @@ async def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor
     ]
 
 
-@app.get("/api/v1/audit-log/verify")
+@app.get(
+    "/api/v1/audit-log/verify",
+    response_model=AuditVerifyResponse,
+    responses={
+        200: {
+            "description": "Hash-chain verification status.",
+            "content": {
+                "application/json": {"example": {"ok": True, "entries": 12, "failed_id": None, "reason": None}}
+            },
+        }
+    },
+)
 async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1757,7 +1960,7 @@ async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_li
     return {"ok": True, "entries": checked}
 
 
-@app.get("/api/v1/audit-log/failures")
+@app.get("/api/v1/audit-log/failures", response_model=List[AuditDeliveryFailureResponse])
 async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1786,7 +1989,16 @@ async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(
     ]
 
 
-@app.post("/api/v1/audit-log/retry-failures")
+@app.post(
+    "/api/v1/audit-log/retry-failures",
+    response_model=RetryFailuresResponse,
+    responses={
+        200: {
+            "description": "Queued audit deliveries retried.",
+            "content": {"application/json": {"example": {"retried": 10, "resolved": 9, "failed": 1}}},
+        }
+    },
+)
 async def retry_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_admin_rate_limit)):
     return _retry_failed_audit_deliveries(limit=limit)
 

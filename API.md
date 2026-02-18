@@ -21,6 +21,9 @@ RBAC roles:
 - `auditor` (read-only audit visibility)
 - `user` (general analytics/events/export access)
 
+OpenAPI:
+- `GET /openapi.json` includes request/response schemas and examples for hardening endpoints.
+
 ## Proxy Endpoints
 
 ### `POST /v1/chat/completions`

@@ -1,96 +1,211 @@
-﻿# GuardianAI API Reference
+# GuardianAI API Reference
 
-This reference documents the currently implemented endpoints.
+This document reflects the currently implemented API in `backend/main.py` and the proxy surface.
 
 ## Base URLs
 
-- Guardian Proxy: `http://127.0.0.1:8081`
+- Proxy API: `http://127.0.0.1:8081`
 - Backend API: `http://127.0.0.1:8001`
 
-## 1) Proxy API (OpenAI-compatible)
+## Authentication
 
-### POST `/v1/chat/completions`
+Protected backend routes support:
+- `Authorization: Bearer <jwt>` (preferred)
+- `Authorization: Basic <base64(user:pass)>` (fallback for compatibility)
 
-Send chat completion requests through Guardian.
+JWT tokens are issued by:
+- `POST /api/v1/auth/token`
 
-Example:
-```bash
-curl -X POST http://127.0.0.1:8081/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "model": "gpt-4o-mini",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'
-```
+RBAC roles:
+- `admin` (full access)
+- `auditor` (read-only audit visibility)
+- `user` (general analytics/events/export access)
 
-Notes:
-- Guardian may return `403` for blocked prompts.
-- Guardian may return `429` for rate limit violations.
-- Guardian returns proxied upstream response when allowed.
+## Proxy Endpoints
 
-### GET `/health`
+### `POST /v1/chat/completions`
+OpenAI-compatible proxy endpoint with Guardian filtering/rate-limit controls.
 
-Proxy health check.
+### `GET /health`
+Proxy process health endpoint.
 
-Example response:
-```json
-{
-  "status": "ok",
-  "component": "guardian_proxy"
-}
-```
+## Backend Endpoints
 
-## 2) Backend Telemetry API
+### Health and Metrics
 
-### GET `/health`
+### `GET /health`
+Returns readiness-like status with component details.
 
-Backend health check.
+Example fields:
+- `status`: `healthy` or `unhealthy`
+- `timestamp`
+- `uptime_sec`
+- `components.database.ok`
+- `components.metrics_enabled`
+- `components.https_enforced`
+- `components.telemetry_requires_api_key`
+- `components.audit_sink_configured`
 
-### POST `/api/v1/telemetry`
+When DB health fails, returns `503`.
 
-Ingests a telemetry event from proxy/runtime components.
+### `GET /metrics`
+Prometheus-style plaintext metrics.
+Returns `404` when metrics are disabled.
 
-### GET `/api/v1/events`
+Key metrics:
+- `guardian_http_requests_total`
+- `guardian_http_request_latency_avg_ms`
+- `guardian_http_requests_per_second_1m`
+- `guardian_process_cpu_percent`
+- `guardian_process_memory_bytes`
+- `guardian_http_status_total{code="<status>"}`
 
-Returns recent events.
+### Authentication
 
-Query params:
-- `limit` (optional): number of events
+### `POST /api/v1/auth/token`
+Issues JWT using Basic credentials.
 
-### GET `/api/v1/analytics`
+Response fields:
+- `access_token`
+- `token_type` (`bearer`)
+- `expires_in`
+- `user`
+- `role`
 
-Returns aggregate analytics summary.
+### `POST /api/v1/auth/revoke`
+Revokes the current bearer JWT (by `jti`).
+Requires Bearer token.
 
-### GET `/api/v1/audit-log`
+Response fields:
+- `status`
+- `revoked_jti`
+- `revoked_by`
 
-Returns immutable admin/audit log records.
+### API Key Management
 
-### GET `/api/v1/export/json`
+### `POST /api/v1/api-keys`
+Creates a managed telemetry API key.
+Role required: `admin`.
 
-Exports events as JSON.
+Request body:
+- `key_name` (string, unique)
 
-### GET `/api/v1/export/csv`
+Returns metadata plus one-time plaintext `api_key`.
 
-Exports events as CSV.
+### `GET /api/v1/api-keys`
+Lists managed API keys (metadata only).
+Role required: `admin` or `auditor`.
 
-### WebSocket `/ws/threats`
+### `POST /api/v1/api-keys/{key_id}/revoke`
+Marks an API key inactive.
+Role required: `admin`.
 
-Real-time threat event stream.
+### `POST /api/v1/api-keys/{key_id}/rotate`
+Rotates key material for an existing key and returns new plaintext `api_key`.
+Role required: `admin`.
 
-Example URL:
-- `ws://127.0.0.1:8001/ws/threats`
+### Telemetry and Analytics
 
-## 3) Common Status Codes
+### `POST /api/v1/telemetry`
+Ingests telemetry events.
 
-- `200`: success
-- `401`: backend auth failure (protected backend routes)
-- `403`: blocked by security policy
-- `429`: rate limit exceeded
-- `502`: upstream connectivity failure
+Behavior:
+- per-identity rate limiting
+- optional telemetry API-key enforcement
+- persists events to SQLite
+- writes admin audit entries for `admin_action`
+- forwards audit entries to configured external sinks
 
-## 4) Current Behavior Notes
+### `GET /api/v1/events?limit=<n>`
+Returns recent telemetry events.
 
-- Security mode is configured via YAML (`guardian/config/*.yaml`).
-- Runtime decisions are made by Input Filter, AI Firewall, Threat Feed, Base64 detector, and Output Validator.
-- API docs in this file are intentionally limited to endpoints that exist in current code.
+### `GET /api/v1/analytics`
+Returns aggregate analytics and latency/block-rate summaries.
+
+### `GET /api/v1/export/json`
+Exports telemetry events as JSON.
+
+### `GET /api/v1/export/csv`
+Exports telemetry events as CSV.
+
+### Audit Log and Integrity
+
+### `GET /api/v1/audit-log?limit=<n>`
+Returns audit log entries, including chain fields:
+- `signature`
+- `prev_hash`
+- `entry_hash`
+Role required: `admin` or `auditor`.
+
+### `GET /api/v1/audit-log/verify`
+Verifies tamper-evident hash chain across audit log entries.
+Role required: `admin` or `auditor`.
+
+Response:
+- `ok` (boolean)
+- `entries` (checked count)
+- `failed_id` and `reason` when verification fails
+
+### `GET /api/v1/audit-log/failures?limit=<n>`
+Lists queued external audit-delivery failures.
+Role required: `admin` or `auditor`.
+
+### `POST /api/v1/audit-log/retry-failures?limit=<n>`
+Retries queued audit-delivery failures.
+Role required: `admin`.
+
+Response:
+- `retried`
+- `resolved`
+- `failed`
+
+### Realtime
+
+### `WS /ws/threats`
+Broadcast stream for incoming telemetry events.
+
+## Common Status Codes
+
+- `200` success
+- `400` invalid request payload/parameters
+- `401` authentication failure or revoked token
+- `403` blocked by policy (proxy path)
+- `404` resource/feature unavailable
+- `429` rate limit exceeded
+- `503` dependency unavailable (strict external audit sink failures, unhealthy readiness)
+
+## Environment Variables (Backend)
+
+### Core Auth and Limits
+- `GUARDIAN_ADMIN_USER`
+- `GUARDIAN_ADMIN_PASS`
+- `GUARDIAN_AUDITOR_USER`
+- `GUARDIAN_AUDITOR_PASS`
+- `GUARDIAN_USER_USER`
+- `GUARDIAN_USER_PASS`
+- `GUARDIAN_JWT_SECRET`
+- `GUARDIAN_JWT_ISSUER`
+- `GUARDIAN_JWT_EXPIRES_MIN`
+- `GUARDIAN_AUTH_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_USER_RATE_LIMITS_JSON`
+- `GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON`
+- `GUARDIAN_TELEMETRY_REQUIRE_API_KEY`
+
+### Transport and Metrics
+- `GUARDIAN_ENFORCE_HTTPS`
+- `GUARDIAN_TLS_CERT_FILE`
+- `GUARDIAN_TLS_KEY_FILE`
+- `GUARDIAN_METRICS_ENABLED`
+
+### Audit Sinks
+- `GUARDIAN_AUDIT_SINK_URL`
+- `GUARDIAN_AUDIT_SINK_TOKEN`
+- `GUARDIAN_AUDIT_TIMEOUT_SEC`
+- `GUARDIAN_AUDIT_RETRIES`
+- `GUARDIAN_AUDIT_STRICT`
+- `GUARDIAN_AUDIT_SYSLOG_HOST`
+- `GUARDIAN_AUDIT_SYSLOG_PORT`
+- `GUARDIAN_AUDIT_SYSLOG_TIMEOUT_SEC`
+- `GUARDIAN_AUDIT_SYSLOG_STRICT`

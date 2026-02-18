@@ -2,7 +2,7 @@
 
 **AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
 
-[![Tests](https://img.shields.io/badge/tests-125%2F125%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-126%2F126%20passing-brightgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-80%25-yellow)]()
 
 
@@ -243,7 +243,7 @@ python -m pytest --cov=guardian --cov-report=term-missing tests/
 python -m pytest tests/guardrails/test_input_filter.py -v
 ```
 
-**Current Status:** 125/125 tests passing.
+**Current Status:** 126/126 tests passing.
 
 ---
 

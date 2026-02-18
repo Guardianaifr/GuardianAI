@@ -86,3 +86,54 @@ def test_admin_can_revoke_user_sessions_and_action_is_audited(tmp_path, monkeypa
     assert entries
     details = json.loads(entries[0]["details"])
     assert details["target_user"] == "user1"
+
+
+def test_admin_can_revoke_single_session_by_jti_and_auditor_cannot(tmp_path, monkeypatch):
+    _setup_sessions_db(tmp_path, monkeypatch)
+    client = TestClient(backend_main.app)
+
+    token_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("user1", "user-pass"))
+    assert token_res.status_code == 200
+    token = token_res.json()["access_token"]
+    jti = backend_main._decode_jwt(token)["jti"]
+
+    auditor_forbidden = client.post(
+        "/api/v1/auth/sessions/revoke-jti",
+        json={"jti": jti, "reason": "should_fail"},
+        headers=_basic_auth_headers("auditor", "auditor-pass"),
+    )
+    assert auditor_forbidden.status_code == 403
+
+    revoke_res = client.post(
+        "/api/v1/auth/sessions/revoke-jti",
+        json={"jti": jti, "reason": "incident_containment"},
+        headers=_basic_auth_headers("admin", "admin-pass"),
+    )
+    assert revoke_res.status_code == 200
+    body = revoke_res.json()
+    assert body["jti"] == jti
+    assert body["target_user"] == "user1"
+    assert body["revoked"] is True
+    assert body["already_revoked"] is False
+
+    # Session token is now blocked.
+    bearer = {"Authorization": f"Bearer {token}"}
+    after = client.get("/api/v1/analytics", headers=bearer)
+    assert after.status_code == 401
+    assert "revoked" in after.json()["detail"].lower()
+
+    # Re-revoke same session reports already revoked.
+    second = client.post(
+        "/api/v1/auth/sessions/revoke-jti",
+        json={"jti": jti},
+        headers=_basic_auth_headers("admin", "admin-pass"),
+    )
+    assert second.status_code == 200
+    assert second.json()["already_revoked"] is True
+
+    audit_log = client.get("/api/v1/audit-log?limit=50", headers=_basic_auth_headers("admin", "admin-pass"))
+    assert audit_log.status_code == 200
+    entries = [entry for entry in audit_log.json() if entry["action"] == "auth_revoke_session_jti"]
+    assert entries
+    details = json.loads(entries[0]["details"])
+    assert details["jti"] == jti

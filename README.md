@@ -30,6 +30,25 @@ We include 6 ready-to-run scenarios to prove the security works:
 | `demo_5_rogue_process.bat` | Spawns `calc.exe` to test Runtime Monitor |
 | `demo_6_rate_limit.bat` | Floods the API to test DoS protection |
 
+### Backend Hardening Demos (New Controls)
+
+For backend auth/audit hardening controls, use:
+
+| Script | Why | What it does |
+| :--- | :--- | :--- |
+| `demo_hardening_0_start_backend.bat` | Standardized demo baseline | Starts backend with demo users and lockout config |
+| `demo_hardening_1_posture.bat` | Prove posture visibility | Health, metrics, compliance, RBAC policy |
+| `demo_hardening_2_identity_rbac.bat` | Prove least privilege | JWT issue + role `whoami` permissions |
+| `demo_hardening_3_session_inventory.bat` | Prove session visibility boundaries | Auditor read allowed, user blocked |
+| `demo_hardening_4_revoke_self.bat` | User-led containment | Revoke own other sessions |
+| `demo_hardening_5_revoke_self_jti.bat` | Precise user containment | Revoke one owned session by JTI |
+| `demo_hardening_6_lockout_management.bat` | Brute-force defense ops | Trigger/list/clear auth lockouts |
+| `demo_hardening_7_admin_containment.bat` | Fast incident containment | `revoke-user` + `revoke-all` |
+| `demo_hardening_8_api_key_lifecycle.bat` | Key hygiene validation | Create/list/rotate/revoke API keys |
+| `demo_hardening_9_audit_integrity.bat` | Audit assurance | Verify chain + failure queue + retry |
+
+Step-by-step runbook: `DEMO_HARDENING_BACKEND_GUIDE.md`
+
 ---
 
 ## Manual Launch

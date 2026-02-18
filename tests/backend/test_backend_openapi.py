@@ -15,6 +15,8 @@ def test_openapi_includes_hardening_endpoint_schemas_and_examples():
     token_schema = spec["components"]["schemas"][token_schema_name]
     assert "role" in token_schema["properties"]
     assert "example" in token_post["responses"]["200"]["content"]["application/json"]
+    assert "429" in token_post["responses"]
+    assert "example" in token_post["responses"]["429"]["content"]["application/json"]
 
     revoke_post = spec["paths"]["/api/v1/auth/revoke"]["post"]
     assert "example" in revoke_post["responses"]["200"]["content"]["application/json"]

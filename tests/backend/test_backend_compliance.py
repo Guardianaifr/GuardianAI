@@ -32,6 +32,9 @@ def test_compliance_report_pass_when_hardening_controls_enabled(tmp_path, monkey
     monkeypatch.setattr(backend_main, "JWT_SECRET", "strong-jwt-secret")
     monkeypatch.setattr(backend_main, "JWT_EXPIRES_MIN", 60)
     monkeypatch.setattr(backend_main, "AUTH_RATE_LIMIT_PER_MIN", 30)
+    monkeypatch.setattr(backend_main, "AUTH_LOCKOUT_ENABLED", True)
+    monkeypatch.setattr(backend_main, "AUTH_LOCKOUT_MAX_ATTEMPTS", 5)
+    monkeypatch.setattr(backend_main, "AUTH_LOCKOUT_DURATION_SEC", 300.0)
     monkeypatch.setattr(backend_main, "API_RATE_LIMIT_PER_MIN", 240)
     monkeypatch.setattr(backend_main, "TELEMETRY_REQUIRE_API_KEY", True)
     monkeypatch.setattr(backend_main, "ENFORCE_HTTPS", True)
@@ -61,6 +64,7 @@ def test_compliance_report_pass_when_hardening_controls_enabled(tmp_path, monkey
 
     controls = {c["control"]: c for c in body["controls"]}
     assert controls["jwt_secret_configured"]["status"] == "pass"
+    assert controls["auth_failed_login_lockout"]["status"] == "pass"
     assert controls["distributed_rate_limit_backend"]["status"] == "pass"
     assert controls["audit_chain_integrity"]["status"] == "pass"
 
@@ -71,6 +75,9 @@ def test_compliance_report_fails_for_critical_hardening_gaps(tmp_path, monkeypat
     monkeypatch.setattr(backend_main, "JWT_SECRET", "guardian_jwt_dev_secret_change_me")
     monkeypatch.setattr(backend_main, "JWT_EXPIRES_MIN", 0)
     monkeypatch.setattr(backend_main, "AUTH_RATE_LIMIT_PER_MIN", 0)
+    monkeypatch.setattr(backend_main, "AUTH_LOCKOUT_ENABLED", False)
+    monkeypatch.setattr(backend_main, "AUTH_LOCKOUT_MAX_ATTEMPTS", 5)
+    monkeypatch.setattr(backend_main, "AUTH_LOCKOUT_DURATION_SEC", 300.0)
     monkeypatch.setattr(backend_main, "API_RATE_LIMIT_PER_MIN", 0)
     monkeypatch.setattr(backend_main, "TELEMETRY_REQUIRE_API_KEY", False)
     monkeypatch.setattr(backend_main, "ENFORCE_HTTPS", False)
@@ -98,6 +105,7 @@ def test_compliance_report_fails_for_critical_hardening_gaps(tmp_path, monkeypat
     controls = {c["control"]: c for c in body["controls"]}
     assert controls["admin_password_configured"]["status"] == "fail"
     assert controls["jwt_secret_configured"]["status"] == "fail"
+    assert controls["auth_failed_login_lockout"]["status"] == "warn"
     assert controls["audit_chain_integrity"]["status"] == "fail"
     assert controls["distributed_rate_limit_backend"]["status"] == "warn"
 

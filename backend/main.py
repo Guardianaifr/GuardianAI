@@ -38,6 +38,9 @@ JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
 API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
 TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
 AUTH_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_AUTH_RATE_LIMIT_PER_MIN", "60"))
+AUTH_LOCKOUT_ENABLED = os.getenv("GUARDIAN_AUTH_LOCKOUT_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+AUTH_LOCKOUT_MAX_ATTEMPTS = max(1, int(os.getenv("GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS", "5")))
+AUTH_LOCKOUT_DURATION_SEC = max(1.0, float(os.getenv("GUARDIAN_AUTH_LOCKOUT_DURATION_SEC", "300")))
 USER_RATE_LIMITS_JSON = os.getenv("GUARDIAN_USER_RATE_LIMITS_JSON", "").strip()
 TELEMETRY_KEY_RATE_LIMITS_JSON = os.getenv("GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON", "").strip()
 TELEMETRY_REQUIRE_API_KEY = os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", "false").strip().lower() in {"1", "true", "yes", "on"}
@@ -112,6 +115,8 @@ BLOCKED_EVENT_TYPES = (
 
 _rate_limit_lock = threading.Lock()
 _rate_limit_state: Dict[str, List[float]] = {}
+_auth_lockout_lock = threading.Lock()
+_auth_lockout_state: Dict[str, Dict[str, float]] = {}
 _metrics_lock = threading.Lock()
 _metrics_request_count = 0
 _metrics_total_latency_ms = 0.0
@@ -847,10 +852,72 @@ def enforce_telemetry_rate_limit(request: Request):
     return True
 
 
+def _request_source_identity(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").strip()
+    if forwarded:
+        first_hop = forwarded.split(",", 1)[0].strip()
+        if first_hop:
+            return first_hop
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
 def enforce_auth_rate_limit(request: Request):
-    identity = request.headers.get("x-forwarded-for", "").strip() or request.client.host
+    identity = _request_source_identity(request)
     _enforce_rate_limit(f"auth:{identity}", AUTH_RATE_LIMIT_PER_MIN)
     return True
+
+
+def _is_auth_lockout_enabled() -> bool:
+    return AUTH_LOCKOUT_ENABLED and AUTH_LOCKOUT_MAX_ATTEMPTS > 0 and AUTH_LOCKOUT_DURATION_SEC > 0
+
+
+def _auth_lockout_identity(request: Request, username: str | None) -> str:
+    normalized_user = (username or "").strip().lower() or "unknown-user"
+    return f"{normalized_user}@{_request_source_identity(request)}"
+
+
+def _auth_lockout_retry_after_seconds(identity: str) -> int:
+    if not _is_auth_lockout_enabled():
+        return 0
+    now = time.time()
+    with _auth_lockout_lock:
+        entry = _auth_lockout_state.get(identity)
+        if not entry:
+            return 0
+        locked_until = float(entry.get("locked_until", 0.0) or 0.0)
+        if locked_until <= now:
+            failed = int(entry.get("failed", 0) or 0)
+            if failed <= 0:
+                _auth_lockout_state.pop(identity, None)
+            else:
+                entry["locked_until"] = 0.0
+            return 0
+        return max(1, int((locked_until - now) + 0.999))
+
+
+def _record_auth_lockout_failure(identity: str):
+    if not _is_auth_lockout_enabled():
+        return
+    now = time.time()
+    with _auth_lockout_lock:
+        entry = _auth_lockout_state.setdefault(identity, {"failed": 0.0, "locked_until": 0.0})
+        locked_until = float(entry.get("locked_until", 0.0) or 0.0)
+        if locked_until > now:
+            return
+        failures = int(entry.get("failed", 0) or 0) + 1
+        if failures >= AUTH_LOCKOUT_MAX_ATTEMPTS:
+            entry["failed"] = 0.0
+            entry["locked_until"] = now + AUTH_LOCKOUT_DURATION_SEC
+        else:
+            entry["failed"] = float(failures)
+            entry["locked_until"] = 0.0
+
+
+def _clear_auth_lockout_failures(identity: str):
+    with _auth_lockout_lock:
+        _auth_lockout_state.pop(identity, None)
 
 
 class TokenResponse(BaseModel):
@@ -974,6 +1041,7 @@ class HealthComponents(BaseModel):
     https_enforced: bool
     telemetry_requires_api_key: bool
     audit_sink_configured: bool
+    auth_lockout_enabled: bool
 
 
 class HealthResponse(BaseModel):
@@ -1793,6 +1861,16 @@ def _build_compliance_report() -> Dict[str, Any]:
         else "Auth endpoint rate limiting is disabled.",
     )
     add_control(
+        "auth_failed_login_lockout",
+        "pass" if _is_auth_lockout_enabled() else "warn",
+        (
+            f"Failed-login lockout enabled at {AUTH_LOCKOUT_MAX_ATTEMPTS} attempt(s) "
+            f"for {int(AUTH_LOCKOUT_DURATION_SEC)} second(s)."
+        )
+        if _is_auth_lockout_enabled()
+        else "Failed-login lockout is disabled.",
+    )
+    add_control(
         "api_rate_limit_enabled",
         "pass" if API_RATE_LIMIT_PER_MIN > 0 else "fail",
         f"API rate limit is {API_RATE_LIMIT_PER_MIN}/min."
@@ -1907,14 +1985,40 @@ def _build_compliance_report() -> Dict[str, Any]:
                     }
                 }
             },
-        }
+        },
+        429: {
+            "description": "Temporarily locked due to repeated failed credentials from the same source.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Account temporarily locked due to repeated failed authentication attempts."
+                    }
+                }
+            },
+        },
     },
 )
 async def create_access_token(
+    request: Request,
     credentials: HTTPBasicCredentials = Depends(HTTPBasic()),
     _: bool = Depends(enforce_auth_rate_limit),
 ):
-    username = _validate_basic(credentials)
+    lockout_identity = _auth_lockout_identity(request, credentials.username)
+    retry_after = _auth_lockout_retry_after_seconds(lockout_identity)
+    if retry_after > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Account temporarily locked due to repeated failed authentication attempts.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    try:
+        username = _validate_basic(credentials)
+    except HTTPException:
+        _record_auth_lockout_failure(lockout_identity)
+        raise
+
+    _clear_auth_lockout_failures(lockout_identity)
     role = _get_user_role(username)
     token, claims = _issue_jwt(username, role=role)
     _record_issued_token(claims)
@@ -2739,6 +2843,7 @@ async def export_csv(username: str = Depends(enforce_user_rate_limit)):
                             "https_enforced": True,
                             "telemetry_requires_api_key": False,
                             "audit_sink_configured": True,
+                            "auth_lockout_enabled": True,
                         },
                     }
                 }
@@ -2758,6 +2863,7 @@ async def export_csv(username: str = Depends(enforce_user_rate_limit)):
                             "https_enforced": True,
                             "telemetry_requires_api_key": True,
                             "audit_sink_configured": False,
+                            "auth_lockout_enabled": True,
                         },
                     }
                 }
@@ -2780,6 +2886,7 @@ async def health_check():
             "audit_sink_configured": bool(
                 AUDIT_SINK_URL or AUDIT_SYSLOG_HOST or AUDIT_SPLUNK_HEC_URL or AUDIT_DATADOG_API_KEY
             ),
+            "auth_lockout_enabled": _is_auth_lockout_enabled(),
         },
     }
     if db_ok:

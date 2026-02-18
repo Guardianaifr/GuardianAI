@@ -47,6 +47,9 @@ def test_rbac_policy_endpoint_exposes_roles_and_access_matrix(tmp_path, monkeypa
     assert "auth:lockouts:manage" in body["roles"]["admin"]
     assert "auth:lockouts:read" in body["roles"]["auditor"]
     assert "auth:lockouts:read" not in body["roles"]["user"]
+    assert "auth:sessions:revoke_self" in body["roles"]["admin"]
+    assert "auth:sessions:revoke_self" in body["roles"]["auditor"]
+    assert "auth:sessions:revoke_self" in body["roles"]["user"]
     assert "auth:sessions:revoke_all" in body["roles"]["admin"]
     assert "auth:sessions:revoke_all" not in body["roles"]["auditor"]
 
@@ -78,6 +81,12 @@ def test_rbac_policy_endpoint_exposes_roles_and_access_matrix(tmp_path, monkeypa
     )
     assert sessions_revoke_all_policy["allowed_roles"] == ["admin"]
     assert sessions_revoke_all_policy["permission"] == "auth:sessions:revoke_all"
+
+    sessions_revoke_self_policy = next(
+        item for item in body["endpoints"] if item["path"] == "/api/v1/auth/sessions/revoke-self" and item["method"] == "POST"
+    )
+    assert sessions_revoke_self_policy["allowed_roles"] == ["admin", "auditor", "user"]
+    assert sessions_revoke_self_policy["permission"] == "auth:sessions:revoke_self"
 
 
 def test_rbac_policy_allows_admin_and_blocks_regular_user(tmp_path, monkeypatch):

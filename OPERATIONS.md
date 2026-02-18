@@ -29,20 +29,23 @@ Role guidance:
 1. Revoke compromised user JWT:
 - call `POST /api/v1/auth/revoke` with the bearer token
 
-2. Contain broad token compromise:
+2. User-level containment (keep current session, revoke other sessions):
+- call `POST /api/v1/auth/sessions/revoke-self` with bearer auth
+
+3. Contain broad token compromise:
 - `POST /api/v1/auth/sessions/revoke-all` (default excludes current admin session)
 
-3. Disable compromised telemetry key:
+4. Disable compromised telemetry key:
 - `POST /api/v1/api-keys/{id}/revoke`
 
-4. Rotate telemetry key:
+5. Rotate telemetry key:
 - `POST /api/v1/api-keys/{id}/rotate`
 
-5. Replay external audit failures after sink recovery:
+6. Replay external audit failures after sink recovery:
 - `POST /api/v1/audit-log/retry-failures`
 - requires `admin`
 
-6. Clear auth lockouts after verified false positives:
+7. Clear auth lockouts after verified false positives:
 - inspect: `GET /api/v1/auth/lockouts` (`admin`/`auditor`)
 - clear specific or global: `POST /api/v1/auth/lockouts/clear` (`admin`)
 

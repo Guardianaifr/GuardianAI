@@ -134,6 +134,16 @@ Query params:
 - `include_expired` (default `false`)
 - `include_revoked` (default `true`)
 
+### `POST /api/v1/auth/sessions/revoke-self`
+Revokes sessions belonging to the current authenticated user and writes immutable audit entry (`auth_revoke_self_sessions`).
+Requires Bearer token.
+Role required: `admin`, `auditor`, or `user`.
+
+Request body:
+- `active_only` (boolean, default `true`)
+- `exclude_current` (boolean, default `true`)
+- `reason` (optional string)
+
 ### `POST /api/v1/auth/sessions/revoke-user`
 Revokes tracked sessions for a target user and writes immutable audit entry (`auth_revoke_user_sessions`).
 Role required: `admin`.

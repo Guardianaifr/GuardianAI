@@ -38,7 +38,7 @@ We include 6 ready-to-run scenarios to prove the security works:
 3.  **Authentication:** Backend supports JWT bearer auth (with revocation) and Basic fallback for compatibility.
 
 ## Backend Hardening (Implemented)
-1. JWT issuance, verification, and revocation (`/api/v1/auth/token`, `/api/v1/auth/revoke`) plus revocation inventory/prune APIs.
+1. JWT issuance, verification, and revocation (`/api/v1/auth/token`, `/api/v1/auth/revoke`) plus revocation inventory/prune APIs with immutable audit entries.
 2. Managed API keys for telemetry (`create/list/revoke/rotate`).
 3. Per-user and per-key rate-limit overrides.
 4. HTTPS enforcement and optional TLS cert/key startup.

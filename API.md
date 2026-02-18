@@ -95,6 +95,7 @@ Query params:
 ### `POST /api/v1/auth/revocations/prune`
 Prunes revoked-token entries from storage.
 Role required: `admin`.
+Action is written to immutable audit log (`auth_prune_revocations`).
 
 Query params:
 - `expired_only` (default `true`)

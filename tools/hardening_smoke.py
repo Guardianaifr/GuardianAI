@@ -57,10 +57,10 @@ def main() -> int:
         raise RuntimeError("Both --user-user and --user-pass must be provided together.")
 
     base = args.base_url.rstrip("/")
-    print(f"[1/10] Checking backend health at {base}/health")
+    print(f"[1/14] Checking backend health at {base}/health")
     _request_json("GET", f"{base}/health", 200)
 
-    print("[2/10] Checking /metrics availability")
+    print("[2/14] Checking /metrics availability")
     metrics_response = requests.request(method="GET", url=f"{base}/metrics", timeout=15)
     if metrics_response.status_code not in {200, 404}:
         raise RuntimeError(
@@ -70,7 +70,7 @@ def main() -> int:
     if metrics_response.status_code == 200 and "guardian_" not in metrics_response.text:
         raise RuntimeError("Metrics endpoint returned 200 but did not include Guardian metrics payload.")
 
-    print("[3/10] Issuing admin JWT token")
+    print("[3/14] Issuing admin JWT token")
     token_payload, _ = _request_json(
         "POST",
         f"{base}/api/v1/auth/token",
@@ -84,7 +84,28 @@ def main() -> int:
         raise RuntimeError(f"Expected admin token role, got: {token_payload.get('role')}")
     bearer_headers = {"Authorization": f"Bearer {token}"}
 
-    print("[4/10] Creating managed telemetry API key")
+    print("[4/14] Verifying authenticated principal via /api/v1/auth/whoami")
+    whoami_payload, _ = _request_json("GET", f"{base}/api/v1/auth/whoami", 200, headers=bearer_headers)
+    if whoami_payload.get("user") != args.admin_user:
+        raise RuntimeError(f"/auth/whoami returned unexpected user: {whoami_payload.get('user')}")
+    if whoami_payload.get("role") != "admin":
+        raise RuntimeError(f"/auth/whoami returned unexpected role: {whoami_payload.get('role')}")
+    if whoami_payload.get("auth_type") != "bearer":
+        raise RuntimeError(f"/auth/whoami returned unexpected auth_type: {whoami_payload.get('auth_type')}")
+
+    print("[5/14] Verifying RBAC policy map")
+    rbac_policy_payload, _ = _request_json("GET", f"{base}/api/v1/rbac/policy", 200, headers=bearer_headers)
+    if "roles" not in rbac_policy_payload or "endpoints" not in rbac_policy_payload:
+        raise RuntimeError("RBAC policy response missing roles/endpoints")
+    if "admin" not in rbac_policy_payload.get("roles", {}):
+        raise RuntimeError("RBAC policy response missing admin role")
+
+    print("[6/14] Reading compliance posture snapshot")
+    compliance_payload, _ = _request_json("GET", f"{base}/api/v1/compliance/report", 200, headers=bearer_headers)
+    if compliance_payload.get("status") not in {"pass", "warn", "fail"}:
+        raise RuntimeError(f"Compliance report returned invalid status: {compliance_payload.get('status')}")
+
+    print("[7/14] Creating managed telemetry API key")
     key_payload, _ = _request_json(
         "POST",
         f"{base}/api/v1/api-keys",
@@ -96,7 +117,7 @@ def main() -> int:
     if not raw_key:
         raise RuntimeError("API key creation response missing api_key")
 
-    print("[5/10] Posting admin_action telemetry event with API key")
+    print("[8/14] Posting admin_action telemetry event with API key")
     event_payload = {
         "guardian_id": args.guardian_id,
         "event_type": "admin_action",
@@ -111,17 +132,22 @@ def main() -> int:
         payload=event_payload,
     )
 
-    print("[6/10] Verifying tamper-evident audit chain")
+    print("[9/14] Verifying tamper-evident audit chain")
     verify_payload, _ = _request_json("GET", f"{base}/api/v1/audit-log/verify", 200, headers=bearer_headers)
     if not verify_payload.get("ok", False):
         raise RuntimeError(f"audit-log verification failed: {json.dumps(verify_payload)}")
 
-    print("[7/10] Reading queued audit delivery failures")
+    print("[10/14] Reading audit summary")
+    audit_summary_payload, _ = _request_json("GET", f"{base}/api/v1/audit-log/summary", 200, headers=bearer_headers)
+    if "chain_ok" not in audit_summary_payload:
+        raise RuntimeError("Audit summary missing chain_ok")
+
+    print("[11/14] Reading queued audit delivery failures")
     failures_payload, _ = _request_json("GET", f"{base}/api/v1/audit-log/failures?limit=25", 200, headers=bearer_headers)
     if not isinstance(failures_payload, list):
         raise RuntimeError("Expected list payload from /api/v1/audit-log/failures")
 
-    print("[8/10] Running retry endpoint for queued failures")
+    print("[12/14] Running retry endpoint for queued failures")
     retry_payload, _ = _request_json(
         "POST",
         f"{base}/api/v1/audit-log/retry-failures?limit=25",
@@ -133,7 +159,7 @@ def main() -> int:
             raise RuntimeError(f"Retry response missing field: {key}")
 
     if args.auditor_user and args.auditor_pass:
-        print("[9/10] Running auditor RBAC smoke checks")
+        print("[13/14] Running auditor RBAC smoke checks")
         auditor_token_payload, _ = _request_json(
             "POST",
             f"{base}/api/v1/auth/token",
@@ -143,7 +169,11 @@ def main() -> int:
         if auditor_token_payload.get("role") != "auditor":
             raise RuntimeError(f"Expected auditor token role, got: {auditor_token_payload.get('role')}")
         auditor_bearer = {"Authorization": f"Bearer {auditor_token_payload.get('access_token', '')}"}
+        auditor_whoami_payload, _ = _request_json("GET", f"{base}/api/v1/auth/whoami", 200, headers=auditor_bearer)
+        if auditor_whoami_payload.get("role") != "auditor":
+            raise RuntimeError(f"Auditor whoami returned unexpected role: {auditor_whoami_payload.get('role')}")
         _request_json("GET", f"{base}/api/v1/audit-log/failures?limit=10", 200, headers=auditor_bearer)
+        _request_json("GET", f"{base}/api/v1/rbac/policy", 200, headers=auditor_bearer)
         _request_json(
             "POST",
             f"{base}/api/v1/api-keys",
@@ -154,10 +184,10 @@ def main() -> int:
         _request_json("POST", f"{base}/api/v1/audit-log/retry-failures?limit=5", 403, headers=auditor_bearer)
         _request_json("POST", f"{base}/api/v1/auth/revoke", 200, headers=auditor_bearer)
     else:
-        print("[9/10] Skipping auditor RBAC checks (no auditor credentials provided)")
+        print("[13/14] Skipping auditor RBAC checks (no auditor credentials provided)")
 
     if args.user_user and args.user_pass:
-        print("[10/10] Running user RBAC smoke checks")
+        print("[14/14] Running user RBAC smoke checks")
         user_token_payload, _ = _request_json(
             "POST",
             f"{base}/api/v1/auth/token",
@@ -167,11 +197,15 @@ def main() -> int:
         if user_token_payload.get("role") != "user":
             raise RuntimeError(f"Expected user token role, got: {user_token_payload.get('role')}")
         user_bearer = {"Authorization": f"Bearer {user_token_payload.get('access_token', '')}"}
+        user_whoami_payload, _ = _request_json("GET", f"{base}/api/v1/auth/whoami", 200, headers=user_bearer)
+        if user_whoami_payload.get("role") != "user":
+            raise RuntimeError(f"User whoami returned unexpected role: {user_whoami_payload.get('role')}")
         _request_json("GET", f"{base}/api/v1/audit-log?limit=5", 403, headers=user_bearer)
+        _request_json("GET", f"{base}/api/v1/rbac/policy", 403, headers=user_bearer)
         _request_json("GET", f"{base}/api/v1/events?limit=1", 200, headers=user_bearer)
         _request_json("POST", f"{base}/api/v1/auth/revoke", 200, headers=user_bearer)
     else:
-        print("[10/10] Skipping user RBAC checks (no user credentials provided)")
+        print("[14/14] Skipping user RBAC checks (no user credentials provided)")
 
     _request_json("POST", f"{base}/api/v1/auth/revoke", 200, headers=bearer_headers)
 
@@ -181,8 +215,12 @@ def main() -> int:
             {
                 "token_user": token_payload.get("user"),
                 "token_role": token_payload.get("role"),
+                "whoami_role": whoami_payload.get("role"),
+                "rbac_roles": sorted(list(rbac_policy_payload.get("roles", {}).keys())),
+                "compliance_status": compliance_payload.get("status"),
                 "created_key_prefix": key_payload.get("key_prefix"),
                 "audit_entries_checked": verify_payload.get("entries", 0),
+                "audit_summary_chain_ok": audit_summary_payload.get("chain_ok"),
                 "failures_seen": len(failures_payload),
                 "retry_result": retry_payload,
                 "auditor_rbac_checked": bool(args.auditor_user and args.auditor_pass),

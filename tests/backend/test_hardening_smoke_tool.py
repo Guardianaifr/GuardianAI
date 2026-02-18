@@ -48,6 +48,17 @@ def test_hardening_smoke_main_success_without_optional_rbac(monkeypatch):
             "url": f"{base}/api/v1/auth/token",
             "response": _FakeResponse(200, {"access_token": "admin-token", "user": "admin", "role": "admin"}),
         },
+        {"method": "GET", "url": f"{base}/api/v1/auth/whoami", "response": _FakeResponse(200, {"user": "admin", "role": "admin", "auth_type": "bearer", "permissions": ["api_keys:manage"]})},
+        {
+            "method": "GET",
+            "url": f"{base}/api/v1/rbac/policy",
+            "response": _FakeResponse(200, {"roles": {"admin": ["api_keys:manage"]}, "endpoints": []}),
+        },
+        {
+            "method": "GET",
+            "url": f"{base}/api/v1/compliance/report",
+            "response": _FakeResponse(200, {"status": "warn"}),
+        },
         {
             "method": "POST",
             "url": f"{base}/api/v1/api-keys",
@@ -58,6 +69,7 @@ def test_hardening_smoke_main_success_without_optional_rbac(monkeypatch):
         },
         {"method": "POST", "url": f"{base}/api/v1/telemetry", "response": _FakeResponse(200, {"event_id": "e1"})},
         {"method": "GET", "url": f"{base}/api/v1/audit-log/verify", "response": _FakeResponse(200, {"ok": True, "entries": 1})},
+        {"method": "GET", "url": f"{base}/api/v1/audit-log/summary", "response": _FakeResponse(200, {"chain_ok": True})},
         {"method": "GET", "url": f"{base}/api/v1/audit-log/failures?limit=25", "response": _FakeResponse(200, [])},
         {
             "method": "POST",
@@ -88,9 +100,21 @@ def test_hardening_smoke_main_success_with_optional_rbac(monkeypatch):
             "url": f"{base}/api/v1/auth/token",
             "response": _FakeResponse(200, {"access_token": "admin-token", "user": "admin", "role": "admin"}),
         },
+        {"method": "GET", "url": f"{base}/api/v1/auth/whoami", "response": _FakeResponse(200, {"user": "admin", "role": "admin", "auth_type": "bearer", "permissions": ["api_keys:manage"]})},
+        {
+            "method": "GET",
+            "url": f"{base}/api/v1/rbac/policy",
+            "response": _FakeResponse(200, {"roles": {"admin": ["api_keys:manage"]}, "endpoints": []}),
+        },
+        {
+            "method": "GET",
+            "url": f"{base}/api/v1/compliance/report",
+            "response": _FakeResponse(200, {"status": "pass"}),
+        },
         {"method": "POST", "url": f"{base}/api/v1/api-keys", "response": _FakeResponse(200, {"api_key": "gk_test", "key_prefix": "gk_test"})},
         {"method": "POST", "url": f"{base}/api/v1/telemetry", "response": _FakeResponse(200, {"event_id": "e1"})},
         {"method": "GET", "url": f"{base}/api/v1/audit-log/verify", "response": _FakeResponse(200, {"ok": True, "entries": 2})},
+        {"method": "GET", "url": f"{base}/api/v1/audit-log/summary", "response": _FakeResponse(200, {"chain_ok": True})},
         {"method": "GET", "url": f"{base}/api/v1/audit-log/failures?limit=25", "response": _FakeResponse(200, [])},
         {
             "method": "POST",
@@ -102,7 +126,9 @@ def test_hardening_smoke_main_success_with_optional_rbac(monkeypatch):
             "url": f"{base}/api/v1/auth/token",
             "response": _FakeResponse(200, {"access_token": "auditor-token", "user": "auditor", "role": "auditor"}),
         },
+        {"method": "GET", "url": f"{base}/api/v1/auth/whoami", "response": _FakeResponse(200, {"user": "auditor", "role": "auditor", "auth_type": "bearer", "permissions": ["audit:read"]})},
         {"method": "GET", "url": f"{base}/api/v1/audit-log/failures?limit=10", "response": _FakeResponse(200, [])},
+        {"method": "GET", "url": f"{base}/api/v1/rbac/policy", "response": _FakeResponse(200, {"roles": {"auditor": ["rbac:read"]}, "endpoints": []})},
         {"method": "POST", "url": f"{base}/api/v1/api-keys", "response": _FakeResponse(403, {"detail": "forbidden"})},
         {"method": "POST", "url": f"{base}/api/v1/audit-log/retry-failures?limit=5", "response": _FakeResponse(403, {"detail": "forbidden"})},
         {
@@ -115,7 +141,9 @@ def test_hardening_smoke_main_success_with_optional_rbac(monkeypatch):
             "url": f"{base}/api/v1/auth/token",
             "response": _FakeResponse(200, {"access_token": "user-token", "user": "user1", "role": "user"}),
         },
+        {"method": "GET", "url": f"{base}/api/v1/auth/whoami", "response": _FakeResponse(200, {"user": "user1", "role": "user", "auth_type": "bearer", "permissions": ["events:read"]})},
         {"method": "GET", "url": f"{base}/api/v1/audit-log?limit=5", "response": _FakeResponse(403, {"detail": "forbidden"})},
+        {"method": "GET", "url": f"{base}/api/v1/rbac/policy", "response": _FakeResponse(403, {"detail": "forbidden"})},
         {"method": "GET", "url": f"{base}/api/v1/events?limit=1", "response": _FakeResponse(200, [])},
         {
             "method": "POST",

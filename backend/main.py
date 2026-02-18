@@ -55,6 +55,18 @@ AUDIT_SYSLOG_HOST = os.getenv("GUARDIAN_AUDIT_SYSLOG_HOST", "").strip()
 AUDIT_SYSLOG_PORT = int(os.getenv("GUARDIAN_AUDIT_SYSLOG_PORT", "514"))
 AUDIT_SYSLOG_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_SYSLOG_TIMEOUT_SEC", "1.0"))
 AUDIT_SYSLOG_STRICT = os.getenv("GUARDIAN_AUDIT_SYSLOG_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
+AUDIT_SPLUNK_HEC_URL = os.getenv("GUARDIAN_AUDIT_SPLUNK_HEC_URL", "").strip()
+AUDIT_SPLUNK_HEC_TOKEN = os.getenv("GUARDIAN_AUDIT_SPLUNK_HEC_TOKEN", "").strip()
+AUDIT_SPLUNK_INDEX = os.getenv("GUARDIAN_AUDIT_SPLUNK_INDEX", "").strip()
+AUDIT_SPLUNK_SOURCE = os.getenv("GUARDIAN_AUDIT_SPLUNK_SOURCE", "guardian-backend").strip()
+AUDIT_SPLUNK_SOURCETYPE = os.getenv("GUARDIAN_AUDIT_SPLUNK_SOURCETYPE", "_json").strip()
+AUDIT_SPLUNK_STRICT = os.getenv("GUARDIAN_AUDIT_SPLUNK_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
+AUDIT_DATADOG_LOGS_URL = os.getenv("GUARDIAN_AUDIT_DATADOG_LOGS_URL", "https://http-intake.logs.datadoghq.com/api/v2/logs").strip()
+AUDIT_DATADOG_API_KEY = os.getenv("GUARDIAN_AUDIT_DATADOG_API_KEY", "").strip()
+AUDIT_DATADOG_SERVICE = os.getenv("GUARDIAN_AUDIT_DATADOG_SERVICE", "guardian-backend").strip()
+AUDIT_DATADOG_SOURCE = os.getenv("GUARDIAN_AUDIT_DATADOG_SOURCE", "guardianai").strip()
+AUDIT_DATADOG_TAGS = os.getenv("GUARDIAN_AUDIT_DATADOG_TAGS", "env:prod,app:guardianai").strip()
+AUDIT_DATADOG_STRICT = os.getenv("GUARDIAN_AUDIT_DATADOG_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
 ENFORCE_HTTPS = os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
 TLS_CERT_FILE = os.getenv("GUARDIAN_TLS_CERT_FILE", "").strip()
 TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
@@ -432,6 +444,69 @@ def _forward_syslog_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_SYSL
     finally:
         if sock is not None:
             sock.close()
+
+
+def _forward_splunk_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_SPLUNK_STRICT) -> bool:
+    if not AUDIT_SPLUNK_HEC_URL:
+        return True
+
+    headers = {"Content-Type": "application/json"}
+    if AUDIT_SPLUNK_HEC_TOKEN:
+        headers["Authorization"] = f"Splunk {AUDIT_SPLUNK_HEC_TOKEN}"
+    event = {
+        "time": payload.get("timestamp", time.time()),
+        "source": AUDIT_SPLUNK_SOURCE,
+        "sourcetype": AUDIT_SPLUNK_SOURCETYPE,
+        "event": payload,
+    }
+    if AUDIT_SPLUNK_INDEX:
+        event["index"] = AUDIT_SPLUNK_INDEX
+    try:
+        response = requests.post(AUDIT_SPLUNK_HEC_URL, json=event, headers=headers, timeout=AUDIT_SINK_TIMEOUT_SEC)
+        if 200 <= response.status_code < 300:
+            return True
+        logger.warning("Splunk HEC rejected audit event (status=%s)", response.status_code)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Splunk HEC audit delivery failed: %s", exc)
+
+    if strict:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Splunk audit delivery failed",
+        )
+    return False
+
+
+def _forward_datadog_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_DATADOG_STRICT) -> bool:
+    if not AUDIT_DATADOG_API_KEY:
+        return True
+
+    headers = {"Content-Type": "application/json", "DD-API-KEY": AUDIT_DATADOG_API_KEY}
+    log_entry = {
+        "ddsource": AUDIT_DATADOG_SOURCE,
+        "service": AUDIT_DATADOG_SERVICE,
+        "ddtags": AUDIT_DATADOG_TAGS,
+        "message": json.dumps(payload, separators=(",", ":")),
+    }
+    try:
+        response = requests.post(
+            AUDIT_DATADOG_LOGS_URL,
+            json=[log_entry],
+            headers=headers,
+            timeout=AUDIT_SINK_TIMEOUT_SEC,
+        )
+        if 200 <= response.status_code < 300:
+            return True
+        logger.warning("Datadog logs intake rejected audit event (status=%s)", response.status_code)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Datadog logs audit delivery failed: %s", exc)
+
+    if strict:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Datadog audit delivery failed",
+        )
+    return False
 
 
 def _is_https_request(scheme: str, forwarded_proto: str = "") -> bool:
@@ -997,6 +1072,10 @@ def _retry_failed_audit_deliveries(limit: int = 100) -> Dict[str, int]:
                 ok = _forward_external_audit_log(payload, strict=False)
             elif sink_type == "syslog":
                 ok = _forward_syslog_audit_log(payload, strict=False)
+            elif sink_type == "splunk":
+                ok = _forward_splunk_audit_log(payload, strict=False)
+            elif sink_type == "datadog":
+                ok = _forward_datadog_audit_log(payload, strict=False)
             else:
                 error = f"unknown sink_type={sink_type}"
         except Exception as exc:  # noqa: BLE001
@@ -1385,6 +1464,20 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
         except HTTPException as exc:
             _queue_audit_delivery_failure("syslog", audit_payload, str(exc.detail))
             raise
+        try:
+            splunk_ok = _forward_splunk_audit_log(audit_payload)
+            if not splunk_ok:
+                _queue_audit_delivery_failure("splunk", audit_payload, "splunk delivery failed")
+        except HTTPException as exc:
+            _queue_audit_delivery_failure("splunk", audit_payload, str(exc.detail))
+            raise
+        try:
+            datadog_ok = _forward_datadog_audit_log(audit_payload)
+            if not datadog_ok:
+                _queue_audit_delivery_failure("datadog", audit_payload, "datadog delivery failed")
+        except HTTPException as exc:
+            _queue_audit_delivery_failure("datadog", audit_payload, str(exc.detail))
+            raise
 
     # 4. Fire Webhook Alert
     await send_webhook_alert(event)
@@ -1554,7 +1647,9 @@ async def health_check():
             "metrics_enabled": METRICS_ENABLED,
             "https_enforced": ENFORCE_HTTPS,
             "telemetry_requires_api_key": TELEMETRY_REQUIRE_API_KEY,
-            "audit_sink_configured": bool(AUDIT_SINK_URL),
+            "audit_sink_configured": bool(
+                AUDIT_SINK_URL or AUDIT_SYSLOG_HOST or AUDIT_SPLUNK_HEC_URL or AUDIT_DATADOG_API_KEY
+            ),
         },
     }
     if db_ok:

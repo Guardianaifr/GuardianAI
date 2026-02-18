@@ -84,6 +84,8 @@ This guide maps to implemented controls in the current backend and proxy stack.
 2. Configure external audit sinks:
 - HTTP sink (`GUARDIAN_AUDIT_SINK_*`)
 - Syslog sink (`GUARDIAN_AUDIT_SYSLOG_*`)
+- Splunk HEC sink (`GUARDIAN_AUDIT_SPLUNK_*`)
+- Datadog Logs sink (`GUARDIAN_AUDIT_DATADOG_*`)
 
 3. Use strict mode in higher-assurance environments:
 - `GUARDIAN_AUDIT_STRICT=true`

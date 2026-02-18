@@ -1,4 +1,6 @@
 import backend.main as backend_main
+from fastapi import HTTPException
+import pytest
 
 
 def test_parse_limit_overrides_valid_json():
@@ -27,3 +29,30 @@ def test_get_telemetry_rate_limit_prefers_override(monkeypatch):
     monkeypatch.setattr(backend_main, "TELEMETRY_RATE_LIMIT_PER_MIN", 600)
     assert backend_main._get_telemetry_rate_limit("key-1") == 7
     assert backend_main._get_telemetry_rate_limit("other") == 600
+
+
+def test_rate_limit_uses_distributed_backend_when_enabled(monkeypatch):
+    calls = []
+    monkeypatch.setattr(backend_main, "RATE_LIMIT_BACKEND", "redis")
+    monkeypatch.setattr(backend_main, "_rate_limit_state", {})
+
+    def _fake_distributed(identity: str, limit: int) -> bool:
+        calls.append((identity, limit))
+        return True
+
+    monkeypatch.setattr(backend_main, "_enforce_rate_limit_distributed", _fake_distributed)
+
+    backend_main._enforce_rate_limit("user:admin", 2)
+    assert calls == [("user:admin", 2)]
+    assert backend_main._rate_limit_state == {}
+
+
+def test_rate_limit_falls_back_to_memory_when_distributed_unavailable(monkeypatch):
+    monkeypatch.setattr(backend_main, "RATE_LIMIT_BACKEND", "redis")
+    monkeypatch.setattr(backend_main, "_rate_limit_state", {})
+    monkeypatch.setattr(backend_main, "_enforce_rate_limit_distributed", lambda identity, limit: False)
+
+    backend_main._enforce_rate_limit("user:admin", 1)
+    with pytest.raises(HTTPException) as exc_info:
+        backend_main._enforce_rate_limit("user:admin", 1)
+    assert exc_info.value.status_code == 429

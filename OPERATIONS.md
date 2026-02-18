@@ -66,10 +66,13 @@ Tune these based on load profile:
 - `GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN`
 - `GUARDIAN_USER_RATE_LIMITS_JSON`
 - `GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON`
+- `GUARDIAN_RATE_LIMIT_BACKEND`
+- `GUARDIAN_RATE_LIMIT_REDIS_URL`
 
 Operational notes:
 - in-memory limiter state resets on process restart
-- use external/distributed limiter for multi-instance deployments
+- distributed mode supports Redis with fallback to in-memory limiter by default
+- set `GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN=false` to fail closed when Redis is unavailable
 
 ## 5. External Audit Sinks
 

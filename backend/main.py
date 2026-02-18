@@ -1372,6 +1372,89 @@ def _retry_failed_audit_deliveries(limit: int = 100) -> Dict[str, int]:
     return {"retried": retried, "resolved": resolved, "failed": failed}
 
 
+def _forward_audit_payload(audit_payload: Dict[str, Any]):
+    try:
+        http_ok = _forward_external_audit_log(audit_payload)
+        if not http_ok:
+            _queue_audit_delivery_failure("http", audit_payload, "http delivery failed")
+    except HTTPException as exc:
+        _queue_audit_delivery_failure("http", audit_payload, str(exc.detail))
+        raise
+
+    try:
+        syslog_ok = _forward_syslog_audit_log(audit_payload)
+        if not syslog_ok:
+            _queue_audit_delivery_failure("syslog", audit_payload, "syslog delivery failed")
+    except HTTPException as exc:
+        _queue_audit_delivery_failure("syslog", audit_payload, str(exc.detail))
+        raise
+    try:
+        splunk_ok = _forward_splunk_audit_log(audit_payload)
+        if not splunk_ok:
+            _queue_audit_delivery_failure("splunk", audit_payload, "splunk delivery failed")
+    except HTTPException as exc:
+        _queue_audit_delivery_failure("splunk", audit_payload, str(exc.detail))
+        raise
+    try:
+        datadog_ok = _forward_datadog_audit_log(audit_payload)
+        if not datadog_ok:
+            _queue_audit_delivery_failure("datadog", audit_payload, "datadog delivery failed")
+    except HTTPException as exc:
+        _queue_audit_delivery_failure("datadog", audit_payload, str(exc.detail))
+        raise
+
+
+def _write_control_plane_audit_entry(action: str, user: str, details: Dict[str, Any]) -> Dict[str, Any]:
+    timestamp = time.time()
+    guardian_id = "guardian-backend"
+    details_json = json.dumps(details)
+    signature = hashlib.sha256(f"{guardian_id}:{timestamp}:{details_json}".encode()).hexdigest()
+
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT entry_hash
+        FROM audit_logs
+        WHERE entry_hash IS NOT NULL AND entry_hash != ''
+        ORDER BY id DESC LIMIT 1
+        """
+    )
+    prev_row = cur.fetchone()
+    prev_hash = prev_row[0] if prev_row and prev_row[0] else ""
+    entry_hash = _compute_audit_entry_hash(
+        guardian_id=guardian_id,
+        action=action,
+        user=user,
+        details_json=details_json,
+        timestamp=timestamp,
+        signature=signature,
+        prev_hash=prev_hash,
+    )
+    cur.execute(
+        """
+        INSERT INTO audit_logs (guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (guardian_id, action, user, details_json, timestamp, signature, prev_hash, entry_hash),
+    )
+    conn.commit()
+    conn.close()
+
+    audit_payload = {
+        "guardian_id": guardian_id,
+        "action": action,
+        "user": user,
+        "details": details,
+        "timestamp": timestamp,
+        "signature": signature,
+        "prev_hash": prev_hash,
+        "entry_hash": entry_hash,
+    }
+    _forward_audit_payload(audit_payload)
+    return audit_payload
+
+
 def _verify_audit_log_chain_internal() -> Dict[str, Any]:
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1646,6 +1729,12 @@ async def revoke_access_token(
     conn.commit()
     conn.close()
 
+    _write_control_plane_audit_entry(
+        action="auth_revoke_token",
+        user=sub,
+        details={"revoked_jti": jti, "expires_at": exp},
+    )
+
     return RevokeTokenResponse(status="revoked", revoked_jti=jti, revoked_by=sub)
 
 
@@ -1699,6 +1788,15 @@ async def prune_revoked_tokens(
     username: str = Depends(enforce_admin_rate_limit),
 ):
     result = _prune_revoked_tokens(expired_only=expired_only)
+    _write_control_plane_audit_entry(
+        action="auth_prune_revocations",
+        user=username,
+        details={
+            "expired_only": expired_only,
+            "deleted": result["deleted"],
+            "remaining": result["remaining"],
+        },
+    )
     return PruneRevokedTokensResponse(
         deleted=result["deleted"],
         remaining=result["remaining"],
@@ -2106,35 +2204,7 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
 
     # 3. External Audit Sinks (best effort unless strict mode enabled)
     if audit_payload is not None:
-        try:
-            http_ok = _forward_external_audit_log(audit_payload)
-            if not http_ok:
-                _queue_audit_delivery_failure("http", audit_payload, "http delivery failed")
-        except HTTPException as exc:
-            _queue_audit_delivery_failure("http", audit_payload, str(exc.detail))
-            raise
-
-        try:
-            syslog_ok = _forward_syslog_audit_log(audit_payload)
-            if not syslog_ok:
-                _queue_audit_delivery_failure("syslog", audit_payload, "syslog delivery failed")
-        except HTTPException as exc:
-            _queue_audit_delivery_failure("syslog", audit_payload, str(exc.detail))
-            raise
-        try:
-            splunk_ok = _forward_splunk_audit_log(audit_payload)
-            if not splunk_ok:
-                _queue_audit_delivery_failure("splunk", audit_payload, "splunk delivery failed")
-        except HTTPException as exc:
-            _queue_audit_delivery_failure("splunk", audit_payload, str(exc.detail))
-            raise
-        try:
-            datadog_ok = _forward_datadog_audit_log(audit_payload)
-            if not datadog_ok:
-                _queue_audit_delivery_failure("datadog", audit_payload, "datadog delivery failed")
-        except HTTPException as exc:
-            _queue_audit_delivery_failure("datadog", audit_payload, str(exc.detail))
-            raise
+        _forward_audit_payload(audit_payload)
 
     # 4. Fire Webhook Alert
     await send_webhook_alert(event)

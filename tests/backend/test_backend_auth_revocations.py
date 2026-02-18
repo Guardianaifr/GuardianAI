@@ -1,4 +1,5 @@
 import base64
+import json
 import sqlite3
 import time
 
@@ -47,6 +48,13 @@ def test_auditor_can_list_revocations_and_user_cannot(tmp_path, monkeypatch):
     assert len(body) >= 1
     assert any(item["jti"] == revoked_jti for item in body)
     assert all("expired" in item for item in body)
+
+    audit_log = client.get("/api/v1/audit-log?limit=25", headers=_basic_auth_headers("admin", "admin-pass"))
+    assert audit_log.status_code == 200
+    revoke_entries = [entry for entry in audit_log.json() if entry["action"] == "auth_revoke_token"]
+    assert revoke_entries, "Expected auth_revoke_token audit entry"
+    revoke_details = json.loads(revoke_entries[0]["details"])
+    assert revoke_details["revoked_jti"] == revoked_jti
 
     user_list = client.get("/api/v1/auth/revocations", headers=_basic_auth_headers("user1", "user-pass"))
     assert user_list.status_code == 403
@@ -105,3 +113,10 @@ def test_revocation_list_include_expired_and_admin_prune(tmp_path, monkeypatch):
     )
     assert post_prune.status_code == 200
     assert all(item["jti"] != "expired-jti" for item in post_prune.json())
+
+    audit_log = client.get("/api/v1/audit-log?limit=25", headers=_basic_auth_headers("admin", "admin-pass"))
+    assert audit_log.status_code == 200
+    prune_entries = [entry for entry in audit_log.json() if entry["action"] == "auth_prune_revocations"]
+    assert prune_entries, "Expected auth_prune_revocations audit entry"
+    prune_details = json.loads(prune_entries[0]["details"])
+    assert prune_details["expired_only"] is True

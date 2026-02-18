@@ -85,6 +85,14 @@ Syslog sink:
 - configure `GUARDIAN_AUDIT_SYSLOG_HOST` and `GUARDIAN_AUDIT_SYSLOG_PORT`
 - strict mode via `GUARDIAN_AUDIT_SYSLOG_STRICT=true`
 
+Splunk sink:
+- configure `GUARDIAN_AUDIT_SPLUNK_HEC_URL` + `GUARDIAN_AUDIT_SPLUNK_HEC_TOKEN`
+- optional metadata: index/source/sourcetype via `GUARDIAN_AUDIT_SPLUNK_*`
+
+Datadog sink:
+- configure `GUARDIAN_AUDIT_DATADOG_API_KEY`
+- optional endpoint/service/source/tags via `GUARDIAN_AUDIT_DATADOG_*`
+
 Queue behavior:
 - non-strict failures are queued in `audit_delivery_failures`
 - process with `POST /api/v1/audit-log/retry-failures`

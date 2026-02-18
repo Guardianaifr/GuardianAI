@@ -2,7 +2,7 @@
 
 **AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
 
-[![Tests](https://img.shields.io/badge/tests-133%2F133%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-134%2F134%20passing-brightgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-80%25-yellow)]()
 
 
@@ -55,6 +55,7 @@ We include 6 ready-to-run scenarios to prove the security works:
 14. Lockout management endpoints for operations (`/api/v1/auth/lockouts`, `/api/v1/auth/lockouts/clear`).
 15. Global incident containment for JWT sessions (`/api/v1/auth/sessions/revoke-all`, self-exclusion supported).
 16. User self-service containment endpoint to revoke own other sessions (`/api/v1/auth/sessions/revoke-self`).
+17. User targeted self-session revoke by JTI (`/api/v1/auth/sessions/revoke-self-jti`) with ownership enforcement.
 
 ## Production Hardening (CRITICAL)
 
@@ -247,7 +248,7 @@ python -m pytest --cov=guardian --cov-report=term-missing tests/
 python -m pytest tests/guardrails/test_input_filter.py -v
 ```
 
-**Current Status:** 133/133 tests passing.
+**Current Status:** 134/134 tests passing.
 
 ---
 

@@ -144,6 +144,15 @@ Request body:
 - `exclude_current` (boolean, default `true`)
 - `reason` (optional string)
 
+### `POST /api/v1/auth/sessions/revoke-self-jti`
+Revokes one specific session JTI owned by the current authenticated user and writes immutable audit entry (`auth_revoke_self_session_jti`).
+Requires Bearer token.
+Role required: `admin`, `auditor`, or `user`.
+
+Request body:
+- `jti` (string, required)
+- `reason` (optional string)
+
 ### `POST /api/v1/auth/sessions/revoke-user`
 Revokes tracked sessions for a target user and writes immutable audit entry (`auth_revoke_user_sessions`).
 Role required: `admin`.

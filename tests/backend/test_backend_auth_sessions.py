@@ -251,3 +251,79 @@ def test_revoke_self_requires_bearer_token(tmp_path, monkeypatch):
         headers=_basic_auth_headers("user1", "user-pass"),
     )
     assert response.status_code == 401
+
+
+def test_user_can_revoke_specific_own_session_by_jti_only(tmp_path, monkeypatch):
+    _setup_sessions_db(tmp_path, monkeypatch)
+    client = TestClient(backend_main.app)
+
+    user_current_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("user1", "user-pass"))
+    user_other_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("user1", "user-pass"))
+    auditor_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("auditor", "auditor-pass"))
+    assert user_current_res.status_code == 200
+    assert user_other_res.status_code == 200
+    assert auditor_res.status_code == 200
+
+    current_token = user_current_res.json()["access_token"]
+    other_token = user_other_res.json()["access_token"]
+    auditor_token = auditor_res.json()["access_token"]
+    current_jti = backend_main._decode_jwt(current_token)["jti"]
+    other_jti = backend_main._decode_jwt(other_token)["jti"]
+    auditor_jti = backend_main._decode_jwt(auditor_token)["jti"]
+
+    current_bearer = {"Authorization": f"Bearer {current_token}"}
+    other_bearer = {"Authorization": f"Bearer {other_token}"}
+    auditor_bearer = {"Authorization": f"Bearer {auditor_token}"}
+
+    # Cannot target current session through this endpoint.
+    current_forbidden = client.post(
+        "/api/v1/auth/sessions/revoke-self-jti",
+        json={"jti": current_jti},
+        headers=current_bearer,
+    )
+    assert current_forbidden.status_code == 400
+
+    # Cannot target another user's session.
+    not_owned = client.post(
+        "/api/v1/auth/sessions/revoke-self-jti",
+        json={"jti": auditor_jti},
+        headers=current_bearer,
+    )
+    assert not_owned.status_code == 403
+
+    revoke_other = client.post(
+        "/api/v1/auth/sessions/revoke-self-jti",
+        json={"jti": other_jti, "reason": "suspicious_device_logout"},
+        headers=current_bearer,
+    )
+    assert revoke_other.status_code == 200
+    body = revoke_other.json()
+    assert body["jti"] == other_jti
+    assert body["target_user"] == "user1"
+    assert body["revoked"] is True
+    assert body["already_revoked"] is False
+
+    # Current session survives and target session is revoked.
+    assert client.get("/api/v1/analytics", headers=current_bearer).status_code == 200
+    revoked_check = client.get("/api/v1/analytics", headers=other_bearer)
+    assert revoked_check.status_code == 401
+    assert "revoked" in revoked_check.json()["detail"].lower()
+
+    # Revoke attempt on already-revoked session returns already_revoked.
+    second = client.post(
+        "/api/v1/auth/sessions/revoke-self-jti",
+        json={"jti": other_jti},
+        headers=current_bearer,
+    )
+    assert second.status_code == 200
+    assert second.json()["already_revoked"] is True
+
+    # Other user's token remains valid.
+    assert client.get("/api/v1/analytics", headers=auditor_bearer).status_code == 200
+
+    audit_log = client.get("/api/v1/audit-log?limit=50", headers=_basic_auth_headers("admin", "admin-pass"))
+    assert audit_log.status_code == 200
+    entries = [entry for entry in audit_log.json() if entry["action"] == "auth_revoke_self_session_jti"]
+    assert entries
+    details = json.loads(entries[0]["details"])
+    assert details["jti"] == other_jti

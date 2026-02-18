@@ -39,6 +39,10 @@ Role guidance:
 - `POST /api/v1/audit-log/retry-failures`
 - requires `admin`
 
+5. Clear auth lockouts after verified false positives:
+- inspect: `GET /api/v1/auth/lockouts` (`admin`/`auditor`)
+- clear specific or global: `POST /api/v1/auth/lockouts/clear` (`admin`)
+
 ## 3. Backup and Restore
 
 1. Primary data store:
@@ -120,7 +124,8 @@ Weekly:
 2. review audit failures and retry queue
 3. review `/api/v1/auth/revocations` and prune expired entries when needed
 4. review `/api/v1/auth/sessions` and revoke compromised user or single sessions (`revoke-user` / `revoke-jti`) if required
-5. rotate high-risk API keys as policy requires
+5. review active `/api/v1/auth/lockouts` entries and clear verified false positives
+6. rotate high-risk API keys as policy requires
 
 Monthly:
 1. test token revocation and key revocation drills

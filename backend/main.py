@@ -873,9 +873,25 @@ def _is_auth_lockout_enabled() -> bool:
     return AUTH_LOCKOUT_ENABLED and AUTH_LOCKOUT_MAX_ATTEMPTS > 0 and AUTH_LOCKOUT_DURATION_SEC > 0
 
 
+def _format_auth_lockout_identity(username: str, source: str) -> str:
+    normalized_user = username.strip().lower() or "unknown-user"
+    normalized_source = source.strip() or "unknown"
+    return f"{normalized_user}|{normalized_source}"
+
+
+def _parse_auth_lockout_identity(identity: str) -> tuple[str, str]:
+    raw = (identity or "").strip()
+    if "|" in raw:
+        username, source = raw.split("|", 1)
+        return username or "unknown-user", source or "unknown"
+    if "@" in raw:
+        username, source = raw.split("@", 1)
+        return username or "unknown-user", source or "unknown"
+    return raw or "unknown-user", "unknown"
+
+
 def _auth_lockout_identity(request: Request, username: str | None) -> str:
-    normalized_user = (username or "").strip().lower() or "unknown-user"
-    return f"{normalized_user}@{_request_source_identity(request)}"
+    return _format_auth_lockout_identity((username or "").strip().lower(), _request_source_identity(request))
 
 
 def _auth_lockout_retry_after_seconds(identity: str) -> int:
@@ -918,6 +934,107 @@ def _record_auth_lockout_failure(identity: str):
 def _clear_auth_lockout_failures(identity: str):
     with _auth_lockout_lock:
         _auth_lockout_state.pop(identity, None)
+        # Backward compatibility for keys created before delimiter change.
+        if "|" in identity:
+            legacy = identity.replace("|", "@", 1)
+            _auth_lockout_state.pop(legacy, None)
+
+
+def _list_auth_lockouts(limit: int = 100, active_only: bool = True) -> List[Dict[str, Any]]:
+    now = time.time()
+    records: List[Dict[str, Any]] = []
+    with _auth_lockout_lock:
+        stale: List[str] = []
+        for identity, entry in _auth_lockout_state.items():
+            failed = int(entry.get("failed", 0) or 0)
+            locked_until = float(entry.get("locked_until", 0.0) or 0.0)
+            if locked_until <= now and failed <= 0:
+                stale.append(identity)
+                continue
+            active = locked_until > now
+            if active_only and not active:
+                continue
+            username, source = _parse_auth_lockout_identity(identity)
+            records.append(
+                {
+                    "identity": identity,
+                    "username": username,
+                    "source": source,
+                    "failed_attempts": max(0, failed),
+                    "locked_until": locked_until if locked_until > 0 else None,
+                    "retry_after_sec": max(0, int((locked_until - now) + 0.999)) if active else 0,
+                    "active": active,
+                }
+            )
+        for identity in stale:
+            _auth_lockout_state.pop(identity, None)
+
+    records.sort(
+        key=lambda item: (
+            1 if item["active"] else 0,
+            int(item["retry_after_sec"]),
+            int(item["failed_attempts"]),
+        ),
+        reverse=True,
+    )
+    return records[: max(1, min(limit, 1000))]
+
+
+def _clear_auth_lockouts(
+    *,
+    clear_all: bool = False,
+    identity: str | None = None,
+    username: str | None = None,
+    source: str | None = None,
+) -> Dict[str, Any]:
+    normalized_identity = (identity or "").strip()
+    normalized_user = (username or "").strip().lower()
+    normalized_source = (source or "").strip()
+
+    with _auth_lockout_lock:
+        cleared = 0
+        scope = ""
+
+        if clear_all:
+            cleared = len(_auth_lockout_state)
+            _auth_lockout_state.clear()
+            scope = "all"
+        elif normalized_identity:
+            aliases = [normalized_identity]
+            if "|" in normalized_identity:
+                aliases.append(normalized_identity.replace("|", "@", 1))
+            elif "@" in normalized_identity:
+                aliases.append(normalized_identity.replace("@", "|", 1))
+            for key in aliases:
+                if key in _auth_lockout_state:
+                    _auth_lockout_state.pop(key, None)
+                    cleared += 1
+            scope = f"identity:{normalized_identity}"
+        elif normalized_user and normalized_source:
+            aliases = [
+                _format_auth_lockout_identity(normalized_user, normalized_source),
+                f"{normalized_user}@{normalized_source}",
+            ]
+            for key in aliases:
+                if key in _auth_lockout_state:
+                    _auth_lockout_state.pop(key, None)
+                    cleared += 1
+            scope = f"user+source:{normalized_user}@{normalized_source}"
+        elif normalized_user:
+            for key in list(_auth_lockout_state.keys()):
+                key_user, _ = _parse_auth_lockout_identity(key)
+                if key_user == normalized_user:
+                    _auth_lockout_state.pop(key, None)
+                    cleared += 1
+            scope = f"user:{normalized_user}"
+        else:
+            raise ValueError("clear target is required")
+
+        return {
+            "cleared": cleared,
+            "remaining": len(_auth_lockout_state),
+            "scope": scope,
+        }
 
 
 class TokenResponse(BaseModel):
@@ -1004,6 +1121,29 @@ class RevokeSessionByJtiResponse(BaseModel):
     revoked: bool
     already_revoked: bool
     reason: str | None = None
+
+
+class AuthLockoutEntryResponse(BaseModel):
+    identity: str
+    username: str
+    source: str
+    failed_attempts: int
+    locked_until: float | None = None
+    retry_after_sec: int
+    active: bool
+
+
+class ClearAuthLockoutsRequest(BaseModel):
+    clear_all: bool = False
+    identity: str | None = None
+    username: str | None = None
+    source: str | None = None
+
+
+class ClearAuthLockoutsResponse(BaseModel):
+    cleared: int
+    remaining: int
+    scope: str
 
 
 class WhoAmIResponse(BaseModel):
@@ -1152,6 +1292,8 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:sessions:read",
         "auth:sessions:revoke_user",
         "auth:sessions:revoke_jti",
+        "auth:lockouts:read",
+        "auth:lockouts:manage",
         "api_keys:manage",
         "audit:read",
         "audit:verify",
@@ -1168,6 +1310,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:revoke:self",
         "auth:revocations:read",
         "auth:sessions:read",
+        "auth:lockouts:read",
         "api_keys:read",
         "audit:read",
         "audit:verify",
@@ -1199,6 +1342,8 @@ def _rbac_endpoint_policies() -> List[Dict[str, Any]]:
         {"method": "POST", "path": "/api/v1/auth/revoke", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:revoke:self"},
         {"method": "GET", "path": "/api/v1/auth/revocations", "allowed_roles": ["admin", "auditor"], "permission": "auth:revocations:read"},
         {"method": "POST", "path": "/api/v1/auth/revocations/prune", "allowed_roles": ["admin"], "permission": "auth:revocations:manage"},
+        {"method": "GET", "path": "/api/v1/auth/lockouts", "allowed_roles": ["admin", "auditor"], "permission": "auth:lockouts:read"},
+        {"method": "POST", "path": "/api/v1/auth/lockouts/clear", "allowed_roles": ["admin"], "permission": "auth:lockouts:manage"},
         {"method": "GET", "path": "/api/v1/auth/sessions", "allowed_roles": ["admin", "auditor"], "permission": "auth:sessions:read"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-user", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_user"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-jti", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_jti"},
@@ -2144,6 +2289,108 @@ async def prune_revoked_tokens(
         deleted=result["deleted"],
         remaining=result["remaining"],
         expired_only=expired_only,
+    )
+
+
+@app.get(
+    "/api/v1/auth/lockouts",
+    response_model=List[AuthLockoutEntryResponse],
+    responses={
+        200: {
+            "description": "Lists current failed-login lockout state.",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "identity": "user1|10.0.0.1",
+                            "username": "user1",
+                            "source": "10.0.0.1",
+                            "failed_attempts": 0,
+                            "locked_until": 1739835300.0,
+                            "retry_after_sec": 240,
+                            "active": True,
+                        }
+                    ]
+                }
+            },
+        }
+    },
+)
+async def list_auth_lockouts(
+    limit: int = 100,
+    active_only: bool = True,
+    username: str = Depends(enforce_auditor_rate_limit),
+):
+    bounded_limit = max(1, min(limit, 1000))
+    return _list_auth_lockouts(limit=bounded_limit, active_only=active_only)
+
+
+@app.post(
+    "/api/v1/auth/lockouts/clear",
+    response_model=ClearAuthLockoutsResponse,
+    responses={
+        200: {
+            "description": "Clears failed-login lockout entries by identity, user, or globally.",
+            "content": {
+                "application/json": {
+                    "example": {"cleared": 1, "remaining": 0, "scope": "user+source:user1@10.0.0.1"}
+                }
+            },
+        }
+    },
+)
+async def clear_auth_lockouts(
+    payload: ClearAuthLockoutsRequest,
+    username: str = Depends(enforce_admin_rate_limit),
+):
+    has_identity = bool((payload.identity or "").strip())
+    has_username = bool((payload.username or "").strip())
+    has_source = bool((payload.source or "").strip())
+    clear_all = bool(payload.clear_all)
+
+    if not clear_all and not has_identity and not has_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide clear_all=true, identity, or username as clear target",
+        )
+    if has_source and not has_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="source requires username",
+        )
+    if has_identity and (has_username or has_source):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="identity cannot be combined with username/source",
+        )
+
+    try:
+        result = _clear_auth_lockouts(
+            clear_all=clear_all,
+            identity=payload.identity,
+            username=payload.username,
+            source=payload.source,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    _write_control_plane_audit_entry(
+        action="auth_clear_lockouts",
+        user=username,
+        details={
+            "clear_all": clear_all,
+            "identity": (payload.identity or "").strip(),
+            "username": (payload.username or "").strip(),
+            "source": (payload.source or "").strip(),
+            "cleared": result["cleared"],
+            "remaining": result["remaining"],
+            "scope": result["scope"],
+        },
+    )
+    return ClearAuthLockoutsResponse(
+        cleared=result["cleared"],
+        remaining=result["remaining"],
+        scope=result["scope"],
     )
 
 

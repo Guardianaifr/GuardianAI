@@ -35,7 +35,7 @@ if errorlevel 1 (
 
 echo.
 echo [CHECK] Backend auth/compliance endpoint
-curl.exe -s -u admin:admin-pass "http://127.0.0.1:8001/api/v1/compliance/report"
+%SystemRoot%\System32\curl.exe -s -u admin:admin-pass "http://127.0.0.1:8001/api/v1/compliance/report"
 if errorlevel 1 (
   echo.
   echo [ERROR] Could not query backend compliance endpoint.
@@ -45,7 +45,7 @@ if errorlevel 1 (
 echo.
 echo.
 echo [CHECK] Latest backend event
-curl.exe -s -u admin:admin-pass "http://127.0.0.1:8001/api/v1/events?limit=1"
+%SystemRoot%\System32\curl.exe -s -u admin:admin-pass "http://127.0.0.1:8001/api/v1/events?limit=1"
 echo.
 echo.
 echo [DONE] Realtime stack check completed.

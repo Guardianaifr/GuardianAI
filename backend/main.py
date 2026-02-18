@@ -960,6 +960,21 @@ class RetryFailuresResponse(BaseModel):
     failed: int
 
 
+class AuditSummaryResponse(BaseModel):
+    timestamp: float
+    total_entries: int
+    hashed_entries: int
+    legacy_unhashed_entries: int
+    recent_admin_actions_24h: int
+    failed_deliveries_total: int
+    failed_deliveries_by_sink: Dict[str, int]
+    chain_ok: bool
+    chain_entries_checked: int
+    chain_message: str | None = None
+    chain_failed_id: int | None = None
+    chain_reason: str | None = None
+
+
 class ComplianceControlResponse(BaseModel):
     control: str
     status: str
@@ -1044,6 +1059,7 @@ def _rbac_endpoint_policies() -> List[Dict[str, Any]]:
         {"method": "POST", "path": "/api/v1/api-keys/{key_id}/revoke", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
         {"method": "POST", "path": "/api/v1/api-keys/{key_id}/rotate", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
         {"method": "GET", "path": "/api/v1/audit-log", "allowed_roles": ["admin", "auditor"], "permission": "audit:read"},
+        {"method": "GET", "path": "/api/v1/audit-log/summary", "allowed_roles": ["admin", "auditor"], "permission": "audit:read"},
         {"method": "GET", "path": "/api/v1/audit-log/verify", "allowed_roles": ["admin", "auditor"], "permission": "audit:verify"},
         {"method": "GET", "path": "/api/v1/audit-log/failures", "allowed_roles": ["admin", "auditor"], "permission": "audit:read"},
         {"method": "POST", "path": "/api/v1/audit-log/retry-failures", "allowed_roles": ["admin"], "permission": "audit:retry"},
@@ -1061,6 +1077,76 @@ def _build_rbac_policy() -> Dict[str, Any]:
         "generated_at": time.time(),
         "roles": {role: list(perms) for role, perms in _ROLE_PERMISSIONS.items()},
         "endpoints": _rbac_endpoint_policies(),
+    }
+
+
+def _build_audit_summary() -> Dict[str, Any]:
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    total_entries = 0
+    hashed_entries = 0
+    legacy_unhashed_entries = 0
+    recent_admin_actions_24h = 0
+    failed_deliveries_total = 0
+    failed_deliveries_by_sink: Dict[str, int] = {}
+
+    try:
+        cur.execute(
+            """
+            SELECT
+                COUNT(*) AS total_count,
+                SUM(CASE WHEN entry_hash IS NOT NULL AND entry_hash != '' THEN 1 ELSE 0 END) AS hashed_count,
+                SUM(CASE WHEN entry_hash IS NULL OR entry_hash = '' THEN 1 ELSE 0 END) AS legacy_count
+            FROM audit_logs
+            """
+        )
+        row = cur.fetchone() or (0, 0, 0)
+        total_entries = int(row[0] or 0)
+        hashed_entries = int(row[1] or 0)
+        legacy_unhashed_entries = int(row[2] or 0)
+
+        cur.execute(
+            """
+            SELECT COUNT(*)
+            FROM audit_logs
+            WHERE action = 'admin_action' AND timestamp >= ?
+            """,
+            (now - 86400.0,),
+        )
+        recent_admin_actions_24h = int((cur.fetchone() or (0,))[0] or 0)
+    except sqlite3.OperationalError:
+        total_entries = 0
+        hashed_entries = 0
+        legacy_unhashed_entries = 0
+        recent_admin_actions_24h = 0
+
+    try:
+        cur.execute("SELECT sink_type, COUNT(*) FROM audit_delivery_failures GROUP BY sink_type")
+        for sink_type, count in cur.fetchall():
+            failed_deliveries_by_sink[str(sink_type)] = int(count or 0)
+        failed_deliveries_total = sum(failed_deliveries_by_sink.values())
+    except sqlite3.OperationalError:
+        failed_deliveries_by_sink = {}
+        failed_deliveries_total = 0
+
+    conn.close()
+
+    chain_result = _verify_audit_log_chain_internal()
+    return {
+        "timestamp": now,
+        "total_entries": total_entries,
+        "hashed_entries": hashed_entries,
+        "legacy_unhashed_entries": legacy_unhashed_entries,
+        "recent_admin_actions_24h": recent_admin_actions_24h,
+        "failed_deliveries_total": failed_deliveries_total,
+        "failed_deliveries_by_sink": failed_deliveries_by_sink,
+        "chain_ok": bool(chain_result.get("ok", False)),
+        "chain_entries_checked": int(chain_result.get("entries", 0) or 0),
+        "chain_message": chain_result.get("message"),
+        "chain_failed_id": chain_result.get("failed_id"),
+        "chain_reason": chain_result.get("reason"),
     }
 
 
@@ -2625,6 +2711,37 @@ async def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor
 )
 async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_limit)):
     return _verify_audit_log_chain_internal()
+
+
+@app.get(
+    "/api/v1/audit-log/summary",
+    response_model=AuditSummaryResponse,
+    responses={
+        200: {
+            "description": "Audit observability summary including chain and delivery-failure state.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "timestamp": 1739835000.0,
+                        "total_entries": 24,
+                        "hashed_entries": 20,
+                        "legacy_unhashed_entries": 4,
+                        "recent_admin_actions_24h": 3,
+                        "failed_deliveries_total": 2,
+                        "failed_deliveries_by_sink": {"http": 1, "syslog": 1},
+                        "chain_ok": True,
+                        "chain_entries_checked": 20,
+                        "chain_message": "Verified hashed entries; skipped 4 legacy unhashed entries",
+                        "chain_failed_id": None,
+                        "chain_reason": None,
+                    }
+                }
+            },
+        }
+    },
+)
+async def get_audit_summary(username: str = Depends(enforce_auditor_rate_limit)):
+    return _build_audit_summary()
 
 
 @app.get(

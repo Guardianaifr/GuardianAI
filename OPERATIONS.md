@@ -112,7 +112,7 @@ Queue behavior:
 ## 7. Maintenance Checklist
 
 Weekly:
-1. verify `/health`, `/metrics`, and audit chain integrity
+1. verify `/health`, `/metrics`, `/api/v1/compliance/report`, and audit chain integrity
 2. review audit failures and retry queue
 3. rotate high-risk API keys as policy requires
 

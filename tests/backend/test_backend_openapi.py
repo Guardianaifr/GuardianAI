@@ -59,3 +59,6 @@ def test_openapi_includes_hardening_endpoint_schemas_and_examples():
 
     metrics_get = spec["paths"]["/metrics"]["get"]
     assert "text/plain" in metrics_get["responses"]["200"]["content"]
+
+    compliance_get = spec["paths"]["/api/v1/compliance/report"]["get"]
+    assert "example" in compliance_get["responses"]["200"]["content"]["application/json"]

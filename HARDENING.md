@@ -104,7 +104,11 @@ This guide maps to implemented controls in the current backend and proxy stack.
 - `GET /metrics`
 - disable only if explicitly required: `GUARDIAN_METRICS_ENABLED=false`
 
-3. Alert recommendations:
+3. Review compliance snapshot:
+- `GET /api/v1/compliance/report`
+- use this as a quick control-gap dashboard (pass/warn/fail + per-control details)
+
+4. Alert recommendations:
 - elevated 401/429 rates
 - sustained audit sink failures
 - unhealthy readiness responses

@@ -953,6 +953,25 @@ class RetryFailuresResponse(BaseModel):
     failed: int
 
 
+class ComplianceControlResponse(BaseModel):
+    control: str
+    status: str
+    detail: str
+
+
+class ComplianceSummaryResponse(BaseModel):
+    passed: int
+    warnings: int
+    failed: int
+
+
+class ComplianceReportResponse(BaseModel):
+    status: str
+    timestamp: float
+    summary: ComplianceSummaryResponse
+    controls: List[ComplianceControlResponse]
+
+
 def _hash_api_key(raw_key: str) -> str:
     return hashlib.sha256(f"{JWT_SECRET}:{raw_key}".encode("utf-8")).hexdigest()
 
@@ -1099,6 +1118,204 @@ def _retry_failed_audit_deliveries(limit: int = 100) -> Dict[str, int]:
     conn.commit()
     conn.close()
     return {"retried": retried, "resolved": resolved, "failed": failed}
+
+
+def _verify_audit_log_chain_internal() -> Dict[str, Any]:
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT id, guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash
+            FROM audit_logs ORDER BY id ASC
+            """
+        )
+        rows = cur.fetchall()
+    except sqlite3.OperationalError:
+        conn.close()
+        return {"ok": True, "entries": 0, "message": "No audit log table"}
+    conn.close()
+
+    expected_prev_hash = ""
+    checked = 0
+    legacy_unhashed = 0
+    for row in rows:
+        row_id, guardian_id, action, user, details, ts, signature, prev_hash, entry_hash = row
+        if not entry_hash:
+            if prev_hash:
+                return {
+                    "ok": False,
+                    "entries": checked,
+                    "failed_id": row_id,
+                    "reason": "missing entry_hash with non-empty prev_hash",
+                }
+            legacy_unhashed += 1
+            continue
+        computed = _compute_audit_entry_hash(
+            guardian_id=guardian_id,
+            action=action,
+            user=user,
+            details_json=details,
+            timestamp=ts,
+            signature=signature,
+            prev_hash=prev_hash or "",
+        )
+        if (prev_hash or "") != expected_prev_hash:
+            return {
+                "ok": False,
+                "entries": checked,
+                "failed_id": row_id,
+                "reason": "prev_hash mismatch",
+            }
+        if (entry_hash or "") != computed:
+            return {
+                "ok": False,
+                "entries": checked,
+                "failed_id": row_id,
+                "reason": "entry_hash mismatch",
+            }
+        expected_prev_hash = entry_hash or ""
+        checked += 1
+
+    if legacy_unhashed:
+        return {
+            "ok": True,
+            "entries": checked,
+            "message": f"Verified hashed entries; skipped {legacy_unhashed} legacy unhashed entries",
+        }
+    return {"ok": True, "entries": checked}
+
+
+def _build_compliance_report() -> Dict[str, Any]:
+    controls: List[Dict[str, str]] = []
+
+    def add_control(control: str, status_value: str, detail: str):
+        controls.append({"control": control, "status": status_value, "detail": detail})
+
+    add_control(
+        "admin_password_configured",
+        "pass" if ADMIN_PASS != "guardian_default" else "fail",
+        "Admin password is set to a non-default value."
+        if ADMIN_PASS != "guardian_default"
+        else "Default admin password is still configured.",
+    )
+    add_control(
+        "jwt_secret_configured",
+        "pass" if JWT_SECRET != "guardian_jwt_dev_secret_change_me" else "fail",
+        "JWT signing secret is non-default."
+        if JWT_SECRET != "guardian_jwt_dev_secret_change_me"
+        else "Default JWT secret is configured.",
+    )
+    add_control(
+        "jwt_expiry_configured",
+        "pass" if JWT_EXPIRES_MIN > 0 else "fail",
+        f"JWT expiry is set to {JWT_EXPIRES_MIN} minute(s)."
+        if JWT_EXPIRES_MIN > 0
+        else "JWT expiry must be positive.",
+    )
+    add_control(
+        "auth_rate_limit_enabled",
+        "pass" if AUTH_RATE_LIMIT_PER_MIN > 0 else "fail",
+        f"Auth endpoint rate limit is {AUTH_RATE_LIMIT_PER_MIN}/min."
+        if AUTH_RATE_LIMIT_PER_MIN > 0
+        else "Auth endpoint rate limiting is disabled.",
+    )
+    add_control(
+        "api_rate_limit_enabled",
+        "pass" if API_RATE_LIMIT_PER_MIN > 0 else "fail",
+        f"API rate limit is {API_RATE_LIMIT_PER_MIN}/min."
+        if API_RATE_LIMIT_PER_MIN > 0
+        else "API rate limiting is disabled.",
+    )
+    add_control(
+        "telemetry_api_key_enforced",
+        "pass" if TELEMETRY_REQUIRE_API_KEY else "warn",
+        "Telemetry API key enforcement is enabled."
+        if TELEMETRY_REQUIRE_API_KEY
+        else "Telemetry API key enforcement is disabled.",
+    )
+    add_control(
+        "https_enforced",
+        "pass" if ENFORCE_HTTPS else "warn",
+        "HTTPS enforcement middleware is enabled."
+        if ENFORCE_HTTPS
+        else "HTTPS enforcement middleware is disabled.",
+    )
+    add_control(
+        "metrics_enabled",
+        "pass" if METRICS_ENABLED else "warn",
+        "Prometheus metrics endpoint is enabled."
+        if METRICS_ENABLED
+        else "Prometheus metrics endpoint is disabled.",
+    )
+
+    sink_configured = bool(AUDIT_SINK_URL or AUDIT_SYSLOG_HOST or AUDIT_SPLUNK_HEC_URL or AUDIT_DATADOG_API_KEY)
+    add_control(
+        "external_audit_sink_configured",
+        "pass" if sink_configured else "warn",
+        "At least one external audit sink is configured."
+        if sink_configured
+        else "No external audit sink is configured.",
+    )
+
+    if RATE_LIMIT_BACKEND == "redis":
+        redis_ok = _get_redis_client() is not None
+        add_control(
+            "distributed_rate_limit_backend",
+            "pass" if redis_ok else ("warn" if RATE_LIMIT_REDIS_FAIL_OPEN else "fail"),
+            "Redis rate limiter backend is configured and reachable."
+            if redis_ok
+            else "Redis backend is selected but unavailable.",
+        )
+    elif RATE_LIMIT_BACKEND == "auto":
+        redis_ok = _get_redis_client() is not None
+        add_control(
+            "distributed_rate_limit_backend",
+            "pass" if redis_ok else "warn",
+            "Auto backend resolved to Redis."
+            if redis_ok
+            else "Auto backend is currently using in-memory fallback.",
+        )
+    else:
+        add_control(
+            "distributed_rate_limit_backend",
+            "warn",
+            "In-memory rate limiting backend is active.",
+        )
+
+    db_ok, db_detail = _check_db_health()
+    add_control(
+        "database_health",
+        "pass" if db_ok else "fail",
+        db_detail if db_ok else f"Database health check failed: {db_detail}",
+    )
+
+    audit_verify = _verify_audit_log_chain_internal()
+    add_control(
+        "audit_chain_integrity",
+        "pass" if audit_verify.get("ok") else "fail",
+        audit_verify.get("message")
+        or (
+            f"Verified {audit_verify.get('entries', 0)} hashed audit entries."
+            if audit_verify.get("ok")
+            else (
+                f"Integrity failure at id={audit_verify.get('failed_id')}: "
+                f"{audit_verify.get('reason', 'unknown reason')}"
+            )
+        ),
+    )
+
+    passed = sum(1 for c in controls if c["status"] == "pass")
+    warnings = sum(1 for c in controls if c["status"] == "warn")
+    failed = sum(1 for c in controls if c["status"] == "fail")
+    overall = "fail" if failed else ("warn" if warnings else "pass")
+
+    return {
+        "status": overall,
+        "timestamp": time.time(),
+        "summary": {"passed": passed, "warnings": warnings, "failed": failed},
+        "controls": controls,
+    }
 
 
 @app.post(
@@ -2270,69 +2487,41 @@ async def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor
     },
 )
 async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            """
-            SELECT id, guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash
-            FROM audit_logs ORDER BY id ASC
-            """
-        )
-        rows = cur.fetchall()
-    except sqlite3.OperationalError:
-        conn.close()
-        return {"ok": True, "entries": 0, "message": "No audit log table"}
-    conn.close()
+    return _verify_audit_log_chain_internal()
 
-    expected_prev_hash = ""
-    checked = 0
-    legacy_unhashed = 0
-    for row in rows:
-        row_id, guardian_id, action, user, details, ts, signature, prev_hash, entry_hash = row
-        if not entry_hash:
-            if prev_hash:
-                return {
-                    "ok": False,
-                    "entries": checked,
-                    "failed_id": row_id,
-                    "reason": "missing entry_hash with non-empty prev_hash",
+
+@app.get(
+    "/api/v1/compliance/report",
+    response_model=ComplianceReportResponse,
+    responses={
+        200: {
+            "description": "Operational hardening and compliance posture snapshot.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "warn",
+                        "timestamp": 1739835000.0,
+                        "summary": {"passed": 8, "warnings": 3, "failed": 1},
+                        "controls": [
+                            {
+                                "control": "jwt_secret_configured",
+                                "status": "pass",
+                                "detail": "JWT signing secret is non-default.",
+                            },
+                            {
+                                "control": "telemetry_api_key_enforced",
+                                "status": "warn",
+                                "detail": "Telemetry API key enforcement is disabled.",
+                            },
+                        ],
+                    }
                 }
-            legacy_unhashed += 1
-            continue
-        computed = _compute_audit_entry_hash(
-            guardian_id=guardian_id,
-            action=action,
-            user=user,
-            details_json=details,
-            timestamp=ts,
-            signature=signature,
-            prev_hash=prev_hash or "",
-        )
-        if (prev_hash or "") != expected_prev_hash:
-            return {
-                "ok": False,
-                "entries": checked,
-                "failed_id": row_id,
-                "reason": "prev_hash mismatch",
-            }
-        if (entry_hash or "") != computed:
-            return {
-                "ok": False,
-                "entries": checked,
-                "failed_id": row_id,
-                "reason": "entry_hash mismatch",
-            }
-        expected_prev_hash = entry_hash or ""
-        checked += 1
-
-    if legacy_unhashed:
-        return {
-            "ok": True,
-            "entries": checked,
-            "message": f"Verified hashed entries; skipped {legacy_unhashed} legacy unhashed entries",
+            },
         }
-    return {"ok": True, "entries": checked}
+    },
+)
+async def get_compliance_report(username: str = Depends(enforce_auditor_rate_limit)):
+    return _build_compliance_report()
 
 
 @app.get(

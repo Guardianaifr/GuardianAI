@@ -158,6 +158,14 @@ Response:
 - `entries` (checked count)
 - `failed_id` and `reason` when verification fails
 
+### `GET /api/v1/audit-log/summary`
+Returns audit observability summary:
+- hash-chain status
+- total/hashed/legacy audit entry counts
+- recent admin action count (24h)
+- queued delivery-failure totals and sink breakdown
+Role required: `admin` or `auditor`.
+
 ### `GET /api/v1/audit-log/failures?limit=<n>`
 Lists queued external audit-delivery failures.
 Role required: `admin` or `auditor`.

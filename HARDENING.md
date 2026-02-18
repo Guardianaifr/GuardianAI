@@ -81,6 +81,7 @@ This guide maps to implemented controls in the current backend and proxy stack.
 1. Keep local audit chain enabled:
 - admin events are hash-chained (`prev_hash`, `entry_hash`)
 - verify integrity via `GET /api/v1/audit-log/verify`
+- monitor aggregate state via `GET /api/v1/audit-log/summary`
 
 2. Configure external audit sinks:
 - HTTP sink (`GUARDIAN_AUDIT_SINK_*`)

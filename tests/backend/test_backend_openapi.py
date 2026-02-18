@@ -47,6 +47,10 @@ def test_openapi_includes_hardening_endpoint_schemas_and_examples():
     assert "example" in spec["paths"]["/api/v1/audit-log"]["get"]["responses"]["200"]["content"]["application/json"]
     assert (
         "example"
+        in spec["paths"]["/api/v1/audit-log/summary"]["get"]["responses"]["200"]["content"]["application/json"]
+    )
+    assert (
+        "example"
         in spec["paths"]["/api/v1/audit-log/failures"]["get"]["responses"]["200"]["content"]["application/json"]
     )
     assert (

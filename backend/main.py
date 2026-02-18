@@ -979,42 +979,89 @@ class ComplianceReportResponse(BaseModel):
     controls: List[ComplianceControlResponse]
 
 
-def _permissions_for_role(role: str) -> List[str]:
-    if role == "admin":
-        return [
-            "auth:issue",
-            "auth:revoke:self",
-            "api_keys:manage",
-            "audit:read",
-            "audit:verify",
-            "audit:retry",
-            "compliance:read",
-            "events:read",
-            "analytics:read",
-            "export:read",
-            "telemetry:ingest",
-        ]
-    if role == "auditor":
-        return [
-            "auth:issue",
-            "auth:revoke:self",
-            "api_keys:read",
-            "audit:read",
-            "audit:verify",
-            "compliance:read",
-            "events:read",
-            "analytics:read",
-            "export:read",
-            "telemetry:ingest",
-        ]
-    return [
+class RbacEndpointPolicyResponse(BaseModel):
+    method: str
+    path: str
+    allowed_roles: List[str]
+    permission: str
+
+
+class RbacPolicyResponse(BaseModel):
+    generated_at: float
+    roles: Dict[str, List[str]]
+    endpoints: List[RbacEndpointPolicyResponse]
+
+
+_ROLE_PERMISSIONS: Dict[str, List[str]] = {
+    "admin": [
+        "auth:issue",
+        "auth:revoke:self",
+        "api_keys:manage",
+        "audit:read",
+        "audit:verify",
+        "audit:retry",
+        "compliance:read",
+        "rbac:read",
+        "events:read",
+        "analytics:read",
+        "export:read",
+        "telemetry:ingest",
+    ],
+    "auditor": [
+        "auth:issue",
+        "auth:revoke:self",
+        "api_keys:read",
+        "audit:read",
+        "audit:verify",
+        "compliance:read",
+        "rbac:read",
+        "events:read",
+        "analytics:read",
+        "export:read",
+        "telemetry:ingest",
+    ],
+    "user": [
         "auth:issue",
         "auth:revoke:self",
         "events:read",
         "analytics:read",
         "export:read",
         "telemetry:ingest",
+    ],
+}
+
+
+def _permissions_for_role(role: str) -> List[str]:
+    return list(_ROLE_PERMISSIONS.get(role, _ROLE_PERMISSIONS["user"]))
+
+
+def _rbac_endpoint_policies() -> List[Dict[str, Any]]:
+    return [
+        {"method": "GET", "path": "/api/v1/auth/whoami", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:issue"},
+        {"method": "POST", "path": "/api/v1/auth/revoke", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:revoke:self"},
+        {"method": "POST", "path": "/api/v1/api-keys", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
+        {"method": "GET", "path": "/api/v1/api-keys", "allowed_roles": ["admin", "auditor"], "permission": "api_keys:read"},
+        {"method": "POST", "path": "/api/v1/api-keys/{key_id}/revoke", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
+        {"method": "POST", "path": "/api/v1/api-keys/{key_id}/rotate", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
+        {"method": "GET", "path": "/api/v1/audit-log", "allowed_roles": ["admin", "auditor"], "permission": "audit:read"},
+        {"method": "GET", "path": "/api/v1/audit-log/verify", "allowed_roles": ["admin", "auditor"], "permission": "audit:verify"},
+        {"method": "GET", "path": "/api/v1/audit-log/failures", "allowed_roles": ["admin", "auditor"], "permission": "audit:read"},
+        {"method": "POST", "path": "/api/v1/audit-log/retry-failures", "allowed_roles": ["admin"], "permission": "audit:retry"},
+        {"method": "GET", "path": "/api/v1/compliance/report", "allowed_roles": ["admin", "auditor"], "permission": "compliance:read"},
+        {"method": "GET", "path": "/api/v1/rbac/policy", "allowed_roles": ["admin", "auditor"], "permission": "rbac:read"},
+        {"method": "GET", "path": "/api/v1/events", "allowed_roles": ["admin", "auditor", "user"], "permission": "events:read"},
+        {"method": "GET", "path": "/api/v1/analytics", "allowed_roles": ["admin", "auditor", "user"], "permission": "analytics:read"},
+        {"method": "GET", "path": "/api/v1/export/json", "allowed_roles": ["admin", "auditor", "user"], "permission": "export:read"},
+        {"method": "GET", "path": "/api/v1/export/csv", "allowed_roles": ["admin", "auditor", "user"], "permission": "export:read"},
     ]
+
+
+def _build_rbac_policy() -> Dict[str, Any]:
+    return {
+        "generated_at": time.time(),
+        "roles": {role: list(perms) for role, perms in _ROLE_PERMISSIONS.items()},
+        "endpoints": _rbac_endpoint_policies(),
+    }
 
 
 def _hash_api_key(raw_key: str) -> str:
@@ -2612,6 +2659,45 @@ async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_li
 )
 async def get_compliance_report(username: str = Depends(enforce_auditor_rate_limit)):
     return _build_compliance_report()
+
+
+@app.get(
+    "/api/v1/rbac/policy",
+    response_model=RbacPolicyResponse,
+    responses={
+        200: {
+            "description": "Role-permission catalog and endpoint access matrix.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "generated_at": 1739835000.0,
+                        "roles": {
+                            "admin": ["api_keys:manage", "audit:retry", "compliance:read", "rbac:read"],
+                            "auditor": ["api_keys:read", "audit:read", "compliance:read", "rbac:read"],
+                            "user": ["events:read", "analytics:read", "export:read"],
+                        },
+                        "endpoints": [
+                            {
+                                "method": "POST",
+                                "path": "/api/v1/audit-log/retry-failures",
+                                "allowed_roles": ["admin"],
+                                "permission": "audit:retry",
+                            },
+                            {
+                                "method": "GET",
+                                "path": "/api/v1/compliance/report",
+                                "allowed_roles": ["admin", "auditor"],
+                                "permission": "compliance:read",
+                            },
+                        ],
+                    }
+                }
+            },
+        }
+    },
+)
+async def get_rbac_policy(username: str = Depends(enforce_auditor_rate_limit)):
+    return _build_rbac_policy()
 
 
 @app.get(

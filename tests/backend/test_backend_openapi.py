@@ -64,3 +64,5 @@ def test_openapi_includes_hardening_endpoint_schemas_and_examples():
 
     compliance_get = spec["paths"]["/api/v1/compliance/report"]["get"]
     assert "example" in compliance_get["responses"]["200"]["content"]["application/json"]
+    rbac_policy_get = spec["paths"]["/api/v1/rbac/policy"]["get"]
+    assert "example" in rbac_policy_get["responses"]["200"]["content"]["application/json"]

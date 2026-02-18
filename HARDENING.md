@@ -24,6 +24,7 @@ This guide maps to implemented controls in the current backend and proxy stack.
 - `admin`: API key lifecycle + retrying audit delivery queue
 - `auditor`: read audit log, verify chain, inspect queue
 - `user`: analytics, event views, exports
+- inspect policy map via `GET /api/v1/rbac/policy` (auditor/admin)
 
 6. Enable auth endpoint throttling:
 - tune `GUARDIAN_AUTH_RATE_LIMIT_PER_MIN` to reduce brute-force risk

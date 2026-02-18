@@ -109,3 +109,17 @@ Monthly:
 1. test token revocation and key revocation drills
 2. run dependency vulnerability scan
 3. verify backup restore procedure in staging
+
+## 8. Hardening Smoke Run
+
+Run an end-to-end hardening smoke test against a running backend:
+
+```bash
+python tools/hardening_smoke.py --base-url http://127.0.0.1:8001
+```
+
+Optional flags:
+- `--admin-user`
+- `--admin-pass`
+- `--guardian-id`
+- `--key-name`

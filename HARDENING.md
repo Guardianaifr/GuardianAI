@@ -24,6 +24,7 @@ This guide maps to implemented controls in the current backend and proxy stack.
 - revoke/prune actions are appended to immutable audit log for traceability
 - review tracked sessions: `GET /api/v1/auth/sessions`
 - contain compromised users: `POST /api/v1/auth/sessions/revoke-user`
+- contain broad compromise quickly: `POST /api/v1/auth/sessions/revoke-all`
 - contain a specific token/session: `POST /api/v1/auth/sessions/revoke-jti`
 
 5. Enforce least privilege by role:

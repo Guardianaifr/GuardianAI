@@ -29,17 +29,20 @@ Role guidance:
 1. Revoke compromised user JWT:
 - call `POST /api/v1/auth/revoke` with the bearer token
 
-2. Disable compromised telemetry key:
+2. Contain broad token compromise:
+- `POST /api/v1/auth/sessions/revoke-all` (default excludes current admin session)
+
+3. Disable compromised telemetry key:
 - `POST /api/v1/api-keys/{id}/revoke`
 
-3. Rotate telemetry key:
+4. Rotate telemetry key:
 - `POST /api/v1/api-keys/{id}/rotate`
 
-4. Replay external audit failures after sink recovery:
+5. Replay external audit failures after sink recovery:
 - `POST /api/v1/audit-log/retry-failures`
 - requires `admin`
 
-5. Clear auth lockouts after verified false positives:
+6. Clear auth lockouts after verified false positives:
 - inspect: `GET /api/v1/auth/lockouts` (`admin`/`auditor`)
 - clear specific or global: `POST /api/v1/auth/lockouts/clear` (`admin`)
 
@@ -123,7 +126,7 @@ Weekly:
 1. verify `/health`, `/metrics`, `/api/v1/compliance/report`, `/api/v1/rbac/policy`, `/api/v1/audit-log/summary`, and audit chain integrity
 2. review audit failures and retry queue
 3. review `/api/v1/auth/revocations` and prune expired entries when needed
-4. review `/api/v1/auth/sessions` and revoke compromised user or single sessions (`revoke-user` / `revoke-jti`) if required
+4. review `/api/v1/auth/sessions` and run containment as required (`revoke-user` / `revoke-all` / `revoke-jti`)
 5. review active `/api/v1/auth/lockouts` entries and clear verified false positives
 6. rotate high-risk API keys as policy requires
 

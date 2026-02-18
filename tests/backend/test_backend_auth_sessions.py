@@ -137,3 +137,62 @@ def test_admin_can_revoke_single_session_by_jti_and_auditor_cannot(tmp_path, mon
     assert entries
     details = json.loads(entries[0]["details"])
     assert details["jti"] == jti
+
+
+def test_admin_can_revoke_all_sessions_with_self_exclusion(tmp_path, monkeypatch):
+    _setup_sessions_db(tmp_path, monkeypatch)
+    client = TestClient(backend_main.app)
+
+    user1_token_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("user1", "user-pass"))
+    auditor_token_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("auditor", "auditor-pass"))
+    admin_token_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("admin", "admin-pass"))
+    assert user1_token_res.status_code == 200
+    assert auditor_token_res.status_code == 200
+    assert admin_token_res.status_code == 200
+
+    user1_bearer = {"Authorization": f"Bearer {user1_token_res.json()['access_token']}"}
+    auditor_bearer = {"Authorization": f"Bearer {auditor_token_res.json()['access_token']}"}
+    admin_bearer = {"Authorization": f"Bearer {admin_token_res.json()['access_token']}"}
+
+    assert client.get("/api/v1/analytics", headers=user1_bearer).status_code == 200
+    assert client.get("/api/v1/analytics", headers=auditor_bearer).status_code == 200
+    assert client.get("/api/v1/analytics", headers=admin_bearer).status_code == 200
+
+    auditor_forbidden = client.post(
+        "/api/v1/auth/sessions/revoke-all",
+        json={"active_only": True, "exclude_self": True},
+        headers=_basic_auth_headers("auditor", "auditor-pass"),
+    )
+    assert auditor_forbidden.status_code == 403
+
+    revoke_res = client.post(
+        "/api/v1/auth/sessions/revoke-all",
+        json={"active_only": True, "exclude_self": True, "reason": "global_incident_containment"},
+        headers=_basic_auth_headers("admin", "admin-pass"),
+    )
+    assert revoke_res.status_code == 200
+    body = revoke_res.json()
+    assert body["revoked"] >= 2
+    assert body["excluded"] >= 1
+    assert "admin" in body["excluded_users"]
+
+    assert client.get("/api/v1/analytics", headers=user1_bearer).status_code == 401
+    assert client.get("/api/v1/analytics", headers=auditor_bearer).status_code == 401
+    assert client.get("/api/v1/analytics", headers=admin_bearer).status_code == 200
+
+    sessions_res = client.get(
+        "/api/v1/auth/sessions?include_expired=true&include_revoked=true",
+        headers=_basic_auth_headers("admin", "admin-pass"),
+    )
+    assert sessions_res.status_code == 200
+    sessions = sessions_res.json()
+    assert any(s["subject"] == "admin" and s["active"] for s in sessions)
+    assert any(s["subject"] == "user1" and (not s["active"]) and s["revoked_by"] == "admin" for s in sessions)
+
+    audit_log = client.get("/api/v1/audit-log?limit=50", headers=_basic_auth_headers("admin", "admin-pass"))
+    assert audit_log.status_code == 200
+    entries = [entry for entry in audit_log.json() if entry["action"] == "auth_revoke_all_sessions"]
+    assert entries
+    details = json.loads(entries[0]["details"])
+    assert details["exclude_self"] is True
+    assert "admin" in details["excluded_users"]

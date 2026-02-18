@@ -143,6 +143,16 @@ Request body:
 - `active_only` (boolean, default `true`)
 - `reason` (optional string)
 
+### `POST /api/v1/auth/sessions/revoke-all`
+Revokes tracked sessions globally and writes immutable audit entry (`auth_revoke_all_sessions`).
+Role required: `admin`.
+
+Request body:
+- `active_only` (boolean, default `true`)
+- `exclude_self` (boolean, default `true`)
+- `exclude_usernames` (optional string array)
+- `reason` (optional string)
+
 ### `POST /api/v1/auth/sessions/revoke-jti`
 Revokes a single tracked session by `jti` and writes immutable audit entry (`auth_revoke_session_jti`).
 Role required: `admin`.

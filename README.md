@@ -59,6 +59,11 @@ These use your live OpenClaw endpoint through Guardian proxy:
 | `demo_realtime_openclaw_1_safe_allow.bat` | Prove safe pass-through | Sends benign prompt, expects allow + telemetry |
 | `demo_realtime_openclaw_2_injection_block.bat` | Prove attack prevention | Sends injection prompt, expects block + telemetry |
 | `demo_realtime_openclaw_3_pii_protection.bat` | Prove leak protection | Sends leak-style prompt, checks redaction/leak events |
+| `demo_realtime_openclaw_check.bat` | Verify live stack wiring quickly | Checks status + backend auth + latest event |
+
+`start_guardian.bat` now includes:
+- Option `5`: start real-time OpenClaw stack
+- Option `6`: run real-time stack check
 
 ---
 

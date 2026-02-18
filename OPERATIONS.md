@@ -129,6 +129,8 @@ Run an end-to-end hardening smoke test against a running backend:
 python tools/hardening_smoke.py --base-url http://127.0.0.1:8001
 ```
 
+The smoke run validates auth identity (`/api/v1/auth/whoami`), RBAC policy (`/api/v1/rbac/policy`), compliance snapshot, audit chain, audit summary, and retry flows.
+
 Optional flags:
 - `--admin-user`
 - `--admin-pass`

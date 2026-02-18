@@ -871,6 +871,20 @@ class RevokeTokenResponse(BaseModel):
     revoked_by: str
 
 
+class RevokedTokenEntryResponse(BaseModel):
+    jti: str
+    revoked_by: str
+    revoked_at: float
+    expires_at: float
+    expired: bool
+
+
+class PruneRevokedTokensResponse(BaseModel):
+    deleted: int
+    remaining: int
+    expired_only: bool
+
+
 class WhoAmIResponse(BaseModel):
     user: str
     role: str
@@ -1011,6 +1025,8 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
     "admin": [
         "auth:issue",
         "auth:revoke:self",
+        "auth:revocations:read",
+        "auth:revocations:manage",
         "api_keys:manage",
         "audit:read",
         "audit:verify",
@@ -1025,6 +1041,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
     "auditor": [
         "auth:issue",
         "auth:revoke:self",
+        "auth:revocations:read",
         "api_keys:read",
         "audit:read",
         "audit:verify",
@@ -1054,6 +1071,8 @@ def _rbac_endpoint_policies() -> List[Dict[str, Any]]:
     return [
         {"method": "GET", "path": "/api/v1/auth/whoami", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:issue"},
         {"method": "POST", "path": "/api/v1/auth/revoke", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:revoke:self"},
+        {"method": "GET", "path": "/api/v1/auth/revocations", "allowed_roles": ["admin", "auditor"], "permission": "auth:revocations:read"},
+        {"method": "POST", "path": "/api/v1/auth/revocations/prune", "allowed_roles": ["admin"], "permission": "auth:revocations:manage"},
         {"method": "POST", "path": "/api/v1/api-keys", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
         {"method": "GET", "path": "/api/v1/api-keys", "allowed_roles": ["admin", "auditor"], "permission": "api_keys:read"},
         {"method": "POST", "path": "/api/v1/api-keys/{key_id}/revoke", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
@@ -1198,6 +1217,61 @@ def _is_token_revoked(jti: str) -> bool:
     conn.commit()
     conn.close()
     return row is not None
+
+
+def _list_revoked_tokens(limit: int = 100, include_expired: bool = False) -> List[Dict[str, Any]]:
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    if include_expired:
+        cur.execute(
+            """
+            SELECT jti, revoked_by, revoked_at, expires_at
+            FROM revoked_tokens
+            ORDER BY revoked_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+    else:
+        cur.execute(
+            """
+            SELECT jti, revoked_by, revoked_at, expires_at
+            FROM revoked_tokens
+            WHERE expires_at >= ?
+            ORDER BY revoked_at DESC
+            LIMIT ?
+            """,
+            (now, limit),
+        )
+    rows = cur.fetchall()
+    conn.close()
+    return [
+        {
+            "jti": row[0],
+            "revoked_by": row[1],
+            "revoked_at": float(row[2]),
+            "expires_at": float(row[3]),
+            "expired": float(row[3]) < now,
+        }
+        for row in rows
+    ]
+
+
+def _prune_revoked_tokens(expired_only: bool = True) -> Dict[str, int]:
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    if expired_only:
+        cur.execute("DELETE FROM revoked_tokens WHERE expires_at < ?", (now,))
+    else:
+        cur.execute("DELETE FROM revoked_tokens")
+    deleted = int(cur.rowcount or 0)
+    cur.execute("SELECT COUNT(*) FROM revoked_tokens")
+    remaining = int((cur.fetchone() or (0,))[0] or 0)
+    conn.commit()
+    conn.close()
+    return {"deleted": deleted, "remaining": remaining}
 
 
 def _compute_audit_entry_hash(
@@ -1573,6 +1647,63 @@ async def revoke_access_token(
     conn.close()
 
     return RevokeTokenResponse(status="revoked", revoked_jti=jti, revoked_by=sub)
+
+
+@app.get(
+    "/api/v1/auth/revocations",
+    response_model=List[RevokedTokenEntryResponse],
+    responses={
+        200: {
+            "description": "Lists revoked JWT entries for incident response.",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "jti": "a1b2c3d4e5f6",
+                            "revoked_by": "admin",
+                            "revoked_at": 1739835000.0,
+                            "expires_at": 1739838600.0,
+                            "expired": False,
+                        }
+                    ]
+                }
+            },
+        }
+    },
+)
+async def list_revoked_tokens(
+    limit: int = 100,
+    include_expired: bool = False,
+    username: str = Depends(enforce_auditor_rate_limit),
+):
+    bounded_limit = max(1, min(limit, 1000))
+    return _list_revoked_tokens(limit=bounded_limit, include_expired=include_expired)
+
+
+@app.post(
+    "/api/v1/auth/revocations/prune",
+    response_model=PruneRevokedTokensResponse,
+    responses={
+        200: {
+            "description": "Prunes revoked token entries.",
+            "content": {
+                "application/json": {
+                    "example": {"deleted": 5, "remaining": 12, "expired_only": True}
+                }
+            },
+        }
+    },
+)
+async def prune_revoked_tokens(
+    expired_only: bool = True,
+    username: str = Depends(enforce_admin_rate_limit),
+):
+    result = _prune_revoked_tokens(expired_only=expired_only)
+    return PruneRevokedTokensResponse(
+        deleted=result["deleted"],
+        remaining=result["remaining"],
+        expired_only=expired_only,
+    )
 
 
 @app.get(

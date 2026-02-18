@@ -19,6 +19,8 @@ This guide maps to implemented controls in the current backend and proxy stack.
 4. Use token revocation for incident response:
 - `POST /api/v1/auth/revoke`
 - revoked tokens are enforced server-side via `jti` checks
+- list revocations: `GET /api/v1/auth/revocations`
+- prune expired revocations: `POST /api/v1/auth/revocations/prune`
 
 5. Enforce least privilege by role:
 - `admin`: API key lifecycle + retrying audit delivery queue

@@ -84,6 +84,21 @@ Response fields:
 - `revoked_jti`
 - `revoked_by`
 
+### `GET /api/v1/auth/revocations`
+Lists revoked JWT entries for incident-response visibility.
+Role required: `admin` or `auditor`.
+
+Query params:
+- `limit` (default `100`, max `1000`)
+- `include_expired` (default `false`)
+
+### `POST /api/v1/auth/revocations/prune`
+Prunes revoked-token entries from storage.
+Role required: `admin`.
+
+Query params:
+- `expired_only` (default `true`)
+
 ### `GET /api/v1/auth/whoami`
 Returns current authenticated principal, auth mode, and effective permission scopes.
 

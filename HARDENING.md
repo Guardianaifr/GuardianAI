@@ -59,6 +59,11 @@ This guide maps to implemented controls in the current backend and proxy stack.
 }
 ```
 
+4. For multi-instance deployments, enable distributed limits:
+- `GUARDIAN_RATE_LIMIT_BACKEND=redis` (or `auto`)
+- `GUARDIAN_RATE_LIMIT_REDIS_URL=redis://host:6379/0`
+- set `GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN=false` for strict dependency enforcement
+
 ## 4. Transport Security
 
 1. Enforce HTTPS at backend edge in production:

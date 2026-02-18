@@ -41,6 +41,11 @@ AUTH_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_AUTH_RATE_LIMIT_PER_MIN", "60"
 USER_RATE_LIMITS_JSON = os.getenv("GUARDIAN_USER_RATE_LIMITS_JSON", "").strip()
 TELEMETRY_KEY_RATE_LIMITS_JSON = os.getenv("GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON", "").strip()
 TELEMETRY_REQUIRE_API_KEY = os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", "false").strip().lower() in {"1", "true", "yes", "on"}
+RATE_LIMIT_BACKEND = os.getenv("GUARDIAN_RATE_LIMIT_BACKEND", "memory").strip().lower()
+RATE_LIMIT_REDIS_URL = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_URL", "").strip()
+RATE_LIMIT_REDIS_KEY_PREFIX = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_KEY_PREFIX", "guardian:ratelimit").strip() or "guardian:ratelimit"
+RATE_LIMIT_REDIS_TIMEOUT_SEC = float(os.getenv("GUARDIAN_RATE_LIMIT_REDIS_TIMEOUT_SEC", "0.2"))
+RATE_LIMIT_REDIS_FAIL_OPEN = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN", "true").strip().lower() in {"1", "true", "yes", "on"}
 AUDIT_SINK_URL = os.getenv("GUARDIAN_AUDIT_SINK_URL", "").strip()
 AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
 AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
@@ -102,6 +107,26 @@ _metrics_latency_samples = 0
 _metrics_status_counts: Dict[int, int] = {}
 _metrics_recent_requests = deque()
 _valid_roles: Set[str] = {"admin", "auditor", "user"}
+_redis_client: Any | None = None
+_redis_script_sha: str | None = None
+_redis_init_attempted = False
+_redis_fallback_logged_at = 0.0
+
+_REDIS_RATE_LIMIT_SCRIPT = """
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local window_ms = tonumber(ARGV[2])
+local limit = tonumber(ARGV[3])
+local member = ARGV[4]
+redis.call("ZREMRANGEBYSCORE", key, 0, now - window_ms)
+local count = redis.call("ZCARD", key)
+if count >= limit then
+    return 0
+end
+redis.call("ZADD", key, now, member)
+redis.call("EXPIRE", key, math.ceil(window_ms / 1000) + 5)
+return 1
+"""
 
 
 def _build_auth_users() -> Dict[str, Dict[str, str]]:
@@ -223,6 +248,9 @@ def _decode_jwt(token: str) -> Dict[str, Any]:
 
 
 def _enforce_rate_limit(identity: str, limit_per_minute: int):
+    if _enforce_rate_limit_distributed(identity, limit_per_minute):
+        return
+
     now = time.time()
     window_start = now - 60.0
     with _rate_limit_lock:
@@ -235,6 +263,102 @@ def _enforce_rate_limit(identity: str, limit_per_minute: int):
             )
         entries.append(now)
         _rate_limit_state[identity] = entries
+
+
+def _use_distributed_rate_limit() -> bool:
+    if RATE_LIMIT_BACKEND == "redis":
+        return True
+    if RATE_LIMIT_BACKEND == "auto":
+        return bool(RATE_LIMIT_REDIS_URL)
+    return False
+
+
+def _log_redis_fallback(reason: str):
+    global _redis_fallback_logged_at
+    now = time.time()
+    if now - _redis_fallback_logged_at >= 30:
+        logger.warning("Distributed rate limit disabled, falling back to in-memory limiter: %s", reason)
+        _redis_fallback_logged_at = now
+
+
+def _get_redis_client() -> Any | None:
+    global _redis_client
+    global _redis_init_attempted
+    if _redis_init_attempted:
+        return _redis_client
+    _redis_init_attempted = True
+
+    if not RATE_LIMIT_REDIS_URL:
+        _log_redis_fallback("GUARDIAN_RATE_LIMIT_REDIS_URL not set")
+        return None
+
+    try:
+        import redis  # type: ignore
+    except Exception:
+        _log_redis_fallback("python redis package is not installed")
+        return None
+
+    try:
+        _redis_client = redis.Redis.from_url(
+            RATE_LIMIT_REDIS_URL,
+            socket_timeout=RATE_LIMIT_REDIS_TIMEOUT_SEC,
+            socket_connect_timeout=RATE_LIMIT_REDIS_TIMEOUT_SEC,
+            decode_responses=True,
+        )
+        _redis_client.ping()
+        return _redis_client
+    except Exception as exc:  # noqa: BLE001
+        _redis_client = None
+        _log_redis_fallback(f"unable to connect to redis: {exc}")
+        return None
+
+
+def _load_redis_rate_limit_script(client: Any) -> str | None:
+    global _redis_script_sha
+    if _redis_script_sha:
+        return _redis_script_sha
+    try:
+        _redis_script_sha = client.script_load(_REDIS_RATE_LIMIT_SCRIPT)
+        return _redis_script_sha
+    except Exception as exc:  # noqa: BLE001
+        _log_redis_fallback(f"unable to load redis script: {exc}")
+        return None
+
+
+def _enforce_rate_limit_distributed(identity: str, limit_per_minute: int) -> bool:
+    if not _use_distributed_rate_limit():
+        return False
+
+    client = _get_redis_client()
+    if client is None:
+        if RATE_LIMIT_REDIS_FAIL_OPEN:
+            return False
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Rate limiter backend unavailable")
+
+    key = f"{RATE_LIMIT_REDIS_KEY_PREFIX}:{identity}"
+    now_ms = int(time.time() * 1000)
+    member = f"{now_ms}:{secrets.token_hex(6)}"
+
+    try:
+        script_sha = _load_redis_rate_limit_script(client)
+        if script_sha:
+            allowed = int(client.evalsha(script_sha, 1, key, now_ms, 60_000, limit_per_minute, member))
+        else:
+            allowed = int(client.eval(_REDIS_RATE_LIMIT_SCRIPT, 1, key, now_ms, 60_000, limit_per_minute, member))
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        _log_redis_fallback(f"redis eval failed: {exc}")
+        if RATE_LIMIT_REDIS_FAIL_OPEN:
+            return False
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Rate limiter backend unavailable")
+
+    if allowed != 1:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded for {identity}",
+        )
+    return True
 
 
 def _forward_external_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_SINK_STRICT) -> bool:

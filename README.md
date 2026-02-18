@@ -46,6 +46,7 @@ We include 6 ready-to-run scenarios to prove the security works:
 6. External audit forwarding (HTTP + Syslog) with strict mode and retry queue.
 7. Tamper-evident audit hash chain with verification endpoint (`/api/v1/audit-log/verify`).
 8. Role-based endpoint access control (`admin`/`auditor`/`user`) for least-privilege operations.
+9. Optional Redis-backed distributed rate limiting for multi-instance deployments.
 
 ## Production Hardening (CRITICAL)
 

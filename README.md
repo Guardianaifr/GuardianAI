@@ -49,6 +49,17 @@ For backend auth/audit hardening controls, use:
 
 Step-by-step runbook: `DEMO_HARDENING_BACKEND_GUIDE.md`
 
+### Real-Time OpenClaw Demos
+
+These use your live OpenClaw endpoint through Guardian proxy:
+
+| Script | Why | What it does |
+| :--- | :--- | :--- |
+| `demo_realtime_openclaw_0_start_stack.bat` | Prepare real live stack | Targets your OpenClaw URL, starts backend + proxy |
+| `demo_realtime_openclaw_1_safe_allow.bat` | Prove safe pass-through | Sends benign prompt, expects allow + telemetry |
+| `demo_realtime_openclaw_2_injection_block.bat` | Prove attack prevention | Sends injection prompt, expects block + telemetry |
+| `demo_realtime_openclaw_3_pii_protection.bat` | Prove leak protection | Sends leak-style prompt, checks redaction/leak events |
+
 ---
 
 ## Manual Launch

@@ -118,6 +118,14 @@ Request body:
 - `active_only` (boolean, default `true`)
 - `reason` (optional string)
 
+### `POST /api/v1/auth/sessions/revoke-jti`
+Revokes a single tracked session by `jti` and writes immutable audit entry (`auth_revoke_session_jti`).
+Role required: `admin`.
+
+Request body:
+- `jti` (string, required)
+- `reason` (optional string)
+
 ### `GET /api/v1/auth/whoami`
 Returns current authenticated principal, auth mode, and effective permission scopes.
 

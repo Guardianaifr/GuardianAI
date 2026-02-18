@@ -39,6 +39,8 @@ This guide maps to implemented controls in the current backend and proxy stack.
 - `GUARDIAN_AUTH_LOCKOUT_ENABLED=true`
 - tune `GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS` and `GUARDIAN_AUTH_LOCKOUT_DURATION_SEC`
 - lockout scope is `username + source` to contain repeated bad credential attempts
+- review active lockouts: `GET /api/v1/auth/lockouts`
+- clear false-positive lockouts with admin control: `POST /api/v1/auth/lockouts/clear`
 
 ## 2. API Key Security
 

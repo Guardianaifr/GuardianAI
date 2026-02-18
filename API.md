@@ -106,6 +106,25 @@ Action is written to immutable audit log (`auth_prune_revocations`).
 Query params:
 - `expired_only` (default `true`)
 
+### `GET /api/v1/auth/lockouts`
+Lists failed-login lockout entries (in-memory state).
+Role required: `admin` or `auditor`.
+
+Query params:
+- `limit` (default `100`, max `1000`)
+- `active_only` (default `true`)
+
+### `POST /api/v1/auth/lockouts/clear`
+Clears failed-login lockouts by target scope.
+Role required: `admin`.
+Action is written to immutable audit log (`auth_clear_lockouts`).
+
+Request body:
+- `clear_all` (boolean, default `false`)
+- `identity` (optional string; cannot be combined with username/source)
+- `username` (optional string)
+- `source` (optional string; requires `username`)
+
 ### `GET /api/v1/auth/sessions`
 Lists tracked JWT sessions (`issued_tokens` inventory).
 Role required: `admin` or `auditor`.

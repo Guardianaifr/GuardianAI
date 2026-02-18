@@ -44,6 +44,9 @@ def test_rbac_policy_endpoint_exposes_roles_and_access_matrix(tmp_path, monkeypa
     assert "rbac:read" in body["roles"]["admin"]
     assert "rbac:read" in body["roles"]["auditor"]
     assert "rbac:read" not in body["roles"]["user"]
+    assert "auth:lockouts:manage" in body["roles"]["admin"]
+    assert "auth:lockouts:read" in body["roles"]["auditor"]
+    assert "auth:lockouts:read" not in body["roles"]["user"]
 
     retry_policy = next(
         item for item in body["endpoints"] if item["path"] == "/api/v1/audit-log/retry-failures" and item["method"] == "POST"
@@ -55,6 +58,18 @@ def test_rbac_policy_endpoint_exposes_roles_and_access_matrix(tmp_path, monkeypa
         item for item in body["endpoints"] if item["path"] == "/api/v1/compliance/report" and item["method"] == "GET"
     )
     assert compliance_policy["allowed_roles"] == ["admin", "auditor"]
+
+    lockouts_read_policy = next(
+        item for item in body["endpoints"] if item["path"] == "/api/v1/auth/lockouts" and item["method"] == "GET"
+    )
+    assert lockouts_read_policy["allowed_roles"] == ["admin", "auditor"]
+    assert lockouts_read_policy["permission"] == "auth:lockouts:read"
+
+    lockouts_clear_policy = next(
+        item for item in body["endpoints"] if item["path"] == "/api/v1/auth/lockouts/clear" and item["method"] == "POST"
+    )
+    assert lockouts_clear_policy["allowed_roles"] == ["admin"]
+    assert lockouts_clear_policy["permission"] == "auth:lockouts:manage"
 
 
 def test_rbac_policy_allows_admin_and_blocks_regular_user(tmp_path, monkeypatch):

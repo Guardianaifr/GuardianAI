@@ -758,11 +758,11 @@ def get_current_principal(
 ):
     if bearer and bearer.scheme.lower() == "bearer":
         payload = _decode_jwt(bearer.credentials)
-        return {"username": payload["sub"], "role": payload.get("role", "user")}
+        return {"username": payload["sub"], "role": payload.get("role", "user"), "auth_type": "bearer"}
 
     if credentials:
         username = _validate_basic(credentials)
-        return {"username": username, "role": _get_user_role(username)}
+        return {"username": username, "role": _get_user_role(username), "auth_type": "basic"}
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -871,6 +871,13 @@ class RevokeTokenResponse(BaseModel):
     revoked_by: str
 
 
+class WhoAmIResponse(BaseModel):
+    user: str
+    role: str
+    auth_type: str
+    permissions: List[str]
+
+
 class TelemetryIngestResponse(BaseModel):
     status: str
     event_id: str
@@ -970,6 +977,44 @@ class ComplianceReportResponse(BaseModel):
     timestamp: float
     summary: ComplianceSummaryResponse
     controls: List[ComplianceControlResponse]
+
+
+def _permissions_for_role(role: str) -> List[str]:
+    if role == "admin":
+        return [
+            "auth:issue",
+            "auth:revoke:self",
+            "api_keys:manage",
+            "audit:read",
+            "audit:verify",
+            "audit:retry",
+            "compliance:read",
+            "events:read",
+            "analytics:read",
+            "export:read",
+            "telemetry:ingest",
+        ]
+    if role == "auditor":
+        return [
+            "auth:issue",
+            "auth:revoke:self",
+            "api_keys:read",
+            "audit:read",
+            "audit:verify",
+            "compliance:read",
+            "events:read",
+            "analytics:read",
+            "export:read",
+            "telemetry:ingest",
+        ]
+    return [
+        "auth:issue",
+        "auth:revoke:self",
+        "events:read",
+        "analytics:read",
+        "export:read",
+        "telemetry:ingest",
+    ]
 
 
 def _hash_api_key(raw_key: str) -> str:
@@ -1395,6 +1440,51 @@ async def revoke_access_token(
     conn.close()
 
     return RevokeTokenResponse(status="revoked", revoked_jti=jti, revoked_by=sub)
+
+
+@app.get(
+    "/api/v1/auth/whoami",
+    response_model=WhoAmIResponse,
+    responses={
+        200: {
+            "description": "Returns current authenticated principal and effective permissions.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "user": "admin",
+                        "role": "admin",
+                        "auth_type": "bearer",
+                        "permissions": [
+                            "auth:issue",
+                            "auth:revoke:self",
+                            "api_keys:manage",
+                            "audit:read",
+                            "audit:verify",
+                            "audit:retry",
+                            "compliance:read",
+                            "events:read",
+                            "analytics:read",
+                            "export:read",
+                            "telemetry:ingest",
+                        ],
+                    }
+                }
+            },
+        }
+    },
+)
+async def auth_whoami(
+    request: Request,
+    principal: Dict[str, str] = Depends(get_current_principal),
+):
+    _enforce_rbac_and_user_rate_limit(request, principal)
+    role = principal.get("role", "user")
+    return WhoAmIResponse(
+        user=principal["username"],
+        role=role,
+        auth_type=principal.get("auth_type", "unknown"),
+        permissions=_permissions_for_role(role),
+    )
 
 
 @app.post(

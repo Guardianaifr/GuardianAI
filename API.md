@@ -84,6 +84,15 @@ Response fields:
 - `revoked_jti`
 - `revoked_by`
 
+### `GET /api/v1/auth/whoami`
+Returns current authenticated principal, auth mode, and effective permission scopes.
+
+Response fields:
+- `user`
+- `role`
+- `auth_type` (`basic` or `bearer`)
+- `permissions` (role-derived scope list)
+
 ### API Key Management
 
 ### `POST /api/v1/api-keys`

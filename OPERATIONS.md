@@ -132,5 +132,9 @@ python tools/hardening_smoke.py --base-url http://127.0.0.1:8001
 Optional flags:
 - `--admin-user`
 - `--admin-pass`
+- `--auditor-user`
+- `--auditor-pass`
+- `--user-user`
+- `--user-pass`
 - `--guardian-id`
 - `--key-name`

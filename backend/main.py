@@ -194,7 +194,7 @@ def _b64url_decode(raw: str) -> bytes:
     return base64.urlsafe_b64decode((raw + padding).encode("ascii"))
 
 
-def _issue_jwt(subject: str, role: str, ttl_minutes: int = JWT_EXPIRES_MIN) -> str:
+def _issue_jwt(subject: str, role: str, ttl_minutes: int = JWT_EXPIRES_MIN) -> tuple[str, Dict[str, Any]]:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
@@ -209,7 +209,8 @@ def _issue_jwt(subject: str, role: str, ttl_minutes: int = JWT_EXPIRES_MIN) -> s
     payload_seg = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
     signing_input = f"{header_seg}.{payload_seg}".encode("ascii")
     signature = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
-    return f"{header_seg}.{payload_seg}.{_b64url_encode(signature)}"
+    token = f"{header_seg}.{payload_seg}.{_b64url_encode(signature)}"
+    return token, payload
 
 
 def _decode_jwt(token: str) -> Dict[str, Any]:
@@ -653,6 +654,19 @@ def init_db():
     )
     """)
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS issued_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        jti TEXT UNIQUE,
+        subject TEXT,
+        role TEXT,
+        issued_at REAL,
+        expires_at REAL,
+        revoked_at REAL,
+        revoked_by TEXT,
+        revoke_reason TEXT
+    )
+    """)
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS audit_delivery_failures (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sink_type TEXT,
@@ -885,6 +899,33 @@ class PruneRevokedTokensResponse(BaseModel):
     expired_only: bool
 
 
+class AuthSessionResponse(BaseModel):
+    jti: str
+    subject: str
+    role: str
+    issued_at: float
+    expires_at: float
+    revoked_at: float | None = None
+    revoked_by: str | None = None
+    revoke_reason: str | None = None
+    active: bool
+
+
+class RevokeUserSessionsRequest(BaseModel):
+    username: str
+    active_only: bool = True
+    reason: str | None = None
+
+
+class RevokeUserSessionsResponse(BaseModel):
+    target_user: str
+    matched: int
+    revoked: int
+    already_revoked: int
+    active_only: bool
+    reason: str | None = None
+
+
 class WhoAmIResponse(BaseModel):
     user: str
     role: str
@@ -1027,6 +1068,8 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:revoke:self",
         "auth:revocations:read",
         "auth:revocations:manage",
+        "auth:sessions:read",
+        "auth:sessions:revoke_user",
         "api_keys:manage",
         "audit:read",
         "audit:verify",
@@ -1042,6 +1085,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:issue",
         "auth:revoke:self",
         "auth:revocations:read",
+        "auth:sessions:read",
         "api_keys:read",
         "audit:read",
         "audit:verify",
@@ -1073,6 +1117,8 @@ def _rbac_endpoint_policies() -> List[Dict[str, Any]]:
         {"method": "POST", "path": "/api/v1/auth/revoke", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:revoke:self"},
         {"method": "GET", "path": "/api/v1/auth/revocations", "allowed_roles": ["admin", "auditor"], "permission": "auth:revocations:read"},
         {"method": "POST", "path": "/api/v1/auth/revocations/prune", "allowed_roles": ["admin"], "permission": "auth:revocations:manage"},
+        {"method": "GET", "path": "/api/v1/auth/sessions", "allowed_roles": ["admin", "auditor"], "permission": "auth:sessions:read"},
+        {"method": "POST", "path": "/api/v1/auth/sessions/revoke-user", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_user"},
         {"method": "POST", "path": "/api/v1/api-keys", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
         {"method": "GET", "path": "/api/v1/api-keys", "allowed_roles": ["admin", "auditor"], "permission": "api_keys:read"},
         {"method": "POST", "path": "/api/v1/api-keys/{key_id}/revoke", "allowed_roles": ["admin"], "permission": "api_keys:manage"},
@@ -1217,6 +1263,139 @@ def _is_token_revoked(jti: str) -> bool:
     conn.commit()
     conn.close()
     return row is not None
+
+
+def _record_issued_token(claims: Dict[str, Any]):
+    jti = claims.get("jti")
+    subject = claims.get("sub")
+    role = claims.get("role")
+    issued_at = claims.get("iat")
+    expires_at = claims.get("exp")
+    if not all(isinstance(v, (str, int)) for v in (jti, subject, role, issued_at, expires_at)):
+        return
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT OR IGNORE INTO issued_tokens (jti, subject, role, issued_at, expires_at, revoked_at, revoked_by, revoke_reason)
+        VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)
+        """,
+        (str(jti), str(subject), str(role), float(issued_at), float(expires_at)),
+    )
+    conn.commit()
+    conn.close()
+
+
+def _mark_issued_token_revoked(jti: str, revoked_by: str, reason: str):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE issued_tokens
+        SET revoked_at = ?, revoked_by = ?, revoke_reason = ?
+        WHERE jti = ?
+        """,
+        (time.time(), revoked_by, reason[:200], jti),
+    )
+    conn.commit()
+    conn.close()
+
+
+def _list_auth_sessions(limit: int = 100, include_expired: bool = False, include_revoked: bool = True) -> List[Dict[str, Any]]:
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    where_parts: List[str] = []
+    params: List[Any] = []
+    if not include_expired:
+        where_parts.append("expires_at >= ?")
+        params.append(now)
+    if not include_revoked:
+        where_parts.append("revoked_at IS NULL")
+    where_clause = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+
+    cur.execute(
+        f"""
+        SELECT jti, subject, role, issued_at, expires_at, revoked_at, revoked_by, revoke_reason
+        FROM issued_tokens
+        {where_clause}
+        ORDER BY issued_at DESC
+        LIMIT ?
+        """,
+        (*params, limit),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    sessions: List[Dict[str, Any]] = []
+    for row in rows:
+        revoked_at = row[5]
+        expires_at = float(row[4])
+        sessions.append(
+            {
+                "jti": row[0],
+                "subject": row[1],
+                "role": row[2],
+                "issued_at": float(row[3]),
+                "expires_at": expires_at,
+                "revoked_at": float(revoked_at) if revoked_at is not None else None,
+                "revoked_by": row[6],
+                "revoke_reason": row[7],
+                "active": revoked_at is None and expires_at >= now,
+            }
+        )
+    return sessions
+
+
+def _revoke_user_sessions(target_user: str, revoked_by: str, active_only: bool = True, reason: str = "") -> Dict[str, int]:
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    where_parts = ["subject = ?"]
+    params: List[Any] = [target_user]
+    if active_only:
+        where_parts.append("expires_at >= ?")
+        params.append(now)
+    cur.execute(
+        f"""
+        SELECT jti, expires_at, revoked_at
+        FROM issued_tokens
+        WHERE {' AND '.join(where_parts)}
+        ORDER BY issued_at DESC
+        """,
+        params,
+    )
+    rows = cur.fetchall()
+
+    matched = len(rows)
+    revoked = 0
+    already_revoked = 0
+    for jti, expires_at, revoked_at in rows:
+        if revoked_at is not None:
+            already_revoked += 1
+            continue
+        cur.execute(
+            """
+            INSERT OR IGNORE INTO revoked_tokens (jti, revoked_by, revoked_at, expires_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (jti, revoked_by, now, float(expires_at)),
+        )
+        cur.execute(
+            """
+            UPDATE issued_tokens
+            SET revoked_at = ?, revoked_by = ?, revoke_reason = ?
+            WHERE jti = ?
+            """,
+            (now, revoked_by, (reason or "admin_revoke_user_sessions")[:200], jti),
+        )
+        revoked += 1
+
+    conn.commit()
+    conn.close()
+    return {"matched": matched, "revoked": revoked, "already_revoked": already_revoked}
 
 
 def _list_revoked_tokens(limit: int = 100, include_expired: bool = False) -> List[Dict[str, Any]]:
@@ -1679,7 +1858,8 @@ async def create_access_token(
 ):
     username = _validate_basic(credentials)
     role = _get_user_role(username)
-    token = _issue_jwt(username, role=role)
+    token, claims = _issue_jwt(username, role=role)
+    _record_issued_token(claims)
     return TokenResponse(
         access_token=token,
         token_type="bearer",
@@ -1728,6 +1908,7 @@ async def revoke_access_token(
     )
     conn.commit()
     conn.close()
+    _mark_issued_token_revoked(jti, revoked_by=sub, reason="self_revoke")
 
     _write_control_plane_audit_entry(
         action="auth_revoke_token",
@@ -1801,6 +1982,99 @@ async def prune_revoked_tokens(
         deleted=result["deleted"],
         remaining=result["remaining"],
         expired_only=expired_only,
+    )
+
+
+@app.get(
+    "/api/v1/auth/sessions",
+    response_model=List[AuthSessionResponse],
+    responses={
+        200: {
+            "description": "Lists tracked JWT sessions.",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "jti": "a1b2c3d4e5f6",
+                            "subject": "admin",
+                            "role": "admin",
+                            "issued_at": 1739835000.0,
+                            "expires_at": 1739838600.0,
+                            "revoked_at": None,
+                            "revoked_by": None,
+                            "revoke_reason": None,
+                            "active": True,
+                        }
+                    ]
+                }
+            },
+        }
+    },
+)
+async def list_auth_sessions(
+    limit: int = 100,
+    include_expired: bool = False,
+    include_revoked: bool = True,
+    username: str = Depends(enforce_auditor_rate_limit),
+):
+    bounded_limit = max(1, min(limit, 1000))
+    return _list_auth_sessions(limit=bounded_limit, include_expired=include_expired, include_revoked=include_revoked)
+
+
+@app.post(
+    "/api/v1/auth/sessions/revoke-user",
+    response_model=RevokeUserSessionsResponse,
+    responses={
+        200: {
+            "description": "Revokes tracked sessions for a target user.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "target_user": "user1",
+                        "matched": 3,
+                        "revoked": 2,
+                        "already_revoked": 1,
+                        "active_only": True,
+                        "reason": "incident_containment",
+                    }
+                }
+            },
+        }
+    },
+)
+async def revoke_user_sessions(
+    payload: RevokeUserSessionsRequest,
+    username: str = Depends(enforce_admin_rate_limit),
+):
+    target_user = payload.username.strip()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="username is required")
+
+    result = _revoke_user_sessions(
+        target_user=target_user,
+        revoked_by=username,
+        active_only=payload.active_only,
+        reason=payload.reason or "",
+    )
+    _write_control_plane_audit_entry(
+        action="auth_revoke_user_sessions",
+        user=username,
+        details={
+            "target_user": target_user,
+            "matched": result["matched"],
+            "revoked": result["revoked"],
+            "already_revoked": result["already_revoked"],
+            "active_only": payload.active_only,
+            "reason": payload.reason or "",
+        },
+    )
+    return RevokeUserSessionsResponse(
+        target_user=target_user,
+        matched=result["matched"],
+        revoked=result["revoked"],
+        already_revoked=result["already_revoked"],
+        active_only=payload.active_only,
+        reason=payload.reason,
     )
 
 

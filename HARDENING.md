@@ -22,6 +22,8 @@ This guide maps to implemented controls in the current backend and proxy stack.
 - list revocations: `GET /api/v1/auth/revocations`
 - prune expired revocations: `POST /api/v1/auth/revocations/prune`
 - revoke/prune actions are appended to immutable audit log for traceability
+- review tracked sessions: `GET /api/v1/auth/sessions`
+- contain compromised users: `POST /api/v1/auth/sessions/revoke-user`
 
 5. Enforce least privilege by role:
 - `admin`: API key lifecycle + retrying audit delivery queue

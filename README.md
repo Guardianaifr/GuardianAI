@@ -2,7 +2,7 @@
 
 **AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
 
-[![Tests](https://img.shields.io/badge/tests-123%2F123%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-125%2F125%20passing-brightgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-80%25-yellow)]()
 
 
@@ -38,7 +38,7 @@ We include 6 ready-to-run scenarios to prove the security works:
 3.  **Authentication:** Backend supports JWT bearer auth (with revocation) and Basic fallback for compatibility.
 
 ## Backend Hardening (Implemented)
-1. JWT issuance, verification, and revocation (`/api/v1/auth/token`, `/api/v1/auth/revoke`) plus revocation inventory/prune APIs with immutable audit entries.
+1. JWT issuance, verification, and revocation (`/api/v1/auth/token`, `/api/v1/auth/revoke`) plus revocation/session management APIs with immutable audit entries.
 2. Managed API keys for telemetry (`create/list/revoke/rotate`).
 3. Per-user and per-key rate-limit overrides.
 4. HTTPS enforcement and optional TLS cert/key startup.
@@ -243,7 +243,7 @@ python -m pytest --cov=guardian --cov-report=term-missing tests/
 python -m pytest tests/guardrails/test_input_filter.py -v
 ```
 
-**Current Status:** 123/123 tests passing.
+**Current Status:** 125/125 tests passing.
 
 ---
 

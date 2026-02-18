@@ -115,7 +115,8 @@ Weekly:
 1. verify `/health`, `/metrics`, `/api/v1/compliance/report`, `/api/v1/rbac/policy`, `/api/v1/audit-log/summary`, and audit chain integrity
 2. review audit failures and retry queue
 3. review `/api/v1/auth/revocations` and prune expired entries when needed
-4. rotate high-risk API keys as policy requires
+4. review `/api/v1/auth/sessions` and revoke compromised user sessions if required
+5. rotate high-risk API keys as policy requires
 
 Monthly:
 1. test token revocation and key revocation drills

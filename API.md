@@ -100,6 +100,24 @@ Action is written to immutable audit log (`auth_prune_revocations`).
 Query params:
 - `expired_only` (default `true`)
 
+### `GET /api/v1/auth/sessions`
+Lists tracked JWT sessions (`issued_tokens` inventory).
+Role required: `admin` or `auditor`.
+
+Query params:
+- `limit` (default `100`, max `1000`)
+- `include_expired` (default `false`)
+- `include_revoked` (default `true`)
+
+### `POST /api/v1/auth/sessions/revoke-user`
+Revokes tracked sessions for a target user and writes immutable audit entry (`auth_revoke_user_sessions`).
+Role required: `admin`.
+
+Request body:
+- `username` (string, required)
+- `active_only` (boolean, default `true`)
+- `reason` (optional string)
+
 ### `GET /api/v1/auth/whoami`
 Returns current authenticated principal, auth mode, and effective permission scopes.
 

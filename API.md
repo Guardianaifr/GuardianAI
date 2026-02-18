@@ -162,6 +162,20 @@ Response:
 - `resolved`
 - `failed`
 
+### Compliance Snapshot
+
+### `GET /api/v1/compliance/report`
+Returns a hardening/compliance posture snapshot across key controls.
+Role required: `admin` or `auditor`.
+
+Response fields:
+- `status` (`pass` | `warn` | `fail`)
+- `timestamp`
+- `summary.passed`
+- `summary.warnings`
+- `summary.failed`
+- `controls[]` with per-control `status` and `detail`
+
 ### Realtime
 
 ### `WS /ws/threats`

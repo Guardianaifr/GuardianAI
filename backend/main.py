@@ -1127,6 +1127,19 @@ class RevokeSelfSessionsResponse(BaseModel):
     reason: str | None = None
 
 
+class RevokeSelfSessionByJtiRequest(BaseModel):
+    jti: str
+    reason: str | None = None
+
+
+class RevokeSelfSessionByJtiResponse(BaseModel):
+    jti: str
+    target_user: str
+    revoked: bool
+    already_revoked: bool
+    reason: str | None = None
+
+
 class RevokeAllSessionsRequest(BaseModel):
     active_only: bool = True
     exclude_self: bool = True
@@ -1326,6 +1339,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:revocations:manage",
         "auth:sessions:read",
         "auth:sessions:revoke_self",
+        "auth:sessions:revoke_self_jti",
         "auth:sessions:revoke_user",
         "auth:sessions:revoke_all",
         "auth:sessions:revoke_jti",
@@ -1348,6 +1362,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:revocations:read",
         "auth:sessions:read",
         "auth:sessions:revoke_self",
+        "auth:sessions:revoke_self_jti",
         "auth:lockouts:read",
         "api_keys:read",
         "audit:read",
@@ -1363,6 +1378,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:issue",
         "auth:revoke:self",
         "auth:sessions:revoke_self",
+        "auth:sessions:revoke_self_jti",
         "events:read",
         "analytics:read",
         "export:read",
@@ -1385,6 +1401,7 @@ def _rbac_endpoint_policies() -> List[Dict[str, Any]]:
         {"method": "POST", "path": "/api/v1/auth/lockouts/clear", "allowed_roles": ["admin"], "permission": "auth:lockouts:manage"},
         {"method": "GET", "path": "/api/v1/auth/sessions", "allowed_roles": ["admin", "auditor"], "permission": "auth:sessions:read"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-self", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:sessions:revoke_self"},
+        {"method": "POST", "path": "/api/v1/auth/sessions/revoke-self-jti", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:sessions:revoke_self_jti"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-user", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_user"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-all", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_all"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-jti", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_jti"},
@@ -1787,6 +1804,80 @@ def _revoke_session_by_jti(jti: str, revoked_by: str, reason: str = "") -> Dict[
     conn.commit()
     conn.close()
     return {"jti": jti, "target_user": subject, "revoked": True, "already_revoked": False}
+
+
+def _revoke_self_session_by_jti(
+    jti: str,
+    subject: str,
+    revoked_by: str,
+    reason: str = "",
+    current_jti: str | None = None,
+) -> Dict[str, Any] | None:
+    normalized_current_jti = (current_jti or "").strip()
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT subject, expires_at, revoked_at
+        FROM issued_tokens
+        WHERE jti = ?
+        LIMIT 1
+        """,
+        (jti,),
+    )
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    target_user, expires_at, revoked_at = row
+    if str(target_user) != subject:
+        conn.close()
+        return {"jti": jti, "target_user": str(target_user), "revoked": False, "already_revoked": False, "not_owned": True}
+    if normalized_current_jti and jti == normalized_current_jti:
+        conn.close()
+        return {
+            "jti": jti,
+            "target_user": str(target_user),
+            "revoked": False,
+            "already_revoked": False,
+            "current_session": True,
+        }
+    if revoked_at is not None:
+        conn.close()
+        return {
+            "jti": jti,
+            "target_user": str(target_user),
+            "revoked": False,
+            "already_revoked": True,
+            "not_owned": False,
+        }
+
+    cur.execute(
+        """
+        INSERT OR IGNORE INTO revoked_tokens (jti, revoked_by, revoked_at, expires_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (jti, revoked_by, now, float(expires_at)),
+    )
+    cur.execute(
+        """
+        UPDATE issued_tokens
+        SET revoked_at = ?, revoked_by = ?, revoke_reason = ?
+        WHERE jti = ?
+        """,
+        (now, revoked_by, (reason or "self_revoke_session_jti")[:200], jti),
+    )
+    conn.commit()
+    conn.close()
+    return {
+        "jti": jti,
+        "target_user": str(target_user),
+        "revoked": True,
+        "already_revoked": False,
+        "not_owned": False,
+    }
 
 
 def _list_revoked_tokens(limit: int = 100, include_expired: bool = False) -> List[Dict[str, Any]]:
@@ -2614,6 +2705,76 @@ async def revoke_self_sessions(
         excluded_current=result["excluded"],
         active_only=payload.active_only,
         exclude_current=payload.exclude_current,
+        reason=payload.reason,
+    )
+
+
+@app.post(
+    "/api/v1/auth/sessions/revoke-self-jti",
+    response_model=RevokeSelfSessionByJtiResponse,
+    responses={
+        200: {
+            "description": "Revokes one specific session JTI owned by current authenticated user.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "jti": "a1b2c3d4e5f6",
+                        "target_user": "user1",
+                        "revoked": True,
+                        "already_revoked": False,
+                        "reason": "suspicious_device_logout",
+                    }
+                }
+            },
+        }
+    },
+)
+async def revoke_self_session_by_jti(
+    payload: RevokeSelfSessionByJtiRequest,
+    token_payload: Dict[str, Any] = Depends(get_current_token_payload),
+    username: str = Depends(enforce_user_rate_limit),
+):
+    target_jti = payload.jti.strip()
+    if not target_jti:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="jti is required")
+
+    target_user = token_payload.get("sub")
+    current_jti = token_payload.get("jti")
+    if not isinstance(target_user, str) or not target_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required subject claim")
+    if not isinstance(current_jti, str) or not current_jti:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required jti claim")
+
+    result = _revoke_self_session_by_jti(
+        jti=target_jti,
+        subject=target_user,
+        revoked_by=username,
+        reason=payload.reason or "",
+        current_jti=current_jti,
+    )
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+    if result.get("not_owned"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="session does not belong to current user")
+    if result.get("current_session"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Use /api/v1/auth/revoke for current session")
+
+    _write_control_plane_audit_entry(
+        action="auth_revoke_self_session_jti",
+        user=username,
+        details={
+            "jti": target_jti,
+            "target_user": result["target_user"],
+            "revoked": result["revoked"],
+            "already_revoked": result["already_revoked"],
+            "reason": payload.reason or "",
+        },
+    )
+    return RevokeSelfSessionByJtiResponse(
+        jti=target_jti,
+        target_user=result["target_user"],
+        revoked=result["revoked"],
+        already_revoked=result["already_revoked"],
         reason=payload.reason,
     )
 

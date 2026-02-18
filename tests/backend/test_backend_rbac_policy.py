@@ -50,6 +50,9 @@ def test_rbac_policy_endpoint_exposes_roles_and_access_matrix(tmp_path, monkeypa
     assert "auth:sessions:revoke_self" in body["roles"]["admin"]
     assert "auth:sessions:revoke_self" in body["roles"]["auditor"]
     assert "auth:sessions:revoke_self" in body["roles"]["user"]
+    assert "auth:sessions:revoke_self_jti" in body["roles"]["admin"]
+    assert "auth:sessions:revoke_self_jti" in body["roles"]["auditor"]
+    assert "auth:sessions:revoke_self_jti" in body["roles"]["user"]
     assert "auth:sessions:revoke_all" in body["roles"]["admin"]
     assert "auth:sessions:revoke_all" not in body["roles"]["auditor"]
 
@@ -87,6 +90,14 @@ def test_rbac_policy_endpoint_exposes_roles_and_access_matrix(tmp_path, monkeypa
     )
     assert sessions_revoke_self_policy["allowed_roles"] == ["admin", "auditor", "user"]
     assert sessions_revoke_self_policy["permission"] == "auth:sessions:revoke_self"
+
+    sessions_revoke_self_jti_policy = next(
+        item
+        for item in body["endpoints"]
+        if item["path"] == "/api/v1/auth/sessions/revoke-self-jti" and item["method"] == "POST"
+    )
+    assert sessions_revoke_self_jti_policy["allowed_roles"] == ["admin", "auditor", "user"]
+    assert sessions_revoke_self_jti_policy["permission"] == "auth:sessions:revoke_self_jti"
 
 
 def test_rbac_policy_allows_admin_and_blocks_regular_user(tmp_path, monkeypatch):

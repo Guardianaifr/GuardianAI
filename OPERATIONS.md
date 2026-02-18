@@ -32,20 +32,23 @@ Role guidance:
 2. User-level containment (keep current session, revoke other sessions):
 - call `POST /api/v1/auth/sessions/revoke-self` with bearer auth
 
-3. Contain broad token compromise:
+3. User-level targeted containment:
+- call `POST /api/v1/auth/sessions/revoke-self-jti` with bearer auth
+
+4. Contain broad token compromise:
 - `POST /api/v1/auth/sessions/revoke-all` (default excludes current admin session)
 
-4. Disable compromised telemetry key:
+5. Disable compromised telemetry key:
 - `POST /api/v1/api-keys/{id}/revoke`
 
-5. Rotate telemetry key:
+6. Rotate telemetry key:
 - `POST /api/v1/api-keys/{id}/rotate`
 
-6. Replay external audit failures after sink recovery:
+7. Replay external audit failures after sink recovery:
 - `POST /api/v1/audit-log/retry-failures`
 - requires `admin`
 
-7. Clear auth lockouts after verified false positives:
+8. Clear auth lockouts after verified false positives:
 - inspect: `GET /api/v1/auth/lockouts` (`admin`/`auditor`)
 - clear specific or global: `POST /api/v1/auth/lockouts/clear` (`admin`)
 

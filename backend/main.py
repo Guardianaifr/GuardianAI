@@ -1140,7 +1140,20 @@ async def create_access_token(
 @app.post(
     "/api/v1/auth/revoke",
     response_model=RevokeTokenResponse,
-    responses={200: {"description": "Current bearer token revoked."}},
+    responses={
+        200: {
+            "description": "Current bearer token revoked.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "revoked",
+                        "revoked_jti": "a1b2c3d4e5f6",
+                        "revoked_by": "admin",
+                    }
+                }
+            },
+        }
+    },
 )
 async def revoke_access_token(
     payload: Dict[str, Any] = Depends(get_current_token_payload),
@@ -1238,7 +1251,30 @@ async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(e
     )
 
 
-@app.get("/api/v1/api-keys", response_model=List[ApiKeyResponse], responses={200: {"description": "List API keys."}})
+@app.get(
+    "/api/v1/api-keys",
+    response_model=List[ApiKeyResponse],
+    responses={
+        200: {
+            "description": "List API keys.",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "id": 2,
+                            "key_name": "telemetry_ingest",
+                            "key_prefix": "gk_abcd1234",
+                            "is_active": True,
+                            "created_by": "admin",
+                            "created_at": 1739835000.0,
+                            "last_used_at": 1739835100.0,
+                        }
+                    ]
+                }
+            },
+        }
+    },
+)
 async def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1261,7 +1297,28 @@ async def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
     ]
 
 
-@app.post("/api/v1/api-keys/{key_id}/revoke", response_model=ApiKeyResponse, responses={200: {"description": "API key revoked."}})
+@app.post(
+    "/api/v1/api-keys/{key_id}/revoke",
+    response_model=ApiKeyResponse,
+    responses={
+        200: {
+            "description": "API key revoked.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 2,
+                        "key_name": "telemetry_ingest",
+                        "key_prefix": "gk_abcd1234",
+                        "is_active": False,
+                        "created_by": "admin",
+                        "created_at": 1739835000.0,
+                        "last_used_at": 1739835100.0,
+                    }
+                }
+            },
+        }
+    },
+)
 async def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -1287,7 +1344,29 @@ async def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate
     )
 
 
-@app.post("/api/v1/api-keys/{key_id}/rotate", response_model=CreatedApiKeyResponse, responses={200: {"description": "API key rotated."}})
+@app.post(
+    "/api/v1/api-keys/{key_id}/rotate",
+    response_model=CreatedApiKeyResponse,
+    responses={
+        200: {
+            "description": "API key rotated.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 2,
+                        "key_name": "telemetry_ingest",
+                        "key_prefix": "gk_efgh5678",
+                        "is_active": True,
+                        "created_by": "admin",
+                        "created_at": 1739835000.0,
+                        "last_used_at": 1739835100.0,
+                        "api_key": "gk_efgh5678_plaintext",
+                    }
+                }
+            },
+        }
+    },
+)
 async def rotate_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
     raw_key, key_prefix = _generate_api_key_material()
     key_hash = _hash_api_key(raw_key)
@@ -1621,6 +1700,25 @@ async def export_csv(username: str = Depends(enforce_user_rate_limit)):
     "/health",
     response_model=HealthResponse,
     responses={
+        200: {
+            "description": "Readiness healthy.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "healthy",
+                        "timestamp": 1739835000.0,
+                        "uptime_sec": 42.5,
+                        "components": {
+                            "database": {"ok": True, "detail": "ok"},
+                            "metrics_enabled": True,
+                            "https_enforced": True,
+                            "telemetry_requires_api_key": False,
+                            "audit_sink_configured": True,
+                        },
+                    }
+                }
+            },
+        },
         503: {
             "description": "One or more readiness dependencies are unhealthy.",
             "content": {
@@ -1664,7 +1762,20 @@ async def health_check():
     return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=payload)
 
 
-@app.get("/metrics")
+@app.get(
+    "/metrics",
+    responses={
+        200: {
+            "description": "Prometheus exposition format.",
+            "content": {
+                "text/plain": {
+                    "example": "guardian_requests_total 12\nguardian_requests_last_minute 3\n"
+                }
+            },
+        },
+        404: {"description": "Metrics disabled."},
+    },
+)
 async def metrics():
     if not METRICS_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metrics disabled")
@@ -2097,7 +2208,28 @@ async def get_events(limit: int = 50, username: str = Depends(enforce_user_rate_
 @app.get(
     "/api/v1/audit-log",
     response_model=List[AuditLogEntryResponse],
-    responses={200: {"description": "Audit log entries in reverse timestamp order."}},
+    responses={
+        200: {
+            "description": "Audit log entries in reverse timestamp order.",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "id": 42,
+                            "guardian_id": "guardian-01",
+                            "action": "admin_action",
+                            "user": "admin",
+                            "details": "{\"action\":\"update_policy\"}",
+                            "timestamp": 1739835000.0,
+                            "signature": "40a0adf4f5...",
+                            "prev_hash": "eb2b9f...",
+                            "entry_hash": "24d385...",
+                        }
+                    ]
+                }
+            },
+        }
+    },
 )
 async def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
@@ -2203,7 +2335,30 @@ async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_li
     return {"ok": True, "entries": checked}
 
 
-@app.get("/api/v1/audit-log/failures", response_model=List[AuditDeliveryFailureResponse])
+@app.get(
+    "/api/v1/audit-log/failures",
+    response_model=List[AuditDeliveryFailureResponse],
+    responses={
+        200: {
+            "description": "Queued failed audit deliveries.",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "id": 7,
+                            "sink_type": "http",
+                            "payload": {"guardian_id": "guardian-01", "action": "admin_action"},
+                            "error": "HTTP 503 from sink",
+                            "retry_count": 2,
+                            "created_at": 1739835000.0,
+                            "last_attempt_at": 1739835050.0,
+                        }
+                    ]
+                }
+            },
+        }
+    },
+)
 async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()

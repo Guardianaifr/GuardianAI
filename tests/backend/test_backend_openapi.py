@@ -32,6 +32,8 @@ def test_openapi_includes_hardening_endpoint_schemas_and_examples():
     assert "example" in sessions_get["responses"]["200"]["content"]["application/json"]
     sessions_revoke_user_post = spec["paths"]["/api/v1/auth/sessions/revoke-user"]["post"]
     assert "example" in sessions_revoke_user_post["responses"]["200"]["content"]["application/json"]
+    sessions_revoke_all_post = spec["paths"]["/api/v1/auth/sessions/revoke-all"]["post"]
+    assert "example" in sessions_revoke_all_post["responses"]["200"]["content"]["application/json"]
     sessions_revoke_jti_post = spec["paths"]["/api/v1/auth/sessions/revoke-jti"]["post"]
     assert "example" in sessions_revoke_jti_post["responses"]["200"]["content"]["application/json"]
     whoami_get = spec["paths"]["/api/v1/auth/whoami"]["get"]

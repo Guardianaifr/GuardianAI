@@ -34,8 +34,18 @@ We include 6 ready-to-run scenarios to prove the security works:
 
 ## Manual Launch
 1.  **Multi-turn Context:** Currently analyzes strictly on a per-request basis. Does not yet maintain a sliding window of conversation history for context-aware verification.
-2.  **Rate Limiting:** Global rate limiting is implemented, but per-user/IP tiering is scheduled for v2.1.
-3.  **Authentication:** Dashboard uses Basic Auth. For production, put this behind a reverse proxy (Nginx/Cloudflare) or OAuth.
+2.  **Rate Limiting:** Per-user, per-key, telemetry, and auth endpoint limits are implemented in the backend.
+3.  **Authentication:** Backend supports JWT bearer auth (with revocation) and Basic fallback for compatibility.
+
+## Backend Hardening (Implemented)
+1. JWT issuance, verification, and revocation (`/api/v1/auth/token`, `/api/v1/auth/revoke`).
+2. Managed API keys for telemetry (`create/list/revoke/rotate`).
+3. Per-user and per-key rate-limit overrides.
+4. HTTPS enforcement and optional TLS cert/key startup.
+5. Prometheus-style metrics endpoint (`/metrics`) and component-aware health endpoint (`/health`).
+6. External audit forwarding (HTTP + Syslog) with strict mode and retry queue.
+7. Tamper-evident audit hash chain with verification endpoint (`/api/v1/audit-log/verify`).
+8. Role-based endpoint access control (`admin`/`auditor`/`user`) for least-privilege operations.
 
 ## Production Hardening (CRITICAL)
 
@@ -228,7 +238,7 @@ python -m pytest --cov=guardian --cov-report=term-missing tests/
 python -m pytest tests/guardrails/test_input_filter.py -v
 ```
 
-**Current Status:** 57/57 tests passing (Core components verified including Firewall, InputFilter, OutputValidator, Monitor, Interceptor)
+**Current Status:** 92/92 tests passing.
 
 ---
 
@@ -274,7 +284,7 @@ tail -f guardian.log
 ##  Roadmap
 
 - [x] Core security features
-- [x] Testing infrastructure (57 tests)
+- [x] Testing infrastructure (92 tests)
 - [x] Code quality improvements
 - [x] Expand test coverage to 64%
 - [x] Add comprehensive documentation (Ops/Hardening)

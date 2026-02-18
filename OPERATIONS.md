@@ -1,59 +1,111 @@
-﻿# GuardianAI Operations Guide
+# GuardianAI Operations Guide
 
-This document outlines the operational procedures for maintaining a healthy GuardianAI deployment.
+Operational runbook for the current backend and proxy implementation.
 
-## 1. State Management & Resource Limits
+## 1. Daily Checks
 
-### Multi-turn Context Buffer
-- **Component**: `GuardianProxy`
-- **Behavior**: Stores the last 5 prompts per session ID (or IP) for semantic analysis.
-- **Limit**: 5 prompts per session.
-- **Cleanup**: Currently, state persists in memory until process restart. In high-traffic environments, monitor memory usage of the `guardian_proxy` process.
-- **Recommendation**: For production, use a redis-backed session store if persistence across restarts or multi-instance sync is required.
+Role guidance:
+- run security-sensitive checks using `auditor` or `admin` account
+- reserve `admin` for mutating operations only
 
-### Rate Limiter Buckets
-- **Component**: `RateLimiter`
-- **Behavior**: Uses a Token Bucket algorithm per IP in memory.
-- **Cleanup**: In-memory dictionary grows with unique IPs.
-- **Recommendation**: Periodic restarts or migration to a distributed rate limiter (Redis) for large-scale deployments.
+1. Readiness:
+- `GET /health`
+- expect `status=healthy` and HTTP `200`
 
-## 2. Log Management & Archival
+2. Metrics:
+- `GET /metrics`
+- verify request counters and process gauges are updating
 
-### Log Locations
-- **Standard Out**: Logs are emitted to STDOUT/STDERR.
-- **Log Files**: In production (Docker/Systemd), logs are managed by the host system (e.g., `journalctl` or Docker log driver).
+3. Audit integrity:
+- `GET /api/v1/audit-log/verify`
+- expect `ok=true`
 
-### Maintenance (Cleanup)
-- **Rotation**: Ensure log rotation is configured (e.g., via `logrotate` on Linux).
-- **Retention**: Keep security logs for a compliance-appropriate retention window.
+4. Audit delivery queue:
+- `GET /api/v1/audit-log/failures`
+- investigate queue growth
 
-## 3. Backup & Restore Procedures
+## 2. Incident Response Shortcuts
 
-### Configuration Backup
-The most critical state in GuardianAI is the `guardian/config/` files and environment variables.
-- **Backup Command**:
-  ```bash
-  tar -czvf guardian_config_backup_$(date +%F).tar.gz ./config/
-  ```
-- **Frequency**: Backup after any configuration change.
+1. Revoke compromised user JWT:
+- call `POST /api/v1/auth/revoke` with the bearer token
 
-### Threat Feed Persistence
-Threat feeds are updated dynamically in memory.
-- **Restore**: On restart, GuardianAI will automatically fetch the latest community patterns from the configured URL.
+2. Disable compromised telemetry key:
+- `POST /api/v1/api-keys/{id}/revoke`
 
-### Telemetry Data
-If using the Guardian Dashboard/Backend:
-- **Database**: Ensure the backend database (SQLite (default)) has an automated backup schedule (e.g., WAL-G or pg_dump).
+3. Rotate telemetry key:
+- `POST /api/v1/api-keys/{id}/rotate`
 
-## 4. Monitoring & Alerts
+4. Replay external audit failures after sink recovery:
+- `POST /api/v1/audit-log/retry-failures`
+- requires `admin`
 
-### Health Checks
-- **Endpoint**: `GET /health`
-- **Threshold**: Response code 200 within 500ms.
+## 3. Backup and Restore
 
-### Metric Thresholds
-- **CPU**: Alert if > 80% for 5 mins.
-- **Memory**: Alert if > 2GB (for small deployments).
-- **Latency (p95)**: Alert if > 100ms.
+1. Primary data store:
+- SQLite file `guardian.db`
 
+2. Recommended backup cadence:
+- at least daily
+- before major upgrades/config changes
 
+3. Minimal backup set:
+- `guardian.db`
+- deployment env vars (secure secret store)
+- `guardian/config/` (if used in your deployment)
+
+4. Restore validation after recovery:
+- `GET /health`
+- `GET /api/v1/audit-log/verify`
+- `GET /api/v1/analytics`
+
+## 4. Capacity and Limits
+
+Tune these based on load profile:
+- `GUARDIAN_AUTH_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_USER_RATE_LIMITS_JSON`
+- `GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON`
+
+Operational notes:
+- in-memory limiter state resets on process restart
+- use external/distributed limiter for multi-instance deployments
+
+## 5. External Audit Sinks
+
+HTTP sink:
+- configure `GUARDIAN_AUDIT_SINK_URL`
+- optional bearer token via `GUARDIAN_AUDIT_SINK_TOKEN`
+- strict mode blocks on delivery failure when `GUARDIAN_AUDIT_STRICT=true`
+
+Syslog sink:
+- configure `GUARDIAN_AUDIT_SYSLOG_HOST` and `GUARDIAN_AUDIT_SYSLOG_PORT`
+- strict mode via `GUARDIAN_AUDIT_SYSLOG_STRICT=true`
+
+Queue behavior:
+- non-strict failures are queued in `audit_delivery_failures`
+- process with `POST /api/v1/audit-log/retry-failures`
+
+## 6. TLS and Edge
+
+1. Backend HTTPS enforcement:
+- `GUARDIAN_ENFORCE_HTTPS=true` in production
+
+2. Native TLS startup:
+- `GUARDIAN_TLS_CERT_FILE`
+- `GUARDIAN_TLS_KEY_FILE`
+
+3. Reverse proxy mode:
+- ensure proxy sets `x-forwarded-proto=https`
+
+## 7. Maintenance Checklist
+
+Weekly:
+1. verify `/health`, `/metrics`, and audit chain integrity
+2. review audit failures and retry queue
+3. rotate high-risk API keys as policy requires
+
+Monthly:
+1. test token revocation and key revocation drills
+2. run dependency vulnerability scan
+3. verify backup restore procedure in staging

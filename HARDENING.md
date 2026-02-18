@@ -1,59 +1,110 @@
-﻿# GuardianAI Security Hardening Guide
+# GuardianAI Hardening Guide
 
-Follow these practices to secure your GuardianAI deployment against advanced threats.
+This guide maps to implemented controls in the current backend and proxy stack.
 
-## 1. Secret Management
+## 1. Identity and Authentication
 
-### Do Not Hardcode
-- Never store API keys or backend tokens in `config.yaml`.
-- Use **Environment Variables** for all secrets.
+1. Set strong secrets:
+- `GUARDIAN_ADMIN_PASS`
+- `GUARDIAN_JWT_SECRET`
 
-### Supported Secrets
-- `GUARDIAN_OPENROUTER_API_KEY`: For AI Firewall model calls.
-- `GUARDIAN_BACKEND_TOKEN`: For authenticated telemetry reporting.
+2. Configure role-specific backend users:
+- `GUARDIAN_AUDITOR_USER` / `GUARDIAN_AUDITOR_PASS`
+- `GUARDIAN_USER_USER` / `GUARDIAN_USER_PASS`
 
-## 2. Network Security
+3. Prefer Bearer JWT for backend access:
+- obtain token from `POST /api/v1/auth/token`
+- avoid long-lived Basic usage outside local admin setup
 
-### Ingress Filtering
-- The Guardian Proxy should **NOT** be exposed directly to the public internet without a Load Balancer or WAF.
-- Use TLS 1.3 for all incoming connections.
+4. Use token revocation for incident response:
+- `POST /api/v1/auth/revoke`
+- revoked tokens are enforced server-side via `jti` checks
 
-### Egress Filtering
-- Limit Guardian Proxy egress to:
-  - Valid downstream agent URLs.
-  - Known AI provider APIs (e.g., `openrouter.ai`).
-  - Community threat feed URLs.
-  
-  ### Base64 Evasion Prevention
-  - Ensure `enable_base64_detection` is set to `true` (Segment 4 requirement).
-  - This blocks obfuscated payloads with high entropy (potential command-and-control communication).
+5. Enforce least privilege by role:
+- `admin`: API key lifecycle + retrying audit delivery queue
+- `auditor`: read audit log, verify chain, inspect queue
+- `user`: analytics, event views, exports
 
-## 3. Defensive Configuration (config.yaml)
+6. Enable auth endpoint throttling:
+- tune `GUARDIAN_AUTH_RATE_LIMIT_PER_MIN` to reduce brute-force risk
 
-### Security Mode
-- **Strict**: Recommended for financial or healthcare applications. Blocks on any ambiguity.
-- **Balanced**: Best for general productivity. Minimal false positives.
+## 2. API Key Security
 
-### Data Leak Prevention
-- Ensure `leak_prevention_strategy` is set to `block` in high-security environments.
-- Use `redact` only for development or non-critical paths.
+1. Manage telemetry keys via backend APIs:
+- create: `POST /api/v1/api-keys`
+- rotate: `POST /api/v1/api-keys/{id}/rotate`
+- revoke: `POST /api/v1/api-keys/{id}/revoke`
 
-## 4. Host Security
+2. Enforce telemetry key requirement in production:
+- `GUARDIAN_TELEMETRY_REQUIRE_API_KEY=true`
 
-### Running as Non-Root
-- Always run the Guardian processes as a dedicated `guardian` user with limited shell access.
-- In Docker, use: `USER 1000:1000`.
+3. Use key names and per-key limits:
+- `GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON`
+- rotate compromised keys immediately
 
-### System Shield (Runtime Monitor)
-- Keep `RuntimeMonitor` enabled to detect unauthorized process spawns or resource exhaustion attacks.
+## 3. Rate Limiting
 
-## 5. Regular Audits
+1. Set sane defaults:
+- `GUARDIAN_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN`
 
-### Pattern Updates
-- Schedule a job to `POST /api/reload-model` weekly to ensure the latest jailbreak vectors are loaded into the AI Firewall.
+2. Apply per-user overrides where needed:
+- `GUARDIAN_USER_RATE_LIMITS_JSON` (JSON object)
 
-### Dependency Scanning
-- Run `pip-audit` monthly to check for CVEs in libraries like `transformers`, `torch`, or `flask`.
+3. Example override values:
+```json
+{
+  "admin": 300,
+  "auditor": 120
+}
+```
 
+## 4. Transport Security
 
+1. Enforce HTTPS at backend edge in production:
+- `GUARDIAN_ENFORCE_HTTPS=true`
 
+2. Run backend with TLS cert/key:
+- `GUARDIAN_TLS_CERT_FILE`
+- `GUARDIAN_TLS_KEY_FILE`
+
+3. If behind a reverse proxy, ensure `x-forwarded-proto=https` is set correctly.
+
+## 5. Audit Logging and Integrity
+
+1. Keep local audit chain enabled:
+- admin events are hash-chained (`prev_hash`, `entry_hash`)
+- verify integrity via `GET /api/v1/audit-log/verify`
+
+2. Configure external audit sinks:
+- HTTP sink (`GUARDIAN_AUDIT_SINK_*`)
+- Syslog sink (`GUARDIAN_AUDIT_SYSLOG_*`)
+
+3. Use strict mode in higher-assurance environments:
+- `GUARDIAN_AUDIT_STRICT=true`
+- `GUARDIAN_AUDIT_SYSLOG_STRICT=true`
+
+4. Operate retry queue:
+- inspect failures: `GET /api/v1/audit-log/failures`
+- replay failures: `POST /api/v1/audit-log/retry-failures`
+
+## 6. Monitoring and Readiness
+
+1. Integrate readiness checks:
+- `GET /health` (returns `503` when DB dependency is unhealthy)
+
+2. Scrape Prometheus metrics:
+- `GET /metrics`
+- disable only if explicitly required: `GUARDIAN_METRICS_ENABLED=false`
+
+3. Alert recommendations:
+- elevated 401/429 rates
+- sustained audit sink failures
+- unhealthy readiness responses
+
+## 7. Host and Runtime Practices
+
+1. Run as non-root user where possible.
+2. Restrict inbound/outbound network paths.
+3. Keep dependency scanning in CI (e.g., `pip-audit`).
+4. Backup `guardian.db` and config/env secrets regularly.

@@ -8,7 +8,7 @@ import time
 import logging
 import sqlite3
 import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 import json
 
 import os
@@ -28,6 +28,10 @@ logger = logging.getLogger("guardian_backend")
 # Configuration (Env Vars -> Defaults)
 ADMIN_USER = os.getenv("GUARDIAN_ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("GUARDIAN_ADMIN_PASS", "guardian_default") # Simple default for local demo
+AUDITOR_USER = os.getenv("GUARDIAN_AUDITOR_USER", "").strip()
+AUDITOR_PASS = os.getenv("GUARDIAN_AUDITOR_PASS", "").strip()
+USER_USER = os.getenv("GUARDIAN_USER_USER", "").strip()
+USER_PASS = os.getenv("GUARDIAN_USER_PASS", "").strip()
 JWT_SECRET = os.getenv("GUARDIAN_JWT_SECRET", "guardian_jwt_dev_secret_change_me")
 JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
 JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
@@ -97,6 +101,20 @@ _metrics_total_latency_ms = 0.0
 _metrics_latency_samples = 0
 _metrics_status_counts: Dict[int, int] = {}
 _metrics_recent_requests = deque()
+_valid_roles: Set[str] = {"admin", "auditor", "user"}
+
+
+def _build_auth_users() -> Dict[str, Dict[str, str]]:
+    users: Dict[str, Dict[str, str]] = {}
+    users[ADMIN_USER] = {"password": ADMIN_PASS, "role": "admin"}
+    if AUDITOR_USER and AUDITOR_PASS:
+        users[AUDITOR_USER] = {"password": AUDITOR_PASS, "role": "auditor"}
+    if USER_USER and USER_PASS:
+        users[USER_USER] = {"password": USER_PASS, "role": "user"}
+    return users
+
+
+_auth_users = _build_auth_users()
 
 
 def _parse_limit_overrides(raw_value: str, label: str) -> Dict[str, int]:
@@ -139,11 +157,12 @@ def _b64url_decode(raw: str) -> bytes:
     return base64.urlsafe_b64decode((raw + padding).encode("ascii"))
 
 
-def _issue_jwt(subject: str, ttl_minutes: int = JWT_EXPIRES_MIN) -> str:
+def _issue_jwt(subject: str, role: str, ttl_minutes: int = JWT_EXPIRES_MIN) -> str:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": subject,
+        "role": role,
         "iat": now,
         "exp": now + (ttl_minutes * 60),
         "iss": JWT_ISSUER,
@@ -191,6 +210,11 @@ def _decode_jwt(token: str) -> Dict[str, Any]:
     sub = payload.get("sub")
     if not isinstance(sub, str) or not sub:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
+    role = payload.get("role")
+    if not isinstance(role, str) or role not in _valid_roles:
+        role = "admin" if sub == ADMIN_USER else "user"
+        payload["role"] = role
+
     jti = payload.get("jti")
     if isinstance(jti, str) and _is_token_revoked(jti):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
@@ -505,9 +529,14 @@ security = HTTPBasic(auto_error=False)
 bearer_security = HTTPBearer(auto_error=False)
 
 def _validate_basic(credentials: HTTPBasicCredentials) -> str:
-    correct_username = secrets.compare_digest(credentials.username, ADMIN_USER)
-    correct_password = secrets.compare_digest(credentials.password, ADMIN_PASS)
-    if not (correct_username and correct_password):
+    user_config = _auth_users.get(credentials.username)
+    if not user_config:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    if not secrets.compare_digest(credentials.password, user_config["password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -516,22 +545,35 @@ def _validate_basic(credentials: HTTPBasicCredentials) -> str:
     return credentials.username
 
 
-def get_current_user(
+def _get_user_role(username: str) -> str:
+    user_config = _auth_users.get(username)
+    if not user_config:
+        return "user"
+    role = user_config.get("role", "user")
+    return role if role in _valid_roles else "user"
+
+
+def get_current_principal(
     bearer: HTTPAuthorizationCredentials = Depends(bearer_security),
     credentials: HTTPBasicCredentials = Depends(security),
 ):
     if bearer and bearer.scheme.lower() == "bearer":
         payload = _decode_jwt(bearer.credentials)
-        return payload["sub"]
+        return {"username": payload["sub"], "role": payload.get("role", "user")}
 
     if credentials:
-        return _validate_basic(credentials)
+        username = _validate_basic(credentials)
+        return {"username": username, "role": _get_user_role(username)}
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def get_current_user(principal: Dict[str, str] = Depends(get_current_principal)):
+    return principal["username"]
 
 
 def get_current_token_payload(
@@ -546,9 +588,32 @@ def get_current_token_payload(
     return _decode_jwt(bearer.credentials)
 
 
-def enforce_user_rate_limit(request: Request, username: str = Depends(get_current_user)):
+def _enforce_rbac_and_user_rate_limit(
+    request: Request,
+    principal: Dict[str, str],
+    allowed_roles: Set[str] | None = None,
+) -> str:
+    role = principal.get("role", "user")
+    if allowed_roles and role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Requires one of roles: {', '.join(sorted(allowed_roles))}",
+        )
+    username = principal["username"]
     _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
     return username
+
+
+def enforce_user_rate_limit(request: Request, principal: Dict[str, str] = Depends(get_current_principal)):
+    return _enforce_rbac_and_user_rate_limit(request, principal)
+
+
+def enforce_auditor_rate_limit(request: Request, principal: Dict[str, str] = Depends(get_current_principal)):
+    return _enforce_rbac_and_user_rate_limit(request, principal, allowed_roles={"admin", "auditor"})
+
+
+def enforce_admin_rate_limit(request: Request, principal: Dict[str, str] = Depends(get_current_principal)):
+    return _enforce_rbac_and_user_rate_limit(request, principal, allowed_roles={"admin"})
 
 
 def enforce_telemetry_rate_limit(request: Request):
@@ -580,6 +645,7 @@ class TokenResponse(BaseModel):
     token_type: str
     expires_in: int
     user: str
+    role: str
 
 
 class CreateApiKeyRequest(BaseModel):
@@ -756,12 +822,14 @@ async def create_access_token(
     _: bool = Depends(enforce_auth_rate_limit),
 ):
     username = _validate_basic(credentials)
-    token = _issue_jwt(username)
+    role = _get_user_role(username)
+    token = _issue_jwt(username, role=role)
     return TokenResponse(
         access_token=token,
         token_type="bearer",
         expires_in=JWT_EXPIRES_MIN * 60,
         user=username,
+        role=role,
     )
 
 
@@ -792,7 +860,7 @@ async def revoke_access_token(
 
 
 @app.post("/api/v1/api-keys", response_model=CreatedApiKeyResponse)
-async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(enforce_user_rate_limit)):
+async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(enforce_admin_rate_limit)):
     key_name = payload.key_name.strip()
     if not key_name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="key_name is required")
@@ -830,7 +898,7 @@ async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(e
 
 
 @app.get("/api/v1/api-keys", response_model=List[ApiKeyResponse])
-async def list_api_keys(username: str = Depends(enforce_user_rate_limit)):
+async def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -853,7 +921,7 @@ async def list_api_keys(username: str = Depends(enforce_user_rate_limit)):
 
 
 @app.post("/api/v1/api-keys/{key_id}/revoke", response_model=ApiKeyResponse)
-async def revoke_api_key(key_id: int, username: str = Depends(enforce_user_rate_limit)):
+async def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("UPDATE api_keys SET is_active = 0 WHERE id = ?", (key_id,))
@@ -879,7 +947,7 @@ async def revoke_api_key(key_id: int, username: str = Depends(enforce_user_rate_
 
 
 @app.post("/api/v1/api-keys/{key_id}/rotate", response_model=CreatedApiKeyResponse)
-async def rotate_api_key(key_id: int, username: str = Depends(enforce_user_rate_limit)):
+async def rotate_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
     raw_key, key_prefix = _generate_api_key_material()
     key_hash = _hash_api_key(raw_key)
 
@@ -1613,7 +1681,7 @@ async def get_events(limit: int = 50, username: str = Depends(enforce_user_rate_
     ]
 
 @app.get("/api/v1/audit-log")
-async def get_audit_log(limit: int = 50, username: str = Depends(enforce_user_rate_limit)):
+async def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     # Check if table exists (it might not if init_db ran on old schema)
@@ -1640,7 +1708,7 @@ async def get_audit_log(limit: int = 50, username: str = Depends(enforce_user_ra
 
 
 @app.get("/api/v1/audit-log/verify")
-async def verify_audit_log_chain(username: str = Depends(enforce_user_rate_limit)):
+async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     try:
@@ -1690,7 +1758,7 @@ async def verify_audit_log_chain(username: str = Depends(enforce_user_rate_limit
 
 
 @app.get("/api/v1/audit-log/failures")
-async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_user_rate_limit)):
+async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -1719,7 +1787,7 @@ async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(
 
 
 @app.post("/api/v1/audit-log/retry-failures")
-async def retry_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_user_rate_limit)):
+async def retry_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_admin_rate_limit)):
     return _retry_failed_audit_deliveries(limit=limit)
 
 @app.websocket("/ws/threats")

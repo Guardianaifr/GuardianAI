@@ -69,4 +69,24 @@ If you expose services publicly:
 - `OPERATIONS.md`
 - `TROUBLESHOOTING.md`
 - `README.md`
+- `deploy/README.md`
+
+## Kubernetes + Prometheus Baseline
+
+This repo now includes baseline deployment manifests and monitoring assets:
+
+- Kubernetes manifests:
+  - `deploy/k8s/namespace.yaml`
+  - `deploy/k8s/guardian-backend.yaml`
+  - `deploy/k8s/guardian-proxy.yaml`
+- Prometheus assets:
+  - `deploy/prometheus/scrape-config.yaml`
+  - `deploy/prometheus/guardian-alert-rules.yaml`
+
+Quick apply:
+```bash
+kubectl apply -f deploy/k8s/namespace.yaml
+kubectl apply -f deploy/k8s/guardian-backend.yaml
+kubectl apply -f deploy/k8s/guardian-proxy.yaml
+```
 

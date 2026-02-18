@@ -18,6 +18,8 @@ def test_openapi_includes_hardening_endpoint_schemas_and_examples():
 
     revoke_post = spec["paths"]["/api/v1/auth/revoke"]["post"]
     assert "example" in revoke_post["responses"]["200"]["content"]["application/json"]
+    whoami_get = spec["paths"]["/api/v1/auth/whoami"]["get"]
+    assert "example" in whoami_get["responses"]["200"]["content"]["application/json"]
 
     telemetry_examples = (
         spec["paths"]["/api/v1/telemetry"]["post"]["requestBody"]["content"]["application/json"]["examples"]

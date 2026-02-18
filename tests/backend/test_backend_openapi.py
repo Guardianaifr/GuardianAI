@@ -14,11 +14,24 @@ def test_openapi_includes_hardening_endpoint_schemas_and_examples():
     token_schema_name = token_schema_ref.split("/")[-1]
     token_schema = spec["components"]["schemas"][token_schema_name]
     assert "role" in token_schema["properties"]
+    assert "example" in token_post["responses"]["200"]["content"]["application/json"]
+
+    revoke_post = spec["paths"]["/api/v1/auth/revoke"]["post"]
+    assert "example" in revoke_post["responses"]["200"]["content"]["application/json"]
 
     telemetry_examples = (
         spec["paths"]["/api/v1/telemetry"]["post"]["requestBody"]["content"]["application/json"]["examples"]
     )
     assert "admin_action" in telemetry_examples
+
+    api_keys_get = spec["paths"]["/api/v1/api-keys"]["get"]
+    assert "example" in api_keys_get["responses"]["200"]["content"]["application/json"]
+
+    api_key_revoke_post = spec["paths"]["/api/v1/api-keys/{key_id}/revoke"]["post"]
+    assert "example" in api_key_revoke_post["responses"]["200"]["content"]["application/json"]
+
+    api_key_rotate_post = spec["paths"]["/api/v1/api-keys/{key_id}/rotate"]["post"]
+    assert "example" in api_key_rotate_post["responses"]["200"]["content"]["application/json"]
 
     verify_schema_ref = (
         spec["paths"]["/api/v1/audit-log/verify"]["get"]["responses"]["200"]["content"]["application/json"]["schema"][
@@ -29,6 +42,20 @@ def test_openapi_includes_hardening_endpoint_schemas_and_examples():
     verify_schema = spec["components"]["schemas"][verify_schema_name]
     assert "ok" in verify_schema["properties"]
     assert "entries" in verify_schema["properties"]
+    assert "example" in spec["paths"]["/api/v1/audit-log"]["get"]["responses"]["200"]["content"]["application/json"]
+    assert (
+        "example"
+        in spec["paths"]["/api/v1/audit-log/failures"]["get"]["responses"]["200"]["content"]["application/json"]
+    )
+    assert (
+        "example"
+        in spec["paths"]["/api/v1/audit-log/retry-failures"]["post"]["responses"]["200"]["content"]["application/json"]
+    )
 
     health_get = spec["paths"]["/health"]["get"]
+    assert "example" in health_get["responses"]["200"]["content"]["application/json"]
     assert "503" in health_get["responses"]
+    assert "example" in health_get["responses"]["503"]["content"]["application/json"]
+
+    metrics_get = spec["paths"]["/metrics"]["get"]
+    assert "text/plain" in metrics_get["responses"]["200"]["content"]

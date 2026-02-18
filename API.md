@@ -48,6 +48,7 @@ Example fields:
 - `components.https_enforced`
 - `components.telemetry_requires_api_key`
 - `components.audit_sink_configured`
+- `components.auth_lockout_enabled`
 
 When DB health fails, returns `503`.
 
@@ -67,6 +68,11 @@ Key metrics:
 
 ### `POST /api/v1/auth/token`
 Issues JWT using Basic credentials.
+
+Behavior:
+- per-source auth rate limiting
+- temporary lockout after repeated failed credentials from the same `username + source`
+- lockout returns `429` with `Retry-After` header
 
 Response fields:
 - `access_token`
@@ -256,7 +262,7 @@ Broadcast stream for incoming telemetry events.
 - `401` authentication failure or revoked token
 - `403` blocked by policy (proxy path)
 - `404` resource/feature unavailable
-- `429` rate limit exceeded
+- `429` rate limit exceeded or temporary auth lockout
 - `503` dependency unavailable (strict external audit sink failures, unhealthy readiness)
 
 ## Environment Variables (Backend)
@@ -272,6 +278,9 @@ Broadcast stream for incoming telemetry events.
 - `GUARDIAN_JWT_ISSUER`
 - `GUARDIAN_JWT_EXPIRES_MIN`
 - `GUARDIAN_AUTH_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_AUTH_LOCKOUT_ENABLED`
+- `GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS`
+- `GUARDIAN_AUTH_LOCKOUT_DURATION_SEC`
 - `GUARDIAN_RATE_LIMIT_PER_MIN`
 - `GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN`
 - `GUARDIAN_USER_RATE_LIMITS_JSON`

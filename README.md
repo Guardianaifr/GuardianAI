@@ -2,7 +2,7 @@
 
 **AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
 
-[![Tests](https://img.shields.io/badge/tests-126%2F126%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-128%2F128%20passing-brightgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-80%25-yellow)]()
 
 
@@ -51,6 +51,7 @@ We include 6 ready-to-run scenarios to prove the security works:
 10. Compliance posture snapshot endpoint (`/api/v1/compliance/report`) for control-gap visibility.
 11. RBAC policy catalog endpoint (`/api/v1/rbac/policy`) for role and route permission discovery.
 12. Audit summary endpoint (`/api/v1/audit-log/summary`) for integrity and delivery-failure visibility.
+13. Failed-login lockout controls on token issuance (`username + source` scoped, configurable threshold and duration).
 
 ## Production Hardening (CRITICAL)
 
@@ -243,7 +244,7 @@ python -m pytest --cov=guardian --cov-report=term-missing tests/
 python -m pytest tests/guardrails/test_input_filter.py -v
 ```
 
-**Current Status:** 126/126 tests passing.
+**Current Status:** 128/128 tests passing.
 
 ---
 

@@ -62,6 +62,9 @@ Role guidance:
 
 Tune these based on load profile:
 - `GUARDIAN_AUTH_RATE_LIMIT_PER_MIN`
+- `GUARDIAN_AUTH_LOCKOUT_ENABLED`
+- `GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS`
+- `GUARDIAN_AUTH_LOCKOUT_DURATION_SEC`
 - `GUARDIAN_RATE_LIMIT_PER_MIN`
 - `GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN`
 - `GUARDIAN_USER_RATE_LIMITS_JSON`
@@ -71,6 +74,7 @@ Tune these based on load profile:
 
 Operational notes:
 - in-memory limiter state resets on process restart
+- auth failed-login lockout state is in-memory and resets on process restart
 - distributed mode supports Redis with fallback to in-memory limiter by default
 - set `GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN=false` to fail closed when Redis is unavailable
 

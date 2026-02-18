@@ -35,6 +35,11 @@ This guide maps to implemented controls in the current backend and proxy stack.
 6. Enable auth endpoint throttling:
 - tune `GUARDIAN_AUTH_RATE_LIMIT_PER_MIN` to reduce brute-force risk
 
+7. Enable failed-login lockout on token issuance:
+- `GUARDIAN_AUTH_LOCKOUT_ENABLED=true`
+- tune `GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS` and `GUARDIAN_AUTH_LOCKOUT_DURATION_SEC`
+- lockout scope is `username + source` to contain repeated bad credential attempts
+
 ## 2. API Key Security
 
 1. Manage telemetry keys via backend APIs:

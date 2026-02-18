@@ -1387,7 +1387,14 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
         details_json = json.dumps(event.details)
         payload = f"{event.guardian_id}:{event.timestamp}:{details_json}"
         signature = hashlib.sha256(payload.encode()).hexdigest()
-        cur.execute("SELECT entry_hash FROM audit_logs ORDER BY id DESC LIMIT 1")
+        cur.execute(
+            """
+            SELECT entry_hash
+            FROM audit_logs
+            WHERE entry_hash IS NOT NULL AND entry_hash != ''
+            ORDER BY id DESC LIMIT 1
+            """
+        )
         prev_row = cur.fetchone()
         prev_hash = prev_row[0] if prev_row and prev_row[0] else ""
         entry_hash = _compute_audit_entry_hash(
@@ -2148,8 +2155,19 @@ async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_li
 
     expected_prev_hash = ""
     checked = 0
+    legacy_unhashed = 0
     for row in rows:
         row_id, guardian_id, action, user, details, ts, signature, prev_hash, entry_hash = row
+        if not entry_hash:
+            if prev_hash:
+                return {
+                    "ok": False,
+                    "entries": checked,
+                    "failed_id": row_id,
+                    "reason": "missing entry_hash with non-empty prev_hash",
+                }
+            legacy_unhashed += 1
+            continue
         computed = _compute_audit_entry_hash(
             guardian_id=guardian_id,
             action=action,
@@ -2176,6 +2194,12 @@ async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_li
         expected_prev_hash = entry_hash or ""
         checked += 1
 
+    if legacy_unhashed:
+        return {
+            "ok": True,
+            "entries": checked,
+            "message": f"Verified hashed entries; skipped {legacy_unhashed} legacy unhashed entries",
+        }
     return {"ok": True, "entries": checked}
 
 

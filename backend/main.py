@@ -1110,6 +1110,23 @@ class RevokeUserSessionsResponse(BaseModel):
     reason: str | None = None
 
 
+class RevokeSelfSessionsRequest(BaseModel):
+    active_only: bool = True
+    exclude_current: bool = True
+    reason: str | None = None
+
+
+class RevokeSelfSessionsResponse(BaseModel):
+    target_user: str
+    matched: int
+    revoked: int
+    already_revoked: int
+    excluded_current: int
+    active_only: bool
+    exclude_current: bool
+    reason: str | None = None
+
+
 class RevokeAllSessionsRequest(BaseModel):
     active_only: bool = True
     exclude_self: bool = True
@@ -1308,6 +1325,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:revocations:read",
         "auth:revocations:manage",
         "auth:sessions:read",
+        "auth:sessions:revoke_self",
         "auth:sessions:revoke_user",
         "auth:sessions:revoke_all",
         "auth:sessions:revoke_jti",
@@ -1329,6 +1347,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "auth:revoke:self",
         "auth:revocations:read",
         "auth:sessions:read",
+        "auth:sessions:revoke_self",
         "auth:lockouts:read",
         "api_keys:read",
         "audit:read",
@@ -1343,6 +1362,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
     "user": [
         "auth:issue",
         "auth:revoke:self",
+        "auth:sessions:revoke_self",
         "events:read",
         "analytics:read",
         "export:read",
@@ -1364,6 +1384,7 @@ def _rbac_endpoint_policies() -> List[Dict[str, Any]]:
         {"method": "GET", "path": "/api/v1/auth/lockouts", "allowed_roles": ["admin", "auditor"], "permission": "auth:lockouts:read"},
         {"method": "POST", "path": "/api/v1/auth/lockouts/clear", "allowed_roles": ["admin"], "permission": "auth:lockouts:manage"},
         {"method": "GET", "path": "/api/v1/auth/sessions", "allowed_roles": ["admin", "auditor"], "permission": "auth:sessions:read"},
+        {"method": "POST", "path": "/api/v1/auth/sessions/revoke-self", "allowed_roles": ["admin", "auditor", "user"], "permission": "auth:sessions:revoke_self"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-user", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_user"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-all", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_all"},
         {"method": "POST", "path": "/api/v1/auth/sessions/revoke-jti", "allowed_roles": ["admin"], "permission": "auth:sessions:revoke_jti"},
@@ -1596,8 +1617,15 @@ def _list_auth_sessions(limit: int = 100, include_expired: bool = False, include
     return sessions
 
 
-def _revoke_user_sessions(target_user: str, revoked_by: str, active_only: bool = True, reason: str = "") -> Dict[str, int]:
+def _revoke_user_sessions(
+    target_user: str,
+    revoked_by: str,
+    active_only: bool = True,
+    reason: str = "",
+    exclude_jti: str | None = None,
+) -> Dict[str, int]:
     now = time.time()
+    normalized_exclude_jti = (exclude_jti or "").strip()
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
@@ -1620,7 +1648,11 @@ def _revoke_user_sessions(target_user: str, revoked_by: str, active_only: bool =
     matched = len(rows)
     revoked = 0
     already_revoked = 0
+    excluded = 0
     for jti, expires_at, revoked_at in rows:
+        if normalized_exclude_jti and str(jti) == normalized_exclude_jti:
+            excluded += 1
+            continue
         if revoked_at is not None:
             already_revoked += 1
             continue
@@ -1643,7 +1675,7 @@ def _revoke_user_sessions(target_user: str, revoked_by: str, active_only: bool =
 
     conn.commit()
     conn.close()
-    return {"matched": matched, "revoked": revoked, "already_revoked": already_revoked}
+    return {"matched": matched, "revoked": revoked, "already_revoked": already_revoked, "excluded": excluded}
 
 
 def _revoke_all_sessions(
@@ -2516,6 +2548,74 @@ async def list_auth_sessions(
 ):
     bounded_limit = max(1, min(limit, 1000))
     return _list_auth_sessions(limit=bounded_limit, include_expired=include_expired, include_revoked=include_revoked)
+
+
+@app.post(
+    "/api/v1/auth/sessions/revoke-self",
+    response_model=RevokeSelfSessionsResponse,
+    responses={
+        200: {
+            "description": "Revokes sessions for the current authenticated user, with optional current-session exclusion.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "target_user": "user1",
+                        "matched": 3,
+                        "revoked": 2,
+                        "already_revoked": 0,
+                        "excluded_current": 1,
+                        "active_only": True,
+                        "exclude_current": True,
+                        "reason": "user_compromise_containment",
+                    }
+                }
+            },
+        }
+    },
+)
+async def revoke_self_sessions(
+    payload: RevokeSelfSessionsRequest,
+    token_payload: Dict[str, Any] = Depends(get_current_token_payload),
+    username: str = Depends(enforce_user_rate_limit),
+):
+    target_user = token_payload.get("sub")
+    current_jti = token_payload.get("jti")
+    if not isinstance(target_user, str) or not target_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required subject claim")
+    if payload.exclude_current and (not isinstance(current_jti, str) or not current_jti):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required jti claim")
+
+    result = _revoke_user_sessions(
+        target_user=target_user,
+        revoked_by=username,
+        active_only=payload.active_only,
+        reason=payload.reason or "",
+        exclude_jti=current_jti if payload.exclude_current else None,
+    )
+    _write_control_plane_audit_entry(
+        action="auth_revoke_self_sessions",
+        user=username,
+        details={
+            "target_user": target_user,
+            "matched": result["matched"],
+            "revoked": result["revoked"],
+            "already_revoked": result["already_revoked"],
+            "excluded_current": result["excluded"],
+            "active_only": payload.active_only,
+            "exclude_current": payload.exclude_current,
+            "reason": payload.reason or "",
+        },
+    )
+    return RevokeSelfSessionsResponse(
+        target_user=target_user,
+        matched=result["matched"],
+        revoked=result["revoked"],
+        already_revoked=result["already_revoked"],
+        excluded_current=result["excluded"],
+        active_only=payload.active_only,
+        exclude_current=payload.exclude_current,
+        reason=payload.reason,
+    )
 
 
 @app.post(

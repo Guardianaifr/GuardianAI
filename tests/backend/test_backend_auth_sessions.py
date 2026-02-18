@@ -196,3 +196,58 @@ def test_admin_can_revoke_all_sessions_with_self_exclusion(tmp_path, monkeypatch
     details = json.loads(entries[0]["details"])
     assert details["exclude_self"] is True
     assert "admin" in details["excluded_users"]
+
+
+def test_user_can_revoke_own_other_sessions_and_keep_current_session(tmp_path, monkeypatch):
+    _setup_sessions_db(tmp_path, monkeypatch)
+    client = TestClient(backend_main.app)
+
+    current_token_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("user1", "user-pass"))
+    other_token_res = client.post("/api/v1/auth/token", headers=_basic_auth_headers("user1", "user-pass"))
+    assert current_token_res.status_code == 200
+    assert other_token_res.status_code == 200
+
+    current_token = current_token_res.json()["access_token"]
+    other_token = other_token_res.json()["access_token"]
+    current_bearer = {"Authorization": f"Bearer {current_token}"}
+    other_bearer = {"Authorization": f"Bearer {other_token}"}
+
+    assert client.get("/api/v1/analytics", headers=current_bearer).status_code == 200
+    assert client.get("/api/v1/analytics", headers=other_bearer).status_code == 200
+
+    revoke_self = client.post(
+        "/api/v1/auth/sessions/revoke-self",
+        json={"active_only": True, "exclude_current": True, "reason": "user_compromise_containment"},
+        headers=current_bearer,
+    )
+    assert revoke_self.status_code == 200
+    body = revoke_self.json()
+    assert body["target_user"] == "user1"
+    assert body["revoked"] >= 1
+    assert body["excluded_current"] >= 1
+    assert body["exclude_current"] is True
+
+    assert client.get("/api/v1/analytics", headers=current_bearer).status_code == 200
+    other_after = client.get("/api/v1/analytics", headers=other_bearer)
+    assert other_after.status_code == 401
+    assert "revoked" in other_after.json()["detail"].lower()
+
+    audit_log = client.get("/api/v1/audit-log?limit=50", headers=_basic_auth_headers("admin", "admin-pass"))
+    assert audit_log.status_code == 200
+    entries = [entry for entry in audit_log.json() if entry["action"] == "auth_revoke_self_sessions"]
+    assert entries
+    details = json.loads(entries[0]["details"])
+    assert details["target_user"] == "user1"
+    assert details["exclude_current"] is True
+
+
+def test_revoke_self_requires_bearer_token(tmp_path, monkeypatch):
+    _setup_sessions_db(tmp_path, monkeypatch)
+    client = TestClient(backend_main.app)
+
+    response = client.post(
+        "/api/v1/auth/sessions/revoke-self",
+        json={"active_only": True, "exclude_current": True},
+        headers=_basic_auth_headers("user1", "user-pass"),
+    )
+    assert response.status_code == 401

@@ -23,6 +23,7 @@ This guide maps to implemented controls in the current backend and proxy stack.
 - prune expired revocations: `POST /api/v1/auth/revocations/prune`
 - revoke/prune actions are appended to immutable audit log for traceability
 - review tracked sessions: `GET /api/v1/auth/sessions`
+- user self-containment (revoke own other sessions): `POST /api/v1/auth/sessions/revoke-self`
 - contain compromised users: `POST /api/v1/auth/sessions/revoke-user`
 - contain broad compromise quickly: `POST /api/v1/auth/sessions/revoke-all`
 - contain a specific token/session: `POST /api/v1/auth/sessions/revoke-jti`

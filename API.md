@@ -185,6 +185,15 @@ Response fields:
 - `summary.failed`
 - `controls[]` with per-control `status` and `detail`
 
+### `GET /api/v1/rbac/policy`
+Returns the RBAC role-permission catalog and endpoint access matrix.
+Role required: `admin` or `auditor`.
+
+Response fields:
+- `generated_at`
+- `roles` (map of role -> permission scopes)
+- `endpoints[]` with `method`, `path`, `allowed_roles`, and `permission`
+
 ### Realtime
 
 ### `WS /ws/threats`

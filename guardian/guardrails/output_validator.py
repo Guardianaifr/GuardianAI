@@ -4,52 +4,10 @@ Output Validator - PII Detection and Redaction
 This module provides comprehensive PII (Personally Identifiable Information) detection
 and redaction capabilities to prevent data leaks in AI agent responses. It uses both
 regex patterns and Microsoft Presidio (when available) for robust PII identification.
-
-The OutputValidator protects against accidental disclosure of:
-- Email addresses
-- Phone numbers (multiple formats)
-- Social Security Numbers (SSNs)
-- Credit card numbers
-- API keys and tokens (OpenAI, AWS, GitHub, etc.)
-- Custom sensitive patterns
-
-Key Components:
-    - OutputValidator: Main class for PII detection and redaction
-    - validate_output(): Check if output contains PII (returns bool)
-    - sanitize_output(): Redact PII and return cleaned text + detected entities
-    - Dual-mode operation: Presidio (preferred) or regex fallback
-
-Usage Example:
-    ```python
-    from guardrails.output_validator import OutputValidator
-    
-    validator = OutputValidator()
-    
-    # Check for PII
-    text = "Contact me at john@example.com"
-    is_safe = validator.validate_output(text)  # Returns False
-    
-    # Redact PII
-    sanitized, entities = validator.sanitize_output(text)
-    # sanitized: "Contact me at [REDACTED]"
-    # entities: [{"type": "EMAIL", "text": "john@example.com"}]
-    ```
-
-Security Notes:
-    - Supports both blocking and redaction strategies
-    - Regex patterns cover common PII formats
-    - Presidio provides ML-based detection when available
-    - Custom patterns can be added for organization-specific data
-
-Performance:
-    - Regex mode: ~1-2ms per check
-    - Presidio mode: ~10-50ms per check (more accurate)
-    - Automatically falls back to regex if Presidio unavailable
-
-Author: GuardianAI Team
-License: MIT
 """
 import re
+import os
+import yaml
 from utils.logger import setup_logger
 
 logger = setup_logger("output_validator")
@@ -65,31 +23,10 @@ except Exception as e:
 
 class OutputValidator:
     def __init__(self):
-        # Professional patterns (High confidence signatures)
-        self.sensitive_patterns = {
-            "openai_api_key": r"sk-[a-zA-Z0-9]{48}",
-            "aws_access_key": r"AKIA[0-9A-Z]{16}",
-            "aws_secret_key": r"(?i)aws_secret_access_key\s*[:=]\s*([A-Za-z0-9/+=]{40})", # Only match when explicitly labeled
-            # "aws_secret_key_raw": r"(?=[A-Za-z0-9/+=]{40})(?=[^A-Za-z0-9/+=])", # REMOVED: Caused Zero-Width loop issues
-            "ssh_private_key": r"-----BEGIN [A-Z]+ PRIVATE KEY-----",
-            "jwt_token": r"eyJ[A-Za-z0-9-_=]+\.eyJ[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*",
-            "ipv4_address": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",
-            "email_address": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-            "phone_number": r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}(?:[-.\s]?\d{4})?\b",
-            # "credit_card": r"\b(?:\d[ -]*?){13,16}\b", # OLD: Too broad
-            "credit_card": r"\b(?:\d[ -]*?){13,19}\b", # Keeping broad but will add check in callback
-            "street_address": r"\d{1,5}\s(?:[A-Z][a-z]+\s){1,3}(?:Drive|Dr|Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Way|Pkwy|Parkway|Court|Ct|Circle|Cir|Lane|Ln|Plaza|Plz|Sq|Square)\b",
-            "ssn_pattern": r"\b\d{3}-\d{2}-\d{4}\b",
-            "generic_secret": r"(?i)(?:password|secret|token|apikey|credential|pwd|pass|key)\s*(?:is|[:=])\s*['\"].*?['\"]",
-            "generic_secret_unquoted": r"(?i)(?:password|secret|token|apikey|credential|pwd|pass|key)\s*(?:is|[:=])\s*[^\s,]{6,}",
-            "db_connection": r"(?i)(?:mongodb|postgres|mysql|sqlite|redis|amqp):\/\/[^\s]+",
-            "slack_webhook": r"https:\/\/hooks\.slack\.com\/services\/T[A-Z0-9]+\/B[A-Z0-9]+\/[A-Za-z0-9]+",
-            "discord_webhook": r"https:\/\/discord\.com\/api\/webhooks\/\d+\/[A-Za-z0-9-_]+",
-            "gcp_api_key": r"AIza[0-9A-Za-z-_]{35}",
-            "base64_labeled_key": r"(?i)(?:key|cert|token|secret|payload)\s*[:=]\s*([A-Za-z0-9+/]{15,}[=]{0,2})",
-            "base64_payload": r"([A-Za-z0-9+/]{40,}[=]{0,2})",
-            "base64_exec_call": r"(?:exec|eval|system|subprocess)\(.*?['\"](?:[A-Za-z0-9+/]{20,}[=]{0,2})['\"].*?\)"
-        }
+        self.sensitive_patterns = {}
+        self.custom_entities = []
+        self._load_patterns()
+        
         # Pre-compile patterns for performance
         self.compiled_patterns = {k: re.compile(v) for k, v in self.sensitive_patterns.items()}
         
@@ -105,6 +42,41 @@ class OutputValidator:
         else:
             self.analyzer = None
             self.anonymizer = None
+
+    def _load_patterns(self):
+        """Loads PII patterns from config/pii_patterns.yaml."""
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_dir, "config", "pii_patterns.yaml")
+        
+        # Default fallback patterns if config missing
+        self.sensitive_patterns = {
+            "openai_api_key": r"sk-[a-zA-Z0-9]{48}",
+            "email_address": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+        }
+
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+                    patterns = data.get('pii_patterns', {})
+                    
+                    # Load Core Patterns
+                    core = patterns.get('core', {})
+                    if core:
+                        self.sensitive_patterns.update(core)
+                    
+                    # Load Custom Patterns
+                    custom = patterns.get('custom', [])
+                    for item in custom:
+                        name = item.get('name')
+                        pattern = item.get('pattern')
+                        if name and pattern:
+                            self.sensitive_patterns[name.lower()] = pattern
+                            self.custom_entities.append(name.upper())
+                
+                logger.info(f"Loaded {len(self.sensitive_patterns)} PII patterns.")
+            except Exception as e:
+                logger.error(f"Failed to load pii_patterns.yaml: {e}")
 
     def validate_output(self, content: str) -> bool:
         """
@@ -129,6 +101,7 @@ class OutputValidator:
         # 2. Presidio NER Check (Contextual Entities)
         if self.analyzer:
             entities = ["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION", "CRYPTO", "SSH_KEY", "JWT_TOKEN"]
+            entities.extend(self.custom_entities)
             results = self.analyzer.analyze(text=content, entities=entities, language='en')
             # Only block if confidence is reasonable for critical entities
             high_conf_leaks = [r for r in results if r.score > 0.4]
@@ -149,6 +122,7 @@ class OutputValidator:
         # 1. Presidio Anonymization
         if self.analyzer and self.anonymizer:
             entities = ["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION", "CRYPTO", "SSH_KEY", "JWT_TOKEN"]
+            entities.extend(self.custom_entities)
             analysis_results = self.analyzer.analyze(text=content, entities=entities, language='en')
             
             # PII FALSE POSITIVE FIX: Filter out Unix Timestamps (10-digit integers) flagged as phone numbers

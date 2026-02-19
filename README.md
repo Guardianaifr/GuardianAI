@@ -2,7 +2,7 @@
 
 **AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
 
-[![Tests](https://img.shields.io/badge/tests-134%2F134%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-155%2F155%20passing-brightgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-80%25-yellow)]()
 
 
@@ -68,7 +68,7 @@ These use your live OpenClaw endpoint through Guardian proxy:
 ---
 
 ## Manual Launch
-1.  **Multi-turn Context:** Currently analyzes strictly on a per-request basis. Does not yet maintain a sliding window of conversation history for context-aware verification.
+1.  **Multi-turn Context:** Currently analyzes strictly on a per-request basis. Deep conversation context analysis is planned for **v2.0**.
 2.  **Rate Limiting:** Per-user, per-key, telemetry, and auth endpoint limits are implemented in the backend.
 3.  **Authentication:** Backend supports JWT bearer auth (with revocation) and Basic fallback for compatibility.
 
@@ -79,10 +79,10 @@ These use your live OpenClaw endpoint through Guardian proxy:
 4. HTTPS enforcement and optional TLS cert/key startup.
 5. Prometheus-style metrics endpoint (`/metrics`) and component-aware health endpoint (`/health`).
 6. External audit forwarding (HTTP + Syslog) with strict mode and retry queue.
-6.1 Optional enterprise sink adapters: Splunk HEC and Datadog Logs.
+6.1 Optional enterprise sink adapters: Splunk HEC and Datadog Logs (Implemented).
 7. Tamper-evident audit hash chain with verification endpoint (`/api/v1/audit-log/verify`).
 8. Role-based endpoint access control (`admin`/`auditor`/`user`) for least-privilege operations.
-9. Optional Redis-backed distributed rate limiting for multi-instance deployments.
+9. Optional Redis-backed distributed rate limiting for multi-instance deployments (Implemented).
 10. Compliance posture snapshot endpoint (`/api/v1/compliance/report`) for control-gap visibility.
 11. RBAC policy catalog endpoint (`/api/v1/rbac/policy`) for role and route permission discovery.
 12. Audit summary endpoint (`/api/v1/audit-log/summary`) for integrity and delivery-failure visibility.
@@ -283,7 +283,7 @@ python -m pytest --cov=guardian --cov-report=term-missing tests/
 python -m pytest tests/guardrails/test_input_filter.py -v
 ```
 
-**Current Status:** 134/134 tests passing.
+**Current Status:** 155/155 tests passing.
 
 ---
 
@@ -323,84 +323,6 @@ python guardian/main.py --reload
 # View logs
 tail -f guardian.log
 ```
-
----
-
-## Configuration
-
-Create `config.yaml`:
-
-```yaml
-proxy:
-  listen_port: 8080
-  target_url: "http://localhost:18789"
-
-security:
-  mode: "balanced"  # strict | balanced | permissive
-  enable_ai_firewall: true
-  enable_pii_redaction: true
-  
-monitoring:
-  enable_dashboard: true
-  dashboard_port: 5000
-```
-
----
-
-## Development
-
-```bash
-# Install dev dependencies
-pip install -r requirements.txt
-
-# Run tests
-python -m pytest tests/ -v
-
-# Run with auto-reload
-python guardian/main.py --reload
-
-# View logs
-tail -f guardian.log
-```
-
----
-
-## Roadmap
-
-- [x] Universal Auth Proxy (Generic Auth Mode)
-- [x] Core security features
-- [x] Testing infrastructure (92 tests)
-
----
-
-##  Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Ensure all tests pass
-5. Submit a pull request
-
----
-
-##  License
-
-[Add your license here]
-
----
-
-##  Support
-
-- **Issues:** [GitHub Issues](link)
-- **Docs:** [Full Documentation](link)
-- **Email:** support@guardianai.com
-
----
-
-**Built with  for AI security**
-"# Guardian-private" 
 
 
 

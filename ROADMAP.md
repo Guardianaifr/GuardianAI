@@ -12,7 +12,7 @@ Vision: expand from an LLM firewall into broader AI infrastructure security.
 - Add built-in tunnel management for remote GPU and AI services.
 - Goal: reduce manual command complexity and setup mistakes.
 
-## Following Milestone: Advanced Threat Detection
+## Milestone: Advanced Threat Detection [COMPLETED ✅]
 
 3. Adversarial Training
 - Continuously update jailbreak detection vectors.
@@ -23,7 +23,7 @@ Vision: expand from an LLM firewall into broader AI infrastructure security.
 5. Hash-Based Process Blocking
 - Validate process signatures by hash instead of name only.
 
-## Following Milestone: Team Controls
+## Milestone: Team Controls [COMPLETED ✅]
 
 6. Role-based permissions
 - Add role-scoped access policies.

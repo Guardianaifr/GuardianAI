@@ -20,15 +20,18 @@ scanner:
     - exec
     - open
 runtime_monitoring:
+  enabled: true
+  check_interval_seconds: 5
+  max_cpu_percent: 90.0
+  max_memory_percent: 90.0
   blocked_processes:
-    - nc.exe
-    - ncat.exe
+    - "nc.exe"
+    - "calc.exe"
+  blocked_hashes: [] # List of SHA256 hashes to block
     - netcat.exe
-    - calc.exe
     - calculator.exe
     - calculatorapp.exe
     - win32calc.exe
-  max_cpu_percent: 95.0
   max_memory_percent: 90.0
   check_interval_seconds: 2
 proxy:

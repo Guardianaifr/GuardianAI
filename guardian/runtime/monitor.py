@@ -50,7 +50,8 @@ import threading
 import time
 import logging
 import os
-from typing import Dict, Any, List
+import hashlib
+from typing import Dict, Any, List, Set, Optional
 logger = logging.getLogger("openclaw_guardian")
 
 class RuntimeMonitor:
@@ -77,6 +78,7 @@ class RuntimeMonitor:
         monitor_config = config.get('runtime_monitoring', {})
         self.interval = monitor_config.get('check_interval_seconds', 5)
         self.blocked_processes = set(p.lower() for p in monitor_config.get('blocked_processes', []))
+        self.blocked_hashes = set(h.lower() for h in monitor_config.get('blocked_hashes', []))
         
         self.max_cpu = monitor_config.get('max_cpu_percent', 90.0)
         self.max_memory = monitor_config.get('max_memory_percent', 90.0)
@@ -149,6 +151,21 @@ class RuntimeMonitor:
             
         return alerts
 
+    def _get_process_hash(self, proc: psutil.Process) -> Optional[str]:
+        """Calculates SHA256 hash of a process executable."""
+        try:
+            exe_path = proc.exe()
+            if not exe_path or not os.path.exists(exe_path):
+                return None
+            
+            sha256_hash = hashlib.sha256()
+            with open(exe_path, "rb") as f:
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            return sha256_hash.hexdigest()
+        except (psutil.AccessDenied, psutil.NoSuchProcess, PermissionError, IOError):
+            return None
+
     def check_processes(self):
         """
         Scans for blocked processes and actively terminates them.
@@ -163,19 +180,31 @@ class RuntimeMonitor:
                 
                 if pname in self.blocked_processes:
                     should_block = True
+                    reason = "blocked_process_name"
                 # Special handling for Windows Calculator variants (UWP/Win32)
                 elif "calc.exe" in self.blocked_processes and pname in ["calculator.exe", "calculatorapp.exe", "win32calc.exe"]:
                     should_block = True
+                    reason = "blocked_process_name_variant"
+                elif self.blocked_hashes:
+                    # Check cryptographic signature (SHA256)
+                    phash = self._get_process_hash(proc)
+                    if phash and phash.lower() in self.blocked_hashes:
+                        should_block = True
+                        reason = "blocked_process_hash"
+                    else:
+                        should_block = False
+                        reason = None
                 else:
                     should_block = False
+                    reason = None
 
                 if should_block:
                     # BLOCK IT!
-                    logger.warning(f"🛡️  HIGH ALERT: System Shield blocking rogue process: {proc.info['name']} (PID: {proc.info['pid']})")
+                    logger.warning(f"HIGH ALERT: System Shield blocking rogue process: {proc.info['name']} (PID: {proc.info['pid']}) Reason: {reason}")
                     try:
                         proc.terminate()
                         proc.wait(timeout=3)
-                        logger.info(f"✅  Terminated {proc.info['name']} successfully.")
+                        logger.info(f"Terminated {proc.info['name']} successfully.")
                         self._report_event("system_alert", "critical", {
                             "action": "process_terminated",
                             "process": proc.info['name'],

@@ -145,4 +145,6 @@ To validate these hardening controls, use the provided test suite:
     Run `pytest tests/test_extended_security.py` to verify Base64 detection, Fast-Path, Skill Scanner, and Threat Feed logic.
 
 2.  **Hardening Demo Suite:**
-    Use `demo_hardening_*.bat` scripts (wrapping `tools/hardening_demos.py`) to live-test RBAC, Session Management, and Audit Logging against a running backend.
+
+3.  **External Log Verification:**
+    Run `python tests/test_audit_logging.py` to verify HTTP, Syslog, Splunk, and Datadog audit sink integrations.

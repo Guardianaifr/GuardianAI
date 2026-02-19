@@ -136,4 +136,13 @@ This guide maps to implemented controls in the current backend and proxy stack.
 1. Run as non-root user where possible.
 2. Restrict inbound/outbound network paths.
 3. Keep dependency scanning in CI (e.g., `pip-audit`).
-4. Backup `guardian.db` and config/env secrets regularly.
+
+## 8. Verification
+
+To validate these hardening controls, use the provided test suite:
+
+1.  **Security Feature Verification:**
+    Run `pytest tests/test_extended_security.py` to verify Base64 detection, Fast-Path, Skill Scanner, and Threat Feed logic.
+
+2.  **Hardening Demo Suite:**
+    Use `demo_hardening_*.bat` scripts (wrapping `tools/hardening_demos.py`) to live-test RBAC, Session Management, and Audit Logging against a running backend.

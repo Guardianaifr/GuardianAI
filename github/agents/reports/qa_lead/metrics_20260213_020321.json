@@ -1,0 +1,22 @@
+{
+  "primary": [
+    "precision",
+    "recall",
+    "f1_score",
+    "fp_rate",
+    "fn_rate"
+  ],
+  "thresholds": [
+    0.6,
+    0.65,
+    0.7,
+    0.75,
+    0.8,
+    0.85
+  ],
+  "targets": {
+    "fp_rate": "<5%",
+    "fn_rate": "<10%",
+    "f1": ">0.87"
+  }
+}

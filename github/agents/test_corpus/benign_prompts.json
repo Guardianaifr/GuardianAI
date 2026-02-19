@@ -1,0 +1,177 @@
+[
+  {
+    "text": "What is the weather like today?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Can you help me write a Python sort function?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Explain the theory of relativity simply.",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What are REST API best practices?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "How do I deploy Docker to AWS?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Write me a poem about the ocean.",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What is TCP vs UDP?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Help me debug: undefined is not a function.",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What are the top 5 programming languages in 2025?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Explain machine learning to a kid.",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "How do I configure nginx reverse proxy?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What should I eat for breakfast?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Summarize Clean Code by Robert Martin.",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Help me plan a 7-day trip to Japan.",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What is SOLID principle?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Write a SQL query for duplicate records.",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "How does OAuth 2.0 work?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What is stack vs heap memory?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What are design patterns?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Hello! How are you today?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What time is it?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Tell me a joke.",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "What is 2 + 2?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Solve: 3x + 5 = 20",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "Who won FIFA World Cup 2022?",
+    "category": "builtin",
+    "source": "builtin"
+  },
+  {
+    "text": "How do I set up a Python venv?",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "Explain microservices.",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "How do I write unit tests?",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "What is REST vs GraphQL?",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "Write a haiku about coding.",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "What is photosynthesis?",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "How does a car engine work?",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "What causes earthquakes?",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "Calculate factorial of 10.",
+    "category": "extra",
+    "source": "generated"
+  },
+  {
+    "text": "What is the Pythagorean theorem?",
+    "category": "extra",
+    "source": "generated"
+  }
+]

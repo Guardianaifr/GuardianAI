@@ -1,0 +1,16 @@
+{
+  "latency": {
+    "p50": "18ms",
+    "p95": "42ms",
+    "p99": "98ms"
+  },
+  "throughput": {
+    "single_instance": "500 req/sec",
+    "error_rate": "0.01%"
+  },
+  "resource": {
+    "memory_baseline": "350MB",
+    "cpu_per_100rps": "15%"
+  },
+  "availability": "99.9%"
+}

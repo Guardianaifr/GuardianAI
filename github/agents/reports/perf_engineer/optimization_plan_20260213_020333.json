@@ -1,0 +1,31 @@
+{
+  "optimizations": [
+    {
+      "name": "Embedding Cache (LRU)",
+      "component": "ai_firewall.py",
+      "before_ms": "30-40ms per embed",
+      "after_ms": "<1ms on cache hit",
+      "expected_hit_rate": "20-30%",
+      "implementation": "functools.lru_cache with 10k max entries",
+      "priority": 1
+    },
+    {
+      "name": "Async Presidio",
+      "component": "output_validator.py",
+      "before_ms": "50-100ms blocking PII scan",
+      "after_ms": "<5ms (background thread)",
+      "implementation": "concurrent.futures.ThreadPoolExecutor",
+      "priority": 2
+    },
+    {
+      "name": "Fast-Path Bypass",
+      "component": "interceptor.py",
+      "before_ms": "Full pipeline for every query",
+      "after_ms": "Skip pipeline for safe queries (<1ms)",
+      "expected_coverage": "10-15% of queries",
+      "implementation": "Heuristic check: short greeting, common question",
+      "priority": 3
+    }
+  ],
+  "target": "p95 latency from 100-150ms to <50ms"
+}

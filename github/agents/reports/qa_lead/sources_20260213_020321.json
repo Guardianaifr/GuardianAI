@@ -1,0 +1,12 @@
+{
+  "jailbreak": [
+    "OWASP LLM Top 10",
+    "jailbreak_vectors.yaml",
+    "synthetic"
+  ],
+  "benign": [
+    "common questions",
+    "code help",
+    "creative writing"
+  ]
+}

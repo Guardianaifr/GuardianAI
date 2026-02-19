@@ -1,0 +1,10 @@
+{
+  "requests": 1000,
+  "p50_ms": 25.11,
+  "p95_ms": 40.81,
+  "p99_ms": 49.05,
+  "mean_ms": 24.96,
+  "min_ms": 1.0,
+  "max_ms": 53.56,
+  "note": "SIMULATED \u2014 run with live proxy for actual results"
+}

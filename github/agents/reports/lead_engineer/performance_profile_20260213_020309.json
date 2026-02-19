@@ -1,0 +1,61 @@
+{
+  "components_profiled": 7,
+  "bottlenecks_found": 9,
+  "bottlenecks": [
+    {
+      "file": "ai_firewall.py",
+      "line": 60,
+      "type": "model_call",
+      "detail": "ML model inference \u2014 potential latency hotspot"
+    },
+    {
+      "file": "ai_firewall.py",
+      "line": 86,
+      "type": "model_call",
+      "detail": "ML model inference \u2014 potential latency hotspot"
+    },
+    {
+      "file": "ai_firewall.py",
+      "line": 76,
+      "type": "model_call",
+      "detail": "ML model inference \u2014 potential latency hotspot"
+    },
+    {
+      "file": "ai_firewall.py",
+      "line": 77,
+      "type": "model_call",
+      "detail": "ML model inference \u2014 potential latency hotspot"
+    },
+    {
+      "file": "ai_firewall.py",
+      "line": 78,
+      "type": "model_call",
+      "detail": "ML model inference \u2014 potential latency hotspot"
+    },
+    {
+      "file": "ai_firewall.py",
+      "line": 83,
+      "type": "model_call",
+      "detail": "ML model inference \u2014 potential latency hotspot"
+    },
+    {
+      "file": "ai_firewall.py",
+      "line": 49,
+      "type": "sync_io",
+      "detail": "Synchronous file I/O"
+    },
+    {
+      "file": "skill_scanner.py",
+      "line": 45,
+      "type": "sync_io",
+      "detail": "Synchronous file I/O"
+    },
+    {
+      "file": "threat_feed.py",
+      "line": 40,
+      "type": "network_call",
+      "detail": "Network I/O \u2014 blocking call"
+    }
+  ],
+  "recommendation": "Add timing decorators to each guardrail for live profiling"
+}

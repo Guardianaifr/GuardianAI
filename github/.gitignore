@@ -1,0 +1,56 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv/
+.venv312/
+.guardian_node.sha256
+
+# Distribution / Packaging
+build/
+dist/
+*.spec
+# Wait, we want to keep guardian.spec in version control so others can build it!
+!guardian.spec
+
+# Unit Test / Coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# Project Specific
+guardian.db
+# We want to keep the archive locally but maybe not track it in git if it's huge?
+# Actually, for a private repo, maybe they want the history?
+# But typically archive folders are ignored.
+_archive/
+
+# Temporary / Logs
+*.log
+sim_log.txt
+sim_debug.txt
+sweep_results.txt
+benchmark_debug.log
+
+# Mac junk
+.DS_Store

@@ -8,7 +8,7 @@ import time
 import logging
 import sqlite3
 import datetime
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any, Set, Optional, Tuple
 import json
 
 import os
@@ -804,6 +804,23 @@ def get_current_token_payload(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return _decode_jwt(bearer.credentials)
+
+
+def _extract_basic_credentials_from_header(request: Request) -> Optional[Tuple[str, str]]:
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("basic "):
+        return None
+    encoded = auth_header.split(" ", 1)[1].strip()
+    if not encoded:
+        return None
+    try:
+        decoded = base64.b64decode(encoded).decode("utf-8")
+    except Exception:  # noqa: BLE001
+        return None
+    if ":" not in decoded:
+        return None
+    username, password = decoded.split(":", 1)
+    return username, password
 
 
 def _enforce_rbac_and_user_rate_limit(
@@ -3576,7 +3593,48 @@ async def metrics():
     return HTMLResponse(content=_build_metrics_payload(), media_type="text/plain")
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(username: str = Depends(enforce_user_rate_limit)):
+async def dashboard(
+    request: Request,
+    user: str | None = None,
+    password: str | None = None,
+):
+    username: str | None = None
+
+    # Primary path: standard Basic/Bearer header auth.
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+        if token:
+            try:
+                payload = _decode_jwt(token)
+                username = str(payload.get("sub", "")).strip() or None
+            except Exception:  # noqa: BLE001
+                username = None
+    else:
+        creds = _extract_basic_credentials_from_header(request)
+        if creds:
+            try:
+                username = _validate_basic(HTTPBasicCredentials(username=creds[0], password=creds[1]))
+            except Exception:  # noqa: BLE001
+                username = None
+
+    # Fallback path for browser demo UX when auth popup does not appear.
+    if not username and user and password:
+        try:
+            username = _validate_basic(HTTPBasicCredentials(username=user, password=password))
+        except Exception:  # noqa: BLE001
+            username = None
+
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Basic realm=\"GuardianAI\", Bearer"},
+        )
+
+    role = _get_user_role(username)
+    _enforce_rbac_and_user_rate_limit(request, {"username": username, "role": role}, {"admin", "auditor", "user"})
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()

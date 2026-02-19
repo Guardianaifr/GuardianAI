@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-02-13T02:03:57.421463",
+  "agents": {
+    "lead_engineer": {
+      "progress": "11/11 tasks (100%)",
+      "blocked": 0,
+      "completed_this_week": 11
+    },
+    "qa_lead": {
+      "progress": "10/10 tasks (100%)",
+      "blocked": 0,
+      "completed_this_week": 10
+    },
+    "perf_engineer": {
+      "progress": "10/10 tasks (100%)",
+      "blocked": 0,
+      "completed_this_week": 10
+    },
+    "devops_security": {
+      "progress": "13/13 tasks (100%)",
+      "blocked": 0,
+      "completed_this_week": 13
+    }
+  },
+  "overall_progress": "44/44 (100%)"
+}

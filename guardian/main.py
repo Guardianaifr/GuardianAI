@@ -56,6 +56,7 @@ if sys.platform.startswith('win'):
 
 from utils.logger import setup_logger
 from guardrails.input_filter import InputFilter
+from utils.ssh_manager import SSHTunnelManager
 
 logger = setup_logger("GuardianAI")
 
@@ -138,6 +139,15 @@ def main():
         except Exception as e:
             logger.error(f"Failed to start GuardianProxy: {e}")
 
+    # Initialize SSH Tunnels
+    tunnel_manager = None
+    if config.get('ssh_tunnels', {}).get('enabled'):
+        try:
+            tunnel_manager = SSHTunnelManager(config)
+            tunnel_manager.start_all()
+        except Exception as e:
+            logger.error(f"Failed to start SSH Tunnels: {e}")
+
     # Dashboard display
     # os.system('cls' if os.name == 'nt' else 'clear')
     
@@ -164,6 +174,9 @@ def main():
     
     if monitor:
         monitor.stop()
+    
+    if tunnel_manager:
+        tunnel_manager.stop_all()
 
 if __name__ == "__main__":
     main()

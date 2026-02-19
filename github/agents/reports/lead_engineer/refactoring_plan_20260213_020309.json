@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "Add type hints to all public functions",
+    "Extract shared utilities into common/ module",
+    "Add comprehensive docstrings to all modules",
+    "Create unit tests for each guardrail module",
+    "Implement proper error types instead of bare exceptions",
+    "Add timing instrumentation to all guardrail checks",
+    "Move hardcoded thresholds to config.yaml"
+  ],
+  "large_files_to_split": [
+    {
+      "file": "interceptor.py",
+      "lines": 321
+    }
+  ],
+  "priority": "Start with guardrails module \u2014 highest impact"
+}

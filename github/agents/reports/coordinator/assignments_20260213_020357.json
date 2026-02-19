@@ -1,0 +1,70 @@
+{
+  "lead_engineer": {
+    "role": "Lead Engineer",
+    "task_count": 11,
+    "tasks": [
+      "LE-001: Run full code audit (code quality, coverage, tech debt)",
+      "LE-002: Identify all assumptions (claims without data)",
+      "LE-003: Profile performance (measure actual latency)",
+      "LE-004: Review all documentation (what's documented vs missing)",
+      "LE-005: Measure test coverage (pytest --cov)",
+      "LE-006: Identify untested code paths",
+      "LE-007: Document technical debt",
+      "LE-008: Plan refactoring (if needed)",
+      "LE-009: Verify code coverage \u226580%",
+      "LE-010: Verify all components tested",
+      "LE-011: Verify documentation complete (API, deployment, troubleshooting)"
+    ]
+  },
+  "qa_lead": {
+    "role": "QA Lead",
+    "task_count": 10,
+    "tasks": [
+      "QA-001: Design test corpus plan (1000 benign + 500 jailbreak)",
+      "QA-002: Define metrics (FP, FN, precision, recall)",
+      "QA-003: Choose sources (OWASP, community)",
+      "QA-004: Create evaluation framework",
+      "QA-005: Collect 500 jailbreak prompts",
+      "QA-006: Collect 1000 benign prompts",
+      "QA-007: Label all examples",
+      "QA-008: Create test data format (JSON)",
+      "QA-009: Run full benchmark across thresholds",
+      "QA-010: Generate validation report"
+    ]
+  },
+  "perf_engineer": {
+    "role": "Performance Engineer",
+    "task_count": 10,
+    "tasks": [
+      "PE-001: Profile latency per component (embed, Presidio, regex, logging)",
+      "PE-002: Identify bottleneck (which component is slowest?)",
+      "PE-003: Plan optimization (cache, async, GPU)",
+      "PE-004: Set SLA targets",
+      "PE-005: Add timing instrumentation to all components",
+      "PE-006: Run 1000-request latency benchmark",
+      "PE-007: Create detailed latency report (p50, p95, p99)",
+      "PE-008: Implement embedding cache (LRU 10k entries)",
+      "PE-009: Implement async Presidio (background thread)",
+      "PE-010: Implement fast-path bypass for obvious-safe queries"
+    ]
+  },
+  "devops_security": {
+    "role": "DevOps + Security Lead",
+    "task_count": 13,
+    "tasks": [
+      "DS-001: Audit operational gaps (TTL, backups, monitoring)",
+      "DS-002: Audit security gaps (threat model, audit logs, secrets)",
+      "DS-003: Create remediation plan",
+      "DS-004: Estimate effort for remediation",
+      "DS-005: Document all operational procedures",
+      "DS-006: Identify missing monitoring",
+      "DS-007: Security checklist (protected vs not)",
+      "DS-008: Create remediation tickets",
+      "DS-009: Implement context buffer TTL (5 min expiry)",
+      "DS-010: Implement memory monitoring (alert >500MB)",
+      "DS-011: Implement daily SQLite backup",
+      "DS-012: Create monitoring dashboard config",
+      "DS-013: Implement alerting on critical metrics"
+    ]
+  }
+}

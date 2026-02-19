@@ -2,7 +2,7 @@
 
 Vision: expand from an LLM firewall into broader AI infrastructure security.
 
-## Next Milestone: Universal Auth Proxy
+## Next Milestone: Universal Auth Proxy [COMPLETED ✅]
 
 1. Generic Auth Proxy Mode
 - Add pass-through auth enforcement for any HTTP AI service.

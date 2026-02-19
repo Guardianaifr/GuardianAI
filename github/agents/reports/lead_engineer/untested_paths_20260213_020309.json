@@ -1,0 +1,21 @@
+{
+  "total_modules": 13,
+  "tested_modules": [],
+  "untested_modules": [
+    "main",
+    "ai_firewall",
+    "fast_path",
+    "input_filter",
+    "output_validator",
+    "rate_limiter",
+    "skill_scanner",
+    "threat_feed",
+    "evil_skill",
+    "safe_skill",
+    "interceptor",
+    "monitor",
+    "logger"
+  ],
+  "test_files_found": [],
+  "coverage_estimate": "0/13 modules referenced in tests"
+}

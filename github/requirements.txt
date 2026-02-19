@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+pydantic
+requests
+flask
+psutil
+pyyaml
+# sentence-transformers and scikit-learn removed for cloud memory limits (fallback enabled)
+numpy
+presidio-analyzer
+presidio-anonymizer
+spacy==3.7.2
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+jsonschema
+python-multipart

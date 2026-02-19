@@ -326,15 +326,50 @@ tail -f guardian.log
 
 ---
 
-##  Roadmap
+## Configuration
 
+Create `config.yaml`:
+
+```yaml
+proxy:
+  listen_port: 8080
+  target_url: "http://localhost:18789"
+
+security:
+  mode: "balanced"  # strict | balanced | permissive
+  enable_ai_firewall: true
+  enable_pii_redaction: true
+  
+monitoring:
+  enable_dashboard: true
+  dashboard_port: 5000
+```
+
+---
+
+## Development
+
+```bash
+# Install dev dependencies
+pip install -r requirements.txt
+
+# Run tests
+python -m pytest tests/ -v
+
+# Run with auto-reload
+python guardian/main.py --reload
+
+# View logs
+tail -f guardian.log
+```
+
+---
+
+## Roadmap
+
+- [x] Universal Auth Proxy (Generic Auth Mode)
 - [x] Core security features
 - [x] Testing infrastructure (92 tests)
-- [x] Code quality improvements
-- [x] Expand test coverage to 64%
-- [x] Add comprehensive documentation (Ops/Hardening)
-- [x] Performance optimizations (p95: 12ms)
-- [x] Production deployment guide
 
 ---
 

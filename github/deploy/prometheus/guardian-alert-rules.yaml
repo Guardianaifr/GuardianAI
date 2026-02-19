@@ -1,0 +1,38 @@
+groups:
+- name: guardian-backend-alerts
+  rules:
+  - alert: GuardianBackendHigh5xxRate
+    expr: sum(increase(guardian_http_status_total{code=~"5.."}[5m])) > 10
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: Guardian backend returning high 5xx volume
+      description: More than 10 HTTP 5xx responses over 5 minutes.
+
+  - alert: GuardianBackendRateLimitSpike
+    expr: sum(increase(guardian_http_status_total{code="429"}[5m])) > 30
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: Guardian backend rate limiting spike
+      description: HTTP 429 responses exceeded 30 over 5 minutes.
+
+  - alert: GuardianBackendLatencyElevated
+    expr: guardian_http_request_latency_avg_ms > 250
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: Guardian backend average latency elevated
+      description: Average request latency exceeded 250ms for 10 minutes.
+
+  - alert: GuardianBackendTrafficStopped
+    expr: increase(guardian_http_requests_total[10m]) == 0
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: Guardian backend traffic appears stopped
+      description: No HTTP requests were observed for 10 minutes.

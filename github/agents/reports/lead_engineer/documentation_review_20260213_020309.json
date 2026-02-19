@@ -1,0 +1,27 @@
+{
+  "existing_docs": [],
+  "missing_docs": [
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "API.md",
+    "DEPLOYMENT.md",
+    "TROUBLESHOOTING.md"
+  ],
+  "modules_without_docstrings": [
+    "main.py",
+    "ai_firewall.py",
+    "fast_path.py",
+    "input_filter.py",
+    "output_validator.py",
+    "rate_limiter.py",
+    "skill_scanner.py",
+    "threat_feed.py",
+    "evil_skill.py",
+    "safe_skill.py",
+    "interceptor.py",
+    "monitor.py",
+    "logger.py"
+  ],
+  "documentation_coverage": "0/6 expected docs exist"
+}

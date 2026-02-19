@@ -1,0 +1,19 @@
+{
+  "priority_1_critical": [
+    "Move all secrets to environment variables or .env file",
+    "Implement HTTPS/TLS termination",
+    "Add audit logging for all security events"
+  ],
+  "priority_2_high": [
+    "Implement context buffer TTL (5 min)",
+    "Add memory monitoring with alerts",
+    "Set up daily SQLite backups",
+    "Configure proper CORS policy"
+  ],
+  "priority_3_medium": [
+    "Add log rotation",
+    "Create health check endpoint",
+    "Set up monitoring dashboard",
+    "Document incident response procedures"
+  ]
+}

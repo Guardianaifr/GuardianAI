@@ -35,12 +35,22 @@ proxy:
   enabled: true
   listen_port: 8081
   target_url: "http://127.0.0.1:8080"
+  enforce_auth: true                # Require X-Guardian-Token for all requests
+  proxy_token: "pt-guardian-789"    # General access token for proxied services
 backend:
   enabled: true
   url: "http://127.0.0.1:8001/api/v1/telemetry"
 rate_limiting:
   enabled: true
   requests_per_minute: 60
+ssh_tunnels:
+  enabled: false  # Set to true and configure tunnels below
+  tunnels:
+    - name: "ComfyUI"
+      remote_host: "remote.gpu.server"
+      remote_user: "user"
+      remote_port: 8188
+      local_port: 8188
 threat_feed:
   enabled: false  # Set to true and provide URL below
   url: "https://raw.githubusercontent.com/OpenClaw-Community/GuardianAI-Threats/main/feed.yaml"

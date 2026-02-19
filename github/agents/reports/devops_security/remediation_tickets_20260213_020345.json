@@ -1,0 +1,46 @@
+{
+  "tickets": [
+    {
+      "id": "REM-001",
+      "title": "Move secrets to env vars",
+      "priority": "P0",
+      "effort": "2h"
+    },
+    {
+      "id": "REM-002",
+      "title": "Implement TTL on context buffer",
+      "priority": "P1",
+      "effort": "4h"
+    },
+    {
+      "id": "REM-003",
+      "title": "Add memory monitoring",
+      "priority": "P1",
+      "effort": "3h"
+    },
+    {
+      "id": "REM-004",
+      "title": "Set up daily DB backup",
+      "priority": "P1",
+      "effort": "2h"
+    },
+    {
+      "id": "REM-005",
+      "title": "Add HTTPS support",
+      "priority": "P1",
+      "effort": "4h"
+    },
+    {
+      "id": "REM-006",
+      "title": "Configure audit logging",
+      "priority": "P2",
+      "effort": "4h"
+    },
+    {
+      "id": "REM-007",
+      "title": "Create monitoring dashboard",
+      "priority": "P2",
+      "effort": "6h"
+    }
+  ]
+}

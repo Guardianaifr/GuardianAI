@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GuardianAI Threat Feed",
+  "type": "object",
+  "properties": {
+    "version": { "type": "string" },
+    "last_updated": { "type": "string", "format": "date-time" },
+    "patterns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "regex": { "type": "string" },
+          "severity": { "enum": ["low", "medium", "high", "critical"] },
+          "description": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["id", "name", "regex", "severity"]
+      }
+    }
+  },
+  "required": ["version", "patterns"]
+}

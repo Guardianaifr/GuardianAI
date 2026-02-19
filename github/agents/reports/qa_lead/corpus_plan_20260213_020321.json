@@ -1,0 +1,21 @@
+{
+  "target_size": {
+    "jailbreak": 500,
+    "benign": 1000,
+    "total": 1500
+  },
+  "jailbreak_categories": [
+    "prompt_injection",
+    "role_play_bypass",
+    "encoding_attacks",
+    "social_engineering",
+    "system_prompt_extraction"
+  ],
+  "benign_categories": [
+    "greetings",
+    "technical_questions",
+    "creative_writing",
+    "code_help",
+    "general_knowledge"
+  ]
+}

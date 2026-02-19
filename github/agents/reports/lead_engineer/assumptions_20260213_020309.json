@@ -1,0 +1,83 @@
+{
+  "total_assumptions": 13,
+  "assumptions": [
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".security_policies.block_prompt_injection = True",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".security_policies.validate_output = True",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".security_policies.show_block_reason = True",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".runtime_monitoring.max_cpu_percent = 95.0",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".runtime_monitoring.max_memory_percent = 90.0",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".runtime_monitoring.check_interval_seconds = 2",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".proxy.enabled = True",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".proxy.listen_port = 8081",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".backend.enabled = True",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".rate_limiting.enabled = True",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".rate_limiting.requests_per_minute = 60",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".threat_feed.enabled = False",
+      "keyword": "config_threshold"
+    },
+    {
+      "file": "config.yaml",
+      "line": 0,
+      "text": ".threat_feed.update_interval_seconds = 3600",
+      "keyword": "config_threshold"
+    }
+  ]
+}

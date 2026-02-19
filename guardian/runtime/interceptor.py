@@ -171,6 +171,37 @@ class GuardianProxy:
             return Response("Too Many Requests: Rate limit exceeded.", status=429)
         
         return None
+
+    def _check_authentication(self, start_time: float, path: str) -> Optional[Response]:
+        """Verify authentication for the proxy request.
+        
+        Returns:
+            Response object if unauthorized, None if authorized.
+        """
+        proxy_config = self.config.get('proxy', {})
+        if not proxy_config.get('enforce_auth', False):
+            return None
+
+        request_token = request.headers.get("X-Guardian-Token")
+        required_token = proxy_config.get('proxy_token')
+        admin_token = self.config.get('security_policies', {}).get('admin_token')
+
+        # Allow if it matches either proxy token OR admin token
+        if request_token and (request_token == required_token or (admin_token and request_token == admin_token)):
+            return None
+
+        # Auth failed
+        latency_ms = (time.time() - start_time) * 1000
+        logger.warning(f"🔐  UNAUTHORIZED ACCESS: Invalid or missing token from {request.remote_addr} for /{path}")
+        
+        self._report_event("unauthorized_access", "MEDIUM", {
+            "path": path,
+            "ip": request.remote_addr,
+            "latency_ms": f"{latency_ms:.2f}ms",
+            "reason": "Missing or invalid X-Guardian-Token"
+        })
+        
+        return Response("Unauthorized: Valid X-Guardian-Token is required.", status=401)
     
     def _extract_prompt(self, data: Dict) -> Optional[str]:
         """Extract prompt from request data (supports multiple formats).
@@ -412,6 +443,11 @@ class GuardianProxy:
         rl_resp = self._check_rate_limit(start_time, path)
         if rl_resp:
             return rl_resp
+
+        # 1b. Authentication Check (Milestone 1: Universal Auth Proxy)
+        auth_resp = self._check_authentication(start_time, path)
+        if auth_resp:
+            return auth_resp
 
         path_taken = "fast_path_allowlist" # Default path
 

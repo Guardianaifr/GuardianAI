@@ -57,6 +57,7 @@ if sys.platform.startswith('win'):
 from utils.logger import setup_logger
 from guardrails.input_filter import InputFilter
 from utils.ssh_manager import SSHTunnelManager
+from utils.adversarial_trainer import AdversarialTrainer
 
 logger = setup_logger("GuardianAI")
 
@@ -147,6 +148,20 @@ def main():
             tunnel_manager.start_all()
         except Exception as e:
             logger.error(f"Failed to start SSH Tunnels: {e}")
+
+    # Initialize Adversarial Self-Correction
+    trainer = AdversarialTrainer(config)
+    def LearningLoop():
+        while True:
+            try:
+                added = trainer.update_vectors()
+                if added > 0 and 'proxy' in locals() and hasattr(proxy, 'ai_firewall'):
+                    proxy.ai_firewall.reload()
+            except Exception as e:
+                logger.error(f"Error in Adversarial Learning Loop: {e}")
+            time.sleep(60) # check every minute
+
+    threading.Thread(target=LearningLoop, daemon=True).start()
 
     # Dashboard display
     # os.system('cls' if os.name == 'nt' else 'clear')

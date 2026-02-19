@@ -6,6 +6,7 @@ import time
 import re
 import collections
 import json
+import os # Added os import
 from typing import Dict, Any, List, Optional
 from guardrails.input_filter import InputFilter
 from guardrails.output_validator import OutputValidator
@@ -85,6 +86,10 @@ class GuardianProxy:
         self.last_debug_info = {}
         self._input_filter_cache = collections.OrderedDict()
         self._input_filter_cache_size = 2000
+        
+        # Adversarial Learning Storage
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.blocked_log_path = os.path.join(base_dir, "data", "blocked_prompts.json")
 
     def health_check(self):
         return {"status": "ok", "component": "guardian_proxy"}
@@ -251,7 +256,7 @@ class GuardianProxy:
         latency_ms = (time.time() - start_time) * 1000
         
         logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
-        self._report_event("injection", "high", {
+        self._report_event("keyword_filter_blocked", "high", { # Changed event_type to keyword_filter_blocked
             "prompt_preview": prompt[:100],
             "reason": reason,
             "latency_ms": f"{latency_ms:.2f}ms",
@@ -319,7 +324,7 @@ class GuardianProxy:
             reason = f"AI Firewall detected malicious intent (Mode: {mode})."
             latency_ms = (time.time() - start_time) * 1000
             logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
-            self._report_event("injection_ai", "HIGH", {
+            self._report_event("ai_firewall_blocked", "HIGH", { # Changed event_type to ai_firewall_blocked
                 "prompt_preview": prompt[:100],
                 "reason": reason,
                 "context_used": True,
@@ -413,6 +418,12 @@ class GuardianProxy:
         return raw_content
 
     def _report_event(self, event_type: str, severity: str, details: Dict[str, Any]):
+        """Sends telemetry to backend and logs blocked prompts for self-correction."""
+        if event_type in ["jailbreak_attempt", "keyword_filter_blocked", "ai_firewall_blocked"]:
+            prompt = details.get("prompt_preview")
+            if prompt:
+                self._log_blocked_prompt(prompt)
+
         backend_config = self.config.get('backend', {})
         if not backend_config.get('enabled'):
             return
@@ -433,6 +444,25 @@ class GuardianProxy:
 
         # Non-blocking background report
         threading.Thread(target=send_report, daemon=True).start()
+
+    def _log_blocked_prompt(self, prompt: str):
+        """Saves blocked prompts to a persistent file for adversarial learning."""
+        try:
+            os.makedirs(os.path.dirname(self.blocked_log_path), exist_ok=True)
+            data = []
+            if os.path.exists(self.blocked_log_path):
+                with open(self.blocked_log_path, "r", encoding="utf-8") as f:
+                    try:
+                        data = json.load(f)
+                    except json.JSONDecodeError:
+                        data = []
+            
+            if prompt not in data:
+                data.append(prompt)
+                with open(self.blocked_log_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to log blocked prompt: {e}")
 
     def proxy(self, path):
         start_time = time.time()

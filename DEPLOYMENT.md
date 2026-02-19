@@ -60,7 +60,7 @@ If you expose services publicly:
 
 ## Current Validation Snapshot
 
-- Tests: `61/61` passing (latest local validation)
+- Tests: `155/155` passing (latest local validation)
 - Known caveat: Python 3.14 can trigger Presidio compatibility warnings.
 
 ## Related Docs

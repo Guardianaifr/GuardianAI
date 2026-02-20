@@ -18,15 +18,14 @@ env["GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS"] = "5"
 env["GUARDIAN_AUTH_LOCKOUT_DURATION_SEC"] = "60"
 
 # Launch guardianctl start in a detached creation state so the shell can continue
-cmd = [sys.executable, "guardianctl.py", "start"]
+cmd = [sys.executable, "guardianctl.py", "start", "--detached"]
 CREATE_NO_WINDOW = 0x08000000
 
-log_file = open("guardian_background.log", "a")
 subprocess.Popen(
     cmd,
     env=env,
     creationflags=CREATE_NO_WINDOW,
-    stdout=log_file,
-    stderr=log_file,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
     stdin=subprocess.DEVNULL
 )

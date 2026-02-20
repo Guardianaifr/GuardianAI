@@ -216,7 +216,7 @@ def print_status(config_path: Path) -> int:
     return 1 if failures else 0
 
 
-def start_stack(python_exe: str, config_path: Path, backend_only: bool = False) -> int:
+def start_stack(python_exe: str, config_path: Path, backend_only: bool = False, detached: bool = False) -> int:
     env = os.environ.copy()
     env["PYTHONUTF8"] = "1"
     env["GUARDIAN_CONFIG"] = str(config_path)
@@ -239,13 +239,20 @@ def start_stack(python_exe: str, config_path: Path, backend_only: bool = False) 
     backend_proc = None
     guardian_proc = None
     try:
-        print("Starting backend on http://127.0.0.1:8001")
-        backend_proc = subprocess.Popen(backend_cmd, cwd=str(ROOT), env=env)
+        if detached:
+            backend_log = open("guardian_backend_background.log", "w")
+            proxy_log = open("guardian_proxy_background.log", "w")
+        else:
+            backend_log = None
+            proxy_log = None
+
+        print(f"Starting backend on http://127.0.0.1:8001 {('(detached mode)' if detached else '')}")
+        backend_proc = subprocess.Popen(backend_cmd, cwd=str(ROOT), env=env, stdout=backend_log, stderr=backend_log, stdin=subprocess.DEVNULL)
         time.sleep(2)
 
         if not backend_only:
             print(f"Starting Guardian proxy using config: {config_path}")
-            guardian_proc = subprocess.Popen(guardian_cmd, cwd=str(ROOT), env=env)
+            guardian_proc = subprocess.Popen(guardian_cmd, cwd=str(ROOT), env=env, stdout=proxy_log, stderr=proxy_log, stdin=subprocess.DEVNULL)
 
         print("Stack started.")
         print("Dashboard: http://127.0.0.1:8001 (default auth: admin / guardian26)")
@@ -295,6 +302,11 @@ def parse_args() -> argparse.Namespace:
         "--allow-risky-ports",
         action="store_true",
         help="Bypass hardening block if risky ports are publicly bound.",
+    )
+    start.add_argument(
+        "--detached",
+        action="store_true",
+        help="Run detached and pipe output to separate log files",
     )
 
     status = sub.add_parser("status", help="Check health of upstream/proxy/backend/dashboard")
@@ -346,7 +358,7 @@ def main() -> int:
             print(f"Config not found: {cfg}")
             print("Run: python guardianctl.py setup")
             return 1
-        return start_stack(python_exe, cfg, backend_only=args.backend_only)
+        return start_stack(python_exe, cfg, backend_only=args.backend_only, detached=getattr(args, "detached", False))
 
     return 1
 

@@ -26,4 +26,4 @@ echo.
 echo --------------------------------------------------------
 echo EXPECTED: HTTP 200 OK (Response from OpenClaw)
 echo --------------------------------------------------------
-pause
+REM pause

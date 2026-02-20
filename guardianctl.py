@@ -223,7 +223,7 @@ def start_stack(python_exe: str, config_path: Path, backend_only: bool = False) 
 
     # Force inject the standard Demo Backend Hardening Suite variables
     env["GUARDIAN_ADMIN_USER"] = "admin"
-    env["GUARDIAN_ADMIN_PASS"] = "admin-pass"
+    env["GUARDIAN_ADMIN_PASS"] = "guardian26"
     env["GUARDIAN_AUDITOR_USER"] = "auditor"
     env["GUARDIAN_AUDITOR_PASS"] = "auditor-pass"
     env["GUARDIAN_USER_USER"] = "user1"
@@ -248,7 +248,7 @@ def start_stack(python_exe: str, config_path: Path, backend_only: bool = False) 
             guardian_proc = subprocess.Popen(guardian_cmd, cwd=str(ROOT), env=env)
 
         print("Stack started.")
-        print("Dashboard: http://127.0.0.1:8001 (default auth: admin / guardian_default)")
+        print("Dashboard: http://127.0.0.1:8001 (default auth: admin / guardian26)")
         print("Proxy:     http://127.0.0.1:8081")
         print("Press Ctrl+C to stop.")
 

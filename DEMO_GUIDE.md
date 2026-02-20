@@ -19,7 +19,7 @@ In terminal #2:
 cd backend
 python main.py
 ```
-*Access: http://localhost:8001 (admin / guardian_default)*
+*Access: http://localhost:8001 (admin / guardian26)*
 
 ### 3. Start the Guardian Proxy (The Shield)
 In terminal #3:
@@ -62,7 +62,7 @@ python simulate_live_demo.py
 ```
 
 ## ðŸ“Š Step  Dashboard Verification
-Open [http://localhost:8001](http://localhost:8001) (Creds: `admin` / `guardian_default`).
+Open [http://localhost:8001](http://localhost:8001) (Creds: `admin` / `guardian26`).
 - **Visual Polish**: Point out the **Lucide Icons** (Lock for keys, Mail for emails, Shield for security levels) that provide instant context.
 - **100% Recall**: Point out the total requests and how every leak was captured.
 - **Redaction Log**: Highlight that the content shows `[REDACTED_...]` while the events card correctly identifies the *type* of entity (PII, Secret, etc.) with its specific icon.

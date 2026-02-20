@@ -7,7 +7,7 @@ env = os.environ.copy()
 
 # Force inject the exact environment variables required by the Demo Backend Hardening suite
 env["GUARDIAN_ADMIN_USER"] = "admin"
-env["GUARDIAN_ADMIN_PASS"] = "admin-pass"
+env["GUARDIAN_ADMIN_PASS"] = "guardian26"
 env["GUARDIAN_AUDITOR_USER"] = "auditor"
 env["GUARDIAN_AUDITOR_PASS"] = "auditor-pass"
 env["GUARDIAN_USER_USER"] = "user1"

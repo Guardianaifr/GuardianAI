@@ -35,7 +35,7 @@ if errorlevel 1 (
 )
 
 set "GUARDIAN_ADMIN_USER=admin"
-set "GUARDIAN_ADMIN_PASS=admin-pass"
+set "GUARDIAN_ADMIN_PASS=guardian26"
 set "GUARDIAN_AUDITOR_USER=auditor"
 set "GUARDIAN_AUDITOR_PASS=auditor-pass"
 set "GUARDIAN_USER_USER=user1"

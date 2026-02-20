@@ -34,23 +34,7 @@ set "GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS=5"
 set "GUARDIAN_AUTH_LOCKOUT_DURATION_SEC=60"
 
 echo [STARTUP] Booting Guardian Backend and Proxy in the background...
-
-:: Create a dynamic VBS launcher that executes Python directly without losing the environment
-echo Set WshShell = CreateObject("WScript.Shell") > launch_silent.vbs
-echo Set WshEnv = WshShell.Environment("PROCESS") >> launch_silent.vbs
-echo WshEnv("GUARDIAN_ADMIN_USER") = "admin" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_ADMIN_PASS") = "admin-pass" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_AUDITOR_USER") = "auditor" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_AUDITOR_PASS") = "auditor-pass" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_USER_USER") = "user1" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_USER_PASS") = "user-pass" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_JWT_SECRET") = "demo-super-secret-change-me" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_AUTH_LOCKOUT_ENABLED") = "true" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS") = "5" >> launch_silent.vbs
-echo WshEnv("GUARDIAN_AUTH_LOCKOUT_DURATION_SEC") = "60" >> launch_silent.vbs
-echo WshShell.Run "cmd /c .venv312\Scripts\python.exe guardianctl.py start", 0, False >> launch_silent.vbs
-
-cscript //nologo launch_silent.vbs
+%PYTHON_CMD% launch_detached.py
 echo Waiting for the proxy server to initialize (this can take up to 20s for the AI models)...
 
 set MAX_RETRIES=20

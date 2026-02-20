@@ -137,9 +137,11 @@ echo ========================================================
 echo   ALL 15 VALIDATION DEMOS COMPLETED SUCCESSFULLY.
 echo ========================================================
 echo [CLEANUP] Tearing down test backend...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8001') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8081') do taskkill /f /pid %%a >nul 2>&1
 taskkill /f /im uvicorn.exe >nul 2>&1
 %PYTHON_CMD% tools\manage_ports.py >nul 2>&1
-if exist "guardian.db" del "guardian.db"
+if exist "guardian.db" del /f /q "guardian.db"
 echo.
 
 pause

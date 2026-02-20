@@ -11,8 +11,8 @@ services:
     environment:
       # === Security Configuration ===
       # Set your admin password here!
-      # If left as 'guardian_default', you will see a warning in the logs.
-      - GUARDIAN_ADMIN_PASS=guardian_default
+      # If left as 'guardian26', you will see a warning in the logs.
+      - GUARDIAN_ADMIN_PASS=guardian26
 
       # === Operation Configuration ===
       - LOG_LEVEL=INFO

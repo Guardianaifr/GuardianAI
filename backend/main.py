@@ -27,7 +27,7 @@ logger = logging.getLogger("guardian_backend")
 
 # Configuration (Env Vars -> Defaults)
 ADMIN_USER = os.getenv("GUARDIAN_ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("GUARDIAN_ADMIN_PASS", "guardian_default") # Simple default for local demo
+ADMIN_PASS = os.getenv("GUARDIAN_ADMIN_PASS", "guardian26") # Simple default for local demo
 AUDITOR_USER = os.getenv("GUARDIAN_AUDITOR_USER", "").strip()
 AUDITOR_PASS = os.getenv("GUARDIAN_AUDITOR_PASS", "").strip()
 USER_USER = os.getenv("GUARDIAN_USER_USER", "").strip()
@@ -76,7 +76,7 @@ TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
 METRICS_ENABLED = os.getenv("GUARDIAN_METRICS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
 APP_START_TIME = time.time()
 
-if ADMIN_PASS == "guardian_default":
+if ADMIN_PASS == "guardian26":
     logger.warning("USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
 if JWT_SECRET == "guardian_jwt_dev_secret_change_me":
     logger.warning("USING DEFAULT JWT SECRET! Set GUARDIAN_JWT_SECRET environment variable for production.")

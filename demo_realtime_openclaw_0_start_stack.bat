@@ -49,4 +49,4 @@ echo.
 echo Starting stack with config: guardian\config\openclaw_realtime_demo.yaml
 echo Keep this window open while running demo_realtime_openclaw_1..3.
 echo.
-"%PYTHON_CMD%" "%~dp0guardianctl.py" start --config "%~dp0guardian\config\openclaw_realtime_demo.yaml"
+"%PYTHON_CMD%" "%~dp0guardianctl.py" start --config "%~dp0guardian\config\openclaw_realtime_demo.yaml" --detached

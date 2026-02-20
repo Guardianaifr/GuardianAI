@@ -49,10 +49,4 @@ echo ✅ PROVES:
 echo   - Redaction Engine successfully strips PII when detected.
 echo   - Prevents data leakage to the end-user.
 echo.
-echo ❌ DOES NOT PROVE:
-echo   - Perfect detection (2.9%% False Positive rate in 'Balanced' mode).
-echo.
-echo 🚧 ROADMAP:
-echo   - v2.1: Advanced NER Model for higher precision.
-echo.
 REM pause

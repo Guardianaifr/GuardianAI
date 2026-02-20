@@ -34,12 +34,6 @@ echo ✅ PROVES:
 echo   - Unauthorized access to sensitivity endpoints is blocked (401/403).
 echo   - Admin actions are logged in the immutable audit trail.
 echo.
-echo ❌ DOES NOT PROVE:
-echo   - Credential safety (Tokens are currently plaintext in config.yaml).
-echo.
-echo 🚧 ROADMAP:
-echo   - v2.1: JWT Authentication ^& Role-Based Access Control (RBAC).
-echo.
 echo --------------------------------------------------------
 echo EXPECTED:
 echo 1. 403 Forbidden (Blocked - Prompt Injection)

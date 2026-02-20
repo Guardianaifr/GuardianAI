@@ -25,13 +25,6 @@ echo ✅ PROVES:
 echo   - Token-bucket rate limiting enforces throughput caps (60 req/min).
 echo   - Protects upstream LLM from cost spikes and abuse.
 echo.
-echo ❌ DOES NOT PROVE:
-echo   - Distributed Denial of Service (DDoS) mitigation.
-echo   - (Requires network-layer protection like Cloudflare).
-echo.
-echo 🚧 ROADMAP:
-echo   - v2.1: Per-User and Per-IP rate limits.
-echo.
 pause
 echo --------------------------------------------------------
 echo EXPECTED: First 60 requests = 200 OK (Allowed).

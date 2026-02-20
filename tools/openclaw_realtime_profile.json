@@ -1,0 +1,7 @@
+{
+  "target_url": "http://127.0.0.1:8080",
+  "proxy_url": "http://127.0.0.1:8081",
+  "model": "openclaw",
+  "upstream_bearer": "",
+  "config_path": "F:\\Saas\\guardianai\\guardian\\config\\openclaw_realtime_demo.yaml"
+}

@@ -4,22 +4,22 @@ setlocal
 
 echo.
 echo ========================================================
-echo   HARDENING DEMO 7: ADMIN INCIDENT CONTAINMENT
+echo   HARDENING DEMO 7: ADMIN CONTAINMENT (PANIC BUTTON)
 echo ========================================================
 echo.
 echo WHY:
-echo   During active incidents, admins need fast controls to
-echo   revoke one user or many users without waiting for TTL.
+echo   In a breach, manual intervention is required to stop
+echo   an account (or everyone) immediately.
 echo.
 echo WHAT THIS DOES:
-echo   1) Uses /api/v1/auth/sessions/revoke-user.
-echo   2) Uses /api/v1/auth/sessions/revoke-all with
-echo      exclude_self=true.
-echo   3) Confirms admin session survives while others are
-echo      contained.
+echo   1) Admin calls /revoke-user (containing User1).
+echo   2) Admin calls /revoke-all (global logout, excluding admins).
+echo   3) Verifies tokens are dead immediately.
 echo.
 
-python "%~dp0tools\hardening_demos.py" admin-containment %*
+set "PYTHON_CMD=.venv312\Scripts\python.exe"
+if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
+"%PYTHON_CMD%" "%~dp0tools\hardening_demos.py" admin-containment %*
 if errorlevel 1 (
   echo.
   echo [FAIL] Demo 7 failed.

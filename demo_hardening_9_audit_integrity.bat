@@ -18,7 +18,9 @@ echo   3) Lists failed deliveries.
 echo   4) Retries queued failures.
 echo.
 
-python "%~dp0tools\hardening_demos.py" audit %*
+set "PYTHON_CMD=.venv312\Scripts\python.exe"
+if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
+"%PYTHON_CMD%" "%~dp0tools\hardening_demos.py" audit %*
 if errorlevel 1 (
   echo.
   echo [FAIL] Demo 9 failed.

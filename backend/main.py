@@ -1,5 +1,5 @@
-﻿from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status
-from fastapi.responses import HTMLResponse, JSONResponse
+﻿from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status, Form
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -786,7 +786,7 @@ def get_current_principal(
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required",
-        headers={"WWW-Authenticate": "Basic realm=\"GuardianAI\", Bearer"},
+        headers={"WWW-Authenticate": "Basic realm=\"GuardianAI\""},
     )
 
 
@@ -3592,6 +3592,35 @@ async def metrics():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metrics disabled")
     return HTMLResponse(content=_build_metrics_payload(), media_type="text/plain")
 
+@app.post("/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    user_config = _auth_users.get(username)
+    if not user_config or not secrets.compare_digest(password, user_config["password"]):
+        return HTMLResponse(
+            content="""
+            <html><body style="background:#050505;color:#ff003c;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;">
+            <div style="text-align:center;">
+                <h2>ACCESS DENIED</h2>
+                <p>Invalid credentials.</p>
+                <a href="/" style="color:#00ff41;">TRY AGAIN</a>
+            </div>
+            </body></html>
+            """, 
+            status_code=401
+        )
+    
+    role = user_config.get("role", "user")
+    token, _ = _issue_jwt(username, role=role)
+    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    response.set_cookie(key="guardian_token", value=token, httponly=True, samesite="lax")
+    return response
+
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie("guardian_token")
+    return response
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
@@ -3625,12 +3654,45 @@ async def dashboard(
         except Exception:  # noqa: BLE001
             username = None
 
+    # Cookie Auth
     if not username:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Basic realm=\"GuardianAI\", Bearer"},
-        )
+        cookie_token = request.cookies.get("guardian_token")
+        if cookie_token:
+            try:
+                payload = _decode_jwt(cookie_token)
+                username = str(payload.get("sub", "")).strip() or None
+            except Exception:
+                username = None
+
+    if not username:
+        # Return HTML Login Page instead of 401
+        return HTMLResponse(content="""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>GuardianAI // ACCESS CONTROL</title>
+            <style>
+                body { background: #050505; color: #00ff41; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                .login-box { border: 1px solid #00ff41; padding: 40px; width: 300px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); background: #0a0a0a; }
+                h1 { margin: 0 0 20px; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; text-align: center; color: #fff; }
+                input { width: 100%; box-sizing: border-box; background: #000; border: 1px solid #333; color: #fff; padding: 10px; margin-bottom: 15px; font-family: inherit; }
+                input:focus { border-color: #00ff41; outline: none; }
+                button { width: 100%; background: #00ff41; color: #000; border: none; padding: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+                button:hover { background: #00cc33; }
+            </style>
+        </head>
+        <body>
+            <div class="login-box">
+                <h1>System Access</h1>
+                <form action="/login" method="post">
+                    <input type="text" name="username" placeholder="IDENTITY" required autofocus autocomplete="off">
+                    <input type="password" name="password" placeholder="CREDENTIAL" required>
+                    <button type="submit">Initialize Session</button>
+                </form>
+            </div>
+        </body>
+        </html>
+        """)
 
     role = _get_user_role(username)
     _enforce_rbac_and_user_rate_limit(request, {"username": username, "role": role}, {"admin", "auditor", "user"})
@@ -3814,6 +3876,7 @@ async def dashboard(
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button onclick="triggerExport('json')" class="badge" style="cursor:pointer; color: var(--accent-cyan); border-color: var(--accent-cyan);">[ EXPORT JSON ]</button>
+                        <a href="/logout" class="badge" style="text-decoration:none; cursor:pointer; color: var(--accent-red); border-color: var(--accent-red);">[ LOGOUT ]</a>
                         <span class="badge" style="color: var(--accent-yellow); border-color: var(--accent-yellow);">V2.0 SECURE</span>
                     </div>
                 </div>

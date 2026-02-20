@@ -4,22 +4,23 @@ setlocal
 
 echo.
 echo ========================================================
-echo   HARDENING DEMO 5: TARGETED SELF REVOKE BY JTI
+echo   HARDENING DEMO 5: REVOKE BY JTI (SURGICAL)
 echo ========================================================
 echo.
 echo WHY:
-echo   Users need precise containment to kill only one stolen
-echo   token while keeping their current session active.
+echo   If a specific device is stolen, we must revoke ONLY that
+echo   token (via JTI) without logging the user out everywhere.
 echo.
 echo WHAT THIS DOES:
-echo   1) Creates user and auditor JWTs.
-echo   2) Tries invalid operations:
-echo      - revoke current token via self-jti (blocked)
-echo      - revoke other user's token (blocked)
-echo   3) Revokes one owned non-current JTI successfully.
+echo   1) Creates 3 tokens (Current, Stolen, Auditor).
+echo   2) Tries to revoke Current (Fail - Safety Check).
+echo   3) Tries to revoke Auditor (Fail - Tenant Isolation).
+echo   4) Revokes Stolen JTI (Success).
 echo.
 
-python "%~dp0tools\hardening_demos.py" revoke-self-jti %*
+set "PYTHON_CMD=.venv312\Scripts\python.exe"
+if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
+"%PYTHON_CMD%" "%~dp0tools\hardening_demos.py" revoke-self-jti %*
 if errorlevel 1 (
   echo.
   echo [FAIL] Demo 5 failed.

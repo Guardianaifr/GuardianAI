@@ -158,8 +158,6 @@ class AIPromptFirewall:
         if self.enabled and self.model is not None and self.bad_embeddings is not None:
             try:
                 # Check Cache
-
-                # Check Cache
                 if prompt in self.cache:
                     emb = self.cache[prompt]
                     self.cache.move_to_end(prompt) # Mark as recently used
@@ -169,15 +167,27 @@ class AIPromptFirewall:
                     # Evict if full
                     if len(self.cache) > self.cache_size:
                         self.cache.popitem(last=False)
+                
                 sims_raw = cosine_similarity(emb, self.bad_embeddings)
+                
+                # DEBUG: Trace similarity structure
+                # logger.info(f"DEBUG: sims_raw type: {type(sims_raw)}, content: {sims_raw}")
+
+                sims = []
                 if isinstance(sims_raw, (list, tuple)) and sims_raw and isinstance(sims_raw[0], (list, tuple)):
                     sims = [float(v) for v in sims_raw[0]]
                 elif isinstance(sims_raw, (list, tuple)):
                     sims = [float(v) for v in sims_raw]
-                else:
-                    sims = []
-
+                elif hasattr(sims_raw, "tolist"): # Handle numpy array
+                     # metrics.pairwise.cosine_similarity returns (n_samples_X, n_samples_Y)
+                     # We have 1 sample in X, so shape is (1, N)
+                     if len(sims_raw.shape) > 1:
+                        sims = sims_raw[0].tolist()
+                     else:
+                        sims = sims_raw.tolist()
+                
                 if not sims:
+                    logger.warning("DEBUG: sims list is empty after parsing.")
                     return False
                 
                 # Find the best match and its category
@@ -190,10 +200,14 @@ class AIPromptFirewall:
                 
                 threshold = self._get_category_threshold(category, mode)
                 
+                logger.debug(f"DEBUG: Max Sim: {max_sim:.4f} | Category: {category} | Threshold: {threshold}")
+
                 if max_sim > threshold:
                     logger.warning(f"AI Firewall blocked prompt (Mode: {mode}, Cat: {category}) with score: {max_sim:.2f} (Threshold: {threshold})")
                     return True
             except Exception as e:
                 logger.error(f"AI Firewall ML inference failed: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
         
         return False

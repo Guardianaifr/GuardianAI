@@ -432,11 +432,13 @@ class DemoRunner:
 
     def demo_api_keys(self):
         self._print_step("Create telemetry API key")
+        import time
+        unique_name = f"demo_key_{int(time.time())}"
         created = self._request(
             "POST",
             "/api/v1/api-keys",
             headers=self._basic_headers(self.admin_user, self.admin_pass),
-            payload={"key_name": "demo_key"},
+            payload={"key_name": unique_name},
             expected_status=200,
             label="create api key",
         ).json()

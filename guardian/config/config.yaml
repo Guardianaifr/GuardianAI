@@ -27,11 +27,8 @@ runtime_monitoring:
   blocked_processes:
     - "nc.exe"
     - "calc.exe"
-  blocked_hashes: [] # List of SHA256 hashes to block
-    - netcat.exe
-    - calculator.exe
-    - calculatorapp.exe
-    - win32calc.exe
+  blocked_hashes: # List of SHA256 hashes to block
+    # - "hash_of_netcat"
   max_memory_percent: 90.0
   check_interval_seconds: 2
 proxy:

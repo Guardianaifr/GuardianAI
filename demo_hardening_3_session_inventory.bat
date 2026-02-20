@@ -17,7 +17,9 @@ echo   2) Auditor lists sessions from /api/v1/auth/sessions.
 echo   3) Verifies user role is blocked from that endpoint.
 echo.
 
-python "%~dp0tools\hardening_demos.py" session-inventory %*
+set "PYTHON_CMD=.venv312\Scripts\python.exe"
+if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
+"%PYTHON_CMD%" "%~dp0tools\hardening_demos.py" session-inventory %*
 if errorlevel 1 (
   echo.
   echo [FAIL] Demo 3 failed.

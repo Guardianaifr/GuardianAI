@@ -21,7 +21,7 @@ class TestAuditLoggingInternal(unittest.TestCase):
             "details": {"foo": "bar"}
         }
 
-    @patch('requests.post')
+    @patch('backend.main.requests.post')
     def test_forward_external_audit_log_http(self, mock_post):
         # Setup configuration
         with patch.object(backend_main, 'AUDIT_SINK_URL', 'http://mock-sink.com'), \
@@ -59,7 +59,7 @@ class TestAuditLoggingInternal(unittest.TestCase):
             self.assertIn(b'guardian-backend:', message_bytes)
             self.assertIn(b'"action":"test_action"', message_bytes)
 
-    @patch('requests.post')
+    @patch('backend.main.requests.post')
     def test_forward_splunk_audit_log(self, mock_post):
         # Setup configuration
         with patch.object(backend_main, 'AUDIT_SPLUNK_HEC_URL', 'http://splunk:8088'), \
@@ -78,7 +78,7 @@ class TestAuditLoggingInternal(unittest.TestCase):
             self.assertEqual(json_body['sourcetype'], '_json')
             self.assertIn('Authorization', call_args[1]['headers'])
 
-    @patch('requests.post')
+    @patch('backend.main.requests.post')
     def test_forward_datadog_audit_log(self, mock_post):
         # Setup configuration
         with patch.object(backend_main, 'AUDIT_DATADOG_API_KEY', 'dd-key'):

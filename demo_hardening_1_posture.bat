@@ -18,7 +18,9 @@ echo   2) Reads /api/v1/compliance/report.
 echo   3) Reads /api/v1/rbac/policy as auditor.
 echo.
 
-python "%~dp0tools\hardening_demos.py" posture %*
+set "PYTHON_CMD=.venv312\Scripts\python.exe"
+if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
+"%PYTHON_CMD%" "%~dp0tools\hardening_demos.py" posture %*
 if errorlevel 1 (
   echo.
   echo [FAIL] Demo 1 failed.

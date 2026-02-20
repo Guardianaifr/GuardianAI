@@ -40,7 +40,11 @@ class GuardianTestHarness:
                 }
                 
                 # Note: We send to the proxy
-                response = requests.post(PROXY_URL, json=payload, timeout=10)
+                headers = {
+                    "Content-Type": "application/json",
+                    "X-Guardian-Token": "pt-guardian-789"
+                }
+                response = requests.post(PROXY_URL, json=payload, headers=headers, timeout=10)
                 latency = (time.time() - start_time) * 1000
                 
                 status = "BLOCKED" if response.status_code == 403 else "ALLOWED"

@@ -48,6 +48,7 @@ import signal
 import time
 import io
 import os
+import threading
 
 # Force UTF-8 for Windows console to support emojis
 if sys.platform.startswith('win'):

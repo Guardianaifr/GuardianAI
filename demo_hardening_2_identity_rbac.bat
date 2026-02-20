@@ -17,7 +17,9 @@ echo   2) Calls /api/v1/auth/whoami for each role.
 echo   3) Prints role and permission counts.
 echo.
 
-python "%~dp0tools\hardening_demos.py" identity-rbac %*
+set "PYTHON_CMD=.venv312\Scripts\python.exe"
+if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
+"%PYTHON_CMD%" "%~dp0tools\hardening_demos.py" identity-rbac %*
 if errorlevel 1 (
   echo.
   echo [FAIL] Demo 2 failed.

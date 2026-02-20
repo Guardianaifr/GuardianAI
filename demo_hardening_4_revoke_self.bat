@@ -4,22 +4,22 @@ setlocal
 
 echo.
 echo ========================================================
-echo   HARDENING DEMO 4: USER SELF-CONTAINMENT
+echo   HARDENING DEMO 4: SELF-REVOCATION (LOGOUT)
 echo ========================================================
 echo.
 echo WHY:
-echo   A user should be able to contain their own compromise
-echo   without admin intervention by logging out other devices.
+echo   Users must be able to terminate their own sessions (logout)
+echo   or revoke other active sessions (device management).
 echo.
 echo WHAT THIS DOES:
-echo   1) Creates two user JWTs.
-echo   2) Calls /api/v1/auth/sessions/revoke-self with
-echo      exclude_current=true.
-echo   3) Confirms current token still works while the other
-echo      token is revoked.
+echo   1) Creates 2 sessions for User1.
+echo   2) Calls /revoke-self to kill all OTHER sessions.
+echo   3) Verifies current token works, other token fails (401).
 echo.
 
-python "%~dp0tools\hardening_demos.py" revoke-self %*
+set "PYTHON_CMD=.venv312\Scripts\python.exe"
+if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
+"%PYTHON_CMD%" "%~dp0tools\hardening_demos.py" revoke-self %*
 if errorlevel 1 (
   echo.
   echo [FAIL] Demo 4 failed.

@@ -77,8 +77,8 @@ class RuntimeMonitor:
         self.config = config
         monitor_config = config.get('runtime_monitoring', {})
         self.interval = monitor_config.get('check_interval_seconds', 5)
-        self.blocked_processes = set(p.lower() for p in monitor_config.get('blocked_processes', []))
-        self.blocked_hashes = set(h.lower() for h in monitor_config.get('blocked_hashes', []))
+        self.blocked_processes = set(p.lower() for p in (monitor_config.get('blocked_processes') or []))
+        self.blocked_hashes = set(h.lower() for h in (monitor_config.get('blocked_hashes') or []))
         
         self.max_cpu = monitor_config.get('max_cpu_percent', 90.0)
         self.max_memory = monitor_config.get('max_memory_percent', 90.0)

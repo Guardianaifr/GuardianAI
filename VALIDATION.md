@@ -3,7 +3,7 @@
 This document outlines how we validate the security, performance, and reliability of GuardianAI.
 
 ## Current Test Status
-- **Total Tests:** 155+
+- **Total Tests:** 150
 - **Key Coverage:** Authentication, PII Redaction, Adversarial Defense, Audit Logging, RBAC
 - **Status:** PASSING (as of v1.0 Release)
 

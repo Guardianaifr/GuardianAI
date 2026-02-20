@@ -4,21 +4,23 @@ setlocal
 
 echo.
 echo ========================================================
-echo   HARDENING DEMO 8: TELEMETRY API KEY LIFECYCLE
+echo   HARDENING DEMO 8: API KEY LIFECYCLE
 echo ========================================================
 echo.
 echo WHY:
-echo   Key lifecycle controls are required to limit blast
-echo   radius and rotate credentials during incidents.
+echo   Service accounts need API keys, but they must be
+echo   rotatable and revocable.
 echo.
 echo WHAT THIS DOES:
-echo   1) Creates a managed API key.
-echo   2) Lists keys as auditor (read-only role).
-echo   3) Rotates the key material.
-echo   4) Revokes the key.
+echo   1) Admin creates a new API Key.
+echo   2) Auditor lists keys.
+echo   3) Admin rotates the key (new secret, same ID).
+echo   4) Admin revokes the key.
 echo.
 
-python "%~dp0tools\hardening_demos.py" api-keys %*
+set "PYTHON_CMD=.venv312\Scripts\python.exe"
+if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
+"%PYTHON_CMD%" "%~dp0tools\hardening_demos.py" api-keys %*
 if errorlevel 1 (
   echo.
   echo [FAIL] Demo 8 failed.

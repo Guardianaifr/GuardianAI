@@ -4,23 +4,6 @@ import sys
 from flask import Flask, Response, request
 import json
 
-# --- MOCKING STRATEGY ---
-mock_requests = MagicMock()
-mock_input_filter = MagicMock()
-mock_output_validator = MagicMock()
-mock_ai_firewall = MagicMock()
-mock_fast_path = MagicMock()
-mock_rate_limiter = MagicMock()
-mock_threat_feed = MagicMock()
-
-sys.modules['requests'] = mock_requests
-sys.modules['guardrails.input_filter'] = mock_input_filter
-sys.modules['guardrails.output_validator'] = mock_output_validator
-sys.modules['guardrails.ai_firewall'] = mock_ai_firewall
-sys.modules['guardrails.fast_path'] = mock_fast_path
-sys.modules['guardrails.rate_limiter'] = mock_rate_limiter
-sys.modules['guardrails.threat_feed'] = mock_threat_feed
-
 from guardian.runtime.interceptor import GuardianProxy
 
 @pytest.fixture
@@ -36,28 +19,30 @@ def mock_config():
 
 @pytest.fixture
 def proxy(mock_config):
-    # Create the proxy instance
-    # The imports in interceptor.py use our sys.modules mocks
-    # But initialization creates instances of the clases from those mocks
-    
-    # We need to make sure the Classes return our mock instances
-    mock_input_filter.InputFilter.return_value = MagicMock()
-    mock_output_validator.OutputValidator.return_value = MagicMock()
-    mock_ai_firewall.AIPromptFirewall.return_value = MagicMock()
-    
-    expected_rl_instance = MagicMock()
-    expected_rl_instance.is_allowed.return_value = True
-    expected_rl_instance.get_pressure.return_value = 0.0
-    mock_rate_limiter.RateLimiter.return_value = expected_rl_instance
-    
-    mock_threat_feed.ThreatFeed.return_value = MagicMock()
-    
-    p = GuardianProxy(mock_config)
-    
-    # Double check assignments
-    p.rate_limiter = expected_rl_instance
-    
-    return p
+    # We patch sys.modules only during the creation of GuardianProxy
+    with patch('guardian.guardrails.input_filter.InputFilter') as MockIF, \
+         patch('guardian.guardrails.output_validator.OutputValidator') as MockOV, \
+         patch('guardian.guardrails.ai_firewall.AIPromptFirewall') as MockAF, \
+         patch('guardian.guardrails.fast_path.FastPath') as MockFP, \
+         patch('guardian.guardrails.rate_limiter.RateLimiter') as MockRL, \
+         patch('guardian.guardrails.threat_feed.ThreatFeed') as MockTF, \
+         patch('requests.post') as MockPost:
+
+        # Configure instances
+        mock_rl_instance = MockRL.return_value
+        mock_rl_instance.is_allowed.return_value = True
+        mock_rl_instance.get_pressure.return_value = 0.0
+
+        p = GuardianProxy(mock_config)
+        
+        # Attach mocks to proxy for test access
+        p.input_filter = MockIF.return_value
+        p.output_validator = MockOV.return_value
+        p.ai_firewall = MockAF.return_value
+        p.rate_limiter = mock_rl_instance
+        p.threat_feed = MockTF.return_value
+        
+        return p
 
 def test_extract_prompt_json_simple(proxy):
     data = {"prompt": "hello"}

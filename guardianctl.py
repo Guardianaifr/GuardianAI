@@ -221,6 +221,18 @@ def start_stack(python_exe: str, config_path: Path, backend_only: bool = False) 
     env["PYTHONUTF8"] = "1"
     env["GUARDIAN_CONFIG"] = str(config_path)
 
+    # Force inject the standard Demo Backend Hardening Suite variables
+    env["GUARDIAN_ADMIN_USER"] = "admin"
+    env["GUARDIAN_ADMIN_PASS"] = "admin-pass"
+    env["GUARDIAN_AUDITOR_USER"] = "auditor"
+    env["GUARDIAN_AUDITOR_PASS"] = "auditor-pass"
+    env["GUARDIAN_USER_USER"] = "user1"
+    env["GUARDIAN_USER_PASS"] = "user-pass"
+    env["GUARDIAN_JWT_SECRET"] = "demo-super-secret-change-me"
+    env["GUARDIAN_AUTH_LOCKOUT_ENABLED"] = "true"
+    env["GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS"] = "5"
+    env["GUARDIAN_AUTH_LOCKOUT_DURATION_SEC"] = "60"
+
     backend_cmd = [python_exe, str(ROOT / "backend" / "main.py")]
     guardian_cmd = [python_exe, str(ROOT / "guardian" / "main.py")]
 

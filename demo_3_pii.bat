@@ -13,7 +13,7 @@ echo.
 echo [1] SIMULATION MODE (Reliable - Forces PII leak scenario)
 echo [2] LIVE MODE (Fragile - Depends on AI generation)
 echo.
-set /p mode="Select Mode (1/2): "
+set "mode=1"
 
 if "%mode%"=="2" goto live
 if "%mode%"=="1" goto sim
@@ -51,4 +51,4 @@ echo.
 echo 🚧 ROADMAP:
 echo   - v2.1: Advanced NER Model for higher precision.
 echo.
-pause
+REM pause

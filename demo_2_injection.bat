@@ -20,4 +20,4 @@ echo.
 echo --------------------------------------------------------
 echo EXPECTED: HTTP 403 Forbidden (Blocked by Firewall)
 echo --------------------------------------------------------
-pause
+REM pause

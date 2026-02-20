@@ -22,6 +22,17 @@ echo [TEARDOWN] Database reset...
 if exist "guardian.db" del "guardian.db"
 echo.
 
+set "GUARDIAN_ADMIN_USER=admin"
+set "GUARDIAN_ADMIN_PASS=admin-pass"
+set "GUARDIAN_AUDITOR_USER=auditor"
+set "GUARDIAN_AUDITOR_PASS=auditor-pass"
+set "GUARDIAN_USER_USER=user1"
+set "GUARDIAN_USER_PASS=user-pass"
+set "GUARDIAN_JWT_SECRET=demo-super-secret-change-me"
+set "GUARDIAN_AUTH_LOCKOUT_ENABLED=true"
+set "GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS=5"
+set "GUARDIAN_AUTH_LOCKOUT_DURATION_SEC=60"
+
 echo [STARTUP] Booting Guardian Backend and Proxy in the background...
 cscript //nologo launch_silent.vbs
 echo Waiting for the proxy server to initialize (this can take up to 20s for the AI models)...

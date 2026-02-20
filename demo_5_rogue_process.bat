@@ -42,10 +42,4 @@ echo ✅ PROVES:
 echo   - Guardian monitors and kills explicitly blacklisted processes.
 echo   - Reduces dwell time for known malicious tools.
 echo.
-echo ❌ DOES NOT PROVE:
-echo   - "Un-hackable" server (Name-based blocking can be bypassed by renaming).
-echo.
-echo 🚧 ROADMAP:
-echo   - v2.2: Hash-based execution control (signature verification).
-echo.
 pause

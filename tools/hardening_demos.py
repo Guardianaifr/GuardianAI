@@ -595,7 +595,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", default="openclaw")
     parser.add_argument("--upstream-bearer", default="")
     parser.add_argument("--admin-user", default="admin")
-    parser.add_argument("--admin-pass", default="admin-pass")
+    parser.add_argument("--admin-pass", default="guardian26")
     parser.add_argument("--auditor-user", default="auditor")
     parser.add_argument("--auditor-pass", default="auditor-pass")
     parser.add_argument("--user-user", default="user1")

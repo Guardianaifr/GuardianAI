@@ -14,12 +14,15 @@ set PYTHONIOENCODING=utf-8
 set "PYTHON_CMD=.venv312\Scripts\python.exe"
 if not exist "%PYTHON_CMD%" set "PYTHON_CMD=python"
 
-echo [TEARDOWN] Ensuring clean port state (8001 / 8081)...
+echo [TEARDOWN] Ensuring clean port state ^(8001 / 8081^)...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8001') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8081') do taskkill /f /pid %%a >nul 2>&1
 taskkill /f /im uvicorn.exe >nul 2>&1
-taskkill /f /im python.exe /fi "WINDOWTITLE eq Guardian*" >nul 2>&1
 %PYTHON_CMD% tools\manage_ports.py >nul 2>&1
+ping 127.0.0.1 -n 3 >nul
+
 echo [TEARDOWN] Database reset...
-if exist "guardian.db" del "guardian.db"
+if exist "guardian.db" del /f /q "guardian.db"
 echo.
 
 set "GUARDIAN_ADMIN_USER=admin"

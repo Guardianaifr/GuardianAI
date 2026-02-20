@@ -13,7 +13,11 @@ echo.
 echo [1] SIMULATION MODE (Reliable - Forces PII leak scenario)
 echo [2] LIVE MODE (Fragile - Depends on AI generation)
 echo.
-set "mode=1"
+echo:: ---
+:: AUTOMATION OVERRIDE:
+:: Force "Live Mode" (2) so the script runs headlessly without polling for input
+set mode=2
+:: ---
 
 if "%mode%"=="2" goto live
 if "%mode%"=="1" goto sim

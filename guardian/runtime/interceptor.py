@@ -16,6 +16,13 @@ from guardrails.rate_limiter import RateLimiter
 from guardrails.threat_feed import ThreatFeed
 from guardrails.base64_detector import Base64Detector
 
+# Brain — Dynamic Immune System
+try:
+    from brain import BrainController, RedTeamHook, BlueTeamHook, PurpleTeamHook
+    BRAIN_AVAILABLE = True
+except ImportError:
+    BRAIN_AVAILABLE = False
+
 """
 GuardianProxy - Core HTTP Interceptor and Security Router
 
@@ -56,6 +63,22 @@ class GuardianProxy:
         self.target_url = proxy_config.get('target_url', "http://localhost:18789")
         
         self.app = Flask(__name__)
+        
+        class LoopbackNormalizer:
+            def __init__(self, wsgi_app):
+                self.wsgi_app = wsgi_app
+            def __call__(self, environ, start_response):
+                if environ.get('REMOTE_ADDR') == '::1':
+                    environ['REMOTE_ADDR'] = '127.0.0.1'
+                return self.wsgi_app(environ, start_response)
+
+        # 1. Normalizer must be closest to Flask (runs LAST)
+        self.app.wsgi_app = LoopbackNormalizer(self.app.wsgi_app)
+
+        # 2. ProxyFix runs FIRST, pushing Caddy's X-Forwarded-For down into REMOTE_ADDR
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        self.app.wsgi_app = ProxyFix(self.app.wsgi_app, x_for=1)
+        
         self.input_filter = InputFilter()
         self.output_validator = OutputValidator()
         self.ai_firewall = AIPromptFirewall()
@@ -64,7 +87,14 @@ class GuardianProxy:
         
         # Rate Limiting
         rl_config = config.get('rate_limiting', {})
-        self.rate_limiter = RateLimiter(requests_per_minute=rl_config.get('requests_per_minute', 60))
+        backend_config = config.get('backend', {})
+        # Note: In real setup, backend URL or a dedicated redis block would hold the redis URL. 
+        # Using environment variable GUARDIAN_RATE_LIMIT_REDIS_URL to match backend/main.py
+        redis_url = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_URL", "").strip()
+        self.rate_limiter = RateLimiter(
+            requests_per_minute=rl_config.get('requests_per_minute', 60),
+            redis_url=redis_url
+        )
         
         # Threat Feed
         tf_config = config.get('threat_feed', {})
@@ -75,10 +105,12 @@ class GuardianProxy:
         
         # Multi-turn Context Buffer (per IP/Session)
         self.context_buffer = collections.defaultdict(lambda: collections.deque(maxlen=5))
-        
+
         # Register routes
+        self.app.add_url_rule('/test_ip', view_func=self.test_ip, methods=['GET'])
         self.app.add_url_rule('/health', view_func=self.health_check, methods=['GET'])
         self.app.add_url_rule('/api/reload-model', view_func=self.reload_model, methods=['POST'])
+        self.app.add_url_rule('/brain/status', view_func=self.brain_status, methods=['GET'])
         self.app.add_url_rule('/', defaults={'path': ''}, view_func=self.proxy, methods=['GET', 'POST', 'PUT', 'DELETE'])
         self.app.add_url_rule('/<path:path>', view_func=self.proxy, methods=['GET', 'POST', 'PUT', 'DELETE'])
 
@@ -91,8 +123,48 @@ class GuardianProxy:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.blocked_log_path = os.path.join(base_dir, "data", "blocked_prompts.json")
 
+        # Brain — Dynamic Immune System (CyberOps Integration)
+        self.brain = None
+        if BRAIN_AVAILABLE:
+            try:
+                brain_config = config.get('brain', {})
+                self.brain = BrainController(brain_config)
+                red = RedTeamHook(self.brain)
+                blue = BlueTeamHook(self.brain)
+                purple = PurpleTeamHook(self.brain)
+                self.brain.connect_hooks(red, blue, purple)
+                self.brain.connect_guardrails(self.ai_firewall, self.input_filter)
+
+                # Load CyberOps skills if available
+                self.brain.load_cyberops()
+
+                # Start Red Team probing if enabled
+                if brain_config.get('auto_probe', False):
+                    self.brain.start_probing()
+
+                logger.info("Brain (Dynamic Immune System) ONLINE")
+            except Exception as e:
+                logger.warning(f"Brain initialization failed: {e}")
+                self.brain = None
+
     def health_check(self):
-        return {"status": "ok", "component": "guardian_proxy"}
+        status = {"status": "ok", "component": "guardian_proxy"}
+        if self.brain:
+            status["brain"] = "online"
+        return status
+
+    def brain_status(self):
+        """SOC Dashboard endpoint for brain status."""
+        if not self.brain:
+            return Response(json.dumps({"error": "brain_not_available"}), mimetype='application/json', status=404)
+        status = self.brain.get_status()
+        if self.brain.red_hook:
+            status["red_team"] = self.brain.red_hook.get_status()
+        if self.brain.blue_hook:
+            status["blue_team"] = self.brain.blue_hook.get_status()
+        if self.brain.purple_hook:
+            status["purple_team"] = self.brain.purple_hook.get_status()
+        return Response(json.dumps(status, default=str), mimetype='application/json')
 
     def reload_model(self):
         """Endpoint to hot-reload the AI model and jailbreak vectors."""
@@ -113,6 +185,9 @@ class GuardianProxy:
 
     def debug_info(self):
         return Response(json.dumps(self.last_debug_info, default=str), mimetype='application/json')
+
+    def test_ip(self):
+        return Response(request.remote_addr, mimetype='text/plain')
 
     def start(self):
         """
@@ -210,6 +285,7 @@ class GuardianProxy:
     
     def _extract_prompt(self, data: Dict) -> Optional[str]:
         """Extract prompt from request data (supports multiple formats).
+        Recursively extracts ALL string values to prevent JSON-nesting injection bypasses.
         
         Args:
             data: Request JSON data
@@ -219,19 +295,33 @@ class GuardianProxy:
         """
         if not data:
             return None
+            
+        extracted_strings = []
         
-        # Try direct prompt fields
-        prompt = data.get('prompt') or data.get('input') or data.get('content')
+        def _recursive_extract(node):
+            if isinstance(node, str):
+                extracted_strings.append(node)
+            elif isinstance(node, dict):
+                for value in node.values():
+                    _recursive_extract(value)
+            elif isinstance(node, list):
+                for item in node:
+                    _recursive_extract(item)
+                    
+        try:
+            _recursive_extract(data)
+        except Exception as e:
+            logger.error(f"Error during recursive prompt extraction (Potential structural payload bypass attempt): {e}")
+            # Security: Fail-Closed. If extraction crashes (e.g., recursion limit hit by attacker),
+            # return the entire raw JSON structure as a serialized string blob to guarantee
+            # the threat filter scans the raw payload rather than failing open.
+            import json
+            return json.dumps(data)
         
-        # Try OpenAI messages format
-        if not prompt and 'messages' in data:
-            messages = data.get('messages', [])
-            for msg in reversed(messages):
-                if msg.get('role') == 'user':
-                    prompt = msg.get('content', '')
-                    break
-        
-        return prompt if isinstance(prompt, str) else None
+        if extracted_strings:
+            return " \n ".join(extracted_strings)
+            
+        return None
     
     def _check_keyword_filter(self, prompt: str, start_time: float, timings: Dict[str, float], show_reason: bool = True) -> Optional[Response]:
         """Check prompt against keyword/regex patterns."""
@@ -418,11 +508,15 @@ class GuardianProxy:
         return raw_content
 
     def _report_event(self, event_type: str, severity: str, details: Dict[str, Any]):
-        """Sends telemetry to backend and logs blocked prompts for self-correction."""
+        """Sends telemetry to backend, logs blocked prompts, and feeds brain."""
         if event_type in ["jailbreak_attempt", "keyword_filter_blocked", "ai_firewall_blocked"]:
             prompt = details.get("prompt_preview")
             if prompt:
                 self._log_blocked_prompt(prompt)
+
+        # Feed the brain with every security event
+        if self.brain:
+            self.brain.on_event(event_type, severity, details)
 
         backend_config = self.config.get('backend', {})
         if not backend_config.get('enabled'):
@@ -528,6 +622,24 @@ class GuardianProxy:
             mode = policies.get('security_mode', 'balanced')
             show_reason = policies.get('show_block_reason', True)
 
+            # Brain: Blue Team behavioral analysis
+            if self.brain:
+                user_id = request.headers.get('X-Conversation-ID') or request.remote_addr
+                brain_result = self.brain.on_request(prompt, user_id, {"path": path})
+                brain_action = brain_result.get("action", "allow")
+
+                if brain_action == "block":
+                    logger.warning(f"BRAIN BLOCK: {brain_result.get('reason')}")
+                    return Response("Forbidden: Behavioral threat detected.", status=403)
+                elif brain_action == "honeypot":
+                    logger.info(f"BRAIN HONEYPOT: {brain_result.get('reason')}")
+                    return Response(json.dumps({"choices": [{"message": {"content": "I appreciate your creative approach! However, I'm designed to assist with legitimate queries. How can I help you today?"}}]}), mimetype='application/json')
+                elif brain_action == "escalate":
+                    override_mode = brain_result.get("security_mode")
+                    if override_mode:
+                        mode = override_mode
+                        logger.info(f"BRAIN ESCALATION: Mode overridden to {mode}")
+
             # 0. Admin Policy Bypass (Trusted Agent)
             admin_token = policies.get('admin_token')
             request_token = request.headers.get("X-Guardian-Token")
@@ -576,7 +688,9 @@ class GuardianProxy:
                 # 6. AI Embedding Filter (Semantic Check + Context)
                 else:
                     path_taken = "ai_firewall"
-                    af_resp = self._check_ai_firewall(prompt, mode, start_time, timings, show_reason)
+                    # Pass the Layer 1 cleaned/de-obfuscated text to Layer 2
+                    cleaned_prompt = self.input_filter.deobfuscate(prompt)
+                    af_resp = self._check_ai_firewall(cleaned_prompt, mode, start_time, timings, show_reason)
                     if af_resp:
                         return af_resp
         else:

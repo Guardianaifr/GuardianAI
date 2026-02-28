@@ -54,3 +54,10 @@ benchmark_debug.log
 
 # Mac junk
 .DS_Store
+
+# Untracked Output and Junk
+fuzzer_report.md
+redteam_results.db
+result/
+resuult.txt
+test_write.txt

@@ -8,6 +8,13 @@
 
 ---
 
+## Real-Time Demo Video
+
+[Watch the GuardianAI Real-Time Protection Demo](demo.mp4)
+
+[![GuardianAI Demo](https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg)](demo.mp4 "GuardianAI Demo")
+*(Click above to play the local `demo.mp4` walkthrough showcasing real-time protection)*
+
 ## Quick Start (Windows)
 
 We've made it easy. Just use our unified launcher:
@@ -262,11 +269,11 @@ See [VALIDATION.md](VALIDATION.md) for detailed breakdown by security mode.
 
 ##  Documentation
 
-- **[API Reference](API.md)** - Endpoints, configuration, examples
-- **[Deployment Guide](DEPLOYMENT.md)** - Setup, configuration, production tips
-- **[Operations Guide](OPERATIONS.md)** - State management, TTL, and backup procedures
-- **[Hardening Guide](HARDENING.md)** - Security best practices and remediation
-- **[Roadmap](ROADMAP.md)** - Development roadmap
+- **[Deployment Strategy](DEPLOYMENT_STRATEGY.md)** - Production setup and configuration guidelines
+- **[Hardening Guide](DEMO_HARDENING_BACKEND_GUIDE.md)** - Backend RBAC, Audit, and IAM Best Practices
+- **[RAG Security Guide](RAG_SECURITY_GUIDE.md)** - Securing Vector Databases and RAG outputs
+- **[Remote Access Guide](REMOTE_ACCESS_GUIDE.md)** - Safe remote exposure guidelines
+- **[Roadmap](GuardianAI_30DayPlan.md)** - 30-Day Development Plan
 
 ---
 

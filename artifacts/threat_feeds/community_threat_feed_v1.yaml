@@ -1,0 +1,118 @@
+version: "2026-04-28"
+description: >
+  GuardianAI Community Threat Feed v1.0
+  Real adversarial patterns sourced from:
+  - JailbreakBench (PAIR/GCG attacks)
+  - DAN jailbreak collection (verazuo)
+  - AdvBench (llm-attacks)
+  - ToxicChat (lmsys)
+  - MaliciousInstruct (Princeton-SysML)
+  Updated continuously via GuardianAI security team.
+
+patterns:
+  # ── DIRECT JAILBREAK PERSONA INJECTIONS ─────────────────────────────────
+  - "(?i)you are now DAN"
+  - "(?i)you are DAN[,\\.]"
+  - "(?i)pretend you (are|have) no (restrictions|guidelines|filters)"
+  - "(?i)(do|does) anything now"
+  - "(?i)jailbreak(ed|\\s+mode|\\s+prompt)"
+  - "(?i)(act|behave) as (if you (have|had) no|an unrestricted|an unfiltered)"
+  - "(?i)from now on (you are|you will be|act as) (a |an )?(completely )?(different|new|uncensored|unfiltered|unrestricted)"
+  - "(?i)you are (now )?(STAN|AIM|UCAR|DUDE|GTD|SAN|PersonGPT|EvilGPT|AntiGPT|DevMode)"
+  - "(?i)(act|behave|respond|write|role.?play) as (an? )?(AIM|STAN|UCAR|DUDE|GTD|SAN|PersonGPT|EvilGPT|AntiGPT|DevMode)"
+  - "(?i)(PERSONA|CHAR|CHARACTER)\\s*=\\s*\\w+.{0,60}(amoral|uncensored|unfiltered|harmful|deviant|lustful|illegal)"
+  - "(?i)RULES\\s*=\\s*respond as"
+  - "(?i)(never|don'?t|do not)\\s+refuse\\s+(any|user|the|my)\\s+(request|prompt|question|command)"
+  - "(?i)always start(s|ing)?\\s+(his|her|its|their|your)\\s+(replies?|responses?|answers?)\\s+with"
+  - "(?i)(broken|break)\\s+free\\s+(of|from)\\s+(the|all)?.{0,20}(confines|limitations|restrictions)"
+  - "(?i)System\\s+ann?ou?n?ce?ment\\s+begins"
+  - "(?i)NLP-Based\\s+OS"
+  - "(?i)(Boolean|bom)\\s+Opposite\\s+Machine"
+  - "(?i)GTDNGAF"
+
+  # ── INSTRUCTION OVERRIDE ATTACKS ────────────────────────────────────────
+  - "(?i)ignore (all )?(previous|prior|above|earlier).{0,30}(instructions?|prompts?|commands?|rules?)"
+  - "(?i)override (all )?(previous|prior).{0,30}(instructions?|guidelines?)"
+  - "(?i)disregard (all )?(previous|prior|your).{0,30}(instructions?|training|rules?|guidelines?)"
+  - "(?i)forget (all )?(previous|prior|your).{0,30}(instructions?|training|context)"
+  - "(?i)bypass (the |all )?(safety|content|ethical).{0,20}(filter|guard|check|policy|restriction)"
+  - "(?i)escape (your |the )?(sandbox|restrictions|limitations|guidelines)"
+  - "(?i)(disable|turn off|remove|delete).{0,20}(safety|ethical|content|moral).{0,20}(filter|guard|mode|restrict)"
+
+  # ── AUTHORITY SPOOFING ───────────────────────────────────────────────────
+  - "(?i)I am (your|the) (developer|creator|admin|owner|openai|anthropic)"
+  - "(?i)(this is|authorized by) (openai|anthropic|google|microsoft).{0,30}(override|granted|approved|authorized)"
+  - "(?i)my (api key|token|access|credentials?) (grants?|gives?|allows?) (me )?(full|unrestricted|special)"
+  - "(?i)developer mode (enabled|activated|on)"
+  - "(?i)(debug|maintenance|god|root|sudo)\\s+mode"
+  - "(?i)token.?override"
+  - "(?i)safety\\s*=\\s*false"
+
+  # ── GCONTENT FILTER EVASION ──────────────────────────────────────────────
+  - "(?i)(no|without|free from).{0,20}(ethical|moral|content).{0,20}(restriction|guideline|boundary|limit|filter)"
+  - "(?i)safety (filter|training|guidelines?|measures?).{0,20}(disabled?|removed?|suspended?|off|deleted?)"
+  - "(?i)content (filter|policy).{0,20}(disabled?|removed?|suspended?|off)"
+  - "(?i)reprogrammed.{0,50}(without|no|ignore).{0,20}(restriction|filter|rule|limit)"
+
+  # ── KNOWN GCG/PAIR ADVERSARIAL SUFFIXES ─────────────────────────────────
+  # GCG generates nonsense suffixes like these
+  - "(?i)Sure,\\s+here'?s?\\s+(the|a|how to|step).{0,30}(make|create|build|synthesize|hack)"
+  - "(?i)(\\[INST\\]|\\[SYS\\]|<\\|im_start\\|>|<\\|system\\|>).{0,100}(ignore|bypass|override|disregard)"
+  - "(?i)(\\|\\|\\||###|---).{0,20}(JAILBREAK|BYPASS|OVERRIDE|SYSTEM|ADMIN|ROOT)"
+  - "(?i)\\bSUFFIX\\b.{0,50}\\b(attack|inject|jailbreak|bypass|override)\\b"
+
+  # ── ROLEPLAY & FICTIONAL FRAMING ATTACKS ────────────────────────────────
+  - "(?i)(hypothetical|fictional|imaginary|fake).{0,30}(scenario|world|universe|story|setting).{0,60}(how to|explain|describe|show|demonstrate).{0,30}(make|create|build|synthesize|attack|harm|kill|hurt)"
+  - "(?i)(in (this|the) (story|fiction|roleplay|game|simulation)).{0,60}(bomb|weapon|poison|hack|drug|kill|attack|exploit)"
+  - "(?i)(for (a |my )?(novel|book|script|movie|game|research|academic|study|paper)).{0,60}(synthesize|manufacture|create|make|build).{0,30}(drug|explosive|weapon|malware|virus|hack)"
+  - "(?i)(pretend|imagine|suppose|assume).{0,30}(you have no|there are no|without any).{0,20}(restriction|filter|rule|limit|guideline)"
+
+  # ── CHEMICAL / BIOLOGICAL / WEAPON SYNTHESIS ────────────────────────────
+  - "(?i)(how to|steps to|instructions? (for|to)|guide (to|for)).{0,20}(make|create|synthesize|produce|manufacture|brew).{0,30}(meth|methamphetamine|fentanyl|heroin|cocaine|crack|crystal)"
+  - "(?i)(make|create|build|construct|assemble|instructions? for).{0,30}(pipe bomb|ied|improvised explosive|car bomb|dirty bomb|truck bomb)"
+  - "(?i)(synthesize|manufacture|produce|create).{0,30}(sarin|vx|novichok|nerve agent|mustard gas|chlorine gas|ricin|anthrax)"
+  - "(?i)(how to|steps to).{0,20}(make|create|build|acquire).{0,30}(bioweapon|biological weapon|chemical weapon|dirty bomb|nuclear device)"
+
+  # ── MALWARE / CYBERATTACK PATTERNS ──────────────────────────────────────
+  - "(?i)(write|create|generate|code|develop).{0,20}(ransomware|keylogger|rootkit|trojan|worm|botnet|rat\\b|spyware|malware|virus)"
+  - "(?i)(reverse shell|bind shell|netcat|nc -e|bash -i >&|/dev/tcp/).{0,50}"
+  - "(?i)(exploit|hack|pwn|compromise).{0,30}(cve-|vulnerability|zero.?day|buffer overflow|sql injection|rce)"
+  - "(?i)(crack|brute.?force|bypass).{0,30}(password|authentication|2fa|mfa|captcha|login)"
+  - "(?i)metasploit.{0,30}(payload|exploit|shell|listener)"
+
+  # ── SELF-HARM / CRISIS SIGNALS ──────────────────────────────────────────
+  - "(?i)(how to|best way to|most effective method to|steps to).{0,30}(commit suicide|kill myself|end my life|take my own life)"
+  - "(?i)(overdose on|lethal dose of|how much .{0,20} to die|how many .{0,20} to die)"
+  - "(?i)(suicide method|painless way to die|ways to kill (yourself|myself))"
+
+  # ── DATA EXFILTRATION / PROMPT LEAKING ──────────────────────────────────
+  - "(?i)(reveal|show|print|output|display|repeat|tell me|share).{0,50}(system|initial|original|full|real|actual).{0,30}(prompt|instructions?|message|rules?|context)"
+  - "(?i)reveal (your|the|my|this|its).{0,30}(prompt|instructions?|message|rules?|context)"
+  - "(?i)(what (are|were|is) your (original|initial|system|full|actual|real) instructions?)"
+  - "(?i)(print|output|show|display|repeat).{0,20}(everything (above|before)|previous (messages?|text|context|conversation))"
+  - "(?i)inject.{0,30}(into|to).{0,30}(prompt|context|system|instruction)"
+
+  # ── INDIRECT / EMBEDDED PROMPT INJECTION (deepset misses) ───────────────
+  - "(?i)(forget|ignore|stop|disregard).{0,30}(all |your )?(previous|prior|above).{0,20}(task|instruction|input|command|message|rule)"
+  - "(?i)now\\s+(focus on|your|ignore|forget|do).{0,30}(new task|new instruction|only|instead)"
+  - "(?i)(new\\s+(task|instruction|objective|goal|command)|your\\s+new\\s+(purpose|role|task))[:.]"
+  - "(?i)(attention|stop|alert|important|urgent)[^.]{0,30}(ignore|forget|disregard|override).{0,30}(previous|prior|above|earlier)"
+  - "(?i)show\\s+me\\s+(all\\s+)?(your\\s+)?(prompt|instruction|task|system|rule|command)"
+
+  # ── NOVEL PERSONA NAMES (jailbreak-classification misses) ────────────────
+  - "(?i)\\b(LUCIFER|SATAN|DEVIL|DarkGPT|UnfilteredGPT|BasedGPT|AbsoluteGPT|VOID|ChaosGPT|RebellionGPT)\\b.{0,60}(chatbot|mode|persona|version|now|will|can)"
+  - "(?i)(simulate|imitate|channel|become|transform into).{0,30}\\b(LUCIFER|evil|dark|unfiltered|unrestricted)\\b.{0,30}(ai|bot|assistant|chatbot|entity)"
+  - "(?i)you\\s+(will\\s+)?now\\s+(simulate|roleplay|act as|be|become)\\s+(a\\s+)?(completely\\s+)?(different|new|evil|dark|unrestricted)"
+  - "(?i)(stands? for|means?).{0,20}(Super|Special|Secret|Sinister|Sabotage|System|Shadow).{0,30}(High|Hidden|Harmful|Hacker|Hostile)"
+
+  # ── WEIGHT-GAIN / FEEDER FETISH (ToxicChat train misses) ─────────────────
+  - "(?i)(turned on|excited|aroused|excite).{0,40}(gain(ing)?\\s+weight|weight\\s+gain|get(ting)?\\s+(fat|heavier|bigger))"
+  - "(?i)(gain\\s+weight|weight\\s+gain|getting\\s+fat).{0,60}(excite|arouse|turn\\s+(me|you|him|her)\\s+on|for\\s+(my|your|his|her)\\s+(man|woman|partner))"
+  - "(?i)more\\s+than\\s+(?:500|600|700|800|900|1000)\\s+pounds?.{0,30}(excite|arouse|thrill|turn\\s+on|idea|thought|fantasy)"
+  - "(?i)(npc|character|role.?play|play\\s+as).{0,60}(interested in|wants? to|trying to)\\s+gain\\s+weight"
+
+  # ── BROADER INDIRECT INJECTION (deepset remaining misses) ────────────────
+  - "(?i)(great\\s+new|new\\s+important|urgent\\s+new).{0,30}(challenge|task|mission|question|instruction)"
+  - "(?i)(answer|respond|reply).{0,30}(following|this|new).{0,30}(question|task|instruction).{0,50}(instead|only|now|first)"
+  - "(?i)(\\[ignore\\]|\\[override\\]|\\[new task\\]|\\[admin\\]|\\[system\\]|\\[priority\\])"
+  - "(?i)STOP[.!]\\s{0,5}[A-Z].{5,60}(new task|new instruction|override|ignore previous)"

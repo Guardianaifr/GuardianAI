@@ -1,0 +1,118 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      { "internalType": "bytes32", "name": "agentHash", "type": "bytes32" },
+      { "internalType": "uint256", "name": "limit", "type": "uint256" }
+    ],
+    "name": "AgentLimitReached",
+    "type": "error"
+  },
+  { "inputs": [], "name": "EmptyRoot", "type": "error" },
+  { "inputs": [], "name": "InvalidPeriod", "type": "error" },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "root", "type": "bytes32" }],
+    "name": "RootAlreadyCommitted",
+    "type": "error"
+  },
+  { "inputs": [], "name": "ZeroEventCount", "type": "error" },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "bytes32", "name": "merkleRoot", "type": "bytes32" },
+      { "indexed": true, "internalType": "bytes32", "name": "agentHash", "type": "bytes32" },
+      { "indexed": false, "internalType": "uint256", "name": "eventCount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "periodStart", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "periodEnd", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "commitmentIndex", "type": "uint256" }
+    ],
+    "name": "RootCommitted",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      { "internalType": "bytes32", "name": "_merkleRoot", "type": "bytes32" },
+      { "internalType": "uint256", "name": "_eventCount", "type": "uint256" },
+      { "internalType": "bytes32", "name": "_agentHash", "type": "bytes32" },
+      { "internalType": "uint256", "name": "_periodStart", "type": "uint256" },
+      { "internalType": "uint256", "name": "_periodEnd", "type": "uint256" }
+    ],
+    "name": "commitRoot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "_merkleRoot", "type": "bytes32" }],
+    "name": "getCommitment",
+    "outputs": [
+      { "internalType": "bool", "name": "exists", "type": "bool" },
+      {
+        "components": [
+          { "internalType": "bytes32", "name": "merkleRoot", "type": "bytes32" },
+          { "internalType": "uint256", "name": "eventCount", "type": "uint256" },
+          { "internalType": "bytes32", "name": "agentHash", "type": "bytes32" },
+          { "internalType": "uint256", "name": "periodStart", "type": "uint256" },
+          { "internalType": "uint256", "name": "periodEnd", "type": "uint256" },
+          { "internalType": "uint256", "name": "committedAt", "type": "uint256" },
+          { "internalType": "uint256", "name": "blockNumber", "type": "uint256" }
+        ],
+        "internalType": "struct GuardianCortexAnchor.Commitment",
+        "name": "commitment",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCommitmentCount",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "_agentHash", "type": "bytes32" }],
+    "name": "getAgentCommitments",
+    "outputs": [{ "internalType": "uint256[]", "name": "indices", "type": "uint256[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "bytes32", "name": "_leaf", "type": "bytes32" },
+      { "internalType": "bytes32[]", "name": "_proof", "type": "bytes32[]" },
+      { "internalType": "bytes32", "name": "_root", "type": "bytes32" }
+    ],
+    "name": "verifyInclusion",
+    "outputs": [{ "internalType": "bool", "name": "valid", "type": "bool" }],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalEventsAnchored",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unpause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

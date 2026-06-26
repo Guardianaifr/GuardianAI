@@ -1,0 +1,33 @@
+{
+  "passed": 25,
+  "total": 25,
+  "results": {
+    "webhook_string_patterns": "PASS",
+    "webhook_dict_patterns": "PASS",
+    "webhook_rejects_invalid": "PASS",
+    "webhook_rejects_duplicates": "PASS",
+    "webhook_mixed_payload": "PASS",
+    "webhook_blocks_unseen": "PASS",
+    "prometheus_format_valid": "PASS",
+    "prometheus_severity_breakdown": "PASS",
+    "prometheus_match_counter": "PASS",
+    "prometheus_source_breakdown": "PASS",
+    "prometheus_feed_age": "PASS",
+    "test_prompt_detects_known": "PASS",
+    "test_prompt_safe_text": "PASS",
+    "test_prompt_no_side_effects": "PASS",
+    "test_prompt_unseen_attacks": "PASS",
+    "test_prompt_benign_clean": "PASS",
+    "export_yaml_valid": "PASS",
+    "export_contains_all": "PASS",
+    "export_excludes_expired": "PASS",
+    "export_reimport_roundtrip": "PASS",
+    "stale_never_updated": "PASS",
+    "stale_when_old": "PASS",
+    "not_stale_when_fresh": "PASS",
+    "stale_boundary": "PASS",
+    "full_pipeline_unseen": "PASS"
+  },
+  "unseen_malicious": 98,
+  "unseen_benign": 0
+}

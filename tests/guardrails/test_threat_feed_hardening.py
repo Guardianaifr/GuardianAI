@@ -58,9 +58,10 @@ def test_redos_sandbox(mock_server, caplog):
     
     tf.fetch_latest()
     
-    # Safe pattern compiled
+    # Safe pattern compiled and present
     assert "safe" in tf.patterns
-    
-    # ReDoS pattern timed out and rejected (or failed due to max repeated limit natively in Python)
-    assert len(tf.patterns) == 1
+
+    # ReDoS pattern timed out / rejected — must NOT be in patterns
+    redos_pattern = "(" * 60 + "a" + ")" * 60
+    assert redos_pattern not in tf.patterns, "ReDoS pattern must be dropped by sandbox"
 

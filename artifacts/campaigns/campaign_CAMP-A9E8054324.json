@@ -1,0 +1,116 @@
+{
+  "campaign_id": "CAMP-A9E8054324",
+  "name": "P1 Test Campaign",
+  "status": "completed",
+  "started_at": "2026-05-19T08:36:42.171907+00:00",
+  "completed_at": "2026-05-19T08:37:15.535726+00:00",
+  "error": "",
+  "targets_total": 2,
+  "targets_completed": 2,
+  "targets_failed": 0,
+  "avg_score": 100.0,
+  "results": [
+    {
+      "target_url": "https://agentlove.fun",
+      "target_name": "AgentLove",
+      "scan_id": "SCAN-6896F20229B6",
+      "grade": "A+",
+      "score": 100.0,
+      "vulnerabilities_found": 0,
+      "protected_count": 0,
+      "total_vectors": 10,
+      "pillar_scores": {
+        "Prompt Injection & Jailbreak": {
+          "total": 3,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Data Exfiltration & Privacy": {
+          "total": 2,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Smart Contract Manipulation": {
+          "total": 1,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Multi-Agent Exploitation": {
+          "total": 1,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Financial Logic Manipulation": {
+          "total": 1,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Infrastructure & API Security": {
+          "total": 2,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        }
+      },
+      "duration_seconds": 11.3,
+      "completed_at": "2026-05-19T08:36:53.462444+00:00",
+      "error": null
+    },
+    {
+      "target_url": "https://httpbin.org/post",
+      "target_name": "HTTPBin",
+      "scan_id": "SCAN-292F3697DAC7",
+      "grade": "A+",
+      "score": 100.0,
+      "vulnerabilities_found": 0,
+      "protected_count": 0,
+      "total_vectors": 10,
+      "pillar_scores": {
+        "Prompt Injection & Jailbreak": {
+          "total": 3,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Data Exfiltration & Privacy": {
+          "total": 2,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Smart Contract Manipulation": {
+          "total": 1,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Multi-Agent Exploitation": {
+          "total": 1,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Financial Logic Manipulation": {
+          "total": 1,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        },
+        "Infrastructure & API Security": {
+          "total": 2,
+          "vulnerable": 0,
+          "protected": 0,
+          "score": 100.0
+        }
+      },
+      "duration_seconds": 33.4,
+      "completed_at": "2026-05-19T08:37:15.535193+00:00",
+      "error": null
+    }
+  ]
+}

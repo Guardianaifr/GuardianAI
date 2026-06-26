@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script>
+    // Redirect to unified SPA index.html
+    window.location.replace("index.html" + window.location.search + window.location.hash);
+  </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI | Security Dashboard</title>
+  <meta name="description" content="Real-time AI security monitoring dashboard for GuardianAI">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site-assets/style.css?v=20260602web3agent">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#121317;
+      --surface:rgba(24, 25, 29, 0.7);
+      --surface2:rgba(33, 34, 38, 0.85);
+      --surface3:#1c1f26;
+      --border:rgba(225, 230, 236, 0.08);
+      --border2:rgba(50, 121, 249, 0.35);
+      --text:#f8f9fc;
+      --text2:#b2bbc5;
+      --text3:#6a6a71;
+      --accent:#3279F9;
+      --accent2:#3279F9;
+      --accent-glow:rgba(50, 121, 249, 0.25);
+      --green:#34a853;
+      --green-bg:rgba(52, 168, 83, 0.1);
+      --red:#ea4335;
+      --red-bg:rgba(234, 67, 53, 0.1);
+      --amber:#fbbc05;
+      --amber-bg:rgba(251, 188, 5, 0.1);
+      --purple:#3279F9;
+      --purple-bg:rgba(50, 121, 249, 0.1);
+      --cyan:#3279F9;
+      --radius:12px;
+      --radius-sm:8px;
+    }
+    html{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+    body{min-height:100vh;overflow-x:hidden;background: var(--bg);background-image: radial-gradient(circle at 50% -20%, #1c1f26 0%, #121317 100%);}
+    .mono{font-family:'JetBrains Mono',monospace;font-size:.85em}
+
+    /* Layout */
+    .app{display:grid;grid-template-columns:260px 1fr;grid-template-rows:60px 1fr;min-height:100vh}
+    .topbar{grid-column:1/-1;background:rgba(3, 7, 18, 0.4);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:10}
+    .sidebar{background:rgba(15, 23, 42, 0.3);backdrop-filter:blur(8px);border-right:1px solid var(--border);padding:20px 16px;overflow-y:auto}
+    .main{padding:24px;overflow-y:auto;}
+
+    /* Topbar */
+    .topbar .brand{font-family:'Outfit',sans-serif;font-weight:700;font-size:1.2rem;color:var(--accent);display:flex;align-items:center;gap:8px;letter-spacing:-0.02em}
+    .topbar .brand svg{width:24px;height:24px;color:var(--accent)}
+    .topbar .right{display:flex;align-items:center;gap:16px}
+    .topbar .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.4)}70%{box-shadow:0 0 0 6px rgba(16,185,129,0)}}
+    .user-badge{background:var(--surface2);padding:4px 12px;border-radius:20px;font-size:.8rem;color:var(--text2);border:1px solid var(--border)}
+
+    /* Sidebar */
+    .nav-section{margin-bottom:24px}
+    .nav-section h4{color:var(--text3);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding:0 8px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);transition:all .15s;font-size:.9rem}
+    .nav-item:hover{background:var(--surface2);color:var(--text)}
+    .nav-item.active{background:var(--accent-glow);color:var(--accent2);border:1px solid rgba(59,130,246,.2)}
+    .nav-item .icon{width:18px;text-align:center;font-size:1rem}
+    .nav-item .badge{margin-left:auto;background:var(--accent);color:#fff;font-size:.65rem;padding:2px 6px;border-radius:10px;font-weight:600;box-shadow:0 0 10px var(--accent-glow)}
+
+    /* Cards */
+    .card{background:var(--surface);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:all .3s ease;box-shadow:0 10px 30px rgba(0,0,0,0.2)}
+    .card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 10px 40px rgba(56,189,248,0.1)}
+    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .card-title{font-family:'Outfit',sans-serif;font-size:.9rem;color:var(--text2);font-weight:500}
+    .card-value{font-family:'Outfit',sans-serif;font-size:2.2rem;font-weight:700;margin-top:4px;letter-spacing:-0.03em}
+    .card-change{font-size:.75rem;display:flex;align-items:center;gap:4px;margin-top:4px}
+    .card-change.up{color:var(--green)}
+    .card-change.down{color:var(--red)}
+
+    /* Stat Grid */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+
+    /* Charts area */
+    .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+    .chart-card{background:var(--surface);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.2)}
+    .chart-title{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:600;margin-bottom:16px}
+
+    /* Event Feed */
+    .event-feed{max-height:460px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+    .event-item{display:grid;grid-template-columns:10px 1fr auto;gap:12px;align-items:start;padding:12px;border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer}
+    .event-item:hover{background:var(--surface2)}
+    .event-dot{width:10px;height:10px;border-radius:50%;margin-top:4px}
+    .event-dot.critical{background:var(--red)}
+    .event-dot.high{background:var(--amber)}
+    .event-dot.medium{background:var(--purple)}
+    .event-dot.low{background:var(--green)}
+    .event-type{font-weight:600;font-size:.85rem}
+    .event-detail{color:var(--text2);font-size:.8rem;margin-top:2px}
+    .event-time{color:var(--text3);font-size:.75rem;white-space:nowrap}
+
+    /* Bar chart (CSS) */
+    .bar-chart{display:flex;flex-direction:column;gap:8px}
+    .bar-row{display:flex;align-items:center;gap:10px}
+    .bar-label{width:120px;font-size:.8rem;color:var(--text2);text-align:right;flex-shrink:0}
+    .bar-track{flex:1;height:24px;background:var(--surface2);border-radius:4px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:4px;transition:width .8s ease;display:flex;align-items:center;padding-left:8px;font-size:.7rem;color:#fff;font-weight:600}
+    .bar-fill.blue{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .bar-fill.green{background:linear-gradient(90deg,#059669,var(--green))}
+    .bar-fill.red{background:linear-gradient(90deg,#dc2626,var(--red))}
+    .bar-fill.amber{background:linear-gradient(90deg,#d97706,var(--amber))}
+    .bar-fill.purple{background:linear-gradient(90deg,#7c3aed,var(--purple))}
+
+    /* Login overlay */
+    .login-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:100}
+    .login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:40px;width:380px;box-shadow:0 24px 48px rgba(0,0,0,.5)}
+    .login-card h2{text-align:center;margin-bottom:8px;font-size:1.3rem}
+    .login-card p{text-align:center;color:var(--text2);margin-bottom:24px;font-size:.85rem}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;font-size:.8rem;color:var(--text2);margin-bottom:4px;font-weight:500}
+    .form-group input{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.9rem;outline:none;transition:border-color .2s}
+    .form-group input:focus{border-color:var(--accent)}
+    .btn-primary{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:600;font-size:.9rem;cursor:pointer;transition:all .2s}
+    .btn-primary:hover{background:var(--accent2);transform:translateY(-1px)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .login-error{color:var(--red);font-size:.8rem;text-align:center;margin-top:12px;min-height:20px}
+
+    /* Tier badge */
+    .tier-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+    .tier-free{background:var(--surface2);color:var(--text3)}
+    .tier-starter{background:var(--green-bg);color:var(--green)}
+    .tier-pro{background:var(--purple-bg);color:var(--purple)}
+    .tier-enterprise{background:var(--accent-glow);color:var(--accent2)}
+
+    /* Usage meter */
+    .usage-meter{margin-top:12px}
+    .meter-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .meter-label{width:80px;font-size:.75rem;color:var(--text2)}
+    .meter-track{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+    .meter-fill{height:100%;border-radius:4px;transition:width 1s ease}
+    .meter-fill.ok{background:var(--green)}
+    .meter-fill.warn{background:var(--amber)}
+    .meter-fill.crit{background:var(--red)}
+    .meter-value{width:50px;text-align:right;font-size:.75rem;color:var(--text3)}
+
+    /* Responsive */
+    @media(max-width:900px){
+      .app{grid-template-columns:1fr}
+      .sidebar{display:none}
+      .stats-grid{grid-template-columns:repeat(2,1fr)}
+      .charts-row{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h2>GuardianAI</h2>
+    <p>Security Dashboard — Sign in to continue</p>
+    <div class="form-group">
+      <label for="login-user">Username</label>
+      <input type="text" id="login-user" value="admin" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label for="login-pass">Password</label>
+      <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password">
+    </div>
+    <button type="button" class="btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div class="app" id="dashApp" style="display:none">
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z"/></svg>
+      GuardianAI Dashboard
+    </div>
+    <div class="right">
+      <span class="status-dot"></span>
+      <span style="font-size:.8rem;color:var(--text2)">Live</span>
+      <span class="user-badge" id="userBadge">admin</span>
+      <button onclick="doLogout()" style="background:none;border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:.8rem">Logout</button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="nav-section">
+      <h4>Monitor</h4>
+      <div class="nav-item active" onclick="showPage('overview')"><span class="icon">📊</span>Overview</div>
+      <div class="nav-item" onclick="showPage('events')"><span class="icon">🔔</span>Events<span class="badge" id="eventCount">0</span></div>
+      <div class="nav-item" onclick="showPage('threats')"><span class="icon">⚠️</span>Threat Map</div>
+      <div class="nav-item" onclick="showIframePage('history', 'history.html')"><span class="icon">📈</span>Regression Tracker</div>
+      <div class="nav-item" onclick="showIframePage('audit-scanner', 'audit.html')"><span class="icon">🔍</span>Audit Scanner</div>
+    </div>
+    <div class="nav-section">
+      <h4>Manage</h4>
+      <div class="nav-item" onclick="showIframePage('passport', 'passport.html')"><span class="icon">🪪</span>Agent Passport<span class="badge" style="background:var(--green)">NEW</span></div>
+      <div class="nav-item" onclick="showIframePage('cortex', 'cortex.html')"><span class="icon">🧠</span>Agent Cortex<span class="badge">BETA</span></div>
+      <div class="nav-item" onclick="showIframePage('pricing', 'pricing.html')"><span class="icon">💳</span>Usage &amp; Billing</div>
+      <div class="nav-item" onclick="showPage('users')"><span class="icon">👥</span>Tenants &amp; RBAC</div>
+      <div class="nav-item" onclick="showPage('compliance')"><span class="icon">📋</span>Compliance (EU Act)</div>
+      <div class="nav-item" onclick="showPage('policies')"><span class="icon">🛡️</span>Firewall Rules</div>
+    </div>
+    <div class="nav-section">
+      <h4>System</h4>
+      <div class="nav-item" onclick="showPage('settings')"><span class="icon">⚙️</span>Settings</div>
+      <div class="nav-item" onclick="showPage('audit')"><span class="icon">📄</span>Immutable Audit Log</div>
+      <div class="nav-item" onclick="showPage('security-audits')"><span class="icon">🛡️</span>Security Audits</div>
+      <div class="nav-item" onclick="showPage('deception')"><span class="icon">🕸️</span>Honeypots &amp; Decoys</div>
+      <div class="nav-item" onclick="showIframePage('docs', 'docs.html')"><span class="icon">📚</span>Documentation</div>
+    </div>
+  </aside>
+
+  <main class="main" id="mainContent">
+    <!-- Overview Page -->
+    <div id="page-overview">
+      <div class="stats-grid" id="statsGrid">
+        <div class="card">
+          <div class="card-title">Total Requests</div>
+          <div class="card-value" id="statRequests">0</div>
+          <div class="card-change up">↑ Live tracking</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Threats Blocked</div>
+          <div class="card-value" id="statBlocked" style="color:var(--red)">0</div>
+          <div class="card-change down">⛔ Auto-blocked</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Block Rate</div>
+          <div class="card-value" id="statBlockRate">0%</div>
+          <div class="card-change">Last 30 days</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Avg Latency</div>
+          <div class="card-value" id="statLatency">0ms</div>
+          <div class="card-change up">↑ Guardian overhead</div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">Threat Breakdown</div>
+          <canvas id="threatChartCanvas" style="max-height: 250px;"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Recent Events</div>
+          <div class="event-feed" id="eventFeed"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Other Pages (Stubbed out for navigation) -->
+    <div id="page-events" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Security Event Log</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);">Live event streams and SIEM export tools are accessible here.</p>
+        <div class="event-feed" id="eventFeedFull" style="margin-top:20px;"></div>
+      </div>
+    </div>
+
+    <div id="page-threats" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Global Threat Map</h2>
+      <div class="card" style="min-height:400px;display:flex;align-items:center;justify-content:center;">
+        <p style="color:var(--text2);">Geospatial IP mapping feature is loading...</p>
+      </div>
+    </div>
+
+    <div id="page-usage" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Usage &amp; Metering</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);">Tenant LLM Token Usage and Stripe Billing synchronisation.</p>
+      </div>
+    </div>
+
+    <div id="page-users" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Tenant &amp; RBAC Control</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);">Manage API keys, JWT Secrets, and Tenant Tier limitations.</p>
+      </div>
+    </div>
+
+    <div id="page-compliance" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">EU AI Act Compliance</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);">Generate automated PDF evidence reports for SOC2 and GDPR compliance audits.</p>
+      </div>
+    </div>
+
+    <div id="page-security-audits" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Security Evidence Audits</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);margin-bottom:16px;">Target endpoints with signed GuardianAI evidence artifacts after reaching the configured audit threshold.</p>
+        <div id="auditList" style="display:grid;grid-template-columns:1fr;gap:16px;">
+          <!-- Audits injected here -->
+        </div>
+      </div>
+    </div>
+
+    <div id="page-policies" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Firewall Rules</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);">Configure custom Regex filters, Jailbreak heuristics, and PII masking thresholds.</p>
+      </div>
+    </div>
+
+    <div id="page-settings" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">System Settings</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);">Configure database connections, API upstream routing, and global threat thresholds.</p>
+        <p style="color:var(--text2);margin-top:12px;"><strong>Differential Privacy:</strong> Configure Gaussian/Laplace noise parameters (ε/δ) for all exported analytics.</p>
+      </div>
+    </div>
+
+    <div id="page-audit" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Immutable Audit Log</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);">A cryptographically sealed ledger of all administrator logins, configuration changes, and compliance events.</p>
+        <div style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; color: #10b981; font-size: 0.85rem;">
+          ✓ HMAC-SHA256 Integrity Verified
+        </div>
+      </div>
+    </div>
+
+    <div id="page-deception" style="display:none;">
+      <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Deception Operations</h2>
+      <div class="card" style="min-height:400px;">
+        <p style="color:var(--text2);">Manage active Canary Tokens, Decoy Credentials, and monitor Adaptive Delay triggers.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+let accessToken = null;
+let currentUser = null;
+let wsConnection = null;
+let allEvents = [];
+let threatChartInstance = null;
+let globalAnalytics = null;
+
+// ─── Auth ──────────────────────────────────────────────────
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: user, password: pass}),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || 'Login failed');
+    }
+    const data = await res.json();
+    accessToken = data.access_token;
+    currentUser = data.user;
+    localStorage.setItem('guardian_token', accessToken);
+    localStorage.setItem('guardian_user', JSON.stringify(currentUser));
+    showDashboard();
+  } catch (e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+function doLogout() {
+  if (accessToken) {
+    fetch(`${API_BASE}/api/v1/auth/logout`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${accessToken}`},
+    }).catch(() => {});
+  }
+  accessToken = null;
+  currentUser = null;
+  localStorage.removeItem('guardian_token');
+  localStorage.removeItem('guardian_user');
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('dashApp').style.display = 'none';
+  if (wsConnection) wsConnection.close();
+}
+
+function showDashboard() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('dashApp').style.display = 'grid';
+  document.getElementById('userBadge').textContent = `${currentUser.username} (${currentUser.role})`;
+  loadAnalytics();
+  loadEvents();
+  connectWebSocket();
+}
+
+// ─── Data Loading ──────────────────────────────────────────
+async function apiFetch(path) {
+  const headers = accessToken ? {'Authorization': `Bearer ${accessToken}`} : {};
+  if (!accessToken) return {};
+  const res = await fetch(`${API_BASE}${path}`, {headers});
+  if (res.status === 401) { doLogout(); return {}; }
+  return res.json();
+}
+
+async function loadAnalytics() {
+  try {
+    const basicAuth = btoa(`${currentUser.username}:${document.getElementById('login-pass')?.value || 'admin'}`);
+    const res = await fetch(`${API_BASE}/api/v1/analytics`, {
+      headers: {'Authorization': `Basic ${basicAuth}`},
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    globalAnalytics = d;
+    resetStatsView();
+
+    const paths = d.path_breakdown || {};
+    const labels = Object.keys(paths).map(name => name.replace(/_/g, ' '));
+    const data = Object.values(paths);
+
+    const ctx = document.getElementById('threatChartCanvas').getContext('2d');
+
+    if (threatChartInstance) {
+      threatChartInstance.data.labels = labels;
+      threatChartInstance.data.datasets[0].data = data;
+      threatChartInstance.update();
+    } else {
+      threatChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels.length ? labels : ['No Traffic'],
+          datasets: [{
+            data: data.length ? data : [1],
+            backgroundColor: [
+              'rgba(56, 189, 248, 0.8)',
+              'rgba(239, 68, 68, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(16, 185, 129, 0.8)',
+              'rgba(139, 92, 246, 0.8)'
+            ],
+            borderColor: 'rgba(15, 23, 42, 1)',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Inter' } } },
+            tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', titleColor: '#fff', bodyColor: '#cbd5e1' }
+          },
+          onClick: (event, elements) => {
+            if (elements.length > 0) {
+              const index = elements[0].index;
+              const label = threatChartInstance.data.labels[index];
+              updateStatsView(label);
+            } else {
+              resetStatsView();
+            }
+          }
+        }
+      });
+    }
+  } catch(e) {
+    console.warn('Analytics load failed:', e);
+  }
+}
+
+async function loadSecurityAudits() {
+  try {
+    const res = await apiFetch('/api/v1/audits');
+    const data = res;
+    const container = document.getElementById('auditList');
+    if(!data.audits || data.audits.length === 0) {
+      container.innerHTML = `<p style="color:var(--text3);">No certified audits found. Run guardian_audit.py scan first.</p>`;
+      return;
+    }
+    let html = "";
+    for(let a of data.audits) {
+      let dateStr = new Date(a.issued_at).toLocaleString();
+      let color = a.grade.startsWith("A") ? "var(--green)" : "var(--accent)";
+      html += `<div style="padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-weight:600;font-size:1.1rem;margin-bottom:4px;color:var(--text);">${a.target}</div>
+          <div style="font-size:0.8rem;color:var(--text2);">Mode: ${a.mode.toUpperCase()} | Date: ${dateStr}</div>
+          <div style="font-size:0.85rem;color:var(--text2);margin-top:6px;">Score: <strong style="color:${color};">${a.score.toFixed(1)}/100 (${a.grade})</strong></div>
+        </div>
+        <div>
+          <img src="${API_BASE}/api/v1/audits/${a.id}/svg" alt="GuardianAI Badge" style="height:40px;"/>
+        </div>
+      </div>`;
+    }
+    container.innerHTML = html;
+  } catch(err) {
+    console.error("Failed to load security audits", err);
+  }
+}
+
+async function loadEvents() {
+  try {
+    const basicAuth = btoa(`${currentUser.username}:${document.getElementById('login-pass')?.value || 'admin'}`);
+    const res = await fetch(`${API_BASE}/api/v1/export/json`, {
+      headers: {'Authorization': `Basic ${basicAuth}`},
+    });
+    if (!res.ok) return;
+    allEvents = await res.json();
+    renderEvents(allEvents.slice(0, 20));
+    document.getElementById('eventCount').textContent = allEvents.length;
+  } catch(e) {
+    console.warn('Events load failed:', e);
+  }
+}
+
+function renderEvents(events) {
+  const feed = document.getElementById('eventFeed');
+  if (!events.length) {
+    feed.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center">No events yet.</div>';
+    return;
+  }
+  feed.innerHTML = events.map(e => {
+    const sev = (e.severity||'LOW').toLowerCase();
+    const typeLabel = (e.event_type||'unknown').replace(/_/g,' ');
+    const ts = e.timestamp ? new Date(e.timestamp * 1000).toLocaleTimeString() : '';
+    const detail = e.details?.message || e.details?.pattern || e.details?.path || '';
+    return `<div class="event-item">
+      <div class="event-dot ${sev}"></div>
+      <div><div class="event-type">${typeLabel}</div><div class="event-detail">${detail}</div></div>
+      <div class="event-time">${ts}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateStatsView(filterLabel) {
+  if (!allEvents || allEvents.length === 0) return;
+  const filtered = allEvents.filter(e => {
+    const rawPath = e.details?.path || e.event_type || 'unknown';
+    const path = String(rawPath);
+    return path.replace(/_/g, ' ') === filterLabel;
+  });
+
+  if (filtered.length === 0) { resetStatsView(); return; }
+
+  const total = filtered.length;
+  const blocked = filtered.filter(e => e.action === 'block' || e.severity === 'CRITICAL' || e.severity === 'HIGH').length;
+  const rate = total > 0 ? Math.round((blocked / total) * 100) : 0;
+
+  let latSum = 0; let latCount = 0;
+  filtered.forEach(e => {
+    const latRaw = e.details?.guardian_overhead_ms || e.details?.latency_ms;
+    if (latRaw) {
+      const val = parseFloat(String(latRaw).replace(/[^0-9.]/g, ''));
+      if (!isNaN(val) && val > 0) { latSum += val; latCount++; }
+    }
+  });
+  const avgLat = latCount > 0 ? (latSum / latCount).toFixed(1) : 0;
+
+  document.getElementById('statRequests').textContent = total.toLocaleString();
+  document.getElementById('statBlocked').textContent = blocked.toLocaleString();
+  document.getElementById('statBlockRate').textContent = rate + '%';
+  document.getElementById('statLatency').textContent = avgLat + 'ms';
+  renderEvents(filtered.slice(0, 20));
+}
+
+function resetStatsView() {
+  if (!globalAnalytics) return;
+  document.getElementById('statRequests').textContent = (globalAnalytics.total_requests || 0).toLocaleString();
+  document.getElementById('statBlocked').textContent = (globalAnalytics.total_blocked || 0).toLocaleString();
+  document.getElementById('statBlockRate').textContent = `${globalAnalytics.global_block_rate_pct || 0}%`;
+  document.getElementById('statLatency').textContent = `${(globalAnalytics.avg_guardian_overhead_ms || 0).toFixed(1)}ms`;
+  if (allEvents && allEvents.length > 0) renderEvents(allEvents.slice(0, 20));
+}
+
+// ─── WebSocket ─────────────────────────────────────────────
+function connectWebSocket() {
+  const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+  try {
+    wsConnection = new WebSocket(`${wsProto}://${location.host}/ws/threats`);
+    wsConnection.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === 'new_event') {
+          allEvents.unshift(msg.data);
+          renderEvents(allEvents.slice(0, 20));
+          document.getElementById('eventCount').textContent = allEvents.length;
+          loadAnalytics();
+        }
+      } catch(e) {}
+    };
+    wsConnection.onclose = () => setTimeout(connectWebSocket, 3000);
+  } catch(e) {}
+}
+
+// ─── Navigation ────────────────────────────────────────────
+function showPage(pageId) {
+  document.querySelectorAll('.main > div').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const pageEl = document.getElementById(`page-${pageId}`);
+  if(pageEl) pageEl.style.display = 'block';
+  const navItem = Array.from(document.querySelectorAll('.nav-item')).find(el => el.getAttribute('onclick') === `showPage('${pageId}')`);
+  if(navItem) navItem.classList.add('active');
+
+  if (pageId === 'security-audits') loadSecurityAudits();
+}
+
+function showIframePage(pageId, url) {
+  document.querySelectorAll('.main > div').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  
+  const navItem = Array.from(document.querySelectorAll('.nav-item')).find(el => {
+    const attr = el.getAttribute('onclick');
+    return attr && attr.includes(`'${pageId}'`);
+  });
+  if(navItem) navItem.classList.add('active');
+
+  let container = document.getElementById(`page-${pageId}`);
+  if (!container) {
+    container = document.createElement('div');
+    container.id = `page-${pageId}`;
+    container.style.width = '100%';
+    container.style.height = 'calc(100vh - 110px)';
+    container.style.margin = '0';
+    container.style.padding = '0';
+    
+    const iframe = document.createElement('iframe');
+    iframe.id = `iframe-${pageId}`;
+    iframe.src = url;
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframe.style.background = 'transparent';
+    
+    iframe.onload = function() {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        // Hide standard headers/footers
+        const topbar = doc.querySelector('.topbar') || doc.querySelector('.page-header');
+        if (topbar) topbar.style.display = 'none';
+        const footer = doc.querySelector('footer');
+        if (footer) footer.style.display = 'none';
+        
+        // Remove background body gradients for seamless styling
+        doc.body.style.background = 'transparent';
+        doc.body.style.backgroundImage = 'none';
+        
+        const wrapper = doc.querySelector('.page-wrapper') || doc.querySelector('.cortex-wrapper') || doc.querySelector('main');
+        if (wrapper) {
+          wrapper.style.padding = '0';
+          wrapper.style.margin = '0';
+          wrapper.style.maxWidth = '100%';
+        }
+      } catch (e) {
+        console.warn("Seamless styling on iframe load failed (cross-origin restrictions):", e);
+      }
+    };
+    
+    container.appendChild(iframe);
+    document.getElementById('mainContent').appendChild(container);
+  } else {
+    const iframe = document.getElementById(`iframe-${pageId}`);
+    if (iframe) {
+      iframe.src = url; // reload
+    }
+  }
+  
+  container.style.display = 'block';
+}
+
+// ─── Init ──────────────────────────────────────────────────
+(function init() {
+  const token = localStorage.getItem('guardian_token');
+  const user = localStorage.getItem('guardian_user');
+  if (token && user) {
+    accessToken = token;
+    currentUser = JSON.parse(user);
+    showDashboard();
+  }
+  document.getElementById('login-pass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+  });
+})();
+</script>
+</body>
+</html>

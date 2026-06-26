@@ -1,0 +1,7 @@
+{
+  "baseline_success_pct_min": 99.0,
+  "attack_block_rate_pct_min": 95.0,
+  "baseline_p95_ms_max": 1500.0,
+  "chaos_upstream_allowed_status": [502, 599],
+  "chaos_backend_allowed_status": [200]
+}

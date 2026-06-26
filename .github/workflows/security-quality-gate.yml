@@ -1,0 +1,53 @@
+name: Security Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  security-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run Test Suite
+        run: |
+          python -m pytest -q
+
+      - name: Missing Security Validation
+        run: |
+          python tools/run_missing_security_validation.py
+
+      - name: Hardening Validation
+        run: |
+          python tools/run_hardening_validation.py
+
+      - name: Supply-Chain SBOM Audit
+        run: |
+          python tools/generate_sbom.py --requirements requirements.txt --output artifacts/supply_chain/sbom.json
+          python tools/check_external_security_review.py --report artifacts/security/external_security_review.json --max-age-days 180 --max-open-critical 0
+
+      - name: Performance + Chaos Validation
+        run: |
+          python tools/run_performance_chaos_validation.py --safe-requests 80 --safe-concurrency 15 --attack-requests 80 --attack-concurrency 15
+
+      - name: Security SLO Gate
+        run: |
+          python tools/check_security_slo.py --report artifacts/performance/perf_chaos_report.json --targets artifacts/performance/security_slo_targets.json

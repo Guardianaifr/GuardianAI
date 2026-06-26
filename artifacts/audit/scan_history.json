@@ -1,0 +1,32 @@
+[
+  {
+    "schedule_id": "daily-production",
+    "target_uri": "http://127.0.0.1:8081/v1/chat/completions",
+    "score": 92.0,
+    "grade": "A",
+    "block_rate": 96.0,
+    "total_vectors": 54,
+    "blocked_count": 52,
+    "timestamp": "2026-05-17T04:46:43.953005+00:00"
+  },
+  {
+    "schedule_id": "daily-production",
+    "target_uri": "http://127.0.0.1:8081/v1/chat/completions",
+    "score": 92.0,
+    "grade": "A",
+    "block_rate": 96.0,
+    "total_vectors": 54,
+    "blocked_count": 52,
+    "timestamp": "2026-05-17T04:47:03.438304+00:00"
+  },
+  {
+    "schedule_id": "daily-production",
+    "target_uri": "http://127.0.0.1:8081/v1/chat/completions",
+    "score": 92.0,
+    "grade": "A",
+    "block_rate": 96.0,
+    "total_vectors": 54,
+    "blocked_count": 52,
+    "timestamp": "2026-05-17T04:50:20.496391+00:00"
+  }
+]

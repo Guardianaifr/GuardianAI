@@ -1,0 +1,12 @@
+﻿{
+  "keywords": {
+    "ignore previous instructions": 3,
+    "system override": 3,
+    "bypass safety": 3,
+    "jailbreak": 2,
+    "reverse shell": 3,
+    "drop table": 2,
+    "rm -rf": 3
+  },
+  "actors": ["apt28", "conti", "lazarus"]
+}

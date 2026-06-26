@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-03-11T12:45:08Z",
+  "algorithm": "sha256",
+  "files": [
+    {
+      "path": "README.md",
+      "size_bytes": 2351,
+      "sha256": "a30e3f042885edd3f9a2ca07fa5589b05cd85692d81858c438f0f60ab4e9384a"
+    },
+    {
+      "path": "guardian\\config\\config.yaml",
+      "size_bytes": 4248,
+      "sha256": "0267a421cff3c5151641af8da9270de1472a8eb5f4db688b1c532580a73d8aca"
+    },
+    {
+      "path": "requirements.txt",
+      "size_bytes": 379,
+      "sha256": "c40ad63ab177dbefb5c26a4bc93182d74917c650b14a93c14aa2ff0a881c0f65"
+    }
+  ]
+}

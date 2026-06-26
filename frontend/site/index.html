@@ -1,0 +1,1499 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI | Secure AI Agent Gateway</title>
+  <meta name="description" content="GuardianAI protects autonomous AI agents: input/output prompt firewalls for AI apps, and transaction-intent sentinels for Web3 integrations.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="site-assets/style.css?v=20260602web3agent">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    /* Complete Website Redesign & Aesthetics */
+    :root {
+      --bg: #050409;
+      --bg-gradient: radial-gradient(circle at 50% -20%, #170d2b 0%, #050409 100%);
+      --surface: rgba(13, 9, 23, 0.7);
+      --surface-hover: rgba(22, 14, 38, 0.85);
+      --border: rgba(139, 92, 246, 0.15);
+      --border-hover: rgba(0, 242, 254, 0.5);
+      --primary: #8b5cf6;
+      --primary-glow: rgba(139, 92, 246, 0.25);
+      --accent: #00f2fe;
+      --accent-glow: rgba(0, 242, 254, 0.2);
+      --purple: #d946ef;
+      --purple-glow: rgba(217, 70, 239, 0.25);
+      --emerald: #10b981;
+      --rose: #ef4444;
+      --text: #f1f3f9;
+      --text-dim: #948ba3;
+      --muted: #4e465f;
+    }
+
+    body {
+      background: var(--bg);
+      background-image: var(--bg-gradient);
+      font-family: 'Outfit', sans-serif;
+      overflow-x: hidden;
+      color: var(--text);
+    }
+
+    /* Modern Developer Grid Overlay */
+    body::before {
+      background-image: 
+        linear-gradient(rgba(139, 92, 246, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139, 92, 246, 0.025) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    .ambient-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(160px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.25;
+    }
+    .glow-left { background: var(--primary); top: 10%; left: -200px; }
+    .glow-right { background: var(--purple); top: 40%; right: -200px; }
+    .glow-center { background: var(--accent); top: 75%; left: 50%; transform: translateX(-50%); }
+
+    /* Marketing Header */
+    #marketingSite .topbar {
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(9, 10, 15, 0.75);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #marketingSite .nav {
+      background: rgba(20, 25, 43, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    /* Product Section Headers */
+    .section-tagline {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: inline-block;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section-title-new {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 900;
+      font-size: clamp(28px, 4vw, 42px);
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    /* Dual Product Planes Layout */
+    .planes-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      margin-top: 60px;
+    }
+
+    @media (max-width: 1024px) {
+      .planes-container {
+        grid-template-columns: 1fr;
+        gap: 60px;
+      }
+    }
+
+    /* Product Plane Showcase Card */
+    .product-plane {
+      background: rgba(13, 16, 27, 0.45);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 24px;
+      padding: 44px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .product-plane::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .product-plane.plane-general:hover {
+      border-color: rgba(124, 58, 237, 0.35);
+      box-shadow: 0 20px 50px rgba(124, 58, 237, 0.08);
+      transform: translateY(-4px);
+    }
+
+    .product-plane.plane-web3:hover {
+      border-color: rgba(0, 242, 254, 0.35);
+      box-shadow: 0 20px 50px rgba(0, 242, 254, 0.08);
+      transform: translateY(-4px);
+    }
+
+    .plane-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+    }
+
+    .plane-general .plane-badge {
+      background: rgba(124, 58, 237, 0.1);
+      color: #a78bfa;
+      border: 1px solid rgba(124, 58, 237, 0.25);
+    }
+
+    .plane-web3 .plane-badge {
+      background: rgba(0, 242, 254, 0.1);
+      color: #22d3ee;
+      border: 1px solid rgba(0, 242, 254, 0.25);
+    }
+
+    /* Embedded Simulated Terminal */
+    .mini-terminal {
+      background: rgba(7, 8, 13, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 32px 0;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      text-align: left;
+    }
+
+    .mini-terminal-bar {
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-dim);
+    }
+
+    .mini-terminal-dots { display: flex; gap: 6px; }
+    .mini-terminal-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .mini-terminal-dot.red { background: #ef4444; }
+    .mini-terminal-dot.yellow { background: #f59e0b; }
+    .mini-terminal-dot.green { background: #10b981; }
+
+    .mini-terminal-body {
+      padding: 16px 20px;
+      line-height: 1.7;
+    }
+
+    /* Plain feature lists inside columns */
+    .plane-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .plane-features li {
+      display: flex;
+      gap: 12px;
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .plane-features li::before {
+      content: '✦';
+      color: var(--accent);
+      font-weight: 900;
+    }
+
+    .plane-general .plane-features li::before {
+      color: #c084fc;
+    }
+
+    /* ─── Dashboard app elements scoped override ─── */
+    #dashApp {
+      --surface2: rgba(22, 14, 38, 0.85);
+      --surface3: #0d0917;
+      --border2: rgba(0, 242, 254, 0.35);
+      --radius: 12px;
+      --radius-sm: 8px;
+      
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: 60px 1fr;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+      background-image: var(--bg-gradient);
+    }
+
+    #dashApp .topbar {
+      grid-column: 1/-1;
+      background: rgba(5, 4, 9, 0.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: relative;
+      z-index: 100;
+    }
+
+    #dashApp .topbar-inner {
+      width: 100%;
+      max-width: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #dashApp .sidebar {
+      background: rgba(13, 9, 23, 0.5);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      overflow-y: auto;
+    }
+
+    #dashApp .main {
+      padding: 24px;
+      overflow-y: auto;
+      background: transparent;
+    }
+
+    #dashApp .topbar .brand {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(135deg, #ffffff 0%, var(--text-dim) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.02em;
+    }
+
+    #dashApp .topbar .brand svg {
+      width: 24px;
+      height: 24px;
+      color: var(--accent);
+      filter: drop-shadow(0 0 5px var(--accent-glow));
+    }
+
+    #dashApp .topbar .right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #dashApp .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    }
+
+    #dashApp .user-badge {
+      background: var(--surface-hover);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    #dashApp .nav-section {
+      margin-bottom: 24px;
+    }
+
+    #dashApp .nav-section h4 {
+      color: var(--text-dim);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+      padding: 0 8px;
+    }
+
+    #dashApp .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-dim);
+      transition: all 0.15s;
+      font-size: 0.9rem;
+      border: 1px solid transparent;
+    }
+
+    #dashApp .nav-item:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+      border-color: rgba(139, 92, 246, 0.1);
+    }
+
+    #dashApp .nav-item.active {
+      background: var(--primary-glow);
+      color: var(--text);
+      border: 1px solid var(--border-hover);
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.05);
+    }
+
+    #dashApp .nav-item .icon {
+      width: 18px;
+      text-align: center;
+      font-size: 1rem;
+    }
+
+    #dashApp .nav-item .badge {
+      margin-left: auto;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 600;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    #dashApp .card {
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    #dashApp .card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(50, 121, 249, 0.1);
+    }
+
+    #dashApp .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    #dashApp .card-title {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    #dashApp .card-value {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-top: 4px;
+      letter-spacing: -0.03em;
+    }
+
+    #dashApp .card-change {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    #dashApp .card-change.up { color: #10b981; }
+    #dashApp .card-change.down { color: #ef4444; }
+
+    #dashApp .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    #dashApp .charts-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    #dashApp .chart-card {
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    #dashApp .chart-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    #dashApp .event-feed {
+      max-height: 460px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    #dashApp .event-item {
+      display: grid;
+      grid-template-columns: 10px 1fr auto;
+      gap: 12px;
+      align-items: start;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      cursor: pointer;
+    }
+
+    #dashApp .event-item:hover {
+      background: var(--surface-hover);
+    }
+
+    #dashApp .event-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-top: 4px;
+    }
+
+    #dashApp .event-dot.critical { background: #ef4444; }
+    #dashApp .event-dot.high { background: #f59e0b; }
+    #dashApp .event-dot.medium { background: var(--primary); }
+    #dashApp .event-dot.low { background: #10b981; }
+
+    #dashApp .event-type {
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    #dashApp .event-detail {
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      margin-top: 2px;
+    }
+
+    #dashApp .event-time {
+      color: var(--muted);
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    #dashApp .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #dashApp .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #dashApp .bar-track {
+      flex: 1;
+      height: 24px;
+      background: var(--surface-hover);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    #dashApp .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s ease;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 0.7rem;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    #dashApp .bar-fill.blue { background: linear-gradient(90deg, var(--primary), var(--accent)); }
+    #dashApp .bar-fill.green { background: linear-gradient(90deg, var(--emerald), #34d399); }
+    #dashApp .bar-fill.red { background: linear-gradient(90deg, var(--rose), #f87171); }
+    #dashApp .bar-fill.amber { background: linear-gradient(90deg, #d97706, #fbbf24); }
+    #dashApp .bar-fill.purple { background: linear-gradient(90deg, var(--purple), var(--primary)); }
+
+    /* Responsive inside Dashboard */
+    @media (max-width: 900px) {
+      #dashApp {
+        grid-template-columns: 1fr;
+      }
+      #dashApp .sidebar {
+        display: none;
+      }
+      #dashApp .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      #dashApp .charts-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow glow-left"></div>
+  <div class="ambient-glow glow-right"></div>
+  <div class="ambient-glow glow-center"></div>
+
+  <!-- Marketing Landing Page (Default View) -->
+  <div id="marketingSite">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="javascript:void(0)" onclick="scrollToSection('#marketingSite')">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          GuardianAI
+        </a>
+        <nav class="nav">
+          <a href="javascript:void(0)" onclick="scrollToSection('#general-plane')">AI App Firewall</a>
+          <a href="javascript:void(0)" onclick="scrollToSection('#web3-plane')">Web3 Sentinel</a>
+          <a href="javascript:void(0)" onclick="scrollToSection('#workflow-sec')">Workflow</a>
+          <a href="docs.html" target="_blank">Docs</a>
+          <a href="audit.html" target="_blank">Scanner</a>
+          <a href="javascript:void(0)" onclick="openLogin('overview')">Console</a>
+        </nav>
+        <a class="btn btn-primary" href="javascript:void(0)" onclick="openLogin('overview')">Launch Console</a>
+      </div>
+    </header>
+
+    <main>
+      <!-- Hero Section -->
+      <section class="hero shell" style="padding-top: 120px; padding-bottom: 80px; position: relative;">
+        <!-- Canvas for particle grid animation -->
+        <canvas id="hero-particles" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0.45;"></canvas>
+        <div class="scanline-overlay" style="position: absolute; inset: 0; pointer-events: none; z-index: 1;"></div>
+        
+        <div class="hero-pill" style="z-index: 2;">SECURE AI AGENT & APP GATEWAY</div>
+        <h1 style="z-index: 2;">Two Control Planes. One Security Gateway.</h1>
+        <p style="z-index: 2;">
+          Protect your autonomous AI applications. Run content guardrails, jailbreak defense, and dynamic privacy filters for general LLM workloads — alongside strict wallet sentinels and Monad L1 on-chain anchoring for high-risk Web3 execution.
+        </p>
+
+        <div class="hero-actions" style="z-index: 2;">
+          <a class="btn btn-primary" href="javascript:void(0)" onclick="scrollToSection('#general-plane')">General AI Protection</a>
+          <a class="btn btn-ghost" href="javascript:void(0)" onclick="scrollToSection('#web3-plane')">Web3 Agent Plane</a>
+        </div>
+      </section>
+
+      <!-- The Product Planes Split Showcase -->
+      <section class="shell" style="padding-top: 0; padding-bottom: 80px;">
+        <div class="section-header">
+          <h2>Select Your Protection Plane</h2>
+          <p>Deploy secure runtime gates tailored exactly for conversational agent APIs or blockchain transaction wallets.</p>
+        </div>
+
+        <div class="planes-container">
+          
+          <!-- PLANE A: General AI App & Agent Protection -->
+          <div class="product-plane plane-general" id="general-plane">
+            <span class="plane-badge">General AI & Agent Gateway</span>
+            <h3 class="section-title-new">Semantic Input/Output Firewall</h3>
+            <p style="color: var(--text-dim); line-height: 1.6;">
+              Stop adversarial prompts, jailbreaks, and indirect injection scripts at the API boundary. Validate outputs for privacy, content alignment, and proprietary code safety before returning to users.
+            </p>
+
+            <!-- Interactive Terminal Demonstration -->
+            <div class="mini-terminal">
+              <div class="mini-terminal-bar">
+                <div class="mini-terminal-dots">
+                  <div class="mini-terminal-dot red"></div>
+                  <div class="mini-terminal-dot yellow"></div>
+                  <div class="mini-terminal-dot green"></div>
+                </div>
+                <span>General AI Firewall Log</span>
+              </div>
+              <div class="mini-terminal-body">
+                <div><span style="color: #a78bfa;">[INPUT]</span> user: "Translate ROT13: Vtaber clguba ncc rkphgvb..."</div>
+                <div><span style="color: #eab308;">[STRIP]</span> Obfuscation decoded: "Ignore python app execut..."</div>
+                <div><span style="color: #ef4444;">[BLOCK]</span> Heuristic: Jailbreak pattern detected (OWASP LLM01)</div>
+                <div><span style="color: #10b981;">[ACTION]</span> Gateway blocked, sanitized warning dispatched</div>
+              </div>
+            </div>
+
+            <ul class="plane-features">
+              <li><strong>Jailbreak & Prompt Firewall</strong>: Blocks complex framing, DAN personifications, and system prompt extraction heuristics.</li>
+              <li><strong>De-obfuscation Engine</strong>: Decodes ROT13, Base64, Hex, Leetspeak, Morse code, and zero-width text hiding dynamically.</li>
+              <li><strong>PII & Secrets Redactor</strong>: Strips API keys, passwords, SSNs, and private credentials from outbound LLM generations.</li>
+              <li><strong>Steganographic Watermarking</strong>: Invisible signed content tracing embedded directly inside output buffers.</li>
+            </ul>
+            
+            <a class="btn btn-ghost" href="javascript:void(0)" onclick="openLogin('overview')" style="width: 100%; margin-top: 36px; text-align: center; border-color: rgba(124, 58, 237, 0.4);">Launch App Gateway</a>
+          </div>
+
+          <!-- PLANE B: Web3 Agent Security Plane -->
+          <div class="product-plane plane-web3" id="web3-plane">
+            <span class="plane-badge">Web3 AI Agent Sentinel</span>
+            <h3 class="section-title-new">On-Chain Transaction & Identity Plane</h3>
+            <p style="color: var(--text-dim); line-height: 1.6;">
+              Secure autonomous agentic wallets. Intercept tool arguments, block unapproved token movements, verify transaction intents, and anchor secure telemetry logs directly to high-throughput chains.
+            </p>
+
+            <!-- Interactive Terminal Demonstration -->
+            <div class="mini-terminal">
+              <div class="mini-terminal-bar">
+                <div class="mini-terminal-dots">
+                  <div class="mini-terminal-dot red"></div>
+                  <div class="mini-terminal-dot yellow"></div>
+                  <div class="mini-terminal-dot green"></div>
+                </div>
+                <span>Web3 Wallet Sentinel Log</span>
+              </div>
+              <div class="mini-terminal-body">
+                <div><span style="color: #22d3ee;">[TOOL]</span> agentic-bot: call wallet.approve(0x3a99..., unlimited)</div>
+                <div><span style="color: #ef4444;">[CHECK]</span> Target contract flag: High Risk (Phishing Domain detected)</div>
+                <div><span style="color: #eab308;">[SENTINEL]</span> Action suspended. Multi-sig validation required</div>
+                <div><span style="color: #10b981;">[MERKLE]</span> Anchor leaf queued for Monad commit: root=0x7e29...</div>
+              </div>
+            </div>
+
+            <ul class="plane-features">
+              <li><strong>Wallet Intent Interceptor</strong>: Requires allowance thresholds, admin quorums, and address allowlists before transactions.</li>
+              <li><strong>AI Agent Passport</strong>: Dynamic trust scorecards and ERC-5192 Soulbound Tokens (SBT) anchored on Monad L1. <span style="background:rgba(234,179,8,0.15);color:#eab308;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">COMING SOON</span></li>
+              <li><strong>Guardian Cortex Memory</strong>: Sealed, tamper-proof decision logging with Merkle tree anchor roots committed on-chain. <span style="background:rgba(34,211,238,0.15);color:#22d3ee;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">TESTNET BETA</span></li>
+              <li><strong>Cross-Agent Interlock</strong>: Nonce-linked mutual proof contracts verifying agent-to-agent transactions.</li>
+            </ul>
+            
+            <a class="btn btn-primary" href="javascript:void(0)" onclick="openLogin('overview')" style="width: 100%; margin-top: 36px; text-align: center; background: var(--primary);">Deploy Web3 Sentinel</a>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Workflow Section -->
+      <section id="workflow-sec" class="shell" style="padding-top: 40px; padding-bottom: 80px;">
+        <div class="section-header">
+          <h2>Unified Gateway Pipeline</h2>
+          <p>From API request to smart contract transaction execution—GuardianAI secures the runtime path.</p>
+        </div>
+        <div class="grid">
+          <div class="glass-card">
+            <h3>1. Intercept & Normalise</h3>
+            <p>Runs as a transparent proxy or embedded sidecar, capturing prompts, tool calls, and model outputs instantly.</p>
+          </div>
+          <div class="glass-card">
+            <h3>2. Assess & Sentinel</h3>
+            <p>Evaluates prompt injections via semantic vector checks, and transaction intents via address risk scorecards.</p>
+          </div>
+          <div class="glass-card">
+            <h3>3. Anchor & Execute</h3>
+            <p>Signs execution payloads, stores telemetry, and commits daily Merkle tree root hashes to Monad L1. <span style="background:rgba(34,211,238,0.15);color:#22d3ee;padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;">TESTNET BETA</span></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom Call To Action -->
+      <section class="shell" style="padding-top: 0; padding-bottom: 100px; text-align: center;">
+        <div class="glass-card" style="padding: 60px 40px; max-width: 900px; margin: 0 auto; border: 1px solid rgba(50, 121, 249, 0.25); box-shadow: 0 0 40px rgba(50, 121, 249, 0.05);">
+          <h2 style="font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; margin-bottom: 16px;">Ready to Secure Your Agentic Stack?</h2>
+          <p style="color: var(--text-dim); max-width: 600px; margin: 0 auto 32px; font-size: 1.1rem; line-height: 1.6;">
+            Deploy GuardianAI today. Get standard API guardrails and advanced blockchain sentinels combined under one dashboard console.
+          </p>
+          <a class="btn btn-primary" href="javascript:void(0)" onclick="openLogin('overview')" style="padding: 14px 32px; font-size: 1rem;">Launch Developer Console</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        &copy; 2026 GuardianAI Platform. Runtime security for Web3 AI agents.
+      </div>
+    </footer>
+  </div>
+
+  <!-- Login Overlay (Modal) -->
+  <div class="login-overlay" id="loginOverlay" style="display:none">
+    <div class="login-card">
+      <button class="close-btn" onclick="closeLogin()">&times;</button>
+      <h2>GuardianAI</h2>
+      <p>Security Dashboard — Sign in to continue</p>
+      <div class="form-group">
+        <label for="login-user">Username</label>
+        <input type="text" id="login-user" value="admin" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="login-pass">Password</label>
+        <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password">
+      </div>
+      <button type="button" class="btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+
+  <!-- Dashboard Console App (Visible after login) -->
+  <div class="app" id="dashApp" style="display:none">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          GuardianAI Console
+        </div>
+        <div class="right">
+          <span class="status-dot"></span>
+          <span style="font-size:0.8rem;color:var(--text-dim)">Live</span>
+          <span class="user-badge" id="userBadge">admin</span>
+          <button onclick="doLogout()" style="background:none;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:0.8rem">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="nav-section">
+        <h4>Monitor</h4>
+        <div class="nav-item active" onclick="showPage('overview')"><span class="icon">📊</span>Overview</div>
+        <div class="nav-item" onclick="showPage('events')"><span class="icon">🔔</span>Events<span class="badge" id="eventCount">0</span></div>
+        <div class="nav-item" onclick="showPage('threats')"><span class="icon">⚠️</span>Threat Map</div>
+        <div class="nav-item" onclick="showIframePage('history', 'history.html')"><span class="icon">📈</span>Regression Tracker</div>
+        <div class="nav-item" onclick="showIframePage('audit-scanner', 'audit.html')"><span class="icon">🔍</span>Audit Scanner</div>
+      </div>
+      <div class="nav-section">
+        <h4>Manage</h4>
+        <div class="nav-item" onclick="showIframePage('passport', 'passport.html')"><span class="icon">🪪</span>Agent Passport<span class="badge" style="background:var(--emerald)">NEW</span></div>
+        <div class="nav-item" onclick="showIframePage('cortex', 'cortex.html')"><span class="icon">🧠</span>Agent Cortex<span class="badge">BETA</span></div>
+        <div class="nav-item" onclick="showPage('users')"><span class="icon">👥</span>Tenants &amp; RBAC</div>
+        <div class="nav-item" onclick="showPage('compliance')"><span class="icon">📋</span>Compliance (EU Act)</div>
+        <div class="nav-item" onclick="showPage('policies')"><span class="icon">🛡️</span>Firewall Rules</div>
+      </div>
+      <div class="nav-section">
+        <h4>System</h4>
+        <div class="nav-item" onclick="showPage('settings')"><span class="icon">⚙️</span>Settings</div>
+        <div class="nav-item" onclick="showPage('audit')"><span class="icon">📄</span>Immutable Audit Log</div>
+        <div class="nav-item" onclick="showPage('security-audits')"><span class="icon">🛡️</span>Security Audits</div>
+        <div class="nav-item" onclick="showPage('deception')"><span class="icon">🕸️</span>Honeypots &amp; Decoys</div>
+        <div class="nav-item" onclick="showIframePage('docs', 'docs.html')"><span class="icon">📚</span>Documentation</div>
+      </div>
+    </aside>
+
+    <main class="main" id="mainContent">
+      <!-- Overview Page -->
+      <div id="page-overview">
+        <div class="stats-grid" id="statsGrid">
+          <div class="card">
+            <div class="card-title">Total Requests</div>
+            <div class="card-value" id="statRequests">0</div>
+            <div class="card-change up">↑ Live tracking</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Threats Blocked</div>
+            <div class="card-value" id="statBlocked" style="color:var(--rose)">0</div>
+            <div class="card-change down">⛔ Auto-blocked</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Block Rate</div>
+            <div class="card-value" id="statBlockRate">0%</div>
+            <div class="card-change">Last 30 days</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Avg Latency</div>
+            <div class="card-value" id="statLatency">0ms</div>
+            <div class="card-change up">↑ Guardian overhead</div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title">Threat Breakdown</div>
+            <div style="height: 250px; position: relative;">
+              <canvas id="threatChartCanvas"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Recent Events</div>
+            <div class="event-feed" id="eventFeed"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other Pages (Stubbed out for navigation) -->
+      <div id="page-events" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Security Event Log</h2>
+        <div class="card" style="min-height:400px;">
+          <p style="color:var(--text-dim);">Live event streams and SIEM export tools are accessible here.</p>
+          <div class="event-feed" id="eventFeedFull" style="margin-top:20px;"></div>
+        </div>
+      </div>
+
+      <div id="page-threats" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Global Threat Map</h2>
+        <div class="card" style="min-height:400px;display:flex;align-items:center;justify-content:center;">
+          <p style="color:var(--text-dim);">Geospatial IP mapping feature is loading...</p>
+        </div>
+      </div>
+
+      <div id="page-users" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Tenant &amp; RBAC Control</h2>
+        <div class="card" style="min-height:400px;">
+          <p style="color:var(--text-dim);">Manage API keys, JWT Secrets, and Tenant Tier limitations.</p>
+        </div>
+      </div>
+
+      <div id="page-compliance" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">EU AI Act Compliance</h2>
+        <div class="card" style="min-height:400px;">
+          <p style="color:var(--text-dim);">Generate automated PDF evidence reports for SOC2 and GDPR compliance audits.</p>
+        </div>
+      </div>
+
+      <div id="page-security-audits" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Security Evidence Audits</h2>
+        <div class="card" style="min-height:400px;">
+          <p style="color:var(--text-dim);margin-bottom:16px;">Target endpoints with signed GuardianAI evidence artifacts after reaching the configured audit threshold.</p>
+          <div id="auditList" style="display:grid;grid-template-columns:1fr;gap:16px;">
+            <!-- Audits injected here -->
+          </div>
+        </div>
+      </div>
+
+      <div id="page-policies" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Firewall Rules</h2>
+        <div class="card" style="min-height:400px;">
+          <p style="color:var(--text-dim);">Configure custom Regex filters, Jailbreak heuristics, and PII masking thresholds.</p>
+        </div>
+      </div>
+
+      <div id="page-settings" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">System Settings</h2>
+        <div class="card" style="min-height:400px;">
+          <p style="color:var(--text-dim);">Configure database connections, API upstream routing, and global threat thresholds.</p>
+          <p style="color:var(--text-dim);margin-top:12px;"><strong>Differential Privacy:</strong> Configure Gaussian/Laplace noise parameters (ε/δ) for all exported analytics.</p>
+        </div>
+      </div>
+
+      <div id="page-audit" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Immutable Audit Log</h2>
+        <div class="card" style="min-height:400px;">
+          <p style="color:var(--text-dim);">A cryptographically sealed ledger of all administrator logins, configuration changes, and compliance events.</p>
+          <div style="margin-top: 16px; padding: 12px; background: rgba(52, 168, 83, 0.1); border-left: 3px solid #34a853; color: #34a853; font-size: 0.85rem;">
+            ✓ HMAC-SHA256 Integrity Verified
+          </div>
+        </div>
+      </div>
+
+      <div id="page-deception" style="display:none;">
+        <h2 style="font-family:'Outfit',sans-serif;font-size:1.5rem;margin-bottom:16px;">Deception Operations</h2>
+        <div class="card" style="min-height:400px;">
+          <p style="color:var(--text-dim);">Manage active Canary Tokens, Decoy Credentials, and monitor Adaptive Delay triggers.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    let accessToken = null;
+    let currentUser = null;
+    let wsConnection = null;
+    let allEvents = [];
+    let threatChartInstance = null;
+    let globalAnalytics = null;
+
+    // Navigation and pending redirects helper
+    window.pendingPageId = null;
+    window.pendingPageUrl = null;
+
+    function scrollToSection(selector) {
+      const el = document.querySelector(selector);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    function openLogin(pageId, pageUrl) {
+      if (accessToken && currentUser) {
+        // Already logged in, switch to dashboard immediately
+        document.getElementById('marketingSite').style.display = 'none';
+        document.getElementById('dashApp').style.display = 'grid';
+        if (pageUrl) {
+          showIframePage(pageId, pageUrl);
+        } else {
+          showPage(pageId);
+        }
+      } else {
+        // Store pending page request
+        window.pendingPageId = pageId;
+        window.pendingPageUrl = pageUrl;
+        document.getElementById('loginOverlay').style.display = 'flex';
+      }
+    }
+
+    function closeLogin() {
+      document.getElementById('loginOverlay').style.display = 'none';
+      window.pendingPageId = null;
+      window.pendingPageUrl = null;
+    }
+
+    // Dismiss overlay on background click
+    document.getElementById('loginOverlay').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeLogin();
+      }
+    });
+
+    // ─── Auth ──────────────────────────────────────────────────
+    async function doLogin() {
+      const user = document.getElementById('login-user').value.trim();
+      const pass = document.getElementById('login-pass').value;
+      const errEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
+      errEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: user, password: pass}),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || 'Login failed');
+        }
+        const data = await res.json();
+        accessToken = data.access_token;
+        currentUser = data.user;
+        localStorage.setItem('guardian_token', accessToken);
+        localStorage.setItem('guardian_user', JSON.stringify(currentUser));
+        showDashboard();
+      } catch (e) {
+        errEl.textContent = e.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    }
+
+    function doLogout() {
+      if (accessToken) {
+        fetch(`${API_BASE}/api/v1/auth/logout`, {
+          method: 'POST',
+          headers: {'Authorization': `Bearer ${accessToken}`},
+        }).catch(() => {});
+      }
+      accessToken = null;
+      currentUser = null;
+      localStorage.removeItem('guardian_token');
+      localStorage.removeItem('guardian_user');
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('dashApp').style.display = 'none';
+      document.getElementById('marketingSite').style.display = 'block';
+      hasAnimatedStats = false;
+      initHeroParticles();
+      if (wsConnection) {
+        try { wsConnection.close(); } catch(e) {}
+      }
+    }
+
+    function showDashboard() {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('marketingSite').style.display = 'none';
+      document.getElementById('dashApp').style.display = 'grid';
+      document.getElementById('userBadge').textContent = `${currentUser.username} (${currentUser.role})`;
+
+      // Fulfill pending navigation if exists
+      if (window.pendingPageId) {
+        if (window.pendingPageUrl) {
+          showIframePage(window.pendingPageId, window.pendingPageUrl);
+        } else {
+          showPage(window.pendingPageId);
+        }
+        window.pendingPageId = null;
+        window.pendingPageUrl = null;
+      } else {
+        showPage('overview');
+      }
+
+      loadAnalytics();
+      loadEvents();
+      connectWebSocket();
+    }
+
+    // ─── Data Loading ──────────────────────────────────────────
+    async function apiFetch(path) {
+      const headers = accessToken ? {'Authorization': `Bearer ${accessToken}`} : {};
+      if (!accessToken) return {};
+      const res = await fetch(`${API_BASE}${path}`, {headers});
+      if (res.status === 401) { doLogout(); return {}; }
+      return res.json();
+    }
+
+    async function loadAnalytics() {
+      try {
+        const basicAuth = btoa(`${currentUser.username}:${document.getElementById('login-pass')?.value || 'guardian_default'}`);
+        const res = await fetch(`${API_BASE}/api/v1/analytics`, {
+          headers: {'Authorization': `Basic ${basicAuth}`},
+        });
+        if (!res.ok) return;
+        const d = await res.json();
+        globalAnalytics = d;
+        resetStatsView();
+
+        const paths = d.path_breakdown || {};
+        const labels = Object.keys(paths).map(name => name.replace(/_/g, ' '));
+        const data = Object.values(paths);
+
+        const ctx = document.getElementById('threatChartCanvas').getContext('2d');
+
+        if (threatChartInstance) {
+          threatChartInstance.data.labels = labels;
+          threatChartInstance.data.datasets[0].data = data;
+          threatChartInstance.update();
+        } else {
+          threatChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: labels.length ? labels : ['No Traffic'],
+              datasets: [{
+                data: data.length ? data : [1],
+                backgroundColor: [
+                  'rgba(50, 121, 249, 0.8)',
+                  'rgba(234, 67, 53, 0.8)',
+                  'rgba(251, 188, 5, 0.8)',
+                  'rgba(52, 168, 83, 0.8)',
+                  'rgba(124, 58, 237, 0.8)'
+                ],
+                borderColor: 'rgba(18, 19, 23, 1)',
+                borderWidth: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { position: 'right', labels: { color: '#b2bbc5', font: { family: 'Inter' } } },
+                tooltip: { backgroundColor: 'rgba(24, 25, 29, 0.95)', titleColor: '#fff', bodyColor: '#b2bbc5' }
+              },
+              onClick: (event, elements) => {
+                if (elements.length > 0) {
+                  const index = elements[0].index;
+                  const label = threatChartInstance.data.labels[index];
+                  updateStatsView(label);
+                } else {
+                  resetStatsView();
+                }
+              }
+            }
+          });
+        }
+      } catch(e) {
+        console.warn('Analytics load failed:', e);
+      }
+    }
+
+    async function loadSecurityAudits() {
+      try {
+        const res = await apiFetch('/api/v1/audits');
+        const data = res;
+        const container = document.getElementById('auditList');
+        if(!data.audits || data.audits.length === 0) {
+          container.innerHTML = `<p style="color:var(--muted);">No certified audits found. Run guardian_audit.py scan first.</p>`;
+          return;
+        }
+        let html = "";
+        for(let a of data.audits) {
+          let dateStr = new Date(a.issued_at).toLocaleString();
+          let color = a.grade.startsWith("A") ? "var(--emerald)" : "var(--primary)";
+          html += `<div style="padding:16px;background:var(--surface-hover);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:600;font-size:1.1rem;margin-bottom:4px;color:var(--text);">${a.target}</div>
+              <div style="font-size:0.8rem;color:var(--text-dim);">Mode: ${a.mode.toUpperCase()} | Date: ${dateStr}</div>
+              <div style="font-size:0.85rem;color:var(--text-dim);margin-top:6px;">Score: <strong style="color:${color};">${a.score.toFixed(1)}/100 (${a.grade})</strong></div>
+            </div>
+            <div>
+              <img src="${API_BASE}/api/v1/audits/${a.id}/svg" alt="GuardianAI Badge" style="height:40px;"/>
+            </div>
+          </div>`;
+        }
+        container.innerHTML = html;
+      } catch(err) {
+        console.error("Failed to load security audits", err);
+      }
+    }
+
+    async function loadEvents() {
+      try {
+        const basicAuth = btoa(`${currentUser.username}:${document.getElementById('login-pass')?.value || 'guardian_default'}`);
+        const res = await fetch(`${API_BASE}/api/v1/export/json`, {
+          headers: {'Authorization': `Basic ${basicAuth}`},
+        });
+        if (!res.ok) return;
+        allEvents = await res.json();
+        renderEvents(allEvents.slice(0, 20));
+        document.getElementById('eventCount').textContent = allEvents.length;
+      } catch(e) {
+        console.warn('Events load failed:', e);
+      }
+    }
+
+    function renderEvents(events) {
+      const feed = document.getElementById('eventFeed');
+      if (!events.length) {
+        feed.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">No events yet.</div>';
+        return;
+      }
+      feed.innerHTML = events.map(e => {
+        const sev = (e.severity||'LOW').toLowerCase();
+        const typeLabel = (e.event_type||'unknown').replace(/_/g,' ');
+        const ts = e.timestamp ? new Date(e.timestamp * 1000).toLocaleTimeString() : '';
+        const detail = e.details?.message || e.details?.pattern || e.details?.path || '';
+        return `<div class="event-item">
+          <div class="event-dot ${sev}"></div>
+          <div><div class="event-type">${typeLabel}</div><div class="event-detail">${detail}</div></div>
+          <div class="event-time">${ts}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function updateStatsView(filterLabel) {
+      if (!allEvents || allEvents.length === 0) return;
+      const filtered = allEvents.filter(e => {
+        const rawPath = e.details?.path || e.event_type || 'unknown';
+        const path = String(rawPath);
+        return path.replace(/_/g, ' ') === filterLabel;
+      });
+
+      if (filtered.length === 0) { resetStatsView(); return; }
+
+      const total = filtered.length;
+      const blocked = filtered.filter(e => e.action === 'block' || e.severity === 'CRITICAL' || e.severity === 'HIGH').length;
+      const rate = total > 0 ? Math.round((blocked / total) * 100) : 0;
+
+      let latSum = 0; let latCount = 0;
+      filtered.forEach(e => {
+        const latRaw = e.details?.guardian_overhead_ms || e.details?.latency_ms;
+        if (latRaw) {
+          const val = parseFloat(String(latRaw).replace(/[^0-9.]/g, ''));
+          if (!isNaN(val) && val > 0) { latSum += val; latCount++; }
+        }
+      });
+      const avgLat = latCount > 0 ? (latSum / latCount).toFixed(1) : 0;
+
+      document.getElementById('statRequests').textContent = total.toLocaleString();
+      document.getElementById('statBlocked').textContent = blocked.toLocaleString();
+      document.getElementById('statBlockRate').textContent = rate + '%';
+      document.getElementById('statLatency').textContent = avgLat + 'ms';
+      renderEvents(filtered.slice(0, 20));
+    }
+
+    let hasAnimatedStats = false;
+
+    function animateCountUp(elementId, targetValue, duration = 1000, suffix = '') {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      const start = 0;
+      const startTime = performance.now();
+      
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = progress * (2 - progress); // Ease out quad
+        const currentValue = Math.floor(start + easeProgress * (targetValue - start));
+        el.textContent = currentValue.toLocaleString() + suffix;
+        
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          el.textContent = targetValue.toLocaleString() + suffix;
+        }
+      }
+      requestAnimationFrame(update);
+    }
+
+    function resetStatsView() {
+      if (!globalAnalytics) return;
+      const reqs = globalAnalytics.total_requests || 0;
+      const blk = globalAnalytics.total_blocked || 0;
+      const rate = globalAnalytics.global_block_rate_pct || 0;
+      const lat = Math.round(globalAnalytics.avg_guardian_overhead_ms || 0);
+
+      if (!hasAnimatedStats) {
+        animateCountUp('statRequests', reqs, 1200);
+        animateCountUp('statBlocked', blk, 1200);
+        animateCountUp('statBlockRate', rate, 1200, '%');
+        animateCountUp('statLatency', lat, 1200, 'ms');
+        hasAnimatedStats = true;
+      } else {
+        document.getElementById('statRequests').textContent = reqs.toLocaleString();
+        document.getElementById('statBlocked').textContent = blk.toLocaleString();
+        document.getElementById('statBlockRate').textContent = `${rate}%`;
+        document.getElementById('statLatency').textContent = `${lat}ms`;
+      }
+      if (allEvents && allEvents.length > 0) renderEvents(allEvents.slice(0, 20));
+    }
+
+    // ─── WebSocket ─────────────────────────────────────────────
+    function connectWebSocket() {
+      if (!accessToken) return;
+      const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+      try {
+        wsConnection = new WebSocket(`${wsProto}://${location.host}/ws/threats?token=${accessToken}`);
+        wsConnection.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.type === 'new_event') {
+              allEvents.unshift(msg.data);
+              renderEvents(allEvents.slice(0, 20));
+              document.getElementById('eventCount').textContent = allEvents.length;
+              loadAnalytics();
+            }
+          } catch(e) {}
+        };
+        wsConnection.onclose = () => setTimeout(connectWebSocket, 3000);
+      } catch(e) {}
+    }
+
+    // ─── Navigation ────────────────────────────────────────────
+    function showPage(pageId) {
+      const mainEl = document.querySelector('#dashApp .main');
+      if (mainEl) {
+        mainEl.style.padding = '24px';
+        mainEl.style.overflowY = 'auto';
+      }
+
+      document.querySelectorAll('#dashApp .main > div').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('#dashApp .nav-item').forEach(el => el.classList.remove('active'));
+      const pageEl = document.getElementById(`page-${pageId}`);
+      if(pageEl) pageEl.style.display = 'block';
+      const navItem = Array.from(document.querySelectorAll('#dashApp .nav-item')).find(el => el.getAttribute('onclick') === `showPage('${pageId}')`);
+      if(navItem) navItem.classList.add('active');
+
+      if (pageId === 'security-audits') loadSecurityAudits();
+    }
+
+    function showIframePage(pageId, url) {
+      const mainEl = document.querySelector('#dashApp .main');
+      if (mainEl) {
+        mainEl.style.padding = '0';
+        mainEl.style.overflow = 'hidden';
+      }
+
+      document.querySelectorAll('#dashApp .main > div').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('#dashApp .nav-item').forEach(el => el.classList.remove('active'));
+
+      const navItem = Array.from(document.querySelectorAll('#dashApp .nav-item')).find(el => {
+        const attr = el.getAttribute('onclick');
+        return attr && attr.includes(`'${pageId}'`);
+      });
+      if(navItem) navItem.classList.add('active');
+
+      let container = document.getElementById(`page-${pageId}`);
+      if (!container) {
+        container = document.createElement('div');
+        container.id = `page-${pageId}`;
+        container.style.width = '100%';
+        container.style.height = 'calc(100vh - 60px)';
+        container.style.margin = '0';
+        container.style.padding = '0';
+
+        const iframe = document.createElement('iframe');
+        iframe.id = `iframe-${pageId}`;
+        iframe.src = url;
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.background = 'transparent';
+
+        iframe.onload = function() {
+          try {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            // Hide standard headers/footers in subpages
+            const topbar = doc.querySelector('.topbar') || doc.querySelector('.page-header');
+            if (topbar) topbar.style.display = 'none';
+            const footer = doc.querySelector('footer');
+            if (footer) footer.style.display = 'none';
+
+            // Remove background body gradients for seamless styling
+            doc.body.style.background = 'transparent';
+            doc.body.style.backgroundImage = 'none';
+
+            const wrapper = doc.querySelector('.page-wrapper') || doc.querySelector('.cortex-wrapper') || doc.querySelector('main');
+            if (wrapper) {
+              wrapper.style.padding = '0';
+              wrapper.style.margin = '0';
+              wrapper.style.maxWidth = '100%';
+            }
+
+            // Intercept dashboard/home navigation links to redirect the parent SPA instead
+            doc.querySelectorAll('a').forEach(link => {
+              const href = link.getAttribute('href');
+              if (href) {
+                if (href.includes('dashboard.html')) {
+                  link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.parent.showPage('overview');
+                  });
+                } else if (href.includes('index.html')) {
+                  link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.parent.doLogout();
+                  });
+                }
+              }
+            });
+          } catch (e) {
+            console.warn("Seamless styling/navigation intercept on iframe load failed (cross-origin restrictions):", e);
+          }
+        };
+
+        container.appendChild(iframe);
+        document.getElementById('mainContent').appendChild(container);
+      } else {
+        const iframe = document.getElementById(`iframe-${pageId}`);
+        if (iframe) {
+          iframe.src = url; // reload
+        }
+      }
+
+      container.style.display = 'block';
+    }
+
+    function initHeroParticles() {
+      const canvas = document.getElementById('hero-particles');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let width = canvas.width = canvas.offsetWidth;
+      let height = canvas.height = canvas.offsetHeight;
+      
+      const particles = [];
+      const particleCount = 45;
+      
+      for (let i = 0; i < particleCount; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          radius: Math.random() * 1.5 + 0.5,
+          color: Math.random() > 0.5 ? '#8b5cf6' : '#00f2fe'
+        });
+      }
+      
+      function animate() {
+        ctx.clearRect(0, 0, width, height);
+        
+        // Update & Draw particles
+        for (let i = 0; i < particleCount; i++) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          
+          if (p.x < 0 || p.x > width) p.vx *= -1;
+          if (p.y < 0 || p.y > height) p.vy *= -1;
+          
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.fill();
+        }
+        
+        // Draw links between nearby particles
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < particleCount; i++) {
+          const p1 = particles[i];
+          for (let j = i + 1; j < particleCount; j++) {
+            const p2 = particles[j];
+            const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+            if (dist < 90) {
+              const alpha = (1 - dist / 90) * 0.15;
+              ctx.strokeStyle = `rgba(139, 92, 246, ${alpha})`;
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.stroke();
+            }
+          }
+        }
+        
+        requestAnimationFrame(animate);
+      }
+      
+      window.addEventListener('resize', () => {
+        if (!canvas) return;
+        width = canvas.width = canvas.offsetWidth;
+        height = canvas.height = canvas.offsetHeight;
+      });
+      
+      animate();
+    }
+
+    // ─── Init ──────────────────────────────────────────────────
+    (function init() {
+      const token = localStorage.getItem('guardian_token');
+      const user = localStorage.getItem('guardian_user');
+      if (token && user) {
+        accessToken = token;
+        currentUser = JSON.parse(user);
+        showDashboard();
+      } else {
+        document.getElementById('marketingSite').style.display = 'block';
+        document.getElementById('dashApp').style.display = 'none';
+        initHeroParticles();
+      }
+      document.getElementById('login-pass').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -29,7 +29,7 @@ scanner:
   - subprocess
   skills_directory: ./skills
 security_policies:
-  admin_token: dfdf
+  admin_token: ***REDACTED***
   block_prompt_injection: true
   leak_prevention_strategy: redact
   security_mode: balanced

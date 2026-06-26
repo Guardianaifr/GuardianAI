@@ -1,0 +1,8 @@
+mode: enforce
+risk_rules:
+  lenient_modes:
+    - lenient
+  risky_leak_strategies:
+    - redact
+  max_requests_per_minute_without_approval: 120
+  backend_must_be_enabled: true

@@ -1,0 +1,22 @@
+{
+  "passed": 16,
+  "total": 16,
+  "results": {
+    "circuit_breaker_unit": "PASS",
+    "match_count_metrics": "PASS",
+    "last_updated_set": "PASS",
+    "status_shape": "PASS",
+    "api_key_configured": "PASS",
+    "https_only_enforcement": "PASS",
+    "additional_feeds_https_filter": "PASS",
+    "refresh_now_callable": "PASS",
+    "redos_sandbox_still_works": "PASS",
+    "ssrf_redirect_blocked": "PASS",
+    "circuit_breaker_integration": "PASS",
+    "phishtank_static_patterns": "PASS",
+    "urlhaus_live": "PASS",
+    "otx_skipped_without_key": "PASS",
+    "fetch_all_disabled": "PASS",
+    "fetch_all_phishtank_enabled": "PASS"
+  }
+}

@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI | Pricing — Gateway + Agent Cortex Plans</title>
+  <meta name="description" content="GuardianAI pricing for Web3 AI-agent security. Gateway runtime protection, deep scan CI reports, and Guardian Cortex verifiable decision memory with 10-day free Monad trial.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site-assets/style.css?v=20260602web3agent">
+  <style>
+    :root {
+      --bg: #050409;
+      --surface: rgba(13, 9, 23, 0.7);
+      --surface2: rgba(22, 14, 38, 0.85);
+      --border: rgba(139, 92, 246, 0.15);
+      --border-blue: rgba(0, 242, 254, 0.35);
+      --border-purple: rgba(217, 70, 239, 0.4);
+      --text: #f1f3f9;
+      --muted: #948ba3;
+      --muted2: #4e465f;
+      --primary: #8b5cf6;
+      --purple: #d946ef;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --cyan: #00f2fe;
+    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      background-image: radial-gradient(circle at 50% -20%, #170d2b 0%, #050409 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── Section headers ─── */
+    .section-header {
+      text-align: center;
+      padding: 80px 20px 40px;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 18px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(50,121,249,.3);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .eyebrow.cortex { border-color: rgba(167,110,255,.35); color: var(--purple); }
+    h1 { font-family: 'Outfit', sans-serif; font-size: clamp(34px, 5.5vw, 52px); font-weight: 900; line-height: 1.08; margin-bottom: 16px; }
+    h2.section-title { font-family: 'Outfit', sans-serif; font-size: clamp(26px, 4vw, 40px); font-weight: 900; line-height: 1.1; margin-bottom: 14px; }
+    .section-header p { color: var(--muted); font-size: 16px; line-height: 1.75; }
+
+    /* ─── Pricing grids ─── */
+    .pricing-grid {
+      width: min(1200px, calc(100% - 40px));
+      margin: 0 auto 56px;
+      display: grid;
+      gap: 20px;
+    }
+    .pricing-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .pricing-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+    .tier-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      min-height: 510px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      transition: transform .2s, box-shadow .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .tier-card:hover { transform: translateY(-3px); box-shadow: 0 16px 48px rgba(0,0,0,.35); }
+    .tier-card.featured { border-color: var(--border-blue); box-shadow: 0 0 40px rgba(50,121,249,.08); }
+    .tier-card.featured-purple { border-color: var(--border-purple); box-shadow: 0 0 40px rgba(167,110,255,.08); }
+
+    .badge-top {
+      position: absolute;
+      top: -1px; right: 22px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      padding: 4px 12px;
+      border-radius: 0 0 8px 8px;
+    }
+    .badge-top.purple { background: var(--purple); }
+    .badge-top.amber { background: var(--amber); color: #0d0f14; }
+
+    .tier-icon { font-size: 2rem; margin-bottom: 12px; }
+    .tier-name { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .tier-price {
+      font-family: 'Outfit', sans-serif;
+      font-size: 44px;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .tier-price sub { font-size: 14px; font-weight: 600; color: var(--muted); vertical-align: middle; }
+    .tier-period { font-size: 12px; color: var(--muted2); margin-bottom: 6px; }
+    .tier-desc { color: var(--muted); font-size: 13px; line-height: 1.65; margin-bottom: 20px; min-height: 52px; }
+
+    .trial-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(46,204,113,.12);
+      border: 1px solid rgba(46,204,113,.3);
+      color: var(--green);
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .trial-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+
+    ul.feature-list { list-style: none; flex: 1; margin-bottom: 24px; }
+    ul.feature-list li {
+      color: #b8c4d4;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 11px;
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+    }
+    ul.feature-list li .check { color: var(--green); font-weight: 900; flex-shrink: 0; }
+    ul.feature-list li .check.purple { color: var(--purple); }
+    ul.feature-list li .check.amber { color: var(--amber); }
+
+    .tier-btn {
+      display: block;
+      text-align: center;
+      padding: 13px 16px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      background: transparent;
+      transition: all .2s;
+      font-family: inherit;
+    }
+    .tier-btn:hover { border-color: var(--primary); background: rgba(50,121,249,.08); }
+    .tier-btn.primary { background: var(--primary); border-color: transparent; color: #fff; box-shadow: 0 4px 18px rgba(50,121,249,.25); }
+    .tier-btn.primary:hover { background: #4b8afc; box-shadow: 0 6px 28px rgba(50,121,249,.35); }
+    .tier-btn.purple-btn { background: var(--purple); border-color: transparent; color: #fff; box-shadow: 0 4px 18px rgba(167,110,255,.25); }
+    .tier-btn.purple-btn:hover { background: #b882ff; box-shadow: 0 6px 28px rgba(167,110,255,.35); }
+
+    /* ─── Divider ─── */
+    .section-divider {
+      width: min(1200px, calc(100% - 40px));
+      margin: 0 auto 0;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ─── Cortex feature callout ─── */
+    .cortex-callout {
+      width: min(1200px, calc(100% - 40px));
+      margin: 0 auto 64px;
+      background: rgba(167,110,255,.06);
+      border: 1px solid rgba(167,110,255,.2);
+      border-radius: 16px;
+      padding: 36px 40px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 32px;
+    }
+    .cc-col h3 { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 800; margin-bottom: 10px; color: var(--purple); }
+    .cc-col p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+    /* ─── Comparison table ─── */
+    .compare-wrap {
+      width: min(1000px, calc(100% - 40px));
+      margin: 0 auto 80px;
+      overflow-x: auto;
+    }
+    .compare-wrap h3 { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; margin-bottom: 24px; text-align: center; }
+    table.compare { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.compare th { padding: 12px 16px; background: var(--surface2); font-weight: 700; text-align: left; border-bottom: 1px solid var(--border); }
+    table.compare th:not(:first-child) { text-align: center; }
+    table.compare td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--muted); }
+    table.compare td:first-child { color: var(--text); font-weight: 500; }
+    table.compare td:not(:first-child) { text-align: center; }
+    table.compare tr:hover td { background: rgba(255,255,255,.02); }
+    .c-yes { color: var(--green); font-size: 1rem; }
+    .c-no { color: var(--muted2); }
+    .c-partial { color: var(--amber); font-size: .85rem; font-weight: 600; }
+
+    /* ─── FAQ ─── */
+    .faq-wrap {
+      width: min(780px, calc(100% - 40px));
+      margin: 0 auto 80px;
+    }
+    .faq-wrap h3 { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; margin-bottom: 28px; text-align: center; }
+    details.faq { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+    details.faq summary { padding: 16px 20px; cursor: pointer; font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+    details.faq summary::after { content: '+'; font-size: 18px; color: var(--muted); transition: transform .2s; }
+    details.faq[open] summary::after { transform: rotate(45deg); }
+    details.faq .faq-body { padding: 0 20px 16px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+    /* ─── Note ─── */
+    .note { width: min(900px, calc(100% - 40px)); margin: -20px auto 60px; color: var(--muted2); text-align: center; font-size: 12px; line-height: 1.75; }
+
+    @media(max-width:1060px) {
+      .pricing-grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+      .pricing-grid.cols-3 { grid-template-columns: repeat(2, 1fr); }
+      .cortex-callout { grid-template-columns: 1fr; }
+    }
+    @media(max-width:640px) {
+      .pricing-grid.cols-4, .pricing-grid.cols-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <div class="brand-icon"></div>
+        GuardianAI
+      </a>
+      <nav class="nav">
+        <a href="index.html">Gateway</a>
+        <a href="audit.html">Scanner</a>
+        <a href="index.html#workflow">Workflow</a>
+        <a href="pricing.html" class="active">Pricing</a>
+        <a href="docs.html">Docs</a>
+        <a href="dashboard.html">Console</a>
+      </nav>
+      <a class="btn btn-primary" href="audit.html">Run Free Scan</a>
+    </div>
+  </header>
+
+  <!-- ── Section 1: Gateway Plans ── -->
+  <div class="section-header">
+    <div class="eyebrow">🛡️ WEB3 AI AGENT SECURITY</div>
+    <h1>Start with evidence.<br>Deploy when agents touch capital.</h1>
+    <p>GuardianAI pricing follows the path most teams take — free risk evidence first, then runtime protection, then private sovereign deployments for regulated or high-value agents.</p>
+  </div>
+
+  <div class="pricing-grid cols-4">
+
+    <section class="tier-card" id="plan-free">
+      <div class="tier-icon">🔍</div>
+      <div class="tier-name">Free Scan</div>
+      <div class="tier-price">$0<sub>/forever</sub></div>
+      <p class="tier-period">&nbsp;</p>
+      <p class="tier-desc">Test an AI-agent endpoint or quickly produce risk evidence before a pitch or audit.</p>
+      <ul class="feature-list">
+        <li><span class="check">✓</span>Quick endpoint scan</li>
+        <li><span class="check">✓</span>Prompt injection & data-leak checks</li>
+        <li><span class="check">✓</span>Sample Web3 action-risk vectors</li>
+        <li><span class="check">✓</span>HTML summary report</li>
+      </ul>
+      <a href="audit.html" class="tier-btn">Run Free Scan</a>
+    </section>
+
+    <section class="tier-card" id="plan-starter">
+      <div class="tier-icon">🚀</div>
+      <div class="tier-name">Starter</div>
+      <div class="tier-price">$299<sub>/mo</sub></div>
+      <p class="tier-period">&nbsp;</p>
+      <p class="tier-desc">For early teams adding security gates to release workflows and CI pipelines.</p>
+      <ul class="feature-list">
+        <li><span class="check">✓</span>Deep scans & PDF reports</li>
+        <li><span class="check">✓</span>GitHub Action & SARIF export</li>
+        <li><span class="check">✓</span>Signed audit badge on pass</li>
+        <li><span class="check">✓</span>Email support</li>
+      </ul>
+      <button class="tier-btn" onclick="checkout('starter')">Start Starter</button>
+    </section>
+
+    <section class="tier-card featured" id="plan-pro">
+      <div class="badge-top">MOST PRACTICAL</div>
+      <div class="tier-icon">⚡</div>
+      <div class="tier-name">Pro Gateway</div>
+      <div class="tier-price">$999<sub>/mo</sub></div>
+      <p class="tier-period">&nbsp;</p>
+      <p class="tier-desc">For production Web3 agents that call tools, prepare transactions, or handle sensitive user data.</p>
+      <ul class="feature-list">
+        <li><span class="check">✓</span>Runtime prompt & output guardrails</li>
+        <li><span class="check">✓</span>Wallet/tool-call allow, deny & confirm</li>
+        <li><span class="check">✓</span>Dashboard, telemetry & evidence export</li>
+        <li><span class="check">✓</span>SIEM/webhook integrations</li>
+        <li><span class="check">✓</span>Agent Passport — soulbound trust identity</li>
+      </ul>
+      <button class="tier-btn primary" onclick="checkout('pro')">Deploy Gateway</button>
+    </section>
+
+    <section class="tier-card" id="plan-enterprise">
+      <div class="tier-icon">🏛️</div>
+      <div class="tier-name">Enterprise</div>
+      <div class="tier-price">Custom</div>
+      <p class="tier-period">&nbsp;</p>
+      <p class="tier-desc">For protocols, fintech teams & enterprises that need private hosting or procurement support.</p>
+      <ul class="feature-list">
+        <li><span class="check">✓</span>Self-hosted or private deployment</li>
+        <li><span class="check">✓</span>Custom vector packs & policy tuning</li>
+        <li><span class="check">✓</span>RBAC, tenant isolation & audit workflows</li>
+        <li><span class="check">✓</span>External review support package</li>
+      </ul>
+      <a href="mailto:sales@guardianai.com" class="tier-btn">Contact Sales</a>
+    </section>
+
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ── Section 2: Guardian Cortex Plans ── -->
+  <div class="section-header">
+    <div class="eyebrow cortex">🧠 GUARDIAN CORTEX — VERIFIABLE AGENT MEMORY</div>
+    <h2 class="section-title">Every agent decision. Sealed. Provable. Insurable.</h2>
+    <p>Guardian Cortex is the world's first system that turns AI agent behavior into a cryptographically verifiable, on-chain provable asset — anchored on Monad for $0.0001/tx. Start free on Monad testnet for 10 days, no credit card needed.</p>
+  </div>
+
+  <!-- Cortex feature highlights -->
+  <div class="cortex-callout">
+    <div class="cc-col">
+      <h3>⛓️ Monad-First Anchoring</h3>
+      <p>Decision batches are committed to Monad (10,000 TPS, EVM-compatible) as Merkle roots. Each root costs ~$0.0001 and creates tamper-proof evidence that exists forever — even if GuardianAI goes offline.</p>
+    </div>
+    <div class="cc-col">
+      <h3>⏪ Time-Travel Replay</h3>
+      <p>Reconstruct the exact state of any agent at any point in time. Know precisely what your agent knew, what it decided, and why — with a cryptographic proof you can share with regulators or insurers.</p>
+    </div>
+    <div class="cc-col">
+      <h3>🛡️ Insurance Certificates</h3>
+      <p>Automatically generate signed evidence packages that insurers, auditors, and regulators actually need — listing total decisions, anomalies, policy violations, and all on-chain Merkle proofs.</p>
+    </div>
+  </div>
+
+  <div class="pricing-grid cols-3">
+
+    <section class="tier-card" id="cortex-free">
+      <div class="trial-pill">10-Day Free Trial — No CC Required</div>
+      <div class="tier-icon">⚡</div>
+      <div class="tier-name">Cortex Free Trial</div>
+      <div class="tier-price">$0<sub>/10 days</sub></div>
+      <p class="tier-period">Auto-expires after 10 days. Events remain readable.</p>
+      <p class="tier-desc">Record, replay, and prove your agent's decisions on Monad testnet. The fastest way to see if Cortex is right for your stack.</p>
+      <ul class="feature-list">
+        <li><span class="check">✓</span>Unlimited event recording (10 days)</li>
+        <li><span class="check">✓</span>Monad testnet RPC — <strong>free</strong></li>
+        <li><span class="check">✓</span>SQLite local storage — <strong>free</strong></li>
+        <li><span class="check">✓</span>Time-travel replay API</li>
+        <li><span class="check">✓</span>Decision chain visualization</li>
+        <li><span class="check">✓</span>Trial auto-expires — no surprise charges</li>
+        <li><span class="check">✓</span>All existing events readable after expiry</li>
+      </ul>
+      <button class="tier-btn" onclick="startCortexTrial()">Start Free Trial →</button>
+    </section>
+
+    <section class="tier-card featured-purple" id="cortex-pro">
+      <div class="badge-top purple">RECOMMENDED</div>
+      <div class="tier-icon">🔮</div>
+      <div class="tier-name">Cortex Pro</div>
+      <div class="tier-price">$149<sub>/mo</sub></div>
+      <p class="tier-period">Per agent cluster, billed monthly</p>
+      <p class="tier-desc">For teams running production agents that touch capital, user data, or need to demonstrate compliance to insurers and auditors.</p>
+      <ul class="feature-list">
+        <li><span class="check purple">✓</span>90-day rolling event retention</li>
+        <li><span class="check purple">✓</span>Monad mainnet anchoring (daily Merkle roots)</li>
+        <li><span class="check purple">✓</span>Base L2 secondary anchoring</li>
+        <li><span class="check purple">✓</span>Cross-agent interlock proofs</li>
+        <li><span class="check purple">✓</span>Insurance evidence certificates</li>
+        <li><span class="check purple">✓</span>Privacy mode — hash-only or full-text</li>
+        <li><span class="check purple">✓</span>Passport trust score integration</li>
+      </ul>
+      <button class="tier-btn purple-btn" onclick="checkout('cortex_pro')">Upgrade to Pro</button>
+    </section>
+
+    <section class="tier-card" id="cortex-enterprise">
+      <div class="tier-icon">🏦</div>
+      <div class="tier-name">Cortex Enterprise</div>
+      <div class="tier-price">Custom</div>
+      <p class="tier-period">Per contract, includes SLA</p>
+      <p class="tier-desc">For regulated institutions, DeFi protocols, and AI companies that need sovereign evidence storage and multi-chain anchoring.</p>
+      <ul class="feature-list">
+        <li><span class="check amber">✓</span>Unlimited retention — no rollover</li>
+        <li><span class="check amber">✓</span>Hourly Merkle anchors (Monad + Base + ETH) <span style="background:rgba(34,211,238,0.15);color:#22d3ee;padding:1px 6px;border-radius:3px;font-size:0.65rem;font-weight:600;">TESTNET BETA</span></li>
+        <li><span class="check amber">✓</span>Private RPC endpoint (Monad/Base)</li>
+        <li><span class="check amber">✓</span>On-prem or VPC-isolated storage</li>
+        <li><span class="check amber">✓</span>Real-time anomaly alerts</li>
+        <li><span class="check amber">✓</span>Custom insurance certificate templates</li>
+        <li><span class="check amber">✓</span>Dedicated security engineer</li>
+      </ul>
+      <a href="mailto:sales@guardianai.com" class="tier-btn">Contact Sales</a>
+    </section>
+
+  </div>
+
+  <!-- ── Comparison Table ── -->
+  <div class="compare-wrap">
+    <h3>🧠 Guardian Cortex — Feature Comparison</h3>
+    <table class="compare">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Free Trial (10 days)</th>
+          <th>Pro ($149/mo)</th>
+          <th>Enterprise</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Event recording</td><td class="c-yes">✓</td><td class="c-yes">✓</td><td class="c-yes">✓</td></tr>
+        <tr><td>Event retention</td><td>10 days</td><td>90 days</td><td>Unlimited</td></tr>
+        <tr><td>Monad RPC (free testnet)</td><td class="c-yes">✓</td><td class="c-partial">Mainnet</td><td class="c-partial">Private RPC</td></tr>
+        <tr><td>SQLite local storage</td><td class="c-yes">✓</td><td class="c-yes">✓</td><td class="c-yes">✓ + cloud backup</td></tr>
+        <tr><td>On-chain Merkle anchoring *</td><td class="c-no">—</td><td class="c-partial">Daily</td><td class="c-partial">Hourly</td></tr>
+        <tr><td>Multi-chain (Base, ETH)</td><td class="c-no">—</td><td class="c-yes">✓</td><td class="c-yes">✓</td></tr>
+        <tr><td>Time-travel replay API</td><td class="c-yes">✓</td><td class="c-yes">✓</td><td class="c-yes">✓</td></tr>
+        <tr><td>Cross-agent interlock proofs</td><td class="c-no">—</td><td class="c-yes">✓</td><td class="c-yes">✓</td></tr>
+        <tr><td>Insurance certificates</td><td class="c-no">—</td><td class="c-yes">✓</td><td class="c-yes">✓ custom templates</td></tr>
+        <tr><td>Privacy mode toggle</td><td class="c-partial">Hash-only</td><td class="c-yes">✓</td><td class="c-yes">✓</td></tr>
+        <tr><td>Passport trust boost</td><td class="c-no">—</td><td class="c-yes">✓</td><td class="c-yes">✓</td></tr>
+        <tr><td>Trial auto-expires</td><td class="c-yes">✓ (10 days)</td><td class="c-no">—</td><td class="c-no">—</td></tr>
+        <tr><td>SLA / dedicated support</td><td class="c-no">—</td><td class="c-no">—</td><td class="c-yes">✓</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:12px;">* On-chain Merkle anchoring is currently in testnet beta on Monad. Mainnet deployment is planned for Q3 2026. Off-chain Merkle proofs are fully functional today.</p>
+  </div>
+
+  <!-- ── FAQ ── -->
+  <div class="faq-wrap">
+    <h3>Frequently Asked Questions</h3>
+
+    <details class="faq">
+      <summary>What happens when the 10-day Cortex trial expires?</summary>
+      <div class="faq-body">Your trial expires automatically — no charge, no action needed. All events recorded during the trial remain <strong>readable</strong> forever; only new recording stops. You can upgrade to Pro at any time to continue recording and unlock on-chain anchoring.</div>
+    </details>
+
+    <details class="faq">
+      <summary>Why is Monad the primary chain?</summary>
+      <div class="faq-body">Monad delivers 10,000 TPS with sub-second finality and EVM compatibility at approximately $0.0001 per transaction — making high-frequency Merkle anchoring economically viable for the first time. We anchor on Monad first, then Base and Ethereum optionally for additional credibility layers.</div>
+    </details>
+
+    <details class="faq">
+      <summary>What is privacy mode and how does it protect my data?</summary>
+      <div class="faq-body">By default Cortex stores only <strong>SHA-256 hashes</strong> of prompts, outputs, and reasoning text — so you get cryptographic proof that a decision happened without exposing sensitive data. Pro plans add the option to store full text for internal audit use, encrypted at rest.</div>
+    </details>
+
+    <details class="faq">
+      <summary>What is an insurance evidence certificate?</summary>
+      <div class="faq-body">A signed JSON package containing total decisions recorded, anomalies detected, policy violations, all on-chain Merkle root references, and the agent's trust score for the period. Designed to be attached directly to insurance policy applications or regulatory submissions.</div>
+    </details>
+
+    <details class="faq">
+      <summary>Can I run GuardianAI in my own infrastructure?</summary>
+      <div class="faq-body">Yes. The Enterprise plan includes private cloud (VPC-isolated), on-premise, or air-gapped deployments. The Cortex engine uses SQLite by default, making it trivial to run alongside any existing stack without external dependencies.</div>
+    </details>
+  </div>
+
+  <p class="note">
+    Compliance language is evidence-based: GuardianAI generates mappings and audit artifacts, but formal SOC 2, ISO 27001, EU AI Act, or external certifications depend on your organization, deployment, and auditor review.<br>
+    Guardian Cortex on-chain anchoring uses Monad testnet during the free trial. Mainnet anchoring is available on Pro and Enterprise plans.
+  </p>
+
+  <footer>
+    <div class="footer-inner">
+      &copy; 2026 GuardianAI Platform. Runtime security &amp; verifiable memory for Web3 AI agents.
+    </div>
+  </footer>
+
+  <script>
+    async function checkout(plan) {
+      try {
+        const res = await fetch('/api/v1/billing/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan,
+            customer_email: 'security@example.com',
+            tenant_name: 'Example Agent Team',
+            payment_method: 'card'
+          })
+        });
+        if (!res.ok) throw new Error('Checkout failed');
+        const data = await res.json();
+        window.location.href = data.checkout_url;
+      } catch (err) {
+        alert(err.message || 'Error connecting to checkout service.');
+      }
+    }
+
+    async function startCortexTrial() {
+      const agentId = prompt('Enter your Agent ID to start the Cortex free trial:', 'my-agent');
+      if (!agentId) return;
+      try {
+        const creds = btoa(prompt('Username (default: admin):', 'admin') + ':' + prompt('Password:', ''));
+        const res = await fetch(`/api/v1/cortex/${encodeURIComponent(agentId)}/start-trial`, {
+          method: 'POST',
+          headers: { 'Authorization': `Basic ${creds}` }
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || 'Failed to start trial');
+        const data = await res.json();
+        alert(`✅ ${data.message}\n\nYour 10-day free Cortex trial is now active for "${agentId}".\n\nHead to the dashboard → Agent Cortex to start recording decisions.`);
+        window.location.href = 'cortex.html';
+      } catch (err) {
+        alert('Error: ' + (err.message || 'Unknown error'));
+      }
+    }
+  </script>
+</body>
+</html>

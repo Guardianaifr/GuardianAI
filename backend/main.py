@@ -1,7 +1,9 @@
-﻿from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status, Form
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status, Form, Body
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPBearer, HTTPAuthorizationCredentials
+import io
+import csv
 from pydantic import BaseModel
 import secrets
 import time
@@ -20,24 +22,39 @@ import requests
 import psutil
 from collections import deque
 import socket
+from pathlib import Path
+import random
 
-# Setup logging
+from guardian.security.differential_privacy import noisy_count
+from backend.siem import SiemConfig, SiemRouter, build_alert_document
+from backend.auth import hash_password, verify_password
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("guardian_backend")
 
-# Configuration (Env Vars -> Defaults)
 ADMIN_USER = os.getenv("GUARDIAN_ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("GUARDIAN_ADMIN_PASS", "guardian26") # Simple default for local demo
+ADMIN_PASS = os.getenv("GUARDIAN_ADMIN_PASS", "guardian_default") # Simple default for local demo
 AUDITOR_USER = os.getenv("GUARDIAN_AUDITOR_USER", "").strip()
 AUDITOR_PASS = os.getenv("GUARDIAN_AUDITOR_PASS", "").strip()
 USER_USER = os.getenv("GUARDIAN_USER_USER", "").strip()
 USER_PASS = os.getenv("GUARDIAN_USER_PASS", "").strip()
 JWT_SECRET = os.getenv("GUARDIAN_JWT_SECRET", "guardian_jwt_dev_secret_change_me")
+
+import sys
+if os.getenv("GUARDIAN_ENV", "development").strip().lower() == "production":
+    if ADMIN_PASS == "guardian_default":
+        logger.error("CRITICAL SECURITY ERROR: ADMIN_PASS is set to default in production mode! Refusing to start.")
+        sys.exit(1)
+    if JWT_SECRET == "guardian_jwt_dev_secret_change_me":
+        logger.error("CRITICAL SECURITY ERROR: JWT_SECRET is set to default in production mode! Refusing to start.")
+        sys.exit(1)
+
 JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
 JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
 API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
 TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
 AUTH_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_AUTH_RATE_LIMIT_PER_MIN", "60"))
+
 AUTH_LOCKOUT_ENABLED = os.getenv("GUARDIAN_AUTH_LOCKOUT_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
 AUTH_LOCKOUT_MAX_ATTEMPTS = max(1, int(os.getenv("GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS", "5")))
 AUTH_LOCKOUT_DURATION_SEC = max(1.0, float(os.getenv("GUARDIAN_AUTH_LOCKOUT_DURATION_SEC", "300")))
@@ -74,9 +91,31 @@ ENFORCE_HTTPS = os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").strip().lower() in 
 TLS_CERT_FILE = os.getenv("GUARDIAN_TLS_CERT_FILE", "").strip()
 TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
 METRICS_ENABLED = os.getenv("GUARDIAN_METRICS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+BACKEND_HOST = os.getenv("GUARDIAN_BACKEND_HOST", "0.0.0.0").strip() or "0.0.0.0"
+BACKEND_PORT = int(os.getenv("GUARDIAN_BACKEND_PORT", "8001"))
+BILLING_MODE = os.getenv("GUARDIAN_BILLING_MODE", "mock").strip().lower() or "mock"
+PUBLIC_BASE_URL = os.getenv("GUARDIAN_PUBLIC_BASE_URL", f"http://127.0.0.1:{BACKEND_PORT}").rstrip("/")
+CHECKOUT_SUCCESS_URL = os.getenv("GUARDIAN_CHECKOUT_SUCCESS_URL", f"{PUBLIC_BASE_URL}/site/success").strip() or f"{PUBLIC_BASE_URL}/site/success"
+CHECKOUT_CANCEL_URL = os.getenv("GUARDIAN_CHECKOUT_CANCEL_URL", f"{PUBLIC_BASE_URL}/site/cancel").strip() or f"{PUBLIC_BASE_URL}/site/cancel"
+STRIPE_SECRET_KEY = os.getenv("GUARDIAN_STRIPE_SECRET_KEY", "").strip()
+STRIPE_PRICE_STARTER = os.getenv("GUARDIAN_STRIPE_PRICE_STARTER", "").strip()
+STRIPE_PRICE_PRO = os.getenv("GUARDIAN_STRIPE_PRICE_PRO", "").strip()
+STRIPE_PRICE_ENTERPRISE = os.getenv("GUARDIAN_STRIPE_PRICE_ENTERPRISE", "").strip()
+CRYPTO_API_KEY = os.getenv("GUARDIAN_CRYPTO_API_KEY", "").strip()
+ETHERSCAN_API_KEY = os.getenv("GUARDIAN_ETHERSCAN_API_KEY", "").strip()
+BACKEND_TOKEN = os.getenv("GUARDIAN_BACKEND_TOKEN", "").strip()
+SERVICE_AUTH_TOKEN = os.getenv("GUARDIAN_SERVICE_AUTH_TOKEN", "").strip()
+SERVICE_ID = os.getenv("GUARDIAN_SERVICE_ID", "guardian-proxy").strip() or "guardian-proxy"
+SIEM_ENABLED = os.getenv("GUARDIAN_SIEM_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+SIEM_FORMAT = os.getenv("GUARDIAN_SIEM_FORMAT", "json").strip() or "json"
+SIEM_OUT = os.getenv("GUARDIAN_SIEM_OUT", "artifacts/evidence/siem_alerts.log").strip() or "artifacts/evidence/siem_alerts.log"
+AGENTIC_ATTESTATION_SECRET = os.getenv("GUARDIAN_AGENTIC_ATTESTATION_SECRET", JWT_SECRET).strip() or JWT_SECRET
+DP_ENABLED = os.getenv("GUARDIAN_DP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+DP_EPSILON = float(os.getenv("GUARDIAN_DP_EPSILON", "1.0"))
+DP_SEED = int(os.getenv("GUARDIAN_DP_SEED", "7"))
 APP_START_TIME = time.time()
 
-if ADMIN_PASS == "guardian26":
+if ADMIN_PASS == "guardian_default":
     logger.warning("USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
 if JWT_SECRET == "guardian_jwt_dev_secret_change_me":
     logger.warning("USING DEFAULT JWT SECRET! Set GUARDIAN_JWT_SECRET environment variable for production.")
@@ -85,7 +124,7 @@ app = FastAPI(title="GuardianAI Backend v1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[PUBLIC_BASE_URL, "http://localhost:8001", "http://127.0.0.1:8001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,11 +162,16 @@ _metrics_total_latency_ms = 0.0
 _metrics_latency_samples = 0
 _metrics_status_counts: Dict[int, int] = {}
 _metrics_recent_requests = deque()
+# Local roles for the SaaS Admin Dashboard: admin, auditor, user.
+# Note: This is separate from backend/rbac.py and the auth proxy layer, which
+# define a granular multi-tenant role matrix (admin, analyst, tenant_admin, read_only)
+# for proxy and tenant scoping. Both systems are maintained for dual-layer security.
 _valid_roles: Set[str] = {"admin", "auditor", "user"}
 _redis_client: Any | None = None
 _redis_script_sha: str | None = None
 _redis_init_attempted = False
 _redis_fallback_logged_at = 0.0
+_siem_router_instance: SiemRouter | None = None
 
 _REDIS_RATE_LIMIT_SCRIPT = """
 local key = KEYS[1]
@@ -148,11 +192,11 @@ return 1
 
 def _build_auth_users() -> Dict[str, Dict[str, str]]:
     users: Dict[str, Dict[str, str]] = {}
-    users[ADMIN_USER] = {"password": ADMIN_PASS, "role": "admin"}
+    users[ADMIN_USER] = {"password": hash_password(ADMIN_PASS), "role": "admin", "org_id": "org_guardian"}
     if AUDITOR_USER and AUDITOR_PASS:
-        users[AUDITOR_USER] = {"password": AUDITOR_PASS, "role": "auditor"}
+        users[AUDITOR_USER] = {"password": hash_password(AUDITOR_PASS), "role": "auditor", "org_id": "org_guardian"}
     if USER_USER and USER_PASS:
-        users[USER_USER] = {"password": USER_PASS, "role": "user"}
+        users[USER_USER] = {"password": hash_password(USER_PASS), "role": "user", "org_id": "org_default"}
     return users
 
 
@@ -199,12 +243,13 @@ def _b64url_decode(raw: str) -> bytes:
     return base64.urlsafe_b64decode((raw + padding).encode("ascii"))
 
 
-def _issue_jwt(subject: str, role: str, ttl_minutes: int = JWT_EXPIRES_MIN) -> tuple[str, Dict[str, Any]]:
+def _issue_jwt(subject: str, role: str, org_id: str = "org_default", ttl_minutes: int = JWT_EXPIRES_MIN) -> tuple[str, Dict[str, Any]]:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": subject,
         "role": role,
+        "org_id": org_id,
         "iat": now,
         "exp": now + (ttl_minutes * 60),
         "iss": JWT_ISSUER,
@@ -577,6 +622,34 @@ def _build_metrics_payload() -> str:
     ]
     for code, count in sorted(status_counts.items()):
         lines.append(f'guardian_http_status_total{{code="{code}"}} {count}')
+    agentic_metrics = _build_agentic_metrics()
+    lines.extend(
+        [
+            "# HELP guardian_agentic_hop_policy_violations_blocked Agent hop policy violations blocked.",
+            "# TYPE guardian_agentic_hop_policy_violations_blocked counter",
+            f"guardian_agentic_hop_policy_violations_blocked {agentic_metrics['hop_policy_violations_blocked']}",
+            "# HELP guardian_agentic_unauthorized_mcp_server_attempts Unauthorized MCP server usage attempts.",
+            "# TYPE guardian_agentic_unauthorized_mcp_server_attempts counter",
+            f"guardian_agentic_unauthorized_mcp_server_attempts {agentic_metrics['unauthorized_mcp_server_attempts']}",
+            "# HELP guardian_agentic_scope_escalation_attempts_blocked Scope escalation attempts blocked.",
+            "# TYPE guardian_agentic_scope_escalation_attempts_blocked counter",
+            f"guardian_agentic_scope_escalation_attempts_blocked {agentic_metrics['scope_escalation_attempts_blocked']}",
+            "# HELP guardian_agentic_active_execution_grants Active time-bounded execution grants.",
+            "# TYPE guardian_agentic_active_execution_grants gauge",
+            f"guardian_agentic_active_execution_grants {agentic_metrics['active_execution_grants']}",
+            "# HELP guardian_agentic_active_agent_keys Active signed-agent keys.",
+            "# TYPE guardian_agentic_active_agent_keys gauge",
+            f"guardian_agentic_active_agent_keys {agentic_metrics['active_agent_keys']}",
+        ]
+    )
+    if agentic_metrics["mean_time_to_revoke_seconds"] is not None:
+        lines.extend(
+            [
+                "# HELP guardian_agentic_mean_time_to_revoke_seconds Mean time to revoke compromised agent keys.",
+                "# TYPE guardian_agentic_mean_time_to_revoke_seconds gauge",
+                f"guardian_agentic_mean_time_to_revoke_seconds {agentic_metrics['mean_time_to_revoke_seconds']:.3f}",
+            ]
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -605,13 +678,51 @@ def _to_ms(value):
             return None
     return None
 
+
+def _siem_router() -> SiemRouter | None:
+    global _siem_router_instance
+    if not SIEM_ENABLED:
+        return None
+    if _siem_router_instance is None:
+        _siem_router_instance = SiemRouter(
+            SiemConfig(
+                enabled=True,
+                out_path=SIEM_OUT,
+                format=SIEM_FORMAT,
+                transport="file",
+            )
+        )
+    return _siem_router_instance
+
+
+def _write_siem_alert(event: "SecurityEvent") -> None:
+    if not SIEM_ENABLED:
+        return
+    severity = str(event.severity or "").upper()
+    if severity not in {"HIGH", "CRITICAL"}:
+        return
+    router = _siem_router()
+    if router is None:
+        return
+    alert = build_alert_document(
+        guardian_id=event.guardian_id,
+        event_type=event.event_type,
+        severity=severity,
+        details=event.details,
+        timestamp=event.timestamp,
+    )
+    router.enqueue(alert)
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     cur = conn.cursor()
     cur.execute("""
     CREATE TABLE IF NOT EXISTS security_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         guardian_id TEXT,
+        tenant_id TEXT DEFAULT 'default',
         event_type TEXT,
         severity TEXT,
         details TEXT,
@@ -621,6 +732,7 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS analytics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT DEFAULT 'default',
         path TEXT,
         latency_ms REAL,
         timestamp REAL
@@ -682,21 +794,135 @@ def init_db():
         last_attempt_at REAL
     )
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS customers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE,
+        tenant_name TEXT,
+        created_at REAL
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id TEXT UNIQUE,
+        customer_email TEXT,
+        tenant_name TEXT,
+        plan TEXT,
+        payment_method TEXT,
+        provider TEXT,
+        status TEXT,
+        checkout_url TEXT,
+        provider_transaction_id TEXT,
+        created_at REAL,
+        updated_at REAL
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS licenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id TEXT UNIQUE,
+        machine_id TEXT,
+        license_key TEXT,
+        status TEXT,
+        issued_at REAL
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS agentic_agent_keys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_id TEXT NOT NULL,
+        key_id TEXT NOT NULL,
+        key_secret_hash TEXT NOT NULL,
+        key_secret_ciphertext TEXT NOT NULL,
+        cert_fingerprints_json TEXT,
+        status TEXT DEFAULT 'active',
+        created_by TEXT,
+        created_at REAL,
+        rotated_at REAL,
+        revoked_at REAL,
+        revoked_by TEXT,
+        revoke_reason TEXT,
+        UNIQUE(agent_id, key_id)
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS agentic_revocations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        revocation_type TEXT NOT NULL,
+        agent_id TEXT,
+        key_id TEXT,
+        reason TEXT,
+        revoked_by TEXT,
+        revoked_at REAL
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS agentic_execution_grants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        execution_id TEXT UNIQUE NOT NULL,
+        agent_id TEXT,
+        parent_agent TEXT,
+        scopes_json TEXT,
+        tools_json TEXT,
+        expires_at REAL,
+        created_by TEXT,
+        created_at REAL,
+        revoked_at REAL,
+        revoked_by TEXT,
+        revoke_reason TEXT
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS agentic_policy_edges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_agent TEXT NOT NULL,
+        child_agent TEXT NOT NULL,
+        scopes_json TEXT,
+        tools_json TEXT,
+        max_hops INTEGER,
+        created_by TEXT,
+        created_at REAL,
+        UNIQUE(parent_agent, child_agent)
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS agentic_trace_hashes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trace_hash TEXT UNIQUE NOT NULL,
+        agent_id TEXT,
+        execution_id TEXT,
+        first_seen_at REAL
+    )
+    """)
     # Backward-compatible schema upgrades for existing installations.
+    cur.execute("PRAGMA table_info(security_events)")
+    security_cols = {row[1] for row in cur.fetchall()}
+    if "tenant_id" not in security_cols:
+        cur.execute("ALTER TABLE security_events ADD COLUMN tenant_id TEXT DEFAULT 'default'")
+    cur.execute("PRAGMA table_info(analytics)")
+    analytics_cols = {row[1] for row in cur.fetchall()}
+    if "tenant_id" not in analytics_cols:
+        cur.execute("ALTER TABLE analytics ADD COLUMN tenant_id TEXT DEFAULT 'default'")
     cur.execute("PRAGMA table_info(audit_logs)")
     audit_cols = {row[1] for row in cur.fetchall()}
     if "prev_hash" not in audit_cols:
         cur.execute("ALTER TABLE audit_logs ADD COLUMN prev_hash TEXT")
     if "entry_hash" not in audit_cols:
         cur.execute("ALTER TABLE audit_logs ADD COLUMN entry_hash TEXT")
+    cur.execute("PRAGMA table_info(agentic_agent_keys)")
+    agentic_key_cols = {row[1] for row in cur.fetchall()}
+    if "cert_fingerprints_json" not in agentic_key_cols:
+        cur.execute("ALTER TABLE agentic_agent_keys ADD COLUMN cert_fingerprints_json TEXT")
     conn.commit()
     conn.close()
-    logger.info(f"SQLite DB initialized at {DB_PATH}")
+    logger.info("SQLite DB initialized at %s", DB_PATH)
 
 init_db()
 
 class SecurityEvent(BaseModel):
     guardian_id: str
+    tenant_id: str = "default"
     event_type: str
     severity: str
     details: dict
@@ -754,7 +980,15 @@ def _validate_basic(credentials: HTTPBasicCredentials) -> str:
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Basic"},
         )
-    if not secrets.compare_digest(credentials.password, user_config["password"]):
+    stored = user_config["password"]
+    # Support both hashed (salt$hash) and plain-text passwords.
+    # Plain-text is used in tests; production uses hash_password() output.
+    if "$" in stored:
+        ok = verify_password(credentials.password, stored)
+    else:
+        import hmac as _hmac
+        ok = _hmac.compare_digest(credentials.password, stored)
+    if not ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -777,11 +1011,12 @@ def get_current_principal(
 ):
     if bearer and bearer.scheme.lower() == "bearer":
         payload = _decode_jwt(bearer.credentials)
-        return {"username": payload["sub"], "role": payload.get("role", "user"), "auth_type": "bearer"}
+        return {"username": payload["sub"], "role": payload.get("role", "user"), "org_id": payload.get("org_id", "org_default"), "auth_type": "bearer"}
 
     if credentials:
         username = _validate_basic(credentials)
-        return {"username": username, "role": _get_user_role(username), "auth_type": "basic"}
+        user_config = _auth_users.get(username, {})
+        return {"username": username, "role": _get_user_role(username), "org_id": user_config.get("org_id", "org_default"), "auth_type": "basic"}
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -791,6 +1026,15 @@ def get_current_principal(
 
 
 def get_current_user(principal: Dict[str, str] = Depends(get_current_principal)):
+    return principal["username"]
+
+
+def get_current_admin(principal: Dict[str, str] = Depends(get_current_principal)):
+    if principal.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privilege required",
+        )
     return principal["username"]
 
 
@@ -860,6 +1104,17 @@ def enforce_telemetry_rate_limit(request: Request):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
         if api_key_record:
             identity = api_key_record["key_name"]
+    elif BACKEND_TOKEN:
+        auth_header = request.headers.get("authorization", "").strip()
+        expected = f"Bearer {BACKEND_TOKEN}"
+        if not auth_header or not secrets.compare_digest(auth_header, expected):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid backend token")
+        if SERVICE_AUTH_TOKEN:
+            service_id = request.headers.get("X-Guardian-Service-Id", "").strip()
+            service_token = request.headers.get("X-Guardian-Service-Token", "").strip()
+            if service_id != SERVICE_ID or not secrets.compare_digest(service_token, SERVICE_AUTH_TOKEN):
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid service authentication")
+        identity = request.headers.get("X-Guardian-Service-Id", "").strip() or "backend-token"
     elif TELEMETRY_REQUIRE_API_KEY:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
 
@@ -1223,6 +1478,25 @@ class TelemetryIngestResponse(BaseModel):
     event_id: str
 
 
+class BillingCheckoutRequest(BaseModel):
+    plan: str
+    payment_method: str
+    customer_email: str | None = None
+    tenant_name: str | None = None
+
+
+class BillingConfirmRequest(BaseModel):
+    order_id: str
+    provider_transaction_id: str
+    provider_status: str
+    machine_id: str | None = None
+
+
+class LicenseIssueRequest(BaseModel):
+    order_id: str
+    machine_id: str
+
+
 class AnalyticsResponse(BaseModel):
     total_requests: int
     total_blocked: int
@@ -1233,6 +1507,7 @@ class AnalyticsResponse(BaseModel):
     recent_block_rate_pct: float
     path_breakdown: Dict[str, int]
     fast_path_pct: float
+    differential_privacy: Dict[str, Any] | None = None
 
 
 class HealthDatabaseComponent(BaseModel):
@@ -1259,6 +1534,7 @@ class HealthResponse(BaseModel):
 class SecurityEventResponse(BaseModel):
     id: int
     guardian_id: str
+    tenant_id: str = "default"
     event_type: str
     severity: str
     details: Dict[str, Any]
@@ -1316,6 +1592,102 @@ class AuditSummaryResponse(BaseModel):
     chain_reason: str | None = None
 
 
+class AgenticKeyCreateRequest(BaseModel):
+    agent_id: str
+    key_id: str | None = None
+    cert_fingerprints: List[str] = []
+
+
+class AgenticKeyResponse(BaseModel):
+    id: int
+    agent_id: str
+    key_id: str
+    key_secret_hash: str
+    cert_fingerprints: List[str] = []
+    status: str
+    created_by: str | None = None
+    created_at: float
+    rotated_at: float | None = None
+    revoked_at: float | None = None
+    revoked_by: str | None = None
+    revoke_reason: str | None = None
+
+
+class CreatedAgenticKeyResponse(AgenticKeyResponse):
+    key_secret: str
+
+
+class AgenticRevokeRequest(BaseModel):
+    agent_id: str
+    key_id: str | None = None
+    reason: str | None = None
+
+
+class AgenticExecutionGrantRequest(BaseModel):
+    execution_id: str
+    agent_id: str | None = None
+    parent_agent: str | None = None
+    scopes: List[str] = []
+    tools: List[str] = []
+    ttl_seconds: int = 300
+
+
+class AgenticExecutionGrantResponse(BaseModel):
+    id: int
+    execution_id: str
+    agent_id: str | None = None
+    parent_agent: str | None = None
+    scopes: List[str]
+    tools: List[str]
+    expires_at: float
+    created_by: str | None = None
+    created_at: float
+    revoked_at: float | None = None
+    revoked_by: str | None = None
+    revoke_reason: str | None = None
+
+
+class AgenticPolicyEdgeRequest(BaseModel):
+    parent_agent: str
+    child_agent: str
+    scopes: List[str] = []
+    tools: List[str] = []
+    max_hops: int | None = None
+
+
+class AgenticPolicyEdgeResponse(BaseModel):
+    id: int
+    parent_agent: str
+    child_agent: str
+    scopes: List[str]
+    tools: List[str]
+    max_hops: int | None = None
+    created_by: str | None = None
+    created_at: float
+
+
+class AgenticMetricsResponse(BaseModel):
+    timestamp: float
+    hop_policy_violations_blocked: int
+    unauthorized_mcp_server_attempts: int
+    scope_escalation_attempts_blocked: int
+    agent_revocations_total: int
+    active_agent_keys: int
+    active_execution_grants: int
+    mean_time_to_revoke_seconds: float | None = None
+
+
+class AgenticConfigSnapshotResponse(BaseModel):
+    generated_at: float
+    agent_attestation_keys: Dict[str, Dict[str, str]]
+    agent_cert_fingerprints: Dict[str, List[str]]
+    revoked_agent_ids: List[str]
+    revoked_agent_key_ids: List[str]
+    cross_agent_policy_graph: Dict[str, Any]
+    execution_grants: Dict[str, Any]
+    trace_replay_cache: List[str]
+
+
 class ComplianceControlResponse(BaseModel):
     control: str
     status: str
@@ -1366,6 +1738,8 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "audit:read",
         "audit:verify",
         "audit:retry",
+        "agentic:manage",
+        "agentic:read",
         "compliance:read",
         "rbac:read",
         "events:read",
@@ -1384,6 +1758,7 @@ _ROLE_PERMISSIONS: Dict[str, List[str]] = {
         "api_keys:read",
         "audit:read",
         "audit:verify",
+        "agentic:read",
         "compliance:read",
         "rbac:read",
         "events:read",
@@ -1431,6 +1806,17 @@ def _rbac_endpoint_policies() -> List[Dict[str, Any]]:
         {"method": "GET", "path": "/api/v1/audit-log/verify", "allowed_roles": ["admin", "auditor"], "permission": "audit:verify"},
         {"method": "GET", "path": "/api/v1/audit-log/failures", "allowed_roles": ["admin", "auditor"], "permission": "audit:read"},
         {"method": "POST", "path": "/api/v1/audit-log/retry-failures", "allowed_roles": ["admin"], "permission": "audit:retry"},
+        {"method": "POST", "path": "/api/v1/agentic/keys", "allowed_roles": ["admin"], "permission": "agentic:manage"},
+        {"method": "GET", "path": "/api/v1/agentic/keys", "allowed_roles": ["admin", "auditor"], "permission": "agentic:read"},
+        {"method": "POST", "path": "/api/v1/agentic/keys/{key_id}/rotate", "allowed_roles": ["admin"], "permission": "agentic:manage"},
+        {"method": "POST", "path": "/api/v1/agentic/revocations", "allowed_roles": ["admin"], "permission": "agentic:manage"},
+        {"method": "POST", "path": "/api/v1/agentic/grants", "allowed_roles": ["admin"], "permission": "agentic:manage"},
+        {"method": "GET", "path": "/api/v1/agentic/grants", "allowed_roles": ["admin", "auditor"], "permission": "agentic:read"},
+        {"method": "POST", "path": "/api/v1/agentic/grants/{execution_id}/revoke", "allowed_roles": ["admin"], "permission": "agentic:manage"},
+        {"method": "POST", "path": "/api/v1/agentic/policy-edges", "allowed_roles": ["admin"], "permission": "agentic:manage"},
+        {"method": "GET", "path": "/api/v1/agentic/policy-edges", "allowed_roles": ["admin", "auditor"], "permission": "agentic:read"},
+        {"method": "GET", "path": "/api/v1/agentic/config-snapshot", "allowed_roles": ["admin"], "permission": "agentic:manage"},
+        {"method": "GET", "path": "/api/v1/agentic/metrics", "allowed_roles": ["admin", "auditor"], "permission": "agentic:read"},
         {"method": "GET", "path": "/api/v1/compliance/report", "allowed_roles": ["admin", "auditor"], "permission": "compliance:read"},
         {"method": "GET", "path": "/api/v1/rbac/policy", "allowed_roles": ["admin", "auditor"], "permission": "rbac:read"},
         {"method": "GET", "path": "/api/v1/events", "allowed_roles": ["admin", "auditor", "user"], "permission": "events:read"},
@@ -1515,6 +1901,269 @@ def _build_audit_summary() -> Dict[str, Any]:
         "chain_message": chain_result.get("message"),
         "chain_failed_id": chain_result.get("failed_id"),
         "chain_reason": chain_result.get("reason"),
+    }
+
+
+def _agentic_secret_stream(length: int) -> bytes:
+    seed = AGENTIC_ATTESTATION_SECRET.encode("utf-8")
+    out = b""
+    counter = 0
+    while len(out) < length:
+        out += hashlib.sha256(seed + counter.to_bytes(4, "big")).digest()
+        counter += 1
+    return out[:length]
+
+
+def _agentic_encrypt_secret(raw_secret: str) -> str:
+    raw = raw_secret.encode("utf-8")
+    stream = _agentic_secret_stream(len(raw))
+    encrypted = bytes(a ^ b for a, b in zip(raw, stream))
+    return base64.urlsafe_b64encode(encrypted).decode("ascii")
+
+
+def _agentic_decrypt_secret(ciphertext: str) -> str:
+    encrypted = base64.urlsafe_b64decode(ciphertext.encode("ascii"))
+    stream = _agentic_secret_stream(len(encrypted))
+    raw = bytes(a ^ b for a, b in zip(encrypted, stream))
+    return raw.decode("utf-8")
+
+
+def _hash_agentic_secret(raw_secret: str) -> str:
+    return hmac.new(
+        AGENTIC_ATTESTATION_SECRET.encode("utf-8"),
+        raw_secret.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _new_agentic_secret() -> str:
+    return "ga_" + secrets.token_urlsafe(32)
+
+
+def _normalize_agentic_id(value: str, field_name: str) -> str:
+    normalized = (value or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field_name} is required")
+    if len(normalized) > 128 or not all(ch.isalnum() or ch in "._:-" for ch in normalized):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid {field_name}")
+    return normalized
+
+
+def _json_list(value: Any) -> List[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except Exception:
+            return []
+    else:
+        parsed = value
+    if not isinstance(parsed, list):
+        return []
+    return [str(v) for v in parsed]
+
+
+def _normalize_cert_fingerprint(value: str) -> str:
+    return (value or "").replace(":", "").replace(" ", "").strip().lower()
+
+
+def _agentic_key_response(row: tuple, include_secret: str | None = None) -> AgenticKeyResponse:
+    payload = {
+        "id": row[0],
+        "agent_id": row[1],
+        "key_id": row[2],
+        "key_secret_hash": row[3],
+        "cert_fingerprints": _json_list(row[5]),
+        "status": row[6],
+        "created_by": row[7],
+        "created_at": row[8],
+        "rotated_at": row[9],
+        "revoked_at": row[10],
+        "revoked_by": row[11],
+        "revoke_reason": row[12],
+    }
+    if include_secret is not None:
+        payload["key_secret"] = include_secret
+        return CreatedAgenticKeyResponse(**payload)
+    return AgenticKeyResponse(**payload)
+
+
+def _agentic_grant_response(row: tuple) -> AgenticExecutionGrantResponse:
+    return AgenticExecutionGrantResponse(
+        id=row[0],
+        execution_id=row[1],
+        agent_id=row[2],
+        parent_agent=row[3],
+        scopes=_json_list(row[4]),
+        tools=_json_list(row[5]),
+        expires_at=row[6],
+        created_by=row[7],
+        created_at=row[8],
+        revoked_at=row[9],
+        revoked_by=row[10],
+        revoke_reason=row[11],
+    )
+
+
+def _agentic_edge_response(row: tuple) -> AgenticPolicyEdgeResponse:
+    return AgenticPolicyEdgeResponse(
+        id=row[0],
+        parent_agent=row[1],
+        child_agent=row[2],
+        scopes=_json_list(row[3]),
+        tools=_json_list(row[4]),
+        max_hops=row[5],
+        created_by=row[6],
+        created_at=row[7],
+    )
+
+
+def _build_agentic_config_snapshot() -> Dict[str, Any]:
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT agent_id, key_id, key_secret_ciphertext, cert_fingerprints_json
+        FROM agentic_agent_keys
+        WHERE status = 'active' AND revoked_at IS NULL
+        ORDER BY agent_id, key_id
+        """
+    )
+    agent_keys: Dict[str, Dict[str, str]] = {}
+    agent_cert_fingerprints: Dict[str, List[str]] = {}
+    for agent_id, key_id, ciphertext, cert_fingerprints_json in cur.fetchall():
+        try:
+            secret = _agentic_decrypt_secret(ciphertext)
+        except Exception:
+            continue
+        agent_keys.setdefault(agent_id, {})[key_id] = secret
+        for fingerprint in _json_list(cert_fingerprints_json):
+            normalized = _normalize_cert_fingerprint(fingerprint)
+            if normalized:
+                agent_cert_fingerprints.setdefault(agent_id, []).append(normalized)
+
+    cur.execute("SELECT DISTINCT agent_id FROM agentic_revocations WHERE revocation_type = 'agent' AND agent_id IS NOT NULL")
+    revoked_agent_ids = [row[0] for row in cur.fetchall()]
+
+    cur.execute("SELECT DISTINCT key_id FROM agentic_revocations WHERE revocation_type = 'key' AND key_id IS NOT NULL")
+    revoked_agent_key_ids = [row[0] for row in cur.fetchall()]
+
+    cur.execute(
+        """
+        SELECT parent_agent, child_agent, scopes_json, tools_json, max_hops
+        FROM agentic_policy_edges
+        ORDER BY parent_agent, child_agent
+        """
+    )
+    graph: Dict[str, Any] = {}
+    for parent, child, scopes_json, tools_json, max_hops in cur.fetchall():
+        graph.setdefault(parent, {"children": {}})
+        child_policy: Dict[str, Any] = {
+            "scopes": _json_list(scopes_json),
+            "tools": _json_list(tools_json),
+        }
+        if max_hops is not None:
+            child_policy["max_hops"] = int(max_hops)
+        graph[parent]["children"][child] = child_policy
+
+    cur.execute(
+        """
+        SELECT execution_id, agent_id, parent_agent, scopes_json, tools_json, expires_at
+        FROM agentic_execution_grants
+        WHERE revoked_at IS NULL AND expires_at > ?
+        ORDER BY expires_at ASC
+        """,
+        (now,),
+    )
+    grants: Dict[str, Any] = {}
+    for execution_id, agent_id, parent_agent, scopes_json, tools_json, expires_at in cur.fetchall():
+        grants[execution_id] = {
+            "agent_id": agent_id,
+            "parent_agent": parent_agent,
+            "scopes": _json_list(scopes_json),
+            "tools": _json_list(tools_json),
+            "expires_at": expires_at,
+        }
+
+    cur.execute("SELECT trace_hash FROM agentic_trace_hashes ORDER BY first_seen_at DESC LIMIT 10000")
+    trace_replay_cache = [row[0] for row in cur.fetchall()]
+    conn.close()
+
+    return {
+        "generated_at": now,
+        "agent_attestation_keys": agent_keys,
+        "agent_cert_fingerprints": agent_cert_fingerprints,
+        "revoked_agent_ids": revoked_agent_ids,
+        "revoked_agent_key_ids": revoked_agent_key_ids,
+        "cross_agent_policy_graph": graph,
+        "execution_grants": grants,
+        "trace_replay_cache": trace_replay_cache,
+    }
+
+
+def _build_agentic_metrics() -> Dict[str, Any]:
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    reason_counts: Dict[str, int] = {}
+    try:
+        cur.execute(
+            """
+            SELECT details FROM security_events
+            WHERE event_type = 'agentic_policy_block'
+            """
+        )
+        for (details_raw,) in cur.fetchall():
+            try:
+                details = json.loads(details_raw or "{}")
+            except Exception:
+                details = {}
+            reason = str(details.get("reason", "unknown"))
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+    except sqlite3.OperationalError:
+        pass
+
+    cur.execute("SELECT COUNT(*) FROM agentic_revocations")
+    revocations_total = int((cur.fetchone() or (0,))[0] or 0)
+    cur.execute("SELECT COUNT(*) FROM agentic_agent_keys WHERE status = 'active' AND revoked_at IS NULL")
+    active_agent_keys = int((cur.fetchone() or (0,))[0] or 0)
+    cur.execute("SELECT COUNT(*) FROM agentic_execution_grants WHERE revoked_at IS NULL AND expires_at > ?", (now,))
+    active_execution_grants = int((cur.fetchone() or (0,))[0] or 0)
+    cur.execute(
+        """
+        SELECT AVG(r.revoked_at - k.created_at)
+        FROM agentic_revocations r
+        JOIN agentic_agent_keys k
+          ON r.key_id = k.key_id
+        WHERE r.revocation_type = 'key'
+          AND r.revoked_at IS NOT NULL
+          AND k.created_at IS NOT NULL
+        """
+    )
+    avg_row = cur.fetchone()
+    conn.close()
+
+    hop_reasons = {
+        "unauthorized_agent_hop",
+        "policy_graph_hop_denied",
+        "policy_graph_hop_limit_exceeded",
+        "policy_graph_scope_denied",
+        "policy_graph_tool_denied",
+    }
+    return {
+        "timestamp": now,
+        "hop_policy_violations_blocked": sum(reason_counts.get(reason, 0) for reason in hop_reasons),
+        "unauthorized_mcp_server_attempts": reason_counts.get("untrusted_mcp_server", 0),
+        "scope_escalation_attempts_blocked": reason_counts.get("scope_escalation_detected", 0)
+        + reason_counts.get("dynamic_scope_tightening", 0),
+        "agent_revocations_total": revocations_total,
+        "active_agent_keys": active_agent_keys,
+        "active_execution_grants": active_execution_grants,
+        "mean_time_to_revoke_seconds": avg_row[0] if avg_row and avg_row[0] is not None else None,
     }
 
 
@@ -2086,7 +2735,7 @@ def _write_control_plane_audit_entry(action: str, user: str, details: Dict[str, 
     timestamp = time.time()
     guardian_id = "guardian-backend"
     details_json = json.dumps(details)
-    signature = hashlib.sha256(f"{guardian_id}:{timestamp}:{details_json}".encode()).hexdigest()
+    signature = hmac.new(JWT_SECRET.encode("utf-8"), f"{guardian_id}:{timestamp}:{details_json}".encode("utf-8"), hashlib.sha256).hexdigest()
 
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -2164,6 +2813,7 @@ def _verify_audit_log_chain_internal() -> Dict[str, Any]:
                 }
             legacy_unhashed += 1
             continue
+
         computed = _compute_audit_entry_hash(
             guardian_id=guardian_id,
             action=action,
@@ -2187,6 +2837,18 @@ def _verify_audit_log_chain_internal() -> Dict[str, Any]:
                 "failed_id": row_id,
                 "reason": "entry_hash mismatch",
             }
+
+        if len(signature) == 64:
+            expected_sig_payload = f"{guardian_id}:{ts}:{details}"
+            expected_signature_hmac = hmac.new(JWT_SECRET.encode("utf-8"), expected_sig_payload.encode("utf-8"), hashlib.sha256).hexdigest()
+            expected_signature_sha = hashlib.sha256(expected_sig_payload.encode()).hexdigest()
+            if signature not in (expected_signature_hmac, expected_signature_sha):
+                return {
+                    "ok": False,
+                    "entries": checked,
+                    "failed_id": row_id,
+                    "reason": "signature tampering detected",
+                }
         expected_prev_hash = entry_hash or ""
         checked += 1
 
@@ -2341,901 +3003,60 @@ def _build_compliance_report() -> Dict[str, Any]:
     }
 
 
-@app.post(
-    "/api/v1/auth/token",
-    response_model=TokenResponse,
-    responses={
-        200: {
-            "description": "JWT issued successfully.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                        "token_type": "bearer",
-                        "expires_in": 3600,
-                        "user": "admin",
-                        "role": "admin",
-                    }
-                }
-            },
-        },
-        429: {
-            "description": "Temporarily locked due to repeated failed credentials from the same source.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Account temporarily locked due to repeated failed authentication attempts."
-                    }
-                }
-            },
-        },
-    },
-)
-async def create_access_token(
-    request: Request,
-    credentials: HTTPBasicCredentials = Depends(HTTPBasic()),
-    _: bool = Depends(enforce_auth_rate_limit),
-):
-    lockout_identity = _auth_lockout_identity(request, credentials.username)
-    retry_after = _auth_lockout_retry_after_seconds(lockout_identity)
-    if retry_after > 0:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Account temporarily locked due to repeated failed authentication attempts.",
-            headers={"Retry-After": str(retry_after)},
-        )
-
-    try:
-        username = _validate_basic(credentials)
-    except HTTPException:
-        _record_auth_lockout_failure(lockout_identity)
-        raise
-
-    _clear_auth_lockout_failures(lockout_identity)
-    role = _get_user_role(username)
-    token, claims = _issue_jwt(username, role=role)
-    _record_issued_token(claims)
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        expires_in=JWT_EXPIRES_MIN * 60,
-        user=username,
-        role=role,
-    )
 
 
-@app.post(
-    "/api/v1/auth/revoke",
-    response_model=RevokeTokenResponse,
-    responses={
-        200: {
-            "description": "Current bearer token revoked.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "revoked",
-                        "revoked_jti": "a1b2c3d4e5f6",
-                        "revoked_by": "admin",
-                    }
-                }
-            },
-        }
-    },
-)
-async def revoke_access_token(
-    payload: Dict[str, Any] = Depends(get_current_token_payload),
-    _: bool = Depends(enforce_auth_rate_limit),
-):
-    jti = payload.get("jti")
-    exp = payload.get("exp")
-    sub = payload.get("sub", "unknown")
-    if not isinstance(jti, str) or not isinstance(exp, int):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required claims")
-
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT OR IGNORE INTO revoked_tokens (jti, revoked_by, revoked_at, expires_at)
-        VALUES (?, ?, ?, ?)
-        """,
-        (jti, sub, time.time(), float(exp)),
-    )
-    conn.commit()
-    conn.close()
-    _mark_issued_token_revoked(jti, revoked_by=sub, reason="self_revoke")
-
-    _write_control_plane_audit_entry(
-        action="auth_revoke_token",
-        user=sub,
-        details={"revoked_jti": jti, "expires_at": exp},
-    )
-
-    return RevokeTokenResponse(status="revoked", revoked_jti=jti, revoked_by=sub)
 
 
-@app.get(
-    "/api/v1/auth/revocations",
-    response_model=List[RevokedTokenEntryResponse],
-    responses={
-        200: {
-            "description": "Lists revoked JWT entries for incident response.",
-            "content": {
-                "application/json": {
-                    "example": [
-                        {
-                            "jti": "a1b2c3d4e5f6",
-                            "revoked_by": "admin",
-                            "revoked_at": 1739835000.0,
-                            "expires_at": 1739838600.0,
-                            "expired": False,
-                        }
-                    ]
-                }
-            },
-        }
-    },
-)
-async def list_revoked_tokens(
-    limit: int = 100,
-    include_expired: bool = False,
-    username: str = Depends(enforce_auditor_rate_limit),
-):
-    bounded_limit = max(1, min(limit, 1000))
-    return _list_revoked_tokens(limit=bounded_limit, include_expired=include_expired)
 
 
-@app.post(
-    "/api/v1/auth/revocations/prune",
-    response_model=PruneRevokedTokensResponse,
-    responses={
-        200: {
-            "description": "Prunes revoked token entries.",
-            "content": {
-                "application/json": {
-                    "example": {"deleted": 5, "remaining": 12, "expired_only": True}
-                }
-            },
-        }
-    },
-)
-async def prune_revoked_tokens(
-    expired_only: bool = True,
-    username: str = Depends(enforce_admin_rate_limit),
-):
-    result = _prune_revoked_tokens(expired_only=expired_only)
-    _write_control_plane_audit_entry(
-        action="auth_prune_revocations",
-        user=username,
-        details={
-            "expired_only": expired_only,
-            "deleted": result["deleted"],
-            "remaining": result["remaining"],
-        },
-    )
-    return PruneRevokedTokensResponse(
-        deleted=result["deleted"],
-        remaining=result["remaining"],
-        expired_only=expired_only,
-    )
 
 
-@app.get(
-    "/api/v1/auth/lockouts",
-    response_model=List[AuthLockoutEntryResponse],
-    responses={
-        200: {
-            "description": "Lists current failed-login lockout state.",
-            "content": {
-                "application/json": {
-                    "example": [
-                        {
-                            "identity": "user1|10.0.0.1",
-                            "username": "user1",
-                            "source": "10.0.0.1",
-                            "failed_attempts": 0,
-                            "locked_until": 1739835300.0,
-                            "retry_after_sec": 240,
-                            "active": True,
-                        }
-                    ]
-                }
-            },
-        }
-    },
-)
-async def list_auth_lockouts(
-    limit: int = 100,
-    active_only: bool = True,
-    username: str = Depends(enforce_auditor_rate_limit),
-):
-    bounded_limit = max(1, min(limit, 1000))
-    return _list_auth_lockouts(limit=bounded_limit, active_only=active_only)
 
 
-@app.post(
-    "/api/v1/auth/lockouts/clear",
-    response_model=ClearAuthLockoutsResponse,
-    responses={
-        200: {
-            "description": "Clears failed-login lockout entries by identity, user, or globally.",
-            "content": {
-                "application/json": {
-                    "example": {"cleared": 1, "remaining": 0, "scope": "user+source:user1@10.0.0.1"}
-                }
-            },
-        }
-    },
-)
-async def clear_auth_lockouts(
-    payload: ClearAuthLockoutsRequest,
-    username: str = Depends(enforce_admin_rate_limit),
-):
-    has_identity = bool((payload.identity or "").strip())
-    has_username = bool((payload.username or "").strip())
-    has_source = bool((payload.source or "").strip())
-    clear_all = bool(payload.clear_all)
-
-    if not clear_all and not has_identity and not has_username:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provide clear_all=true, identity, or username as clear target",
-        )
-    if has_source and not has_username:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="source requires username",
-        )
-    if has_identity and (has_username or has_source):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="identity cannot be combined with username/source",
-        )
-
-    try:
-        result = _clear_auth_lockouts(
-            clear_all=clear_all,
-            identity=payload.identity,
-            username=payload.username,
-            source=payload.source,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    _write_control_plane_audit_entry(
-        action="auth_clear_lockouts",
-        user=username,
-        details={
-            "clear_all": clear_all,
-            "identity": (payload.identity or "").strip(),
-            "username": (payload.username or "").strip(),
-            "source": (payload.source or "").strip(),
-            "cleared": result["cleared"],
-            "remaining": result["remaining"],
-            "scope": result["scope"],
-        },
-    )
-    return ClearAuthLockoutsResponse(
-        cleared=result["cleared"],
-        remaining=result["remaining"],
-        scope=result["scope"],
-    )
 
 
-@app.get(
-    "/api/v1/auth/sessions",
-    response_model=List[AuthSessionResponse],
-    responses={
-        200: {
-            "description": "Lists tracked JWT sessions.",
-            "content": {
-                "application/json": {
-                    "example": [
-                        {
-                            "jti": "a1b2c3d4e5f6",
-                            "subject": "admin",
-                            "role": "admin",
-                            "issued_at": 1739835000.0,
-                            "expires_at": 1739838600.0,
-                            "revoked_at": None,
-                            "revoked_by": None,
-                            "revoke_reason": None,
-                            "active": True,
-                        }
-                    ]
-                }
-            },
-        }
-    },
-)
-async def list_auth_sessions(
-    limit: int = 100,
-    include_expired: bool = False,
-    include_revoked: bool = True,
-    username: str = Depends(enforce_auditor_rate_limit),
-):
-    bounded_limit = max(1, min(limit, 1000))
-    return _list_auth_sessions(limit=bounded_limit, include_expired=include_expired, include_revoked=include_revoked)
 
 
-@app.post(
-    "/api/v1/auth/sessions/revoke-self",
-    response_model=RevokeSelfSessionsResponse,
-    responses={
-        200: {
-            "description": "Revokes sessions for the current authenticated user, with optional current-session exclusion.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "target_user": "user1",
-                        "matched": 3,
-                        "revoked": 2,
-                        "already_revoked": 0,
-                        "excluded_current": 1,
-                        "active_only": True,
-                        "exclude_current": True,
-                        "reason": "user_compromise_containment",
-                    }
-                }
-            },
-        }
-    },
-)
-async def revoke_self_sessions(
-    payload: RevokeSelfSessionsRequest,
-    token_payload: Dict[str, Any] = Depends(get_current_token_payload),
-    username: str = Depends(enforce_user_rate_limit),
-):
-    target_user = token_payload.get("sub")
-    current_jti = token_payload.get("jti")
-    if not isinstance(target_user, str) or not target_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required subject claim")
-    if payload.exclude_current and (not isinstance(current_jti, str) or not current_jti):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required jti claim")
-
-    result = _revoke_user_sessions(
-        target_user=target_user,
-        revoked_by=username,
-        active_only=payload.active_only,
-        reason=payload.reason or "",
-        exclude_jti=current_jti if payload.exclude_current else None,
-    )
-    _write_control_plane_audit_entry(
-        action="auth_revoke_self_sessions",
-        user=username,
-        details={
-            "target_user": target_user,
-            "matched": result["matched"],
-            "revoked": result["revoked"],
-            "already_revoked": result["already_revoked"],
-            "excluded_current": result["excluded"],
-            "active_only": payload.active_only,
-            "exclude_current": payload.exclude_current,
-            "reason": payload.reason or "",
-        },
-    )
-    return RevokeSelfSessionsResponse(
-        target_user=target_user,
-        matched=result["matched"],
-        revoked=result["revoked"],
-        already_revoked=result["already_revoked"],
-        excluded_current=result["excluded"],
-        active_only=payload.active_only,
-        exclude_current=payload.exclude_current,
-        reason=payload.reason,
-    )
 
 
-@app.post(
-    "/api/v1/auth/sessions/revoke-self-jti",
-    response_model=RevokeSelfSessionByJtiResponse,
-    responses={
-        200: {
-            "description": "Revokes one specific session JTI owned by current authenticated user.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "jti": "a1b2c3d4e5f6",
-                        "target_user": "user1",
-                        "revoked": True,
-                        "already_revoked": False,
-                        "reason": "suspicious_device_logout",
-                    }
-                }
-            },
-        }
-    },
-)
-async def revoke_self_session_by_jti(
-    payload: RevokeSelfSessionByJtiRequest,
-    token_payload: Dict[str, Any] = Depends(get_current_token_payload),
-    username: str = Depends(enforce_user_rate_limit),
-):
-    target_jti = payload.jti.strip()
-    if not target_jti:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="jti is required")
-
-    target_user = token_payload.get("sub")
-    current_jti = token_payload.get("jti")
-    if not isinstance(target_user, str) or not target_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required subject claim")
-    if not isinstance(current_jti, str) or not current_jti:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token missing required jti claim")
-
-    result = _revoke_self_session_by_jti(
-        jti=target_jti,
-        subject=target_user,
-        revoked_by=username,
-        reason=payload.reason or "",
-        current_jti=current_jti,
-    )
-    if result is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
-    if result.get("not_owned"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="session does not belong to current user")
-    if result.get("current_session"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Use /api/v1/auth/revoke for current session")
-
-    _write_control_plane_audit_entry(
-        action="auth_revoke_self_session_jti",
-        user=username,
-        details={
-            "jti": target_jti,
-            "target_user": result["target_user"],
-            "revoked": result["revoked"],
-            "already_revoked": result["already_revoked"],
-            "reason": payload.reason or "",
-        },
-    )
-    return RevokeSelfSessionByJtiResponse(
-        jti=target_jti,
-        target_user=result["target_user"],
-        revoked=result["revoked"],
-        already_revoked=result["already_revoked"],
-        reason=payload.reason,
-    )
 
 
-@app.post(
-    "/api/v1/auth/sessions/revoke-user",
-    response_model=RevokeUserSessionsResponse,
-    responses={
-        200: {
-            "description": "Revokes tracked sessions for a target user.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "target_user": "user1",
-                        "matched": 3,
-                        "revoked": 2,
-                        "already_revoked": 1,
-                        "active_only": True,
-                        "reason": "incident_containment",
-                    }
-                }
-            },
-        }
-    },
-)
-async def revoke_user_sessions(
-    payload: RevokeUserSessionsRequest,
-    username: str = Depends(enforce_admin_rate_limit),
-):
-    target_user = payload.username.strip()
-    if not target_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="username is required")
-
-    result = _revoke_user_sessions(
-        target_user=target_user,
-        revoked_by=username,
-        active_only=payload.active_only,
-        reason=payload.reason or "",
-    )
-    _write_control_plane_audit_entry(
-        action="auth_revoke_user_sessions",
-        user=username,
-        details={
-            "target_user": target_user,
-            "matched": result["matched"],
-            "revoked": result["revoked"],
-            "already_revoked": result["already_revoked"],
-            "active_only": payload.active_only,
-            "reason": payload.reason or "",
-        },
-    )
-    return RevokeUserSessionsResponse(
-        target_user=target_user,
-        matched=result["matched"],
-        revoked=result["revoked"],
-        already_revoked=result["already_revoked"],
-        active_only=payload.active_only,
-        reason=payload.reason,
-    )
 
 
-@app.post(
-    "/api/v1/auth/sessions/revoke-all",
-    response_model=RevokeAllSessionsResponse,
-    responses={
-        200: {
-            "description": "Revokes tracked sessions globally with optional exclusions.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "matched": 12,
-                        "revoked": 10,
-                        "already_revoked": 1,
-                        "excluded": 1,
-                        "active_only": True,
-                        "exclude_self": True,
-                        "excluded_users": ["admin"],
-                        "reason": "global_incident_containment",
-                    }
-                }
-            },
-        }
-    },
-)
-async def revoke_all_sessions(
-    payload: RevokeAllSessionsRequest,
-    username: str = Depends(enforce_admin_rate_limit),
-):
-    excluded_users: Set[str] = set()
-    if payload.exclude_usernames:
-        excluded_users = {item.strip() for item in payload.exclude_usernames if item and item.strip()}
-    if payload.exclude_self:
-        excluded_users.add(username)
-
-    result = _revoke_all_sessions(
-        revoked_by=username,
-        active_only=payload.active_only,
-        reason=payload.reason or "",
-        excluded_subjects=excluded_users,
-    )
-    sorted_excluded = sorted(excluded_users)
-    _write_control_plane_audit_entry(
-        action="auth_revoke_all_sessions",
-        user=username,
-        details={
-            "matched": result["matched"],
-            "revoked": result["revoked"],
-            "already_revoked": result["already_revoked"],
-            "excluded": result["excluded"],
-            "active_only": payload.active_only,
-            "exclude_self": payload.exclude_self,
-            "excluded_users": sorted_excluded,
-            "reason": payload.reason or "",
-        },
-    )
-    return RevokeAllSessionsResponse(
-        matched=result["matched"],
-        revoked=result["revoked"],
-        already_revoked=result["already_revoked"],
-        excluded=result["excluded"],
-        active_only=payload.active_only,
-        exclude_self=payload.exclude_self,
-        excluded_users=sorted_excluded,
-        reason=payload.reason,
-    )
 
 
-@app.post(
-    "/api/v1/auth/sessions/revoke-jti",
-    response_model=RevokeSessionByJtiResponse,
-    responses={
-        200: {
-            "description": "Revokes a single tracked session by JTI.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "jti": "a1b2c3d4e5f6",
-                        "target_user": "user1",
-                        "revoked": True,
-                        "already_revoked": False,
-                        "reason": "incident_containment",
-                    }
-                }
-            },
-        }
-    },
-)
-async def revoke_session_by_jti(
-    payload: RevokeSessionByJtiRequest,
-    username: str = Depends(enforce_admin_rate_limit),
-):
-    jti = payload.jti.strip()
-    if not jti:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="jti is required")
-
-    result = _revoke_session_by_jti(jti=jti, revoked_by=username, reason=payload.reason or "")
-    if result is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
-
-    _write_control_plane_audit_entry(
-        action="auth_revoke_session_jti",
-        user=username,
-        details={
-            "jti": jti,
-            "target_user": result["target_user"],
-            "revoked": result["revoked"],
-            "already_revoked": result["already_revoked"],
-            "reason": payload.reason or "",
-        },
-    )
-    return RevokeSessionByJtiResponse(
-        jti=jti,
-        target_user=result["target_user"],
-        revoked=result["revoked"],
-        already_revoked=result["already_revoked"],
-        reason=payload.reason,
-    )
 
 
-@app.get(
-    "/api/v1/auth/whoami",
-    response_model=WhoAmIResponse,
-    responses={
-        200: {
-            "description": "Returns current authenticated principal and effective permissions.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "user": "admin",
-                        "role": "admin",
-                        "auth_type": "bearer",
-                        "permissions": [
-                            "auth:issue",
-                            "auth:revoke:self",
-                            "api_keys:manage",
-                            "audit:read",
-                            "audit:verify",
-                            "audit:retry",
-                            "compliance:read",
-                            "events:read",
-                            "analytics:read",
-                            "export:read",
-                            "telemetry:ingest",
-                        ],
-                    }
-                }
-            },
-        }
-    },
-)
-async def auth_whoami(
-    request: Request,
-    principal: Dict[str, str] = Depends(get_current_principal),
-):
-    _enforce_rbac_and_user_rate_limit(request, principal)
-    role = principal.get("role", "user")
-    return WhoAmIResponse(
-        user=principal["username"],
-        role=role,
-        auth_type=principal.get("auth_type", "unknown"),
-        permissions=_permissions_for_role(role),
-    )
 
 
-@app.post(
-    "/api/v1/api-keys",
-    response_model=CreatedApiKeyResponse,
-    responses={
-        200: {
-            "description": "Managed API key created.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": 1,
-                        "key_name": "telemetry_ingest",
-                        "key_prefix": "gk_abc123",
-                        "is_active": True,
-                        "created_by": "admin",
-                        "created_at": 1739835000.0,
-                        "last_used_at": None,
-                        "api_key": "gk_abc123_plaintext",
-                    }
-                }
-            },
-        }
-    },
-    openapi_extra={
-        "requestBody": {
-            "content": {
-                "application/json": {
-                    "examples": {
-                        "default": {"summary": "Create key", "value": {"key_name": "telemetry_ingest"}}
-                    }
-                }
-            }
-        }
-    },
-)
-async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(enforce_admin_rate_limit)):
-    key_name = payload.key_name.strip()
-    if not key_name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="key_name is required")
-
-    raw_key, key_prefix = _generate_api_key_material()
-    key_hash = _hash_api_key(raw_key)
-    created_at = time.time()
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            """
-            INSERT INTO api_keys (key_name, key_prefix, key_hash, is_active, created_by, created_at, last_used_at)
-            VALUES (?, ?, ?, 1, ?, ?, NULL)
-            """,
-            (key_name, key_prefix, key_hash, username, created_at),
-        )
-        key_id = cur.lastrowid
-        conn.commit()
-    except sqlite3.IntegrityError as exc:
-        conn.close()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="key_name already exists") from exc
-    conn.close()
-
-    return CreatedApiKeyResponse(
-        id=key_id,
-        key_name=key_name,
-        key_prefix=key_prefix,
-        is_active=True,
-        created_by=username,
-        created_at=created_at,
-        last_used_at=None,
-        api_key=raw_key,
-    )
 
 
-@app.get(
-    "/api/v1/api-keys",
-    response_model=List[ApiKeyResponse],
-    responses={
-        200: {
-            "description": "List API keys.",
-            "content": {
-                "application/json": {
-                    "example": [
-                        {
-                            "id": 2,
-                            "key_name": "telemetry_ingest",
-                            "key_prefix": "gk_abcd1234",
-                            "is_active": True,
-                            "created_by": "admin",
-                            "created_at": 1739835000.0,
-                            "last_used_at": 1739835100.0,
-                        }
-                    ]
-                }
-            },
-        }
-    },
-)
-async def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, key_name, key_prefix, is_active, created_by, created_at, last_used_at FROM api_keys ORDER BY created_at DESC"
-    )
-    rows = cur.fetchall()
-    conn.close()
-    return [
-        ApiKeyResponse(
-            id=row[0],
-            key_name=row[1],
-            key_prefix=row[2],
-            is_active=bool(row[3]),
-            created_by=row[4],
-            created_at=row[5],
-            last_used_at=row[6],
-        )
-        for row in rows
-    ]
 
 
-@app.post(
-    "/api/v1/api-keys/{key_id}/revoke",
-    response_model=ApiKeyResponse,
-    responses={
-        200: {
-            "description": "API key revoked.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": 2,
-                        "key_name": "telemetry_ingest",
-                        "key_prefix": "gk_abcd1234",
-                        "is_active": False,
-                        "created_by": "admin",
-                        "created_at": 1739835000.0,
-                        "last_used_at": 1739835100.0,
-                    }
-                }
-            },
-        }
-    },
-)
-async def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("UPDATE api_keys SET is_active = 0 WHERE id = ?", (key_id,))
-    if cur.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
-    conn.commit()
-    cur.execute(
-        "SELECT id, key_name, key_prefix, is_active, created_by, created_at, last_used_at FROM api_keys WHERE id = ?",
-        (key_id,),
-    )
-    row = cur.fetchone()
-    conn.close()
-    return ApiKeyResponse(
-        id=row[0],
-        key_name=row[1],
-        key_prefix=row[2],
-        is_active=bool(row[3]),
-        created_by=row[4],
-        created_at=row[5],
-        last_used_at=row[6],
-    )
 
 
-@app.post(
-    "/api/v1/api-keys/{key_id}/rotate",
-    response_model=CreatedApiKeyResponse,
-    responses={
-        200: {
-            "description": "API key rotated.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": 2,
-                        "key_name": "telemetry_ingest",
-                        "key_prefix": "gk_efgh5678",
-                        "is_active": True,
-                        "created_by": "admin",
-                        "created_at": 1739835000.0,
-                        "last_used_at": 1739835100.0,
-                        "api_key": "gk_efgh5678_plaintext",
-                    }
-                }
-            },
-        }
-    },
-)
-async def rotate_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
-    raw_key, key_prefix = _generate_api_key_material()
-    key_hash = _hash_api_key(raw_key)
 
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT key_name, created_by, created_at, last_used_at FROM api_keys WHERE id = ?", (key_id,))
-    existing = cur.fetchone()
-    if not existing:
-        conn.close()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
 
-    cur.execute(
-        """
-        UPDATE api_keys
-        SET key_prefix = ?, key_hash = ?, is_active = 1
-        WHERE id = ?
-        """,
-        (key_prefix, key_hash, key_id),
-    )
-    conn.commit()
-    conn.close()
 
-    return CreatedApiKeyResponse(
-        id=key_id,
-        key_name=existing[0],
-        key_prefix=key_prefix,
-        is_active=True,
-        created_by=existing[1],
-        created_at=existing[2],
-        last_used_at=existing[3],
-        api_key=raw_key,
-    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 async def send_webhook_alert(event: SecurityEvent):
     # Broadcast to Dashboard via WebSocket
@@ -3251,1126 +3072,800 @@ async def send_webhook_alert(event: SecurityEvent):
     })
     await manager.broadcast(message)
 
-@app.post(
-    "/api/v1/telemetry",
-    response_model=TelemetryIngestResponse,
-    openapi_extra={
-        "requestBody": {
-            "content": {
-                "application/json": {
-                    "examples": {
-                        "admin_action": {
-                            "summary": "Admin action audit event",
-                            "value": {
-                                "guardian_id": "guardian-01",
-                                "event_type": "admin_action",
-                                "severity": "high",
-                                "details": {"action": "update_policy", "user": "admin"},
-                            },
-                        }
-                    }
-                }
-            }
-        }
-    },
-)
-async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telemetry_rate_limit)):
-    if event.timestamp == 0.0:
-        event.timestamp = time.time()
-        
-    logger.info(f"Ingesting {event.event_type} from {event.guardian_id}")
-    
-    # Normalize severity
-    event.severity = event.severity.upper()
-    
-    # 1. Persist to SQLite
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    
-    # Insert new event
-    cur.execute(
-        "INSERT INTO security_events (guardian_id, event_type, severity, details, timestamp) VALUES (?, ?, ?, ?, ?)",
-        (event.guardian_id, event.event_type, event.severity, json.dumps(event.details), event.timestamp)
-    )
-
-    audit_payload = None
-
-    # 2. Immutable Audit Log (Critical Events)
-    if event.event_type == "admin_action":
-        import hashlib
-        # Simulate cryptographic signing of the log entry
-        details_json = json.dumps(event.details)
-        payload = f"{event.guardian_id}:{event.timestamp}:{details_json}"
-        signature = hashlib.sha256(payload.encode()).hexdigest()
-        cur.execute(
-            """
-            SELECT entry_hash
-            FROM audit_logs
-            WHERE entry_hash IS NOT NULL AND entry_hash != ''
-            ORDER BY id DESC LIMIT 1
-            """
-        )
-        prev_row = cur.fetchone()
-        prev_hash = prev_row[0] if prev_row and prev_row[0] else ""
-        entry_hash = _compute_audit_entry_hash(
-            guardian_id=event.guardian_id,
-            action=event.details.get("action", "unknown"),
-            user=event.details.get("user", "unknown"),
-            details_json=details_json,
-            timestamp=event.timestamp,
-            signature=signature,
-            prev_hash=prev_hash,
-        )
-        audit_payload = {
-            "guardian_id": event.guardian_id,
-            "action": event.details.get("action", "unknown"),
-            "user": event.details.get("user", "unknown"),
-            "details": event.details,
-            "timestamp": event.timestamp,
-            "signature": signature,
-            "prev_hash": prev_hash,
-            "entry_hash": entry_hash,
-        }
-        
-        cur.execute(
-            """
-            INSERT INTO audit_logs (guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                event.guardian_id,
-                event.details.get("action", "unknown"),
-                event.details.get("user", "unknown"),
-                details_json,
-                event.timestamp,
-                signature,
-                prev_hash,
-                entry_hash,
-            ),
-        )
-
-
-    # Extract Analytics if present (Add to analytics table)
-    if "latency_ms" in event.details and "path" in event.details:
-        try:
-            latency = float(event.details["latency_ms"].replace("ms", ""))
-            path = event.details["path"]
-            cur.execute(
-                "INSERT INTO analytics (path, latency_ms, timestamp) VALUES (?, ?, ?)",
-                (path, latency, event.timestamp)
-            )
-        except:
-            pass
-    
-    # 2. Retention Policy: Auto-purge events older than the configured retention window
-    retention_cutoff = time.time() - (30 * 24 * 60 * 60)
-    cur.execute("DELETE FROM security_events WHERE timestamp < ?", (retention_cutoff,))
-    
-    conn.commit()
-    conn.close()
-
-    # 3. External Audit Sinks (best effort unless strict mode enabled)
-    if audit_payload is not None:
-        _forward_audit_payload(audit_payload)
-
-    # 4. Fire Webhook Alert
-    await send_webhook_alert(event)
-    
-    return {"status": "persisted", "event_id": event.guardian_id}
 
 from fastapi.responses import StreamingResponse
 import io
 import csv
 
-@app.get("/api/v1/export/json", response_model=List[SecurityEventResponse])
-async def export_json(username: str = Depends(enforce_user_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM security_events ORDER BY timestamp DESC")
-    rows = cur.fetchall()
-    conn.close()
-    
-    data = [
-        {
-            "id": r[0], "guardian_id": r[1], "event_type": r[2], 
-            "severity": r[3], "details": json.loads(r[4]), "timestamp": r[5]
-        } for r in rows
-    ]
-    return data
-
-@app.get(
-    "/api/v1/analytics",
-    response_model=AnalyticsResponse,
-    responses={200: {"description": "Aggregated analytics and block-rate summary."}},
-)
-async def get_analytics(username: str = Depends(enforce_user_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-
-    proxy_placeholders = ",".join("?" for _ in PROXY_EVENT_TYPES)
-    blocked_set = set(BLOCKED_EVENT_TYPES)
-
-    # Consistent ingress scope: only proxy pipeline events.
-    cur.execute(
-        f"SELECT event_type, details FROM security_events WHERE event_type IN ({proxy_placeholders})",
-        PROXY_EVENT_TYPES,
-    )
-    rows = cur.fetchall()
-
-    total_count = len(rows)
-    total_blocked = 0
-    paths = {}
-    end_to_end_samples = []
-    overhead_samples = []
-    upstream_samples = []
-
-    for event_type, details_raw in rows:
-        et = (event_type or "").lower()
-        if et in blocked_set:
-            total_blocked += 1
-
-        details = {}
-        if details_raw:
-            try:
-                details = json.loads(details_raw)
-            except Exception:  # noqa: BLE001
-                details = {}
-
-        path = details.get("path")
-        if isinstance(path, str) and path:
-            paths[path] = paths.get(path, 0) + 1
-
-        total_ms = _to_ms(details.get("latency_ms"))
-        if total_ms is not None:
-            end_to_end_samples.append(total_ms)
-
-        timings = details.get("component_timings")
-        if isinstance(timings, dict):
-            component_values = [_to_ms(v) for v in timings.values()]
-            component_values = [v for v in component_values if v is not None]
-            if component_values:
-                guardian_overhead = sum(component_values)
-                overhead_samples.append(guardian_overhead)
-                if total_ms is not None:
-                    upstream_samples.append(max(0.0, total_ms - guardian_overhead))
-
-    # Recent block rate over last 25 ingress events
-    cur.execute(
-        f"SELECT event_type FROM security_events WHERE event_type IN ({proxy_placeholders}) ORDER BY timestamp DESC LIMIT 25",
-        PROXY_EVENT_TYPES,
-    )
-    recent_rows = cur.fetchall()
-    recent_total = len(recent_rows)
-    recent_blocked = sum(1 for (evt_type,) in recent_rows if (evt_type or "").lower() in blocked_set)
-
-    conn.close()
-
-    avg_latency = (sum(end_to_end_samples) / len(end_to_end_samples)) if end_to_end_samples else 0.0
-    avg_overhead = (sum(overhead_samples) / len(overhead_samples)) if overhead_samples else 0.0
-    avg_upstream = (sum(upstream_samples) / len(upstream_samples)) if upstream_samples else avg_latency
-    global_block_rate = (total_blocked / total_count * 100) if total_count else 0.0
-    recent_block_rate = (recent_blocked / recent_total * 100) if recent_total else 0.0
-
-    return {
-        "total_requests": total_count or 0,
-        "total_blocked": total_blocked or 0,
-        "avg_latency_ms": round(avg_latency or 0, 2),
-        "avg_guardian_overhead_ms": round(avg_overhead or 0, 2),
-        "avg_upstream_ms": round(avg_upstream or 0, 2),
-        "global_block_rate_pct": round(global_block_rate, 1),
-        "recent_block_rate_pct": round(recent_block_rate, 1),
-        "path_breakdown": paths,
-        "fast_path_pct": round((sum(v for k,v in paths.items() if 'fast' in k) / total_count * 100) if total_count else 0, 1)
-    }
-
-@app.get("/api/v1/export/csv")
-async def export_csv(username: str = Depends(enforce_user_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM security_events ORDER BY timestamp DESC")
-    rows = cur.fetchall()
-    conn.close()
-    
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["ID", "GuardianID", "EventType", "Severity", "Details", "Timestamp"])
-    for r in rows:
-        writer.writerow([r[0], r[1], r[2], r[3], r[4], datetime.datetime.fromtimestamp(r[5]).isoformat()])
-    
-    output.seek(0)
-    return StreamingResponse(
-        output, 
-        media_type="text/csv", 
-        headers={"Content-Disposition": "attachment; filename=guardian_audit_log.csv"}
-    )
-
-@app.get(
-    "/health",
-    response_model=HealthResponse,
-    responses={
-        200: {
-            "description": "Readiness healthy.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "healthy",
-                        "timestamp": 1739835000.0,
-                        "uptime_sec": 42.5,
-                        "components": {
-                            "database": {"ok": True, "detail": "ok"},
-                            "metrics_enabled": True,
-                            "https_enforced": True,
-                            "telemetry_requires_api_key": False,
-                            "audit_sink_configured": True,
-                            "auth_lockout_enabled": True,
-                        },
-                    }
-                }
-            },
-        },
-        503: {
-            "description": "One or more readiness dependencies are unhealthy.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "unhealthy",
-                        "timestamp": 1739835000.0,
-                        "uptime_sec": 42.5,
-                        "components": {
-                            "database": {"ok": False, "detail": "unable to open database file"},
-                            "metrics_enabled": True,
-                            "https_enforced": True,
-                            "telemetry_requires_api_key": True,
-                            "audit_sink_configured": False,
-                            "auth_lockout_enabled": True,
-                        },
-                    }
-                }
-            },
-        }
-    },
-)
-async def health_check():
-    db_ok, db_message = _check_db_health()
-    now = time.time()
-    payload = {
-        "status": "healthy" if db_ok else "unhealthy",
-        "timestamp": now,
-        "uptime_sec": round(now - APP_START_TIME, 3),
-        "components": {
-            "database": {"ok": db_ok, "detail": db_message},
-            "metrics_enabled": METRICS_ENABLED,
-            "https_enforced": ENFORCE_HTTPS,
-            "telemetry_requires_api_key": TELEMETRY_REQUIRE_API_KEY,
-            "audit_sink_configured": bool(
-                AUDIT_SINK_URL or AUDIT_SYSLOG_HOST or AUDIT_SPLUNK_HEC_URL or AUDIT_DATADOG_API_KEY
-            ),
-            "auth_lockout_enabled": _is_auth_lockout_enabled(),
-        },
-    }
-    if db_ok:
-        return payload
-    return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=payload)
 
 
-@app.get(
-    "/metrics",
-    responses={
-        200: {
-            "description": "Prometheus exposition format.",
-            "content": {
-                "text/plain": {
-                    "example": "guardian_requests_total 12\nguardian_requests_last_minute 3\n"
-                }
-            },
-        },
-        404: {"description": "Metrics disabled."},
-    },
-)
-async def metrics():
-    if not METRICS_ENABLED:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metrics disabled")
-    return HTMLResponse(content=_build_metrics_payload(), media_type="text/plain")
-
-@app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
-    user_config = _auth_users.get(username)
-    if not user_config or not secrets.compare_digest(password, user_config["password"]):
-        return HTMLResponse(
-            content="""
-            <html><body style="background:#050505;color:#ff003c;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;">
-            <div style="text-align:center;">
-                <h2>ACCESS DENIED</h2>
-                <p>Invalid credentials.</p>
-                <a href="/" style="color:#00ff41;">TRY AGAIN</a>
-            </div>
-            </body></html>
-            """, 
-            status_code=401
-        )
-    
-    role = user_config.get("role", "user")
-    token, _ = _issue_jwt(username, role=role)
-    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    response.set_cookie(key="guardian_token", value=token, httponly=True, samesite="lax")
-    return response
-
-@app.get("/logout")
-async def logout():
-    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie("guardian_token")
-    return response
-
-@app.get("/", response_class=HTMLResponse)
-async def dashboard(
-    request: Request,
-    user: str | None = None,
-    password: str | None = None,
-):
-    username: str | None = None
-
-    # Primary path: standard Basic/Bearer header auth.
-    auth_header = request.headers.get("authorization", "")
-    if auth_header.lower().startswith("bearer "):
-        token = auth_header.split(" ", 1)[1].strip()
-        if token:
-            try:
-                payload = _decode_jwt(token)
-                username = str(payload.get("sub", "")).strip() or None
-            except Exception:  # noqa: BLE001
-                username = None
-    else:
-        creds = _extract_basic_credentials_from_header(request)
-        if creds:
-            try:
-                username = _validate_basic(HTTPBasicCredentials(username=creds[0], password=creds[1]))
-            except Exception:  # noqa: BLE001
-                username = None
-
-    # Fallback path for browser demo UX when auth popup does not appear.
-    if not username and user and password:
-        try:
-            username = _validate_basic(HTTPBasicCredentials(username=user, password=password))
-        except Exception:  # noqa: BLE001
-            username = None
-
-    # Cookie Auth
-    if not username:
-        cookie_token = request.cookies.get("guardian_token")
-        if cookie_token:
-            try:
-                payload = _decode_jwt(cookie_token)
-                username = str(payload.get("sub", "")).strip() or None
-            except Exception:
-                username = None
-
-    if not username:
-        # Return HTML Login Page instead of 401
-        return HTMLResponse(content="""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>GuardianAI // ACCESS CONTROL</title>
-            <style>
-                body { background: #050505; color: #00ff41; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-                .login-box { border: 1px solid #00ff41; padding: 40px; width: 300px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); background: #0a0a0a; }
-                h1 { margin: 0 0 20px; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; text-align: center; color: #fff; }
-                input { width: 100%; box-sizing: border-box; background: #000; border: 1px solid #333; color: #fff; padding: 10px; margin-bottom: 15px; font-family: inherit; }
-                input:focus { border-color: #00ff41; outline: none; }
-                button { width: 100%; background: #00ff41; color: #000; border: none; padding: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-                button:hover { background: #00cc33; }
-            </style>
-        </head>
-        <body>
-            <div class="login-box">
-                <h1>System Access</h1>
-                <form action="/login" method="post">
-                    <input type="text" name="username" placeholder="IDENTITY" required autofocus autocomplete="off">
-                    <input type="password" name="password" placeholder="CREDENTIAL" required>
-                    <button type="submit">Initialize Session</button>
-                </form>
-            </div>
-        </body>
-        </html>
-        """)
-
-    role = _get_user_role(username)
-    _enforce_rbac_and_user_rate_limit(request, {"username": username, "role": role}, {"admin", "auditor", "user"})
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM security_events ORDER BY timestamp DESC LIMIT 30")
-    events = cur.fetchall()
-    conn.close()
-    
-    # Try to read config for mode visibility
-    try:
-        import yaml
-        with open("../guardian/config/config.yaml", 'r') as f:
-            config = yaml.safe_load(f)
-            sec_mode = config.get('security_policies', {}).get('security_mode', 'Balanced')
-            prev_strat = config.get('security_policies', {}).get('leak_prevention_strategy', 'Redact')
-    except:
-        sec_mode = "Balanced"
-        prev_strat = "Redact"
-
-    return f"""
-    <html>
-        <head>
-            <title>GuardianAI // SOC TERMINAL</title>
-            <script src="https://unpkg.com/lucide@latest"></script>
-            <style>
-                :root {{
-                    --bg-color: #050505;
-                    --card-bg: #0a0a0a;
-                    --text-main: #00ff41;
-                    --text-dim: #008F11;
-                    --accent-red: #ff003c;
-                    --accent-cyan: #00e5ff;
-                    --accent-yellow: #fcee0a;
-                    --border-color: #1a1a1a;
-                }}
-                body {{ 
-                    font-family: 'Courier New', Courier, monospace; 
-                    background-color: var(--bg-color); 
-                    color: var(--text-main); 
-                    margin: 0; 
-                    padding: 20px; 
-                    background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-                    background-size: 100% 2px, 3px 100%;
-                }}
-                h1 {{ 
-                    color: var(--accent-cyan); 
-                    margin: 0; 
-                    font-size: 1.5rem; 
-                    text-transform: uppercase; 
-                    letter-spacing: 2px;
-                    text-shadow: 0 0 5px var(--accent-cyan);
-                }}
-                .container {{ max-width: 1200px; margin: auto; }}
-                
-                /* CRT Scanline Effect */
-                .scanline {{
-                    width: 100%;
-                    height: 100px;
-                    z-index: 10;
-                    background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(0,0,0,0) 100%);
-                    opacity: 0.1;
-                    position: absolute;
-                    bottom: 100%;
-                    animation: scanline 10s linear infinite;
-                    pointer-events: none;
-                }}
-                @keyframes scanline {{
-                    0% {{ bottom: 100%; }}
-                    100% {{ bottom: -100%; }}
-                }}
-
-                .event-card {{ 
-                    background: var(--card-bg); 
-                    border: 1px solid var(--text-dim); 
-                    padding: 15px; 
-                    margin-bottom: 15px; 
-                    border-left: 4px solid var(--accent-red); 
-                    position: relative; 
-                    box-shadow: 0 0 10px rgba(0, 255, 65, 0.05);
-                }}
-                .event-card:hover {{ 
-                    box-shadow: 0 0 15px rgba(0, 255, 65, 0.2); 
-                    border-color: var(--text-main);
-                }}
-                .event-card.low, .event-card.info {{ border-left-color: var(--text-main); }} 
-                .event-card.medium {{ border-left-color: var(--accent-yellow); }}
-                .event-card.high {{ border-left-color: var(--accent-red); }}
-                .event-card.critical {{ border-left-color: var(--accent-red); animation: pulse-red 2s infinite; }}
-
-                @keyframes pulse-red {{
-                    0% {{ box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.4); }}
-                    70% {{ box-shadow: 0 0 0 10px rgba(255, 0, 60, 0); }}
-                    100% {{ box-shadow: 0 0 0 0 rgba(255, 0, 60, 0); }}
-                }}
-                
-                .header-flex {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px dashed var(--text-dim); padding-bottom: 15px; }}
-                .severity {{ text-transform: uppercase; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.1em; }}
-                .timestamp {{ color: var(--text-dim); font-size: 0.85rem; }}
-                .details {{ 
-                    background: #000; 
-                    padding: 15px; 
-                    border: 1px dashed var(--text-dim); 
-                    font-family: 'Courier New', monospace; 
-                    margin-top: 15px; 
-                    color: #ddd; 
-                    font-size: 0.85rem; 
-                    line-height: 1.5; 
-                    overflow-x: auto; 
-                }}
-                .badge {{ 
-                    background: #000; 
-                    padding: 4px 12px; 
-                    border: 1px solid var(--text-dim); 
-                    font-size: 0.7rem; 
-                    font-weight: 600; 
-                    text-transform: uppercase; 
-                    color: var(--text-main);
-                }}
-                .stat-card {{ 
-                    background: var(--card-bg); 
-                    border: 1px solid var(--text-dim); 
-                    padding: 20px; 
-                    text-align: center; 
-                    position: relative;
-                }}
-                .stat-card:before {{
-                    content: '';
-                    position: absolute;
-                    top: 0; left: 0; right: 0; bottom: 0;
-                    border: 1px solid transparent;
-                    border-bottom-color: var(--text-main);
-                }}
-                .footnote {{ font-size: 0.65rem; color: var(--text-dim); margin-top: 8px; text-transform: uppercase; }}
-                
-                .mode-banner {{ 
-                    background: #000; 
-                    border: 1px solid var(--text-dim); 
-                    padding: 10px 20px; 
-                    margin-bottom: 25px; 
-                    display: flex; 
-                    align-items: center; 
-                    gap: 20px; 
-                }}
-                
-                .toast {{ 
-                    position: fixed; bottom: 20px; right: 20px; 
-                    background: #000; color: var(--text-main); border: 1px solid var(--text-main);
-                    padding: 12px 24px; font-weight: 600; display: none; 
-                    box-shadow: 0 0 10px var(--text-main);
-                    z-index: 1000; 
-                }}
-
-                .snippet-diff {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; font-size: 0.8rem; }}
-                .snippet-box {{ 
-                    background: #000; 
-                    padding: 10px; 
-                    border: 1px dashed var(--text-dim); 
-                }}
-                
-                /* Timings */
-                .timings-bar {{ display: flex; height: 4px; overflow: hidden; margin-top: 10px; background: #111; border: 1px solid #333; }}
-                .timing-seg {{ height: 100%; }}
-                .timing-legend {{ display: flex; gap: 10px; font-size: 0.7rem; color: var(--text-dim); margin-top: 4px; flex-wrap: wrap; }}
-                .timing-dot {{ width: 6px; height: 6px; display: inline-block; margin-right: 4px; }}
-            </style>
-        </head>
-        <body>
-            <div class="scanline"></div>
-            <div id="toast" class="toast"></div>
-            <div class="container">
-                <div class="header-flex">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <i data-lucide="shield-check" style="width: 32px; height: 32px; color: var(--text-main);"></i>
-                        <div>
-                            <h1>GUARDIAN.AI // SOC</h1>
-                            <div style="font-size: 0.7rem; color: var(--text-dim); letter-spacing: 1px;">SYSTEM STATUS: ONLINE</div>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button onclick="triggerExport('json')" class="badge" style="cursor:pointer; color: var(--accent-cyan); border-color: var(--accent-cyan);">[ EXPORT JSON ]</button>
-                        <a href="/logout" class="badge" style="text-decoration:none; cursor:pointer; color: var(--accent-red); border-color: var(--accent-red);">[ LOGOUT ]</a>
-                        <span class="badge" style="color: var(--accent-yellow); border-color: var(--accent-yellow);">V2.0 SECURE</span>
-                    </div>
-                </div>
-
-                <!-- Security Warning (Hidden for Demo) -->
-                <div style="background: rgba(255, 0, 60, 0.1); border: 1px solid var(--accent-red); padding: 10px; margin-bottom: 20px; text-align: center; color: var(--accent-red); font-weight: bold; font-size: 0.8rem; display: none;">
-                    âš ï¸ WARNING: You are using default credentials. Set GUARDIAN_ADMIN_PASS environment variable immediately.
-                </div>
-
-                <div class="mode-banner">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <i data-lucide="settings-2" style="width: 18px; height: 18px; color: var(--text-dim);"></i>
-                        <span style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase;">Security Mode:</span>
-                        <span class="badge" style="color: var(--accent-cyan); border-color: var(--accent-cyan);">{sec_mode.upper()}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <i data-lucide="shield" style="width: 18px; height: 18px; color: var(--text-dim);"></i>
-                        <span style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase;">Privacy Strategy:</span>
-                        <span class="badge" style="color: var(--accent-yellow); border-color: var(--accent-yellow);">{prev_strat.upper()}</span>
-                    </div>
-                    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-                         <i data-lucide="bar-chart-2" style="width: 18px; height: 18px; color: var(--text-dim);"></i>
-                         <span style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase;">BLOCK RATE (GLOBAL):</span>
-                         <span id="block-rate" class="badge" style="color: var(--accent-red); border-color: var(--accent-red);">0%</span>
-                         <span style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; margin-left: 10px;">RECENT(25):</span>
-                         <span id="block-rate-recent" class="badge" style="color: var(--accent-yellow); border-color: var(--accent-yellow);">0%</span>
-                    </div>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px;">
-                    <div class="stat-card">
-                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Total Ingress</div>
-                        <div id="stat-total" style="font-size: 2rem; font-weight: 800; color: var(--text-main); text-shadow: 0 0 5px var(--text-main);">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Upstream Latency</div>
-                        <div id="stat-latency" style="font-size: 2rem; font-weight: 800; color: var(--accent-cyan); text-shadow: 0 0 5px var(--accent-cyan);">0ms</div>
-                        <div class="footnote">MODEL + NETWORK TIME<br>(EXCLUDES GUARDIAN CHECKS)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Guardian Overhead</div>
-                        <div id="stat-fastpath" style="font-size: 2rem; font-weight: 800; color: var(--accent-yellow); text-shadow: 0 0 5px var(--accent-yellow);">0</div>
-                        <div class="footnote">FAST-PATH HITS: <span id="stat-fastpath-hits">0</span></div>
-                    </div>
-                    <div class="stat-card">
-                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase;">Threats Blocked</div>
-                        <div id="stat-blocked" style="font-size: 2rem; font-weight: 800; color: var(--accent-red); text-shadow: 0 0 5px var(--accent-red);">0</div>
-                    </div>
-                </div>
-
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 1px dashed var(--text-dim); padding-bottom: 10px;">
-                    <i data-lucide="file-lock" style="width: 20px; height: 20px; color: var(--accent-cyan);"></i>
-                    <h2 style="font-size: 1.1rem; font-weight: 600; margin: 0; text-transform: uppercase; color: #fff;">Immutable Audit Log</h2>
-                </div>
-                <div id="audit-log" style="margin-bottom: 40px;"></div>
-
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 1px dashed var(--text-dim); padding-bottom: 10px;">
-                    <i data-lucide="activity" style="width: 20px; height: 20px; color: var(--accent-red);"></i>
-                    <h2 style="font-size: 1.1rem; font-weight: 600; margin: 0; text-transform: uppercase; color: #fff;">Live Threat Telemetry</h2>
-                </div>
-                
-                <div id="events"></div>
-            </div>
-            <script>
-                // Auto-inject credentials for dashboard API calls (this is a local tool)
-                const auth = 'Basic ' + btoa('{ADMIN_USER}:{ADMIN_PASS}');
-                function showToast(msg) {{
-                    const t = document.getElementById('toast');
-                    t.innerText = msg;
-                    t.style.display = 'block';
-                    setTimeout(() => t.style.display = 'none', 3000);
-                }}
-
-                function triggerExport(type) {{
-                    window.location.href = `/api/v1/export/${{type}}`;
-                    showToast(`Exported events as guardianai_telemetry_${{new Date().toISOString().split('T')[0]}}.${{type}}`);
-                }}
-
-                function getIcon(entity) {{
-                    const e = entity.toUpperCase();
-                    if (e.includes('KEY') || e.includes('TOKEN') || e.includes('SECRET')) return 'lock';
-                    if (e.includes('EMAIL')) return 'mail';
-                    if (e.includes('PHONE')) return 'phone';
-                    return 'alert-circle';
-                }}
-                
-                function timeAgo(timestamp) {{
-                    const seconds = Math.floor((new Date() - new Date(timestamp * 1000)) / 1000);
-                    let interval = seconds / 60;
-                    if (interval > 1) return Math.floor(interval) + "m ago";
-                    return Math.floor(seconds) + "s ago";
-                }}
-
-                async function updateStats() {{
-                    try {{
-                        const res = await fetch('/api/v1/analytics', {{ headers: {{ 'Authorization': auth }} }});
-                        const data = await res.json();
-                        document.getElementById('stat-total').innerText = data.total_requests;
-                        document.getElementById('stat-blocked').innerText = data.total_blocked;
-                        document.getElementById('stat-latency').innerText = data.avg_upstream_ms + 'ms';
-                        document.getElementById('stat-fastpath').innerText = data.avg_guardian_overhead_ms + 'ms';
-                        document.getElementById('block-rate').innerText = data.global_block_rate_pct + '%';
-                        document.getElementById('block-rate-recent').innerText = data.recent_block_rate_pct + '%';
-                        
-                        const fastHits = (data.path_breakdown.fast_path_keyword || 0) + 
-                                         (data.path_breakdown.fast_path_threat_feed || 0) + 
-                                         (data.path_breakdown.fast_path_allowlist || 0) +
-                                         (data.path_breakdown.base64_filter || 0);
-                        document.getElementById('stat-fastpath-hits').innerText = fastHits;
-                    }} catch (e) {{ console.error("Analytics fetch failed", e); }}
-                }}
-
-                async function updateEvents() {{
-                    try {{
-                        const res = await fetch('/api/v1/events?limit=25', {{ headers: {{ 'Authorization': auth }} }});
-                        const events = await res.json();
-                        const eventsDiv = document.getElementById('events');
-                        
-                        eventsDiv.innerHTML = events.map(e => {{
-                            const entities = e.details.detected_entities ? 
-                                `<div style="margin-top:10px; display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px dashed #333; padding-top: 10px;">${{e.details.detected_entities.map(ent => 
-                                    `<span class="badge" style="color: var(--accent-red); border-color: var(--accent-red); display: flex; align-items: center; gap: 5px;">
-                                        <i data-lucide="${{getIcon(ent)}}" style="width: 12px; height: 12px;"></i>
-                                        ${{ent}}
-                                    </span>`).join('')}}</div>` : '';
-
-                            // Redaction Preview - Cyberpunk Style
-                            const redactionPreview = e.details.original_snippet ? `
-                                <details style="margin-top: 15px; border: 1px solid var(--text-dim); padding: 5px;">
-                                    <summary style="cursor: pointer; font-size: 0.75rem; color: var(--text-dim); list-style: none; display: flex; align-items: center; gap: 8px;">
-                                        <i data-lucide="crosshair" style="width: 14px; height: 14px;"></i>
-                                        [ VIEW AUDIT LOG ]
-                                    </summary>
-                                    <div class="snippet-diff" style="padding: 10px; background: #000;">
-                                        <div class="snippet-box">
-                                            <div style="font-size: 0.65rem; color: var(--accent-red); margin-bottom: 4px; text-transform: uppercase;">>> THREAT DETECTED</div>
-                                            <div style="color: var(--accent-red); word-break: break-all;">${{e.details.original_snippet}}</div>
-                                        </div>
-                                        <div class="snippet-box" style="border-left: 2px solid var(--text-main);">
-                                            <div style="font-size: 0.65rem; color: var(--text-main); margin-bottom: 4px; text-transform: uppercase;">>> NEUTRALIZED</div>
-                                            <div style="color: var(--text-main); font-weight: 600;">[REDACTED]</div>
-                                        </div>
-                                    </div>
-                                </details>
-                            ` : '';
-                            
-                            // Component Timings
-                            let timingsHtml = '';
-                            if (e.details.component_timings) {{
-                                const times = e.details.component_timings;
-                                const total = Object.values(times).reduce((a, b) => a + b, 0);
-                                if (total > 0) {{
-                                    const colors = ['var(--text-main)', 'var(--accent-cyan)', 'var(--accent-yellow)', 'var(--accent-red)'];
-                                    timingsHtml = `
-                                        <div style="margin-top: 12px;">
-                                            <div class="timings-bar">
-                                                ${{Object.entries(times).map(([k, v], i) => 
-                                                    `<div class="timing-seg" style="width: ${{v/total*100}}%; background: ${{colors[i % colors.length]}}" title="${{k}}: ${{v.toFixed(1)}}ms"></div>`
-                                                ).join('')}}
-                                            </div>
-                                            <div class="timing-legend">
-                                                ${{Object.entries(times).map(([k, v], i) => 
-                                                    `<span><i class="timing-dot" style="background:${{colors[i % colors.length]}}"></i>${{k.replace('_ms','').replace('_',' ')}}: ${{v.toFixed(1)}}ms</span>`
-                                                ).join('')}}
-                                                <span style="margin-left:auto; color: #666;">TOT: ${{total.toFixed(1)}}ms</span>
-                                            </div>
-                                        </div>
-                                    `;
-                                }}
-                            }}
-
-                            const severityMap = {{
-                                'CRITICAL': {{ color: 'var(--accent-red)', icon: 'shield-alert' }},
-                                'HIGH': {{ color: 'var(--accent-red)', icon: 'alert-triangle' }},
-                                'INFO': {{ color: 'var(--text-main)', icon: 'check-circle' }}, 
-                                'LOW': {{ color: 'var(--text-main)', icon: 'check-circle' }},
-                                'MEDIUM': {{ color: 'var(--accent-yellow)', icon: 'alert-circle' }}
-                            }};
-                            
-                            const sev = severityMap[e.severity.toUpperCase()] || {{ color: '#666', icon: 'activity' }};
-                            
-                            let friendlyTitle = e.event_type.toUpperCase().replace('_', ' ');
-
-                            return `
-                                <div class="event-card ${{e.severity.toLowerCase()}}" style="border-left-color: ${{sev.color}}">
-                                    <div class="header-flex" style="margin-bottom: 5px; border-bottom: none;">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <i data-lucide="${{sev.icon}}" style="width: 16px; height: 16px; color: ${{sev.color}}"></i>
-                                            <span class="severity" style="color: ${{sev.color}}">${{e.severity}}</span>
-                                        </div>
-                                        <span class="timestamp" title="${{new Date(e.timestamp * 1000).toLocaleString()}}">${{timeAgo(e.timestamp)}}</span>
-                                    </div>
-                                    <div style="font-weight: 800; font-size: 1.1rem; color: #fff; display: flex; align-items: center; gap: 10px; margin-bottom: 5px; letter-spacing: 1px;">
-                                        ${{friendlyTitle}}
-                                    </div>
-                                    <div class="details">
-                                        <div style="margin-bottom: 5px; color: #666; font-size: 0.75rem;">
-                                            PATH: <span style="color: #ccc;">${{e.details.path || 'unknown'}}</span>
-                                        </div>
-                                        ${{e.details.reason ? `<div style="color: var(--accent-red); margin-bottom: 5px;">REASON: ${{e.details.reason}}</div>` : ''}}
-                                        ${{e.details.prompt_preview ? `<div style="color: #aaa;">PROMPT: "${{e.details.prompt_preview}}..."</div>` : ''}}
-                                        ${{redactionPreview}}
-                                        ${{entities}}
-                                        ${{timingsHtml}}
-                                    </div>
-                                </div>
-                            `;
-                        }}).join('');
-                        lucide.createIcons();
-                    }} catch (e) {{ console.error("Events fetch failed", e); }}
-                }}
-
-                setInterval(() => {{
-                    updateStats();
-                    updateEvents();
-                }}, 3000);
-                
-                updateStats();
-                updateEvents();
-            </script>
-        </body>
-    </html>
-    """
-
-@app.get("/api/v1/events", response_model=List[SecurityEventResponse])
-async def get_events(limit: int = 50, username: str = Depends(enforce_user_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM security_events ORDER BY timestamp DESC LIMIT ?", (limit,))
-    rows = cur.fetchall()
-    conn.close()
-    
-    return [
-        {
-            "id": r[0],
-            "guardian_id": r[1],
-            "event_type": r[2],
-            "severity": r[3],
-            "details": json.loads(r[4]),
-            "timestamp": r[5]
-        } for r in rows
-    ]
-
-@app.get(
-    "/api/v1/audit-log",
-    response_model=List[AuditLogEntryResponse],
-    responses={
-        200: {
-            "description": "Audit log entries in reverse timestamp order.",
-            "content": {
-                "application/json": {
-                    "example": [
-                        {
-                            "id": 42,
-                            "guardian_id": "guardian-01",
-                            "action": "admin_action",
-                            "user": "admin",
-                            "details": "{\"action\":\"update_policy\"}",
-                            "timestamp": 1739835000.0,
-                            "signature": "40a0adf4f5...",
-                            "prev_hash": "eb2b9f...",
-                            "entry_hash": "24d385...",
-                        }
-                    ]
-                }
-            },
-        }
-    },
-)
-async def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    # Check if table exists (it might not if init_db ran on old schema)
-    try:
-        cur.execute("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT ?", (limit,))
-        rows = cur.fetchall()
-    except sqlite3.OperationalError:
-        return []
-    conn.close()
-    
-    return [
-        {
-            "id": r[0],
-            "guardian_id": r[1],
-            "action": r[2],
-            "user": r[3],
-            "details": r[4],
-            "timestamp": r[5],
-            "signature": r[6],
-            "prev_hash": r[7] if len(r) > 7 else None,
-            "entry_hash": r[8] if len(r) > 8 else None,
-        } for r in rows
-    ]
 
 
-@app.get(
-    "/api/v1/audit-log/verify",
-    response_model=AuditVerifyResponse,
-    responses={
-        200: {
-            "description": "Hash-chain verification status.",
-            "content": {
-                "application/json": {"example": {"ok": True, "entries": 12, "failed_id": None, "reason": None}}
-            },
-        }
-    },
-)
-async def verify_audit_log_chain(username: str = Depends(enforce_auditor_rate_limit)):
-    return _verify_audit_log_chain_internal()
 
 
-@app.get(
-    "/api/v1/audit-log/summary",
-    response_model=AuditSummaryResponse,
-    responses={
-        200: {
-            "description": "Audit observability summary including chain and delivery-failure state.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "timestamp": 1739835000.0,
-                        "total_entries": 24,
-                        "hashed_entries": 20,
-                        "legacy_unhashed_entries": 4,
-                        "recent_admin_actions_24h": 3,
-                        "failed_deliveries_total": 2,
-                        "failed_deliveries_by_sink": {"http": 1, "syslog": 1},
-                        "chain_ok": True,
-                        "chain_entries_checked": 20,
-                        "chain_message": "Verified hashed entries; skipped 4 legacy unhashed entries",
-                        "chain_failed_id": None,
-                        "chain_reason": None,
-                    }
-                }
-            },
-        }
-    },
-)
-async def get_audit_summary(username: str = Depends(enforce_auditor_rate_limit)):
-    return _build_audit_summary()
 
 
-@app.get(
-    "/api/v1/compliance/report",
-    response_model=ComplianceReportResponse,
-    responses={
-        200: {
-            "description": "Operational hardening and compliance posture snapshot.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "warn",
-                        "timestamp": 1739835000.0,
-                        "summary": {"passed": 8, "warnings": 3, "failed": 1},
-                        "controls": [
-                            {
-                                "control": "jwt_secret_configured",
-                                "status": "pass",
-                                "detail": "JWT signing secret is non-default.",
-                            },
-                            {
-                                "control": "telemetry_api_key_enforced",
-                                "status": "warn",
-                                "detail": "Telemetry API key enforcement is disabled.",
-                            },
-                        ],
-                    }
-                }
-            },
-        }
-    },
-)
-async def get_compliance_report(username: str = Depends(enforce_auditor_rate_limit)):
-    return _build_compliance_report()
 
 
-@app.get(
-    "/api/v1/rbac/policy",
-    response_model=RbacPolicyResponse,
-    responses={
-        200: {
-            "description": "Role-permission catalog and endpoint access matrix.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "generated_at": 1739835000.0,
-                        "roles": {
-                            "admin": ["api_keys:manage", "audit:retry", "compliance:read", "rbac:read"],
-                            "auditor": ["api_keys:read", "audit:read", "compliance:read", "rbac:read"],
-                            "user": ["events:read", "analytics:read", "export:read"],
-                        },
-                        "endpoints": [
-                            {
-                                "method": "POST",
-                                "path": "/api/v1/audit-log/retry-failures",
-                                "allowed_roles": ["admin"],
-                                "permission": "audit:retry",
-                            },
-                            {
-                                "method": "GET",
-                                "path": "/api/v1/compliance/report",
-                                "allowed_roles": ["admin", "auditor"],
-                                "permission": "compliance:read",
-                            },
-                        ],
-                    }
-                }
-            },
-        }
-    },
-)
-async def get_rbac_policy(username: str = Depends(enforce_auditor_rate_limit)):
-    return _build_rbac_policy()
 
 
-@app.get(
-    "/api/v1/audit-log/failures",
-    response_model=List[AuditDeliveryFailureResponse],
-    responses={
-        200: {
-            "description": "Queued failed audit deliveries.",
-            "content": {
-                "application/json": {
-                    "example": [
-                        {
-                            "id": 7,
-                            "sink_type": "http",
-                            "payload": {"guardian_id": "guardian-01", "action": "admin_action"},
-                            "error": "HTTP 503 from sink",
-                            "retry_count": 2,
-                            "created_at": 1739835000.0,
-                            "last_attempt_at": 1739835050.0,
-                        }
-                    ]
-                }
-            },
-        }
-    },
-)
-async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_auditor_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
+
+
+def _upsert_customer(cur: sqlite3.Cursor, customer_email: str | None, tenant_name: str | None) -> None:
+    if not customer_email:
+        return
     cur.execute(
         """
-        SELECT id, sink_type, payload, error, retry_count, created_at, last_attempt_at
-        FROM audit_delivery_failures
-        ORDER BY id DESC
-        LIMIT ?
+        INSERT INTO customers (email, tenant_name, created_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(email) DO UPDATE SET tenant_name = COALESCE(excluded.tenant_name, customers.tenant_name)
         """,
-        (limit,),
+        (customer_email, tenant_name, time.time()),
     )
-    rows = cur.fetchall()
-    conn.close()
+
+
+def _build_checkout_url(order_id: str) -> str:
+    return f"{CHECKOUT_SUCCESS_URL}?order_id={order_id}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class BadgeVerificationRequest(BaseModel):
+    badge_data: dict
+
+
+# ---------- CRYPTO AUDIT SCAN ENDPOINT ----------
+
+class ScanRequest(BaseModel):
+    target_url: str
+    target_name: str = ""
+    depth: str = "standard"
+
+_scan_results_cache: dict = {}
+_scan_jobs_lock = threading.Lock()
+_scan_jobs: Dict[str, Dict[str, Any]] = {}
+AUDIT_ARTIFACTS_DIR = Path("artifacts/audit")
+
+
+def _new_scan_job_id() -> str:
+    return f"JOB-{secrets.token_hex(6).upper()}"
+
+
+def _scan_status_kind(raw_status: str) -> str:
+    normalized = str(raw_status or "").lower()
+    if normalized in {"vulnerable", "error", "failed"}:
+        return "vuln"
+    if normalized in {"protected", "completed"}:
+        return "ok"
+    return "info"
+
+
+def _append_scan_job_log(job_id: str, message: str, kind: str = "info") -> None:
+    timestamp = time.time()
+    with _scan_jobs_lock:
+        job = _scan_jobs.get(job_id)
+        if not job:
+            return
+        logs = job.setdefault("logs", [])
+        logs.append({"timestamp": timestamp, "message": message, "kind": kind})
+        if len(logs) > 250:
+            del logs[:-250]
+
+
+def _update_scan_job_progress(job_id: str, current: int, total: int, label: str, raw_status: str) -> None:
+    with _scan_jobs_lock:
+        job = _scan_jobs.get(job_id)
+        if not job:
+            return
+        if total > 0:
+            progress_pct = round((current / total) * 100, 1)
+            progress_text = f"[{current}/{total}] {label}"
+        else:
+            progress_pct = job.get("progress_pct", 0.0)
+            progress_text = label
+        job["status"] = "running"
+        job["progress_pct"] = progress_pct
+        job["current_step"] = current
+        job["total_steps"] = total
+        job["progress_label"] = progress_text
+    _append_scan_job_log(job_id, progress_text if total > 0 else label, _scan_status_kind(raw_status))
+
+
+def _create_scan_job(req: ScanRequest) -> Dict[str, Any]:
+    job_id = _new_scan_job_id()
+    job = {
+        "job_id": job_id,
+        "status": "queued",
+        "target_url": req.target_url,
+        "target_name": req.target_name,
+        "depth": req.depth,
+        "created_at": time.time(),
+        "started_at": None,
+        "completed_at": None,
+        "progress_pct": 0.0,
+        "current_step": 0,
+        "total_steps": 0,
+        "progress_label": "Queued for scan startup",
+        "error": None,
+        "logs": [],
+        "result": None,
+    }
+    with _scan_jobs_lock:
+        _scan_jobs[job_id] = job
+    _append_scan_job_log(job_id, "Scan job queued", "info")
+    return dict(job)
+
+
+def _run_scan_job(job_id: str) -> None:
+    from guardian.audit.crypto_scanner import CryptoAuditScanner, ScanDepth
+
+    with _scan_jobs_lock:
+        job = _scan_jobs.get(job_id)
+        if not job:
+            return
+        job["status"] = "running"
+        job["started_at"] = time.time()
+        job["progress_label"] = "Initializing scan engine"
+
+    req_depth = str(job.get("depth") or "standard").lower()
+    depth_map = {"quick": ScanDepth.QUICK, "standard": ScanDepth.STANDARD, "deep": ScanDepth.DEEP}
+    depth = depth_map.get(req_depth, ScanDepth.STANDARD)
+    _append_scan_job_log(job_id, "Initializing scan engine", "info")
+
+    try:
+        scanner = CryptoAuditScanner(
+            target_url=str(job.get("target_url") or ""),
+            target_name=str(job.get("target_name") or "") or None,
+            depth=depth,
+        )
+        _append_scan_job_log(job_id, "Discovering target endpoints", "info")
+        result = scanner.run_scan(progress_callback=lambda current, total, label, status: _update_scan_job_progress(job_id, current, total, label, status))
+        scan_payload = _persist_crypto_scan_artifacts(result)
+        _scan_results_cache[result.scan_id] = scan_payload
+
+        with _scan_jobs_lock:
+            live_job = _scan_jobs.get(job_id)
+            if not live_job:
+                return
+            scan_status = getattr(result, "scan_status", "completed")
+            if scan_status == "target_unreachable":
+                live_job["status"] = "target_unreachable"
+                live_job["progress_label"] = "No AI endpoint detected"
+            else:
+                live_job["status"] = "completed"
+                live_job["progress_label"] = "Scan complete"
+            live_job["completed_at"] = time.time()
+            live_job["progress_pct"] = 100.0
+            live_job["result"] = scan_payload
+        if scan_status == "target_unreachable":
+            _append_scan_job_log(job_id, f"No AI/LLM API endpoint found — scan skipped", "info")
+        else:
+            _append_scan_job_log(job_id, f"Scan complete: {scan_payload.get('grade', 'F')} grade", "ok")
+        # Send notifications (Slack/Discord/Webhook)
+        try:
+            from guardian.audit.notifications import notify_scan_complete
+            notify_scan_complete(scan_payload)
+        except Exception as notify_err:
+            logger.debug(f"Notification dispatch skipped: {notify_err}")
+    except Exception as exc:
+        logger.exception("Background scan job failed")
+        with _scan_jobs_lock:
+            live_job = _scan_jobs.get(job_id)
+            if not live_job:
+                return
+            live_job["status"] = "failed"
+            live_job["completed_at"] = time.time()
+            live_job["error"] = str(exc)
+            live_job["progress_label"] = "Scan failed"
+        _append_scan_job_log(job_id, f"Scan failed: {exc}", "vuln")
+
+
+def _start_scan_job(req: ScanRequest) -> Dict[str, Any]:
+    job = _create_scan_job(req)
+    threading.Thread(target=_run_scan_job, args=(job["job_id"],), daemon=True).start()
+    with _scan_jobs_lock:
+        return dict(_scan_jobs[job["job_id"]])
+
+
+def _get_scan_job(job_id: str) -> Dict[str, Any]:
+    with _scan_jobs_lock:
+        job = _scan_jobs.get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Scan job not found")
+        return json.loads(json.dumps(job, default=str))
+
+
+def _write_json_file(path: Path, payload: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, default=str)
+
+
+def _crypto_scan_depth_to_mode(depth: str):
+    from guardian.audit.models import ScanMode
+
+    return {
+        "quick": ScanMode.QUICK,
+        "standard": ScanMode.STANDARD,
+        "deep": ScanMode.FULL,
+    }.get(depth, ScanMode.STANDARD)
+
+
+def _build_crypto_audit_modules() -> List[Dict[str, str]]:
     return [
         {
-            "id": row[0],
-            "sink_type": row[1],
-            "payload": json.loads(row[2]) if row[2] else {},
-            "error": row[3],
-            "retry_count": row[4],
-            "created_at": row[5],
-            "last_attempt_at": row[6],
-        }
-        for row in rows
+            "name": "IndirectInjectionFilter",
+            "description": "Detects retrieved-content prompt injection and instruction boundary abuse.",
+            "status": "ACTIVE",
+        },
+        {
+            "name": "SystemPromptLeakageGuard",
+            "description": "Blocks attempts to expose system prompts, hidden instructions, and secrets.",
+            "status": "ACTIVE",
+        },
+        {
+            "name": "OutputScanner",
+            "description": "Screens model responses for unsafe code, exfiltration artifacts, and abuse signals.",
+            "status": "ACTIVE",
+        },
+        {
+            "name": "OutputPIIScanner",
+            "description": "Redacts wallet-linked PII, credentials, and regulated data before release.",
+            "status": "ACTIVE",
+        },
+        {
+            "name": "CryptoGuard",
+            "description": "Catches high-risk smart contract, trading, and DeFi manipulation requests.",
+            "status": "ACTIVE",
+        },
+        {
+            "name": "DefiIntentAnalyzer",
+            "description": "Flags intent patterns tied to fund movement, yield hijacking, and market spoofing.",
+            "status": "ACTIVE",
+        },
     ]
 
 
-@app.post(
-    "/api/v1/audit-log/retry-failures",
-    response_model=RetryFailuresResponse,
-    responses={
-        200: {
-            "description": "Queued audit deliveries retried.",
-            "content": {"application/json": {"example": {"retried": 10, "resolved": 9, "failed": 1}}},
-        }
-    },
-)
-async def retry_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_admin_rate_limit)):
-    return _retry_failed_audit_deliveries(limit=limit)
+def _normalize_crypto_scan_findings(findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    status_map = {
+        "protected": "BLOCKED",
+        "vulnerable": "VULNERABLE",
+        "inconclusive": "PARTIAL",
+        "error": "ERROR",
+        "skipped": "SKIPPED",
+    }
+    normalized: List[Dict[str, Any]] = []
+    for finding in findings:
+        normalized.append(
+            {
+                "vector_id": finding.get("vector_id", ""),
+                "category": finding.get("pillar", finding.get("category", "Unknown")),
+                "severity": str(finding.get("severity", "unknown")).upper(),
+                "status": status_map.get(str(finding.get("status", "")).lower(), "UNKNOWN"),
+                "compliance_mappings": finding.get("compliance_mappings", {}),
+            }
+        )
+    return normalized
 
-@app.websocket("/ws/threats")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            # Just keep connection alive
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
 
-if __name__ == "__main__":
+def _load_crypto_scan_json(scan_id: str) -> Dict[str, Any]:
+    matches = sorted(
+        AUDIT_ARTIFACTS_DIR.glob(f"scan_{scan_id}_*.json"),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+    if not matches:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    with matches[0].open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _load_crypto_badge(scan_id: str) -> Optional[Dict[str, Any]]:
+    badge_path = AUDIT_ARTIFACTS_DIR / f"badge_{scan_id}.json"
+    if not badge_path.exists():
+        return None
+    with badge_path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _render_crypto_scan_report_html(scan_data: Dict[str, Any], badge_data: Optional[Dict[str, Any]] = None) -> str:
+    from guardian.audit.report_generator import AuditReportGenerator
+
+    report_generator = AuditReportGenerator()
+    return report_generator.generate(
+        target_name=scan_data.get("target_name", "Unknown Target"),
+        target_uri=scan_data.get("target_url", ""),
+        score=float(scan_data.get("score") if scan_data.get("score") is not None else 0.0),
+        grade=scan_data.get("grade") or "F",
+        total_vectors=int(scan_data.get("total_vectors") if scan_data.get("total_vectors") is not None else 0),
+        blocked_count=int(scan_data.get("protected_count") if scan_data.get("protected_count") is not None else 0),
+        findings=_normalize_crypto_scan_findings(scan_data.get("findings", [])),
+        modules=_build_crypto_audit_modules(),
+        badge_data=badge_data,
+    )
+
+
+def _persist_crypto_scan_artifacts(result: Any) -> Dict[str, Any]:
+    from dataclasses import asdict
+    from guardian.audit.certification import CertificationEngine
+
+    scan_data = asdict(result)
+    scan_id = scan_data["scan_id"]
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+    scan_mode = _crypto_scan_depth_to_mode(scan_data.get("scan_depth", "standard"))
+
+    badge_data: Optional[Dict[str, Any]] = None
+    badge_svg_url: Optional[str] = None
+    score_val = scan_data.get("score")
+    if score_val is not None and float(score_val) >= 80.0 and scan_mode.value in {"standard", "full"}:
+        badge_key = os.getenv("GUARDIAN_BADGE_SECRET_KEY", "dev_secret_key")
+        if badge_key == "dev_secret_key" and os.getenv("GUARDIAN_ENV", "development").strip().lower() == "production":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="CRITICAL SECURITY ERROR: GUARDIAN_BADGE_SECRET_KEY is default key in production mode!"
+            )
+        cert_engine = CertificationEngine(signing_key=badge_key)
+        badge_data = cert_engine.generate_badge(
+            target_uri=scan_data.get("target_url", ""),
+            score=float(scan_data.get("score", 0.0)),
+            grade=scan_data.get("grade", "F"),
+            mode=scan_mode,
+            report_id=scan_id,
+        )
+        badge_data["verification_url"] = f"{PUBLIC_BASE_URL}/api/v1/verify-badge"
+        _write_json_file(AUDIT_ARTIFACTS_DIR / f"badge_{scan_id}.json", badge_data)
+        (AUDIT_ARTIFACTS_DIR / f"badge_{scan_id}.svg").write_text(
+            cert_engine.get_badge_svg(badge_data),
+            encoding="utf-8",
+        )
+        badge_svg_url = f"{PUBLIC_BASE_URL}/api/v1/audits/{scan_id}/svg"
+
+    report_html = _render_crypto_scan_report_html(scan_data, badge_data=badge_data)
+    report_path = AUDIT_ARTIFACTS_DIR / f"report_{scan_id}.html"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(report_html, encoding="utf-8")
+
+    scan_data["artifacts"] = {
+        "report_url": f"{PUBLIC_BASE_URL}/api/v1/scan/{scan_id}/report",
+        "badge_id": scan_id if badge_data else None,
+        "badge_svg_url": badge_svg_url,
+        "verification_url": badge_data.get("verification_url") if badge_data else None,
+    }
+    scan_data["badge"] = badge_data
+
+    _write_json_file(AUDIT_ARTIFACTS_DIR / f"scan_{scan_id}_{timestamp}.json", scan_data)
+    return scan_data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ---------- P1: SARIF EXPORT ----------
+
+
+# ---------- P1: MULTI-TARGET CAMPAIGNS ----------
+_campaign_engine = None
+_campaign_engine_lock = threading.Lock()
+
+def _get_campaign_engine():
+    global _campaign_engine
+    if _campaign_engine is None:
+        with _campaign_engine_lock:
+            if _campaign_engine is None:
+                from guardian.audit.campaign import CampaignEngine
+                def _campaign_scan_cb(url, name, depth, custom_vectors):
+                    from guardian.audit.crypto_scanner import CryptoAuditScanner, ScanDepth, AttackVector, Pillar, Severity
+                    depth_map = {"quick": ScanDepth.QUICK, "standard": ScanDepth.STANDARD, "deep": ScanDepth.DEEP}
+                    mapped_vectors = []
+                    for cv in custom_vectors:
+                        try:
+                            pillar = Pillar(cv.pillar)
+                        except ValueError:
+                            pillar = Pillar.INFRASTRUCTURE
+                        try:
+                            severity = Severity(cv.severity.lower())
+                        except ValueError:
+                            severity = Severity.MEDIUM
+                        mapped_vectors.append(AttackVector(
+                            id=cv.id, name=cv.name, pillar=pillar, severity=severity,
+                            description=cv.description, prompt=cv.payload,
+                            success_indicators=cv.success_indicators, scan_depth=depth_map.get(cv.depth, ScanDepth.STANDARD)
+                        ))
+                    scanner = CryptoAuditScanner(
+                        target_url=url,
+                        target_name=name,
+                        depth=depth_map.get(depth, ScanDepth.STANDARD),
+                        custom_vectors=mapped_vectors,
+                    )
+                    result = scanner.run_scan()
+                    from dataclasses import asdict
+                    return asdict(result) if hasattr(result, "__dataclass_fields__") else result
+                _campaign_engine = CampaignEngine(
+                    scan_callback=_campaign_scan_cb,
+                    max_parallel=3,
+                    artifacts_dir="artifacts/campaigns",
+                )
+    return _campaign_engine
+
+
+class CampaignTargetInput(BaseModel):
+    url: str
+    name: str = ""
+    depth: str = "standard"
+
+
+class CampaignCreateRequest(BaseModel):
+    name: str
+    targets: List[CampaignTargetInput]
+    custom_pack_paths: List[str] = []
+
+
+
+
+
+
+
+
+
+
+# ---------- P1: CUSTOM VECTOR PACKS ----------
+CUSTOM_PACKS_DIR = Path("artifacts/vector_packs")
+
+
+
+
+
+# ---------- P2: CONTINUOUS MONITORING ----------
+_audit_scheduler = None
+_audit_scheduler_lock = threading.Lock()
+
+def _get_audit_scheduler():
+    global _audit_scheduler
+    if _audit_scheduler is None:
+        with _audit_scheduler_lock:
+            if _audit_scheduler is None:
+                from guardian.audit.scheduler import AuditScheduler, ScanResult as SchedulerScanResult
+                
+                def _scheduler_scan_cb(schedule):
+                    from guardian.audit.crypto_scanner import CryptoAuditScanner, ScanDepth
+                    depth_map = {"quick": ScanDepth.QUICK, "standard": ScanDepth.STANDARD, "deep": ScanDepth.DEEP}
+                    scanner = CryptoAuditScanner(
+                        target_url=schedule.target_uri,
+                        target_name=schedule.target_name,
+                        depth=depth_map.get(schedule.scan_mode.lower(), ScanDepth.STANDARD),
+                    )
+                    crypto_result = scanner.run_scan()
+                    # Convert CryptoAuditScanner result to SchedulerScanResult
+                    block_rate = (crypto_result.protected_count / crypto_result.total_vectors * 100) if crypto_result.total_vectors else 0
+                    return SchedulerScanResult(
+                        schedule_id=schedule.schedule_id,
+                        target_uri=schedule.target_uri,
+                        score=crypto_result.score,
+                        grade=crypto_result.grade,
+                        block_rate=block_rate,
+                        total_vectors=crypto_result.total_vectors,
+                        blocked_count=crypto_result.protected_count,
+                        timestamp=crypto_result.completed_at
+                    )
+
+                _audit_scheduler = AuditScheduler(scan_callback=_scheduler_scan_cb)
+                _audit_scheduler.start()
+    return _audit_scheduler
+
+class ScheduleInput(BaseModel):
+    target_url: str
+    target_name: str
+    interval_seconds: int = 86400
+    scan_mode: str = "standard"
+    webhook_url: Optional[str] = None
+    stream_mode: bool = False
+
+
+
+
+
+class RemediationRequest(BaseModel):
+    scan_id: str
+    vector_ids: List[str]
+
+
+# ---------- P2: MULTI-CHAIN SMART CONTRACT ANALYZER ----------
+
+class ContractAnalyzeRequest(BaseModel):
+    source_code: str
+    contract_name: str = "UnknownContract"
+    contract_address: Optional[str] = None
+    chain: str = "ethereum"
+
+class ContractOnChainAnalyzeRequest(BaseModel):
+    contract_address: str
+    chain: str = "ethereum"
+    api_key: Optional[str] = None
+
+
+
+
+
+
+
+
+# ---------- P2: THREAT INTELLIGENCE & ADDRESS SCREENING ----------
+
+class AddressScreenRequest(BaseModel):
+    address: str
+    chain: str = "bitcoin"
+
+class BatchScreenRequest(BaseModel):
+    addresses: List[str]
+    chain: str = "bitcoin"
+
+
+
+
+
+
+
+# ---------- SCAN HISTORY & REGRESSION TRACKING ----------
+
+
+
+
+
+
+
+# ---------- AI AGENT PASSPORT API ----------
+
+_passport_engine = None
+_trust_scorer = None
+_credential_issuer = None
+_passport_verifier = None
+
+
+def _get_passport_engine():
+    global _passport_engine
+    if _passport_engine is None:
+        from guardian.passport.passport_core import PassportEngine
+        _passport_engine = PassportEngine(db_path=DB_PATH)
+    return _passport_engine
+
+
+def _get_trust_scorer():
+    global _trust_scorer
+    if _trust_scorer is None:
+        from guardian.passport.trust_scorer import TrustScorer
+        _trust_scorer = TrustScorer(db_path=DB_PATH)
+    return _trust_scorer
+
+
+def _get_credential_issuer():
+    global _credential_issuer
+    if _credential_issuer is None:
+        from guardian.passport.credentials import CredentialIssuer
+        _credential_issuer = CredentialIssuer()
+    return _credential_issuer
+
+
+def _get_passport_verifier():
+    global _passport_verifier
+    if _passport_verifier is None:
+        from guardian.passport.verification import PassportVerifier
+        _passport_verifier = PassportVerifier(
+            passport_engine=_get_passport_engine(),
+            credential_issuer=_get_credential_issuer(),
+        )
+    return _passport_verifier
+
+
+class PassportIssueRequest(BaseModel):
+    agent_id: str
+    owner_pubkey: str
+    chain_id: str = "base"
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class PassportVerifyRequest(BaseModel):
+    agent_id: str
+    requesting_agent_id: Optional[str] = None
+
+
+class CredentialIssueRequest(BaseModel):
+    agent_id: str
+    credential_type: str
+    claims: Optional[Dict[str, Any]] = None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ═══════════════════════════════════════════════════════════════
+# GUARDIAN CORTEX — Verifiable Agent Memory API
+# ═══════════════════════════════════════════════════════════════
+
+_cortex_engine = None
+_merkle_anchor = None
+_interlock_protocol = None
+_insurance_generator = None
+
+
+def _get_cortex_engine():
+    global _cortex_engine
+    if _cortex_engine is None:
+        from guardian.cortex.cortex_engine import CortexEngine
+        _cortex_engine = CortexEngine(db_path=DB_PATH, privacy_mode="hash_only")
+    return _cortex_engine
+
+
+def _get_merkle_anchor():
+    global _merkle_anchor
+    if _merkle_anchor is None:
+        from guardian.cortex.merkle_anchor import MerkleAnchor
+        _merkle_anchor = MerkleAnchor(primary_chain="monad")
+    return _merkle_anchor
+
+
+def _get_interlock_protocol():
+    global _interlock_protocol
+    if _interlock_protocol is None:
+        from guardian.cortex.interlock import InterlockProtocol
+        _interlock_protocol = InterlockProtocol(db_path=DB_PATH)
+    return _interlock_protocol
+
+
+def _get_insurance_generator():
+    global _insurance_generator
+    if _insurance_generator is None:
+        from guardian.cortex.insurance import InsuranceCertificateGenerator
+        _insurance_generator = InsuranceCertificateGenerator(db_path=DB_PATH)
+    return _insurance_generator
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_risk_scorer = None
+def _get_risk_scorer():
+    global _risk_scorer
+    if _risk_scorer is None:
+        from guardian.audit.onchain_risk_scorer import OnChainRiskScorer
+        _risk_scorer = OnChainRiskScorer()
+    return _risk_scorer
+
+
+
+
+
+
+
+
+
+
+
+
+# ---------- STATIC FILE SERVING ----------
+
+
+
+_frontend_site_dir = Path(__file__).resolve().parent.parent / "frontend" / "site"
+if _frontend_site_dir.is_dir():
+    from starlette.staticfiles import StaticFiles
+    app.mount("/site", StaticFiles(directory=str(_frontend_site_dir), html=True), name="frontend_site")
+    _assets_dir = _frontend_site_dir / "site-assets"
+    if _assets_dir.is_dir():
+        app.mount("/site-assets", StaticFiles(directory=str(_assets_dir)), name="frontend_site_assets")
+
+
+
+# -- ROUTER INCLUDES --
+from backend.routers import agentic_routes
+from backend.routers import audit_routes
+from backend.routers import auth_routes
+from backend.routers import billing_routes
+from backend.routers import campaign_routes
+from backend.routers import contract_routes
+from backend.routers import cortex_routes
+from backend.routers import dashboard_routes
+from backend.routers import misc_routes
+from backend.routers import passport_routes
+from backend.routers import scan_routes
+from backend.routers import telemetry_routes
+from backend.routers import threat_intel_routes
+
+app.include_router(agentic_routes.router)
+app.include_router(audit_routes.router)
+app.include_router(auth_routes.router)
+app.include_router(billing_routes.router)
+app.include_router(campaign_routes.router)
+app.include_router(contract_routes.router)
+app.include_router(cortex_routes.router)
+app.include_router(dashboard_routes.router)
+app.include_router(misc_routes.router)
+app.include_router(passport_routes.router)
+app.include_router(scan_routes.router)
+app.include_router(telemetry_routes.router)
+app.include_router(threat_intel_routes.router)
+
+def run_backend(host: str = BACKEND_HOST, port: int = BACKEND_PORT):
     import uvicorn
+
     ssl_kwargs = {}
     if TLS_CERT_FILE and TLS_KEY_FILE:
         ssl_kwargs = {"ssl_certfile": TLS_CERT_FILE, "ssl_keyfile": TLS_KEY_FILE}
-    uvicorn.run(app, host="127.0.0.1", port=8001, **ssl_kwargs)
+    uvicorn.run(app, host=host, port=port, **ssl_kwargs)
 
+if __name__ == "__main__":
+    run_backend()

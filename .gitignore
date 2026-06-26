@@ -40,6 +40,9 @@ coverage.xml
 
 # Project Specific
 guardian.db
+guardian/config/one_click_runtime.yaml
+deploy/production/.env.production
+artifacts/control/license_activation.json
 # We want to keep the archive locally but maybe not track it in git if it's huge?
 # Actually, for a private repo, maybe they want the history?
 # But typically archive folders are ignored.
@@ -55,9 +58,17 @@ benchmark_debug.log
 # Mac junk
 .DS_Store
 
-# Untracked Output and Junk
-fuzzer_report.md
-redteam_results.db
-result/
-resuult.txt
-test_write.txt
+# Ignored Binaries and Media
+cloudflared-windows-amd64.exe
+demo.mp4
+*.png
+
+# Temporary Text/Scratch Files
+200
+403
+Blocks
+Expects
+[REDACTED])
+check.txt
+diff.txt
+diff_utf8.txt

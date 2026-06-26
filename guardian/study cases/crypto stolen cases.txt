@@ -1,0 +1,558 @@
+study one
+
+
+1/ The $150M+ DSJ Exchange (DSJEX) / BG Wealth Sharing Ponzi scheme collapsed last week. From April 27 – May 3, illicit actors laundered $92M+ across chains to obscure the trail.
+
+I helped lead an initiative with @Tether_to, 
+@Binance
+ Security Team, 
+@OKX
+, & US law enforcement that has since frozen $41.5M+.
+
+
+2/ DSJ / BG has been running since 2025, advertising 1.3% - 2.6% daily returns with referral commissions and rank-based bonuses.
+DSJ = fake trading platform
+BG = investment group
+
+A fictitious CEO named Stephen Beard fronted the platform, while domains and hot wallets rotated regularly to evade law enforcement.
+
+Recruitment and fake trading signals was pushed through a group on BonChat (Hong Kong messaging app).
+
+h/t 
+@dehek
+ & BehindMLM for early coverage of the investment fraud.
+
+
+3/ Thirteen regulators across five continents issued fraud warnings publicly about DSJ & BG.
+
+US law enforcement seized one of the BG domains on April 23, 2026. (Bgwealthsharing[.]com)
+
+4/ On May 2, Stephen Beard posted a video claiming DSJ would IPO soon and demanded a 12% "tax" on account balances as part of the regulatory process.
+
+By this point, withdrawals had already been disabled.
+
+5/ Funds from DSJ / BG hot wallets were laundered through:
+
+-Tokenlon swaps
+-Bridging via Bridgers, Butter Network, & USDT0
+-Wrapping and unwrapping USDD
+-Consolidation across hundreds of addresses
+
+Hot wallets:
+0xf3bd39870d26cfdcdc582ed02b97f74e19e0ee97
+0x35c752ddbd5a5f23482141fab42f943c52ba9adb
+0x7a22c5d74f90515ed5834b237b6f8f865c543a66
+0x78255cFa63A3b49b742Cbc9aDb36aF926d3cdA90
+TGTWYCJxhvrDkZc4pyugBAnc4qWeXdXJdF
+TBsjjfnBi5mW3soFmSVFK1pAD5Jbwrbjcg
+TWF1bcuNLXtwQCRxb6Qn6uKqWCuXRatiei
+
+6/ I traced $93M+ in outflows from consolidations to multiple deposit addresses from April 27 to May 3, 2026.
+
+Cobo ($63M total received)
+TFjQWjNkyTJ5xmqy87WBTYaUS7gWzLuWzu
+TD1yXHq8NAPFZN5tCAAsd2HsrYfMuuqGCq
+TMsA7dJpEYJ8r8HCGK7tyAg5NGtJzFWMom
+TN5YhGsCBPZSi3ATUp2G5wht5Wmbumy23o
+
+OKX ($30M total received)
+TTV5Dn2tfU16NzrX3HoRuaRWcuLnuboQff
+
+7/ I performed a timing analysis to find withdrawals and located Solana/Tron deposits to Binance and found matching Tron withdrawals and provided details to relevant parties.
+
+It resulted in $38.4M frozen by Tether on May 4 (yesterday) with another $3.1M+ frozen at various services/exchanges.
+
+
+8/ While these Chinese investment frauds are obvious to most, they purposely target unsophisticated retail investors via social media.
+
+Reading through victim posts, many still seem to be in denial that they were scammed.
+
+If you are a victim of BG / DSJ I suggest filing a police report in your jurisdiction (US victims: ic3[.]gov).
+
+I rarely investigate Ponzi schemes myself since the cases lack sophistication and the work gets repetitive. This incident caught my attention while I was reviewing USDD contract flows for another case.
+
+The $150M+ figure is likely significantly higher since the scheme has been operating since 2025 with thousands of victim exchange withdrawals identified.
+
+
+
+
+\ study 2
+
+
+ZachXBT
+@zachxbt
+·
+May 14
+1/ An investigation into the opaque private loans/OTC, unilateral vesting changes, market maker coordination, unknown float, and >95% supply control behind 
+$LAB
+'s recent pump to $6B FDV.
+
+Here's why 
+@LABtrade_
+ represents everything wrong with the current meta of retail extraction on major centralized exchanges.
+
+
+2/ LAB was founded by Vova Sadkov & Mark as a trading platform and TGE'd in Oct 2025. Their prior project Eesee ($ESE) left investors feeling abandoned after the team moved on.
+
+There's no clear LAB token distribution available. Coingecko, RootData, & CMC all report different floats, and the LAB docs themselves provide zero details on the breakdown.
+
+Backers include Lemniscap, OKX, Animoca, GSR, Gate, Kucoin, Mirana, & Amber. Several are also the exchanges where the token trades.
+
+Based on my analysis of onchain activity, insiders likely control >95% of supply currently.
+
+
+3/ LAB team unilaterally changed Legion public sale terms from 3-month cliff to 9-month cliff as shown in an email screenshot from a Legion user.
+
+Other creators have publicly reported waiting months for marketing campaign payouts without further clarification from the team.
+
+
+4/ One of several loan contracts offered privately: 7.5%/month for 6 months. Borrower is a BVI shell, The Lab Management Ltd., signed by Vladimir (Vova) Sadkov as director.
+
+On default, repayment is in LAB (the native token) at "market price".
+
+Borrower address: 0xf09C19328C26088053a8c9CfB982427bafF2Bd0b
+
+Note: It's a draft contract from Q1 2026, but an unnamed source confirmed interest payments were made under similar terms.
+
+
+5/ The borrower wallet from the LAB loan contract (0xf09c) is the same wallet used for public LAB buybacks. It's also tied onchain to 0x3185, a borrower address from a separate loan on Wildcat.
+
+Funds directly related to LAB have flowed to Vova's alleged personal exchange accounts. The same accounts received deposits tied to Eesee before LAB existed, linked to his ENS and NFT holdings.
+
+It's strange to see personal and business funds commingling like this.
+
+Bybit deposit address
+0x2f7fd9678bd7d89da6a4ffd7d612d919ea813e30
+Gate deposit address
+0x3b5341b94dee91ec1a84470463a411c0ab5ed70c
+
+
+6/ Various OTC & loan deals have been offered since January 2026.
+
+Mark (co-founder) openly solicited OTC buyers in a public Telegram group.
+
+Other individuals received a menu over WhatsApp: loans at 5%/month, OTC at 60% discount with 5-month cliff, guaranteed discount OTC at 25% recalculated monthly, and a 20% guaranteed discount tranche.
+
+Most recent: KOL Capital pitch at 80% discount, 50% unlocking Aug 14, 50% on Sep 15. Terms required KOLs to post multiple times in support before unlock or be blacklisted.
+
+These create hidden supply unlocks retail cannot see. As price has gone up, the OTC discounts have widened.
+
+
+7/ One of the signers for several LAB team multisigs was funded by an insider linked onchain to RIVER manipulation. The same insider received $12M+ of RIVER tokens to two CEX deposit addresses.
+
+Signer address: 0xcEA722a1A812EbDFA5BBD8130531cF1D1956eBC9
+
+
+8/ 226M LAB (large % of float) was deposited to Bitget deposit addresses by insiders in March-April 2026. The deposits sat dormant until 100M LAB was withdrawn a few days ago, which received significant coverage on CT.
+
+An unknown MM operating via Chinese exchanges likely received supply and appears to be running a similar playbook to RIVER, RAVE, SIREN, MYX, SKYAI, etc.
+
+Majority of spot activity seems to originate on Bitget for these manipulated CEX tokens. Binance perps/Alpha and Gate are also used by these entities.
+
+From May 11-12, nearly 100M LAB ($482M) was withdrawn from Bitget to ten addresses:
+0x2d81ef9a8c46596d333c1294ae2aaccf61593e5a
+0xef80a2b120925c3aa794c6dcfd999fdecbfec01e
+0x7db446e489b08f3f33354fc233e0022bc59c4032
+0xf05ced86edc1857c977b70728f3c330e9e89b151
+0x82fc0bc04c4326b679bf9dbdc60d653062bea31a
+0x093eb813f3c7082cd816bbb393ae399586a99335
+0x0d95e8d26dd5ca98026970d20c05235a324751d0
+0xbcf0771e983af09a67f10812fb336731e4c5d688
+0x10e8163d1ef9098e942dbf2d1ff2127a4abf33b9
+0x7c62af1a36a24765043cfde72c85bc1203d807b7
+
+Bitget deposit addresses
+46M LAB
+0x6593aa6c31c88397c37f71259625ec92fe4ee0bf
+50M LAB
+0xdd77bfbdc11cd37fd255ae35a4ac39df1f9d570a
+60M LAB
+0xe39f91a0daffc5547ada79a09be30b8556f7dfba
+40M LAB
+0x77156a0a621d2ac7a075c0ac3172707c2e4aa191
+30M LAB
+0xd425c56f2eb64646fde7f3c53d7584e60e62fc94
+
+Across LAB since TGE, there have been only a handful of non-insider transfers >$150K. This supports my >95% insider control estimate from earlier.
+
+
+9/ It seems everyone has private info except retail. Team knows the unlocks, MM knows the positioning, OTC buyers know their cliffs. Retail only sees LAB price.
+
+Call to action for @bitgetglobal, 
+@binance
+, 
+@gate_io
+ to freeze insider profits and redistribute them to users. Or delist and act earlier without waiting for public pressure.
+
+I put out a $10K bounty for intel earlier and have paid $1.5K so far out of my own pocket.
+
+Note: This is NOT a recommendation to short. With this much supply control, shorts potentially give insiders more fuel to manipulate the price higher.
+
+Last time I posted critique like this, 10+ Chinese KOLs replied with the same script: either paid, have allocation, or airdrop. I expect the same here.
+
+
+
+
+
+\study 3:
+
+
+1/ Meet Dritan Kapllani Jr, a US based threat actor tied to $19M from social engineering thefts targeting crypto holders.
+
+Dritan flexes luxury cars, watches, private jets, & clubs all over social media.
+
+Recently he was recorded on a call showing off a wallet with stolen funds.
+
+
+
+2/ Dritan was caught flexing $3.68M on his Exodus wallet during a band 4 band (B4B) on a Discord call on April 23, 2026, trying to prove he had more money than another threat actor.
+
+Dritan's ETH address: 0x4487db847db2fc99372a985743a26f46e0b2bba6
+Discord ID: 1485730459483902103
+
+
+3/ I traced 0x4487 back to a 185 BTC ($13M) social engineering theft on March 14, 2026.
+
+Theft address: bc1qc07ytw5eh32khhvhtlw63kc5yfypvezru6gnue
+
+Dritan's Exodus wallet received $5.3M from this theft on March 15. By the B4B six weeks later, $1.6M had already been spent or laundered.
+
+
+4/ Yesterday (May 11) a criminal complaint against Trenton Johnson was unsealed for his role in the 185 BTC theft. He's facing up to 40 years.
+
+Co-Conspirator 1 (CC-1) in the complaint is Dritan. He hasn't been formally charged yet.
+
+Meme coin KOL 
+@yelotree
+ was also charged for helping them launder funds through his Miami rental car business. He's facing up to 30 years.
+
+
+
+5/  Ironically Dritan previously did a B4B with John Daghita (Lick) which led to my January 2026 investigation of a $46M theft from the US government by John and later his arrest.
+
+John posted one of Dritan's old wallet addresses in a now-deleted Telegram post in retaliation:
+0x97da0685dbba50b4cbabb0ca9e8336f4fbe41122
+
+Based on my own assessment the address looked accurate as Dritan moved funds to the same laundering service within minutes of the 185 BTC theft.
+
+
+6/ The source of funds for 0x97da traced back to $5.85M+ stolen across five other high confidence social engineering thefts in 2025.
+
+Theft addresses
+Oct 2025
+bc1qfv64ltd7fzfr9h6wcn540wv2jpadm6zswnj90w
+bc1qsh43dxcze5vfdf5utqv2qyp86epz9xjweuvqj6
+bc1qtzwzn9r6a0d32mcva7txvsden8srm05gaxpz5z
+Sep 2025
+bc1qky6zk8fkuwg5a7nr9923ts4k3ftjj2nmvrknnx
+Aug 2025
+0xea9fccb3ea820f080f38e9c49fc1a201066010c7
+
+
+
+7/ Dritan lives an extravagant life, regularly posting to Instagram and sharing it with other threat actors on Telegram.
+
+
+8/ I assisted one of the affected parties for the investigation by uncovering the onchain activity that linked Trenton & Dritan, however held off posting until the charges became public.
+
+Dritan is known within 'The Com' for having lots of plot armor as all of his friend groups (ACG, 41/RM Boyz, etc) have kept getting arrested without him.
+
+I think this is partially due to him having been a minor up until recently since LE typically holds off prosecuting minors.
+
+He just turned 18 so hopefully now his borrowed time is finally up.
+
+
+study4:
+
+
+1/ Recently an unnamed source shared data exfiltrated from an internal North Korean payment server containing 390 accounts, chat logs, crypto transactions.
+
+I spent long hours going through all of it, none of which has ever been publicly released.
+
+It revealed an intricate ~$1M/month scheme of fraudulent identities, forged legal documents, and crypto-to-fiat conversion.
+
+Enjoy the findings!
+
+
+2/ A DPRK IT worker had their device compromised via infostealer. Extracted data included IPMsg chat logs, fake identities, and browser history.
+
+Digging through the IPMsg logs revealed this site being discussed:
+luckyguys[.]site
+
+An internal payment remittance platform, essentially a Discord-style messenger used by DPRK IT workers to report payments back to their handlers.
+
+
+3/ The site's default password was 123456, which remained unchanged for ten users.
+
+The user list included roles, Korean names, cities, and coded group names consistent with DPRK IT worker operations.
+
+Three companies which appeared are currently OFAC sanctioned: Sobaeksu, Saenal, & Songkwang.
+
+
+4/ Here is one of the WebMsg users 'Rascal' and their DMs with PC-1234 detailing payment transfers and the use of fraudulent identities from December 2025 through April 2026.
+
+All payments are processed and confirmed through the server admin account: PC-1234.
+
+Addresses in Hong Kong were used for bills and goods, though the authenticity of it requires further verification.
+
+
+5/  Since late November 2025 $3.5M+ was received across the payment wallet addresses.
+
+The remittance pattern was consistent across users:
+
+Users transfer crypto originating from an exchange or service, or convert to fiat via Chinese bank accounts through platforms like Payoneer.
+
+PC-1234 then confirms receipt and provides account credentials, varying between crypto exchanges and fintech payment platforms depending on the user.
+
+6/ Using the full dataset I mapped out the complete organizational structure of the network, including payment totals per user and group.
+
+The interactive org chart can be accessed here:
+http://investigation.io/dprk-itw-breach
+Password: 123456
+
+Note: Data range is Dec 2025 through Feb 2026. Payment totals are derived from scraped transaction data and may vary slightly.
+
+
+7/ Tracing the internal payment addresses revealed links onchain to several attributed DPRK IT worker's from known clusters.
+
+The Tron payment address was frozen by Tether in December 2025.
+
+Payment addresses:
+0xb51DA55047Fd899aD08Ab5CE349823664d311998
+TSxYS91qoXrJUoMhWaQfMz9p2b7FTw57L3
+
+
+8/ Jerry's compromised device shows usage of Astrill VPN and various fake personas applying for jobs.
+
+An internal Slack showed 'Nami' sharing a blog post about a DPRK IT worker deepfake job applicant. A second user asked if it was them, while a third noted they aren't allowed to share external links.
+
+Another screenshot shows 33 DPRK IT workers communicating on the same network via IPMsg.
+
+
+9/ Jerry actively discussed stealing from a project with another DPRK IT worker via Nigerian proxy targeting Arcano, a GalaChain game.
+
+However, it remains unclear if the attack later materialized.
+
+
+
+10/ The admin sent 43 examples of Hex-Rays/IDA Pro training modules to the group from Nov 2025 to Feb 2026.
+
+The trainings covered disassembly, decompilation, local and remote debugging, and various cybersecurity topics.
+
+A link sent on November 20 explicitly stated: 'using-ida-debugger-to-unpack-an-hostile-pe-executable'
+
+
+11/  This cluster of DPRK IT worker activity is less sophisticated compared to groups like AppleJeus and TraderTraitor, which operate far more efficiently and present the greatest risks to the industry.
+
+I previously estimated DPRK IT workers generate multiple seven figures per month in revenue, and the data here supports that.
+
+Unpopular opinion: threat actors are leaving an opportunity on the table by not targeting low-tier DPRK groups. The risk of repercussions is low, competition is minimal, and the targets are arguably deserving.
+
+I plan to continue building out http://investigation.io with future findings.
+
+Special thanks to 
+@domain
+ for helping me purchase two premium domains.
+
+
+Update: The internal DPRK payment site has since been taken down after my post. 
+
+However all data was archived in advance.
+
+
+
+study 5:
+
+
+/ Welcome to the Circle 
+$USDC
+ files.
+
+$420M+ in alleged compliance failures since 2022, including fifteen cases of the US-regulated stablecoin issuer taking minimal action against illicit funds.
+
+
+2/ Circle operates USDC, a centralized stablecoin pegged 1:1 to USD, marketed as a regulated company with a robust compliance program.
+
+Its token contract includes a freeze/blacklist function, and its terms of service explicitly state it reserves the right to restrict access for suspected illicit actors "in its sole discretion".
+
+The company is incorporated in the US, currently headquartered in New York City, and subject to US federal / state financial regulations.
+
+
+3/ On April 1, 2026, Drift Protocol was exploited for $280M.
+
+The exploiter used CCTP to bridge 232M+ USDC from Solana to Ethereum across 100+ transactions over six consecutive hours. 10+ additional DeFi protocols across the Solana ecosystem were indirectly impacted.
+
+Despite the attacker laundering funds over six consecutive hours across Circle's own native bridge, no USDC was frozen.
+
+The attacker has been linked to DPRK by Elliptic.
+
+Theft address:
+HkGz4KmoZ7Zmk7HN6ndJ31UJ1qZ2qgwQxgVqQwovpZES
+
+
+4/ On January 25, 2026, SwapNet was exploited for $16M. 3M USDC sat in the exploiter's address for two days.
+
+Both law enforcement and private sector experts submitted temporary freeze requests to Circle for the theft address. Both were unsuccessful.
+
+One victim pursued a New York court order. The funds were swapped hours before the TRO was granted.
+
+Theft address:
+0x6cAad74121bF602e71386505A4687f310e0D833e
+
+
+5/ On May 22, 2025, Cetus Protocol was exploited for $223M.
+
+The exploiter used CCTP to bridge 61M USDC from Sui to Ethereum across 60+ transactions over 1.5 hours.
+
+Both the Cetus team and private sector experts requested Circle to freeze the theft address. Circle blacklisted the address one month later, after the USDC had already been converted to ETH.
+
+Theft addresses:
+0xe28b50cef1d633ea43d3296a3f6b67ff0312a5f1a99f0af753c85b8b5de8ff06
+0x89012a55cD6b88e407C9d4ae9B3425F55924919b
+
+
+6/ In October 2022 Mango Markets was exploited for $110M.
+
+The exploiter transferred $57.5M to his Circle deposit address on Solana and withdrew the funds to Ethereum. He was later charged by the SEC.
+
+Despite the connection the funds were never frozen onchain.
+
+Theft address
+yUJw9a2PyoqKkH47i4yEGf4WXomSHMiK7Lp29Xs2NqM
+
+
+7/ In August 2022 Nomad Bridge was exploited for $190M.
+
+~45M USDC sat freezable for 30-45 min in three exploiter addresses before being fully swapped out.
+
+Despite the large hack being widely reported, the addresses were never blacklisted by Circle.
+
+Theft addresses
+0xbf293d5138a2a1ba407b43672643434c43827179
+0x56d8b635a7c88fd1104d23d632af40c1c3aac4e3
+0xb5c55f76f90cc528b2609109ca14d8d84593590e
+
+
+8/ In April 2024 I published a report on Lazarus Group detailing how funds from 25+ hacks were laundered and converted to fiat.
+
+Law enforcement submitted freeze requests to four stablecoin issuers: Circle, Tether, Paxos, and Techteryx for two addresses in relation to the report.
+
+The other three issuers acted promptly. Circle took 4.5 months longer to freeze both addresses (verifiable onchain).
+
+
+9/ In December 2023 Ledger, the largest hardware wallet company, fell victim to a supply chain attack which resulted in a phishing drainer being added to its Ledger Connect kit and $600K+ in assets stolen.
+
+USDC sat in the theft address for 3+ hours without action from Circle. Tether froze the stolen USDT in the same address.
+
+Theft address:
+0x658729879fCa881D9526480B82aE00EFc54B5c2d"
+
+
+10/ On July 9, 2025 GMX was exploited for $40M.
+
+9M USDC sat for 2+ hours and was partially bridged from Arbitrum to Ethereum via CCTP.
+
+While the exploiter later returned assets minus a $5M bounty, the USDC was not frozen during the 2+ hour window.
+
+Theft address
+0xDF3340A436c27655bA62F8281565C9925C3a5221
+
+
+11/ In September 2023 Remitano was hacked for $8.5M from its hot wallets on multiple chains.
+
+441K USDC sat in theft addresses for 8 hours without action from Circle.
+
+Tether froze 1.4M USDT in the same addresses.
+
+Theft addresses
+CznNhNTBduDTbAUsFbJrCfLCrgzpyNWZwXpbVSkH7p3u
+0x74530e81e9f4715c720b6b237f682cd0e298b66c
+
+
+12/ In November 2022 a DeFi builder had ~$20M stolen by a threat actor from multiple wallets on various chains.
+
+513K USDC sat in a theft address for one month and no freeze was executed by Circle while a request was sent out.
+
+Tether froze stolen USDT in the same address.
+
+Theft address
+0x741564f5563abbe85f1b091eb39e38c000cb3e70
+
+
+
+ZachXBT
+@zachxbt
+·
+Apr 3
+13/ In July 2025 I published research on DPRK IT workers infiltrating crypto businesses.
+
+Between October 2022 and January 2025, Circle users withdrew USDC to three IT worker payment addresses. These addresses were three hops from a DPRK forfeiture address and two hops from an address previously blacklisted by Tether.
+
+The DPRK ITW addresses in the cluster were never blacklisted by Circle.
+
+Circle withdrawal address
+0x241d2b20f2c26a2541a0f121d6a33c29cb4cfe69
+0x3131f63378cedc21a9c2fdf6574248a8cb7eec7a
+0x5c411cb174c2e163f6465252ae895f3e3e5a8792
+
+
+14/ In June 2025 a US DOJ civil forfeiture complaint was filed in relation to a $225M USDT seizure linked to a Southeast Asian pig butchering syndicate.
+
+1.7M+ USDC linked to the illicit funds was transferred through intermediary addresses to a Circle deposit address.
+
+Circle deposit address:
+0xb4875c44fa2b00291637793196f077b197daaa87
+Civil Action No. 25-cv-1907
+
+
+15/ In October 2024 Radiant Capital was hacked by Lazarus Group (Apple Jeus) for $58M.
+
+The attacker drained USDC from victims via open approvals and chainhopped from Hyperliquid to Arbitrum using USDC.
+
+Multiple instances had USDC sitting in theft addresses for hours with no freeze action from Circle.
+
+Theft addresses
+0x52263cAEc2e144C3A84cc16d014157360Ac85A89
+0x00E1559184Bf1da0256a495ae9BAec11BCA60eb7
+0x7997e80F4bD9563d61EE4D06108f7D6cEB23Ab21
+0x60ABA279E49E5A05DC7e3c84F2204a6Afb032119
+0x5b10daEdC2D7B5CE47f6B3072188f758f1b14481
+0x34aa91e574aa963675107011DcF0392C5521005a
+0x348FC4DfdCD3427D8A4B43Ad965B4443d55CF955
+
+
+16/ In March 2025 law enforcement from multiple jurisdictions seized Garantex infrastructure. Garantex had been OFAC sanctioned since 2022.
+
+Tether froze $22M in connected addresses. Circle took no action on 200K+ USDC in the same addresses.
+
+Garantex address:
+0xb271036d95b205a26bae5cb2d4eb922c000903a2"
+
+
+17/ On February 21, 2025, Bybit was hacked by Lazarus Group for $1.5B, widely reported across mainstream media.
+
+On February 28, 106K USDT and 338K USDC consolidated to theft address 0xDa2.
+
+Law enforcement, Bybit, and private sector experts submitted freeze requests to both Tether and Circle.
+
+Tether froze the address within hours. Circle took 24 hours longer to act.
+
+Theft address:
+0xDa2e12E94060720581994eEc870F83d9C7200c2c
+
+
+18/ Circle builds good products and I hold USDC myself. This isn't a post about hoping they collapse.
+
+But the decisions they've made around compliance have had real consequences for real people.
+
+Nine figures lost from the ecosystem because of repeated inaction across three years, law enforcement requests, private sector requests, and their own infrastructure.
+
+The $420M+ figure only accounts for major public cases. The real figure is likely significantly higher.
+
+They have every tool and resource available to do better. They just haven't.
+
+So I'll leave you with one question: who is Circle actually serving?
+
+A US-regulated public company owes it to its users and the broader community to do better than this.
+
+

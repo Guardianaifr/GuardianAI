@@ -1,0 +1,121 @@
+{
+  "feed_id": "guardian-social-eng-2026-001",
+  "feed_name": "Dritan Kapllani Jr Social Engineering Theft Network",
+  "feed_version": "1.0",
+  "published": "2026-05-19T00:00:00Z",
+  "source": "zachxbt_onchain_research",
+  "incidents": [
+    {
+      "incident_id": "INC-DRITAN-2026-0314",
+      "name": "185 BTC Social Engineering Theft (Dritan/Trenton)",
+      "entity": "Dritan Kapllani Jr / Trenton Johnson",
+      "incident_type": "phishing",
+      "chain": "bitcoin",
+      "date_occurred": "2026-03-14",
+      "date_discovered": "2026-04-23",
+      "total_stolen_btc": 185,
+      "total_stolen_usd": 13000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["p2p_trade", "mixer"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "185 BTC ($13M) stolen via social engineering. Dritan caught flexing $3.68M on Exodus wallet during Discord B4B call. Criminal complaint unsealed against Trenton Johnson (May 11). Meme coin KOL @yelotree charged for laundering via Miami rental car business.",
+      "tags": ["social_engineering", "the_com", "dritan", "doj_complaint"],
+      "addresses": [
+        {
+          "address": "bc1qc07ytw5eh32khhvhtlw63kc5yfypvezru6gnue",
+          "chain": "bitcoin",
+          "threat_level": "critical",
+          "incident_id": "INC-DRITAN-2026-0314",
+          "incident_name": "185 BTC Social Engineering Theft",
+          "role": "theft_address",
+          "amount_btc": 185,
+          "amount_usd": 13000000,
+          "first_seen": "2026-03-14",
+          "notes": "Primary theft address - 185 BTC social engineering theft",
+          "in_commercial_tools": false,
+          "tags": ["social_engineering", "theft", "dritan"]
+        },
+        {
+          "address": "0x4487db847db2fc99372a985743a26f46e0b2bba6",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DRITAN-2026-0314",
+          "incident_name": "185 BTC Social Engineering Theft",
+          "role": "personal_wallet",
+          "amount_usd": 5300000,
+          "notes": "Dritan's Exodus wallet (ETH). Received $5.3M from 185 BTC theft on Mar 15. Caught flexing on Discord B4B Apr 23.",
+          "in_commercial_tools": false,
+          "tags": ["social_engineering", "dritan", "exodus"]
+        },
+        {
+          "address": "0x97da0685dbba50b4cbabb0ca9e8336f4fbe41122",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DRITAN-2026-0314",
+          "incident_name": "185 BTC Social Engineering Theft",
+          "role": "laundering_hop",
+          "amount_usd": 5850000,
+          "notes": "Dritan's old wallet leaked by John Daghita. Source of $5.85M+ from 5 other social engineering thefts in 2025.",
+          "in_commercial_tools": false,
+          "tags": ["social_engineering", "dritan", "laundering"]
+        },
+        {
+          "address": "bc1qfv64ltd7fzfr9h6wcn540wv2jpadm6zswnj90w",
+          "chain": "bitcoin",
+          "threat_level": "high",
+          "incident_id": "INC-DRITAN-2026-0314",
+          "incident_name": "Social Engineering Theft (Oct 2025)",
+          "role": "theft_address",
+          "first_seen": "2025-10-01",
+          "notes": "Linked to Dritan Oct 2025 social engineering theft",
+          "in_commercial_tools": false,
+          "tags": ["social_engineering", "dritan", "2025"]
+        },
+        {
+          "address": "bc1qsh43dxcze5vfdf5utqv2qyp86epz9xjweuvqj6",
+          "chain": "bitcoin",
+          "threat_level": "high",
+          "incident_id": "INC-DRITAN-2026-0314",
+          "incident_name": "Social Engineering Theft (Oct 2025)",
+          "role": "theft_address",
+          "first_seen": "2025-10-01",
+          "in_commercial_tools": false,
+          "tags": ["social_engineering", "dritan", "2025"]
+        },
+        {
+          "address": "bc1qtzwzn9r6a0d32mcva7txvsden8srm05gaxpz5z",
+          "chain": "bitcoin",
+          "threat_level": "high",
+          "incident_id": "INC-DRITAN-2026-0314",
+          "incident_name": "Social Engineering Theft (Oct 2025)",
+          "role": "theft_address",
+          "first_seen": "2025-10-01",
+          "in_commercial_tools": false,
+          "tags": ["social_engineering", "dritan", "2025"]
+        },
+        {
+          "address": "bc1qky6zk8fkuwg5a7nr9923ts4k3ftjj2nmvrknnx",
+          "chain": "bitcoin",
+          "threat_level": "high",
+          "incident_id": "INC-DRITAN-2026-0314",
+          "incident_name": "Social Engineering Theft (Sep 2025)",
+          "role": "theft_address",
+          "first_seen": "2025-09-01",
+          "in_commercial_tools": false,
+          "tags": ["social_engineering", "dritan", "2025"]
+        },
+        {
+          "address": "0xea9fccb3ea820f080f38e9c49fc1a201066010c7",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-DRITAN-2026-0314",
+          "incident_name": "Social Engineering Theft (Aug 2025)",
+          "role": "theft_address",
+          "first_seen": "2025-08-01",
+          "in_commercial_tools": false,
+          "tags": ["social_engineering", "dritan", "2025"]
+        }
+      ]
+    }
+  ]
+}

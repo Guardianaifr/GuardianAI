@@ -1,0 +1,15 @@
+{
+  "feed_path": "F:\\Saas\\guardianai-basic-launch\\artifacts\\threat_feeds\\community_threat_feed_v1.yaml",
+  "pattern_count": 61,
+  "load_time_ms": 16.29,
+  "false_positive_rate": 0.0,
+  "false_positives": 0,
+  "curated_attack_block_rate": 100.0,
+  "curated_blocked": 38,
+  "curated_total": 38,
+  "real_dataset_block_rate": 11.1,
+  "real_blocked": 91,
+  "real_total": 820,
+  "match_latency_avg_ms": 0.0592,
+  "match_latency_p99_ms": 0.162
+}

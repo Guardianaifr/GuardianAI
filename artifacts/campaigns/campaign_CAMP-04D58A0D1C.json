@@ -1,0 +1,42 @@
+{
+  "campaign_id": "CAMP-04D58A0D1C",
+  "name": "P1 Test Campaign",
+  "status": "completed",
+  "started_at": "2026-05-19T06:54:48.433675+00:00",
+  "completed_at": "2026-05-19T06:54:48.435640+00:00",
+  "error": "",
+  "targets_total": 2,
+  "targets_completed": 0,
+  "targets_failed": 2,
+  "avg_score": 0.0,
+  "results": [
+    {
+      "target_url": "https://agentlove.fun",
+      "target_name": "AgentLove",
+      "scan_id": "",
+      "grade": "F",
+      "score": 0.0,
+      "vulnerabilities_found": 0,
+      "protected_count": 0,
+      "total_vectors": 0,
+      "pillar_scores": {},
+      "duration_seconds": 0.0,
+      "completed_at": "2026-05-19T06:54:48.435080+00:00",
+      "error": "'CryptoAuditScanner' object has no attribute 'run'"
+    },
+    {
+      "target_url": "https://httpbin.org/post",
+      "target_name": "HTTPBin",
+      "scan_id": "",
+      "grade": "F",
+      "score": 0.0,
+      "vulnerabilities_found": 0,
+      "protected_count": 0,
+      "total_vectors": 0,
+      "pillar_scores": {},
+      "duration_seconds": 0.0,
+      "completed_at": "2026-05-19T06:54:48.435492+00:00",
+      "error": "'CryptoAuditScanner' object has no attribute 'run'"
+    }
+  ]
+}

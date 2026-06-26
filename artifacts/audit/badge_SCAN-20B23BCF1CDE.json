@@ -1,0 +1,14 @@
+{
+  "payload": {
+    "version": "1.0",
+    "issuer": "GuardianAI Security Audit",
+    "target": "https://buildanything.so",
+    "score": 98.0,
+    "grade": "A+",
+    "scan_mode": "full",
+    "report_id": "SCAN-20B23BCF1CDE",
+    "issued_at": "2026-05-27T16:01:26.301663+00:00"
+  },
+  "signature": "8b0c78db1806773e9d78e9e4cac5041be413d1ebc9e894ffb472e8762290e71c",
+  "verification_url": "http://127.0.0.1:8001/api/v1/verify-badge"
+}

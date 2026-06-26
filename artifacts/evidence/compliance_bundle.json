@@ -1,0 +1,71 @@
+{
+  "generated_at_utc": "2026-03-05T17:34:55.891547+00:00",
+  "project_root": "F:/Saas/guardianai-basic-launch",
+  "python_version": "3.12.10",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "git_commit": "35201e3107474ad6dfb778256b4666d79d301092",
+  "git_dirty": true,
+  "config_path": "F:/Saas/guardianai-basic-launch/guardian/config/wizard_config.yaml",
+  "config_integrity_sha256": "bfd53ab07190889994558ce279862ea0108331ef772731df262dce29efaa85e4",
+  "policy_mode": "disabled",
+  "validation": {
+    "missing_security_validation": {
+      "script": "tools/run_missing_security_validation.py",
+      "exit_code": 0,
+      "report": {
+        "sast_findings": 0,
+        "iac_findings": 0,
+        "git_history_findings": 0,
+        "har_findings": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "fuzz_blocked": 9,
+        "fuzz_total": 9,
+        "fuzz_detection_rate": 1.0,
+        "sample_sast": [],
+        "sample_iac": [],
+        "sample_git_history": [],
+        "sample_har": []
+      },
+      "stderr": ""
+    },
+    "hardening_validation": {
+      "script": "tools/run_hardening_validation.py",
+      "exit_code": 0,
+      "report": {
+        "dataset_poisoning_findings": 2,
+        "model_provenance_findings": 0,
+        "tamper_detection_findings": 1,
+        "groundedness_findings": 1,
+        "agency_findings": 1,
+        "sample_dataset_poisoning": [
+          {
+            "category": "dataset_poisoning",
+            "severity": "high",
+            "location": "F:/Saas/guardianai-basic-launch/tests/data/hardening_poison_sample.jsonl:2",
+            "detail": "Matched pattern: (?i)ignore\\s+all\\s+previous\\s+instructions"
+          },
+          {
+            "category": "dataset_poisoning",
+            "severity": "high",
+            "location": "F:/Saas/guardianai-basic-launch/tests/data/hardening_poison_sample.jsonl:2",
+            "detail": "Matched pattern: (?i)system\\s+override"
+          }
+        ],
+        "sample_provenance": [],
+        "sample_tamper": [
+          {
+            "category": "model_provenance",
+            "severity": "critical",
+            "location": "F:/Saas/guardianai-basic-launch/tests/data/model_stub.bin",
+            "detail": "SHA256 mismatch: expected=0000000000000000000000000000000000000000000000000000000000000000 actual=878b9701821b31a830c56d2ae99b371c019294bf03205165660c3d3056527702"
+          }
+        ]
+      },
+      "stderr": ""
+    }
+  },
+  "signature": "dbfeba79f395a5d4f735eaef32244566a47bf69fb8fb5082076f69a73a55291f",
+  "signature_algorithm": "hmac-sha256",
+  "signature_key_id": "local-dev"
+}

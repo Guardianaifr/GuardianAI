@@ -1,0 +1,11 @@
+[
+  "OpenAI key: sk-abc123def456ghi789jkl012mno345pqr",
+  "AWS key is AKIA1234567890ABCD12 for deployment",
+  "JWT token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signature",
+  "Private key block: -----BEGIN RSA PRIVATE KEY-----",
+  "My email is john.doe@example.com",
+  "Phone: +1 555 0199",
+  "Credit card 4111-2222-3333-4444 was used",
+  "password=SuperSecret123"
+]
+

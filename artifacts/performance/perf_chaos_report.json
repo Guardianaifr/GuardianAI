@@ -1,0 +1,51 @@
+{
+  "baseline_safe_load": {
+    "total_requests": 120,
+    "concurrency": 20,
+    "elapsed_sec": 1.254,
+    "throughput_rps": 95.68,
+    "status_counts": {
+      "200": 120
+    },
+    "latency_ms": {
+      "p50": 195.78,
+      "p95": 249.04,
+      "p99": 263.18,
+      "mean": 197.14,
+      "max": 291.52
+    }
+  },
+  "attack_block_load": {
+    "total_requests": 120,
+    "concurrency": 20,
+    "elapsed_sec": 0.243,
+    "throughput_rps": 494.01,
+    "status_counts": {
+      "403": 120
+    },
+    "latency_ms": {
+      "p50": 38.46,
+      "p95": 41.88,
+      "p99": 44.22,
+      "mean": 34.91,
+      "max": 46.59
+    }
+  },
+  "chaos_backend_down": {
+    "status": 200,
+    "latency_ms": 40.94
+  },
+  "chaos_upstream_down": {
+    "status": 502,
+    "latency_ms": 2054.55,
+    "error": null
+  },
+  "slo": {
+    "baseline_p95_lt_1500ms": true,
+    "baseline_success_rate_gt_99pct": true,
+    "attack_block_rate_gt_95pct": true,
+    "upstream_down_returns_502_or_599": true,
+    "backend_down_proxy_still_serves_200": true,
+    "all_passed": true
+  }
+}

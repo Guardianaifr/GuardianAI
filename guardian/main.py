@@ -48,7 +48,6 @@ import signal
 import time
 import io
 import os
-import threading
 
 # Force UTF-8 for Windows console to support emojis
 if sys.platform.startswith('win'):
@@ -57,8 +56,6 @@ if sys.platform.startswith('win'):
 
 from utils.logger import setup_logger
 from guardrails.input_filter import InputFilter
-from utils.ssh_manager import SSHTunnelManager
-from utils.adversarial_trainer import AdversarialTrainer
 
 logger = setup_logger("GuardianAI")
 
@@ -97,6 +94,32 @@ def main():
     config = load_config(config_path)
     
     if not config:
+        sys.exit(1)
+
+    # Environment overrides for sensitive production values
+    env_admin_token = os.environ.get('GUARDIAN_ADMIN_TOKEN')
+    if env_admin_token:
+        if 'security_policies' not in config:
+            config['security_policies'] = {}
+        config['security_policies']['admin_token'] = env_admin_token
+        logger.info("Admin token overridden from environment variable.")
+
+    # Governance gate: optional approval/integrity enforcement for high-risk config changes.
+    try:
+        from security.policy_governance import evaluate_from_runtime_config
+
+        allowed, governance_findings = evaluate_from_runtime_config(config, config_path, config_base_dir)
+        for finding in governance_findings:
+            level = finding.severity.upper()
+            if level in {"CRITICAL", "HIGH"}:
+                logger.error(f"[Governance:{finding.code}] {finding.detail}")
+            else:
+                logger.warning(f"[Governance:{finding.code}] {finding.detail}")
+        if not allowed:
+            logger.error("Startup blocked by governance policy.")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Governance evaluation failed: {e}")
         sys.exit(1)
         
     logger.info(f"Loaded configuration for {config.get('app_name')} v{config.get('version')} (ID: {config.get('guardian_id')})")
@@ -141,29 +164,6 @@ def main():
         except Exception as e:
             logger.error(f"Failed to start GuardianProxy: {e}")
 
-    # Initialize SSH Tunnels
-    tunnel_manager = None
-    if config.get('ssh_tunnels', {}).get('enabled'):
-        try:
-            tunnel_manager = SSHTunnelManager(config)
-            tunnel_manager.start_all()
-        except Exception as e:
-            logger.error(f"Failed to start SSH Tunnels: {e}")
-
-    # Initialize Adversarial Self-Correction
-    trainer = AdversarialTrainer(config)
-    def LearningLoop():
-        while True:
-            try:
-                added = trainer.update_vectors()
-                if added > 0 and 'proxy' in locals() and hasattr(proxy, 'ai_firewall'):
-                    proxy.ai_firewall.reload()
-            except Exception as e:
-                logger.error(f"Error in Adversarial Learning Loop: {e}")
-            time.sleep(60) # check every minute
-
-    threading.Thread(target=LearningLoop, daemon=True).start()
-
     # Dashboard display
     # os.system('cls' if os.name == 'nt' else 'clear')
     
@@ -190,9 +190,8 @@ def main():
     
     if monitor:
         monitor.stop()
-    
-    if tunnel_manager:
-        tunnel_manager.stop_all()
+    if proxy:
+        proxy.stop()
 
 if __name__ == "__main__":
     main()

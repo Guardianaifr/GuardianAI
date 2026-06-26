@@ -187,8 +187,8 @@ class TestOutputValidatorCustomPII:
         if hasattr(validator, 'add_custom_pattern'):
             validator.add_custom_pattern('employee_id', r'EMP-\d{6}')
             text = "Employee ID: EMP-123456"
-            result = validator.validate(text)
-            assert "EMP-123456" not in result or "[EMPLOYEE_ID]" in result
+            is_safe = validator.validate_output(text)
+            assert is_safe is False, "Custom pattern should detect EMP-123456"
         else:
             # Document that custom patterns are not yet supported
             print("Custom patterns not supported yet")

@@ -1,0 +1,33 @@
+{
+  "test_type": "unseen_data",
+  "passed": 23,
+  "total": 23,
+  "owasp_bypass_count": 48,
+  "breach_passwords_count": 43,
+  "jwt_attacks_count": 11,
+  "results": {
+    "owasp_bearer_bypasses": "PASS",
+    "breach_password_rejection": "PASS",
+    "username_stuffing": "PASS",
+    "jwt_attacks_as_api_key": "PASS",
+    "format_confusion_bypass": "PASS",
+    "stuffing_triggers_lockout": "PASS",
+    "stuffing_isolated_by_ip": "PASS",
+    "header_injection_keys": "PASS",
+    "novel_audit_events": "PASS",
+    "scope_prefix_uniqueness": "PASS",
+    "invalid_scope_rejection": "PASS",
+    "concurrent_lockout_race": "PASS",
+    "adversarial_scopes": "PASS",
+    "attack_key_names": "PASS",
+    "ttl_boundaries": "PASS",
+    "ttl_endpoint_values": "PASS",
+    "distributed_stuffing": "PASS",
+    "lock_unlock_relock": "PASS",
+    "audit_overflow_fifo": "PASS",
+    "audit_unusual_fields": "PASS",
+    "introspect_forged": "PASS",
+    "stats_state_changes": "PASS",
+    "ip_allowlist": "PASS"
+  }
+}

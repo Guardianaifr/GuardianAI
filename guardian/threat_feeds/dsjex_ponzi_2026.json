@@ -1,0 +1,161 @@
+{
+  "feed_id": "guardian-dsjex-2026-001",
+  "feed_name": "DSJ Exchange / BG Wealth Sharing Ponzi - April-May 2026",
+  "feed_version": "1.0",
+  "published": "2026-05-19T00:00:00Z",
+  "source": "zachxbt_onchain_research",
+  "incidents": [
+    {
+      "incident_id": "INC-DSJEX-2026-0427",
+      "name": "DSJ Exchange / BG Wealth Sharing Ponzi Collapse",
+      "entity": "DSJ Exchange (DSJEX) / BG Wealth Sharing",
+      "incident_type": "rug_pull",
+      "chain": "ethereum",
+      "date_occurred": "2026-04-27",
+      "date_discovered": "2026-05-02",
+      "date_disclosed": "2026-05-03",
+      "detection_delay_hours": 120,
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 150000000,
+      "exit_exchanges": ["Cobo", "OKX", "Binance"],
+      "laundering_methods": ["exchange_deposit", "bridge", "mixer"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$150M+ Ponzi scheme. $93M+ traced in outflows Apr 27 - May 3. $41.5M frozen by Tether/Binance/OKX/US LE. Laundered via Tokenlon swaps, Bridgers, Butter Network, USDT0, USDD wrapping. 13 regulators across 5 continents issued fraud warnings. Fictitious CEO 'Stephen Beard'. Recruited via BonChat app.",
+      "tags": ["ponzi", "dsjex", "bg_wealth", "chinese_fraud", "tether_freeze", "multi_chain_laundering"],
+      "addresses": [
+        {
+          "address": "0xf3bd39870d26cfdcdc582ed02b97f74e19e0ee97",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "hot_wallet",
+          "notes": "DSJ/BG hot wallet - primary laundering source",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "hot_wallet", "ponzi"]
+        },
+        {
+          "address": "0x35c752ddbd5a5f23482141fab42f943c52ba9adb",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "hot_wallet",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "hot_wallet", "ponzi"]
+        },
+        {
+          "address": "0x7a22c5d74f90515ed5834b237b6f8f865c543a66",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "hot_wallet",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "hot_wallet", "ponzi"]
+        },
+        {
+          "address": "0x78255cFa63A3b49b742Cbc9aDb36aF926d3cdA90",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "hot_wallet",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "hot_wallet", "ponzi"]
+        },
+        {
+          "address": "TGTWYCJxhvrDkZc4pyugBAnc4qWeXdXJdF",
+          "chain": "tron",
+          "threat_level": "critical",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "hot_wallet",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "hot_wallet", "ponzi", "tron"]
+        },
+        {
+          "address": "TBsjjfnBi5mW3soFmSVFK1pAD5Jbwrbjcg",
+          "chain": "tron",
+          "threat_level": "critical",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "hot_wallet",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "hot_wallet", "ponzi", "tron"]
+        },
+        {
+          "address": "TWF1bcuNLXtwQCRxb6Qn6uKqWCuXRatiei",
+          "chain": "tron",
+          "threat_level": "critical",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "hot_wallet",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "hot_wallet", "ponzi", "tron"]
+        },
+        {
+          "address": "TFjQWjNkyTJ5xmqy87WBTYaUS7gWzLuWzu",
+          "chain": "tron",
+          "threat_level": "high",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "laundering_hop",
+          "amount_usd": 63000000,
+          "destination_exchange": "Cobo",
+          "laundering_method": "exchange_deposit",
+          "notes": "Cobo deposit - $63M total received",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "cobo", "laundering"]
+        },
+        {
+          "address": "TD1yXHq8NAPFZN5tCAAsd2HsrYfMuuqGCq",
+          "chain": "tron",
+          "threat_level": "high",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "laundering_hop",
+          "destination_exchange": "Cobo",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "cobo", "laundering"]
+        },
+        {
+          "address": "TMsA7dJpEYJ8r8HCGK7tyAg5NGtJzFWMom",
+          "chain": "tron",
+          "threat_level": "high",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "laundering_hop",
+          "destination_exchange": "Cobo",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "cobo", "laundering"]
+        },
+        {
+          "address": "TN5YhGsCBPZSi3ATUp2G5wht5Wmbumy23o",
+          "chain": "tron",
+          "threat_level": "high",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "laundering_hop",
+          "destination_exchange": "Cobo",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "cobo", "laundering"]
+        },
+        {
+          "address": "TTV5Dn2tfU16NzrX3HoRuaRWcuLnuboQff",
+          "chain": "tron",
+          "threat_level": "high",
+          "incident_id": "INC-DSJEX-2026-0427",
+          "incident_name": "DSJ/BG Ponzi Collapse",
+          "role": "laundering_hop",
+          "amount_usd": 30000000,
+          "destination_exchange": "OKX",
+          "laundering_method": "exchange_deposit",
+          "notes": "OKX deposit - $30M total received",
+          "in_commercial_tools": false,
+          "tags": ["dsjex", "okx", "laundering"]
+        }
+      ]
+    }
+  ]
+}

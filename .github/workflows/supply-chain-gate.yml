@@ -1,0 +1,31 @@
+name: supply-chain-gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Generate SBOM
+        run: python tools/generate_sbom.py --requirements requirements.txt --output artifacts/supply_chain/sbom.json
+      - name: Sign release manifest
+        env:
+          GUARDIAN_RELEASE_SIGNING_KEY: ci-demo-signing-key
+        run: |
+          python tools/sign_release_artifacts.py \
+            --artifact requirements.txt \
+            --artifact README.md \
+            --manifest-out artifacts/supply_chain/release_manifest.json \
+            --signature-out artifacts/supply_chain/release_manifest.sig
+      - name: Verify release manifest
+        env:
+          GUARDIAN_RELEASE_SIGNING_KEY: ci-demo-signing-key
+        run: python tools/verify_release_artifacts.py --manifest artifacts/supply_chain/release_manifest.json --signature artifacts/supply_chain/release_manifest.sig

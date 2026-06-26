@@ -1,23 +1,54 @@
-﻿version: '3.8'
-
 services:
-  guardian:
+  # ----------------------------------------------------
+  # GuardianAI Enterprise Stack (Unified Proxy + SaaS API)
+  # ----------------------------------------------------
+  guardian_stack:
     build: .
-    container_name: guardian_ai
-    # Restart automatically unless stopped
+    container_name: guardian_enterprise_stack
     restart: unless-stopped
     ports:
-      - "8081:8081" # GuardianAI Proxy + Dashboard (http://localhost:8081/)
+      - "8001:8001" # SaaS Dashboard & Telemetry API
+      - "8081:8081" # Universal Security Proxy
     environment:
-      # === Security Configuration ===
-      # Set your admin password here!
-      # If left as 'guardian26', you will see a warning in the logs.
-      - GUARDIAN_ADMIN_PASS=guardian26
-
-      # === Operation Configuration ===
-      - LOG_LEVEL=INFO
-
-    # Optional: Persist logs/database
+      # Administrative Credentials
+      - GUARDIAN_ADMIN_USER=${GUARDIAN_ADMIN_USER:-admin}
+      - GUARDIAN_ADMIN_PASS=${GUARDIAN_ADMIN_PASS:-guardian_secure_2026}
+      
+      # Routing
+      - TARGET_URL=${TARGET_URL:-http://host.docker.internal:8080}
+      
+      # Rate Limiting & Metering
+      - GUARDIAN_RATE_LIMIT_BACKEND=redis
+      - GUARDIAN_RATE_LIMIT_REDIS_URL=redis://:${REDIS_PASSWORD:-guardian_redis_2026}@guardian_redis:6379/0
+      
+      # Billing & DRM Licensing (Set these in production .env)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - GUARDIAN_LICENSE_KEY=${GUARDIAN_LICENSE_KEY:-}
+      
+      # Cryptographic Integrity Keys (Auto-generated if blank)
+      - GUARDIAN_JWT_SECRET=${GUARDIAN_JWT_SECRET:-}
+      - GUARDIAN_EVIDENCE_SIGNING_KEY=${GUARDIAN_EVIDENCE_SIGNING_KEY:-}
     volumes:
+      # Persistent Databases & Metrics
       - ./guardian_data:/app/data
+      # Cryptographic Evidence & Allow/Block lists
+      - ./artifacts:/app/artifacts
+    depends_on:
+      - guardian_redis
 
+  # ----------------------------------------------------
+  # Redis Cache (For Distributed Token-Bucket Rate Limiting)
+  # ----------------------------------------------------
+  guardian_redis:
+    image: redis:7-alpine
+    container_name: guardian_redis
+    restart: unless-stopped
+    ports:
+      # Only expose to localhost for security
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-guardian_redis_2026}
+
+volumes:
+  redis_data:

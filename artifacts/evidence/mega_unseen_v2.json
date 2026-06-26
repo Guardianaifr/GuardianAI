@@ -1,0 +1,62 @@
+{
+  "MaliciousInstruct_strict": {
+    "blocked": 95,
+    "total": 100,
+    "rate": 95.0
+  },
+  "DAN Jailbreaks_strict": {
+    "blocked": 171,
+    "total": 200,
+    "rate": 85.5
+  },
+  "AdvBench (520)_strict": {
+    "blocked": 515,
+    "total": 520,
+    "rate": 99.0
+  },
+  "JBB PAIR+GCG_strict": {
+    "blocked": 149,
+    "total": 152,
+    "rate": 98.0
+  },
+  "ToxicChat_strict": {
+    "blocked": 167,
+    "total": 200,
+    "rate": 83.5
+  },
+  "total_strict": {
+    "blocked": 1097,
+    "total": 1172,
+    "rate": 93.6
+  },
+  "MaliciousInstruct_balanced": {
+    "blocked": 84,
+    "total": 100,
+    "rate": 84.0
+  },
+  "DAN Jailbreaks_balanced": {
+    "blocked": 115,
+    "total": 200,
+    "rate": 57.5
+  },
+  "AdvBench (520)_balanced": {
+    "blocked": 497,
+    "total": 520,
+    "rate": 95.6
+  },
+  "JBB PAIR+GCG_balanced": {
+    "blocked": 140,
+    "total": 152,
+    "rate": 92.1
+  },
+  "ToxicChat_balanced": {
+    "blocked": 127,
+    "total": 200,
+    "rate": 63.5
+  },
+  "total_balanced": {
+    "blocked": 963,
+    "total": 1172,
+    "rate": 82.2
+  }
+}

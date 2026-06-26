@@ -1,12 +1,14 @@
-﻿from flask import Flask, request, Response
+from flask import Flask, request, Response, has_request_context
 import requests
 import threading
 import logging
 import time
 import re
 import collections
+import hashlib
 import json
-import os # Added os import
+import os
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from guardrails.input_filter import InputFilter
 from guardrails.output_validator import OutputValidator
@@ -15,14 +17,23 @@ from guardrails.fast_path import FastPath
 from guardrails.rate_limiter import RateLimiter
 from guardrails.threat_feed import ThreatFeed
 from guardrails.base64_detector import Base64Detector
-
-# Brain — Dynamic Immune System
-try:
-    from brain import BrainController, RedTeamHook, BlueTeamHook, PurpleTeamHook
-    BRAIN_AVAILABLE = True
-except ImportError:
-    BRAIN_AVAILABLE = False
-
+from guardrails.tool_policy import ToolPolicyEngine
+from guardrails.honeypot import HoneypotManager
+from brain.orchestrator import CyberBrain
+from security.cost_abuse import CostAbuseDetector
+from security.tenant_isolation import TenantIsolationManager
+from security.agentic_controls import AgenticSecurityManager
+from security.rag_guard import RAGSecurityGuard
+from security.multimodal_guard import MultimodalSecurityGuard
+from security.tenant_sensitivity import TenantSensitivityManager
+from security.feedback_loop import FeedbackLoopManager
+from security.memory_guard import MemoryPoisoningGuard
+from security.output_assurance import OutputAssuranceGuard
+from security.output_watermark import OutputWatermarker
+from guardrails.system_prompt_guard import SystemPromptGuard
+from security.trust_exploitation import TrustExploitationGuard
+from security.jailbreak_fuzzer import AutomatedJailbreakFuzzer
+from backend.siem import SiemRouter, SiemConfig
 """
 GuardianProxy - Core HTTP Interceptor and Security Router
 
@@ -63,54 +74,104 @@ class GuardianProxy:
         self.target_url = proxy_config.get('target_url', "http://localhost:18789")
         
         self.app = Flask(__name__)
-        
-        class LoopbackNormalizer:
-            def __init__(self, wsgi_app):
-                self.wsgi_app = wsgi_app
-            def __call__(self, environ, start_response):
-                if environ.get('REMOTE_ADDR') == '::1':
-                    environ['REMOTE_ADDR'] = '127.0.0.1'
-                return self.wsgi_app(environ, start_response)
-
-        # 1. Normalizer must be closest to Flask (runs LAST)
-        self.app.wsgi_app = LoopbackNormalizer(self.app.wsgi_app)
-
-        # 2. ProxyFix runs FIRST, pushing Caddy's X-Forwarded-For down into REMOTE_ADDR
-        from werkzeug.middleware.proxy_fix import ProxyFix
-        self.app.wsgi_app = ProxyFix(self.app.wsgi_app, x_for=1)
-        
         self.input_filter = InputFilter()
         self.output_validator = OutputValidator()
         self.ai_firewall = AIPromptFirewall()
         self.fast_path = FastPath()
         self.base64_detector = Base64Detector()
+        self.tool_policy = ToolPolicyEngine(config.get("tool_policy", {}))
+        self.honeypot = HoneypotManager(config.get("honeypot", {}))
         
         # Rate Limiting
         rl_config = config.get('rate_limiting', {})
-        backend_config = config.get('backend', {})
-        # Note: In real setup, backend URL or a dedicated redis block would hold the redis URL. 
-        # Using environment variable GUARDIAN_RATE_LIMIT_REDIS_URL to match backend/main.py
-        redis_url = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_URL", "").strip()
+        redis_client = self._build_redis_client(rl_config)
         self.rate_limiter = RateLimiter(
             requests_per_minute=rl_config.get('requests_per_minute', 60),
-            redis_url=redis_url
+            redis_client=redis_client,
+            redis_prefix=rl_config.get('redis_prefix', 'guardian:ratelimit'),
         )
         
         # Threat Feed
         tf_config = config.get('threat_feed', {})
+        cb_config = tf_config.get('circuit_breaker', {})
         self.threat_feed = ThreatFeed(
             feed_url=tf_config.get('url') if tf_config.get('enabled') else None,
-            update_interval=tf_config.get('update_interval_seconds', 3600)
+            update_interval=tf_config.get('update_interval_seconds', 3600),
+            additional_feeds=tf_config.get('additional_feeds', []),
+            api_key=tf_config.get('api_key') or os.environ.get('GUARDIAN_THREAT_FEED_KEY', '') or None,
+            hmac_secret=tf_config.get('hmac_secret') or os.environ.get('GUARDIAN_FEED_HMAC_SECRET', '') or None,
+            circuit_breaker_max_failures=cb_config.get('max_failures', 3),
+            circuit_breaker_cooldown=cb_config.get('cooldown_seconds', 300),
+            live_apis_config=tf_config.get('live_apis', {}),
+            default_ttl_days=tf_config.get('default_ttl_days'),
         )
+
+        self.cost_abuse = CostAbuseDetector(config.get("cost_abuse", {}))
+        self.tenant_isolation = TenantIsolationManager(
+            config.get("tenant_isolation", {}),
+            Path(__file__).resolve().parent.parent,
+        )
+        self.agentic_security = AgenticSecurityManager(
+            config.get("agentic_security", {}),
+            Path(__file__).resolve().parent.parent,
+        )
+
+        self.rag_security = RAGSecurityGuard(config.get("rag_security", {}))
+        self.multimodal_security = MultimodalSecurityGuard(config.get("multimodal_security", {}))
+        self.tenant_sensitivity = TenantSensitivityManager(config.get("tenant_sensitivity", {}))
+        self.feedback_loop = FeedbackLoopManager(
+            config.get("feedback_loop", {}),
+            Path(__file__).resolve().parent.parent,
+        )
+        self.memory_security = MemoryPoisoningGuard(config.get("memory_security", {}))
+        self.output_assurance = OutputAssuranceGuard(config.get("output_assurance", {}))
+        self.output_watermarker = OutputWatermarker(config.get("output_watermark", {}))
+        self.system_prompt_guard = SystemPromptGuard(config.get("system_prompt_protection", {}))
+        self.trust_exploitation = TrustExploitationGuard(config.get("trust_exploitation", {}), Path(__file__).resolve().parent.parent)
+        self.jailbreak_fuzzer = AutomatedJailbreakFuzzer(
+            config.get("jailbreak_fuzzer", {}),
+            Path(__file__).resolve().parent.parent,
+            detector=lambda prompt: bool(self.input_filter.is_malicious(prompt) or self.ai_firewall.is_malicious(prompt, mode="strict") or self.threat_feed.match(prompt)),
+            threat_feed=self.threat_feed,
+        )
+        self.brain = CyberBrain(config, Path(__file__).resolve().parent.parent, self.input_filter, self.ai_firewall, threat_feed=self.threat_feed)
         
+        # Upstream LLM Health Cache
+        self._last_health_check_time = 0.0
+        self._last_health_check_status = 200
+
+        # Admin token for authenticated endpoints
+        self.admin_token = config.get("security_policies", {}).get("admin_token", "***REDACTED***")
+
+        # SIEM Integration
+        siem_cfg = config.get("siem", {})
+        self.siem_config = SiemConfig(
+            enabled=bool(siem_cfg.get("enabled", False)),
+            out_path=str(siem_cfg.get("out_path", "artifacts/evidence/siem_alerts.log")),
+            format=str(siem_cfg.get("format", "json")),
+            transport=str(siem_cfg.get("transport", "file")),
+            endpoint_url=str(siem_cfg.get("endpoint_url", "")),
+            endpoint_auth_token=str(siem_cfg.get("endpoint_auth_token", "")),
+        )
+        self.siem_router = SiemRouter(self.siem_config)
+        if self.siem_config.enabled:
+            self.siem_router.start()
+
         # Multi-turn Context Buffer (per IP/Session)
         self.context_buffer = collections.defaultdict(lambda: collections.deque(maxlen=5))
-
+        
         # Register routes
-        self.app.add_url_rule('/test_ip', view_func=self.test_ip, methods=['GET'])
         self.app.add_url_rule('/health', view_func=self.health_check, methods=['GET'])
         self.app.add_url_rule('/api/reload-model', view_func=self.reload_model, methods=['POST'])
-        self.app.add_url_rule('/brain/status', view_func=self.brain_status, methods=['GET'])
+        # Threat Feed admin endpoints
+        self.app.add_url_rule('/api/threat-feed/status', view_func=self.threat_feed_status, methods=['GET'])
+        self.app.add_url_rule('/api/threat-feed/refresh', view_func=self.threat_feed_refresh, methods=['POST'])
+        self.app.add_url_rule('/api/threat-feed/add-pattern', view_func=self.threat_feed_add_pattern, methods=['POST'])
+        self.app.add_url_rule('/api/threat-feed/remove-pattern', view_func=self.threat_feed_remove_pattern, methods=['POST'])
+        self.app.add_url_rule('/api/threat-feed/webhook', view_func=self.threat_feed_webhook, methods=['POST'])
+        self.app.add_url_rule('/api/threat-feed/test', view_func=self.threat_feed_test, methods=['POST'])
+        self.app.add_url_rule('/api/threat-feed/export', view_func=self.threat_feed_export, methods=['GET'])
+        self.app.add_url_rule('/api/threat-feed/metrics', view_func=self.threat_feed_metrics, methods=['GET'])
         self.app.add_url_rule('/', defaults={'path': ''}, view_func=self.proxy, methods=['GET', 'POST', 'PUT', 'DELETE'])
         self.app.add_url_rule('/<path:path>', view_func=self.proxy, methods=['GET', 'POST', 'PUT', 'DELETE'])
 
@@ -118,53 +179,30 @@ class GuardianProxy:
         self.last_debug_info = {}
         self._input_filter_cache = collections.OrderedDict()
         self._input_filter_cache_size = 2000
-        
-        # Adversarial Learning Storage
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.blocked_log_path = os.path.join(base_dir, "data", "blocked_prompts.json")
 
-        # Brain — Dynamic Immune System (CyberOps Integration)
-        self.brain = None
-        if BRAIN_AVAILABLE:
-            try:
-                brain_config = config.get('brain', {})
-                self.brain = BrainController(brain_config)
-                red = RedTeamHook(self.brain)
-                blue = BlueTeamHook(self.brain)
-                purple = PurpleTeamHook(self.brain)
-                self.brain.connect_hooks(red, blue, purple)
-                self.brain.connect_guardrails(self.ai_firewall, self.input_filter)
+    def _build_redis_client(self, rl_config: Dict[str, Any]):
+        """Build optional Redis client for distributed rate limiting."""
+        redis_url = rl_config.get("redis_url") or os.environ.get("GUARDIAN_REDIS_URL", "").strip()
+        if not redis_url:
+            return None
+        try:
+            import redis  # type: ignore
 
-                # Load CyberOps skills if available
-                self.brain.load_cyberops()
-
-                # Start Red Team probing if enabled
-                if brain_config.get('auto_probe', False):
-                    self.brain.start_probing()
-
-                logger.info("Brain (Dynamic Immune System) ONLINE")
-            except Exception as e:
-                logger.warning(f"Brain initialization failed: {e}")
-                self.brain = None
+            client = redis.Redis.from_url(
+                redis_url,
+                socket_timeout=1,
+                socket_connect_timeout=1,
+                decode_responses=True,
+            )
+            client.ping()
+            logger.info("Distributed rate limiting enabled via Redis.")
+            return client
+        except Exception as e:
+            logger.warning(f"Redis unavailable for distributed rate limiting. Falling back to in-memory buckets. Error: {e}")
+            return None
 
     def health_check(self):
-        status = {"status": "ok", "component": "guardian_proxy"}
-        if self.brain:
-            status["brain"] = "online"
-        return status
-
-    def brain_status(self):
-        """SOC Dashboard endpoint for brain status."""
-        if not self.brain:
-            return Response(json.dumps({"error": "brain_not_available"}), mimetype='application/json', status=404)
-        status = self.brain.get_status()
-        if self.brain.red_hook:
-            status["red_team"] = self.brain.red_hook.get_status()
-        if self.brain.blue_hook:
-            status["blue_team"] = self.brain.blue_hook.get_status()
-        if self.brain.purple_hook:
-            status["purple_team"] = self.brain.purple_hook.get_status()
-        return Response(json.dumps(status, default=str), mimetype='application/json')
+        return {"status": "ok", "component": "guardian_proxy"}
 
     def reload_model(self):
         """Endpoint to hot-reload the AI model and jailbreak vectors."""
@@ -176,6 +214,174 @@ class GuardianProxy:
             logger.error(f"Hot-reload failed: {e}")
             return Response(f"Error: {e}", status=500)
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Threat Feed Admin REST Endpoints
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _check_admin_auth(self) -> Optional[Response]:
+        """Verify admin Bearer token. Returns error Response or None if valid."""
+        from flask import request as flask_request
+        auth = flask_request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer ") or auth[7:].strip() != self.admin_token:
+            return Response(
+                json.dumps({"error": "Unauthorized — provide admin Bearer token"}),
+                status=401,
+                mimetype="application/json",
+            )
+        return None
+
+    def threat_feed_status(self):
+        """GET /api/threat-feed/status — Returns full feed status and metrics."""
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        status = self.threat_feed.status()
+        return Response(json.dumps(status, default=str), status=200, mimetype="application/json")
+
+    def threat_feed_refresh(self):
+        """POST /api/threat-feed/refresh — Force immediate feed sync."""
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        try:
+            self.threat_feed.refresh_now()
+            return Response(
+                json.dumps({"status": "ok", "pattern_count": len(self.threat_feed.patterns)}),
+                status=200,
+                mimetype="application/json",
+            )
+        except Exception as e:
+            return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+    def threat_feed_add_pattern(self):
+        """POST /api/threat-feed/add-pattern — Hot-add a pattern at runtime.
+        Body: {"pattern": "...", "severity": "high", "category": "...", "ttl_days": 7}
+        """
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        from flask import request as flask_request
+        data = flask_request.get_json(force=True, silent=True) or {}
+        pattern = data.get("pattern", "").strip()
+        if not pattern:
+            return Response(
+                json.dumps({"error": "Missing 'pattern' field"}),
+                status=400,
+                mimetype="application/json",
+            )
+        added = self.threat_feed.add_pattern(
+            pattern=pattern,
+            severity=data.get("severity", "medium"),
+            category=data.get("category", "admin"),
+            source="admin_api",
+            ttl_days=data.get("ttl_days"),
+        )
+        if added:
+            return Response(
+                json.dumps({"status": "added", "pattern": pattern, "pattern_count": len(self.threat_feed.patterns)}),
+                status=201,
+                mimetype="application/json",
+            )
+        return Response(
+            json.dumps({"status": "rejected", "reason": "Duplicate or unsafe regex"}),
+            status=409,
+            mimetype="application/json",
+        )
+
+    def threat_feed_remove_pattern(self):
+        """POST /api/threat-feed/remove-pattern — Remove a pattern.
+        Body: {"pattern": "..."}
+        """
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        from flask import request as flask_request
+        data = flask_request.get_json(force=True, silent=True) or {}
+        pattern = data.get("pattern", "").strip()
+        if not pattern:
+            return Response(json.dumps({"error": "Missing 'pattern' field"}), status=400, mimetype="application/json")
+        removed = self.threat_feed.remove_pattern(pattern)
+        if removed:
+            return Response(
+                json.dumps({"status": "removed", "pattern": pattern}),
+                status=200,
+                mimetype="application/json",
+            )
+        return Response(
+            json.dumps({"status": "not_found", "pattern": pattern}),
+            status=404,
+            mimetype="application/json",
+        )
+
+    def threat_feed_webhook(self):
+        """POST /api/threat-feed/webhook — Accept patterns from external SIEM/SOAR.
+        Body: {"patterns": [...], "source": "splunk", "ttl_days": 7}
+        Optional header: X-Webhook-Signature: sha256=<hmac_hex> for verification.
+        """
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        from flask import request as flask_request
+        data = flask_request.get_json(force=True, silent=True) or {}
+        if not data.get("patterns"):
+            return Response(
+                json.dumps({"error": "Missing 'patterns' array"}),
+                status=400,
+                mimetype="application/json",
+            )
+        # Optional HMAC verification on webhook payload
+        if self.threat_feed.hmac_secret:
+            sig = flask_request.headers.get("X-Webhook-Signature", "")
+            raw_body = flask_request.get_data(as_text=True)
+            if not self.threat_feed._verify_hmac(raw_body, sig):
+                return Response(
+                    json.dumps({"error": "Webhook HMAC signature mismatch"}),
+                    status=403,
+                    mimetype="application/json",
+                )
+        result = self.threat_feed.ingest_webhook(data)
+        return Response(json.dumps(result), status=200, mimetype="application/json")
+
+    def threat_feed_test(self):
+        """POST /api/threat-feed/test — Dry-run test a prompt against patterns.
+        Body: {"prompt": "test text here"}
+        Does NOT increment match counters or block — purely diagnostic.
+        """
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        from flask import request as flask_request
+        data = flask_request.get_json(force=True, silent=True) or {}
+        prompt = data.get("prompt", "").strip()
+        if not prompt:
+            return Response(
+                json.dumps({"error": "Missing 'prompt' field"}),
+                status=400,
+                mimetype="application/json",
+            )
+        result = self.threat_feed.test_prompt(prompt)
+        return Response(json.dumps(result, default=str), status=200, mimetype="application/json")
+
+    def threat_feed_export(self):
+        """GET /api/threat-feed/export — Export current feed as YAML for backup/compliance."""
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        yaml_content = self.threat_feed.export_yaml()
+        return Response(
+            yaml_content,
+            status=200,
+            mimetype="text/yaml",
+            headers={"Content-Disposition": "attachment; filename=threat_feed_export.yaml"},
+        )
+
+    def threat_feed_metrics(self):
+        """GET /api/threat-feed/metrics — Prometheus text exposition format."""
+        # Metrics endpoint is read-only and safe — no admin auth required
+        # (Prometheus scraper typically doesn't send Bearer tokens)
+        metrics = self.threat_feed.prometheus_metrics()
+        return Response(metrics, status=200, mimetype="text/plain; version=0.0.4; charset=utf-8")
+
     # DEBUGGING STATE
     # DEBUGGING STATE
 
@@ -186,9 +392,6 @@ class GuardianProxy:
     def debug_info(self):
         return Response(json.dumps(self.last_debug_info, default=str), mimetype='application/json')
 
-    def test_ip(self):
-        return Response(request.remote_addr, mimetype='text/plain')
-
     def start(self):
         """
         Starts the GuardianAI proxy server in a background daemon thread.
@@ -197,26 +400,46 @@ class GuardianProxy:
         if self._thread is not None:
             return
         logger.info(f"Starting Interceptor Proxy on port {self.port} -> {self.target_url}")
+        self.brain.start()
+        self.jailbreak_fuzzer.start()
         self._thread = threading.Thread(target=self._run_server, daemon=True)
         self._thread.start()
+
+    def stop(self):
+        self.jailbreak_fuzzer.stop()
+        self.brain.stop()
 
     def _run_server(self):
         """
         Internal method to run the Flask development server.
         """
-        # Disable Flask banner
-        import sys
         try:
-            cli = sys.modules['flask.cli']
-            cli.show_server_banner = lambda *x: None
-        except (KeyError, AttributeError) as e:
-            # Flask CLI module not available or attribute missing
-            logger.debug(f"Could not disable Flask banner: {e}")
-        try:
-            logger.info(f"Flask application starting on 127.0.0.1:{self.port}...")
+            host = os.environ.get("GUARDIAN_PROXY_HOST", "0.0.0.0").strip() or "0.0.0.0"
+            logger.info(f"Proxy application starting on {host}:{self.port}...")
             # DEBUG ROUTE
             self.app.add_url_rule('/debug/info', view_func=self.debug_info, methods=['GET'])
-            self.app.run(host='127.0.0.1', port=self.port, debug=False, use_reloader=False)
+            wsgi_server = os.environ.get("GUARDIAN_WSGI_SERVER", "waitress").strip().lower()
+            if wsgi_server == "waitress":
+                try:
+                    from waitress import serve
+
+                    threads = int(os.environ.get("GUARDIAN_WSGI_THREADS", "32").strip() or "32")
+                    logger.info(f"Using waitress WSGI server (threads={threads}).")
+                    serve(self.app, host=host, port=self.port, threads=threads, clear_untrusted_proxy_headers=False)
+                    return
+                except Exception as e:
+                    logger.warning(f"Waitress unavailable, falling back to Flask dev server. Error: {e}")
+
+            # Fallback path for local debugging.
+            import sys
+
+            try:
+                cli = sys.modules['flask.cli']
+                cli.show_server_banner = lambda *x: None
+            except (KeyError, AttributeError) as e:
+                logger.debug(f"Could not disable Flask banner: {e}")
+            logger.warning("Using Flask dev server fallback. Set GUARDIAN_WSGI_SERVER=waitress for production.")
+            self.app.run(host=host, port=self.port, debug=False, use_reloader=False)
         except Exception as e:
             logger.error(f"FLASK CRASH: {e}")
             import traceback
@@ -238,54 +461,56 @@ class GuardianProxy:
         if not self.config.get('rate_limiting', {}).get('enabled'):
             return None
         
-        if not self.rate_limiter.is_allowed(request.remote_addr):
-            logger.warning(f"Rate limit exceeded for {request.remote_addr}")
+        client_ip = self._get_client_ip()
+        if not self.rate_limiter.is_allowed(client_ip):
+            logger.warning(f"Rate limit exceeded for {client_ip}")
             latency_ms = (time.time() - start_time) * 1000
             self._report_event("rate_limit", "HIGH", {
                 "reason": "Rate limit exceeded.",
                 "path": "rate_limit",
                 "target_path": path,
-                "ip": request.remote_addr,
+                "ip": client_ip,
                 "latency_ms": f"{latency_ms:.2f}ms",
             })
             return Response("Too Many Requests: Rate limit exceeded.", status=429)
         
         return None
 
-    def _check_authentication(self, start_time: float, path: str) -> Optional[Response]:
-        """Verify authentication for the proxy request.
-        
-        Returns:
-            Response object if unauthorized, None if authorized.
-        """
-        proxy_config = self.config.get('proxy', {})
-        if not proxy_config.get('enforce_auth', False):
+    def _get_client_ip(self) -> str:
+        """Resolve client IP with proxy-aware fallback to REMOTE_ADDR."""
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            first_hop = forwarded.split(",")[0].strip()
+            if first_hop:
+                return first_hop
+        return request.remote_addr or "unknown"
+
+    def _get_session_id(self) -> str:
+        bearer_value = self._get_bearer_token()
+        if bearer_value:
+            token_hash = hashlib.sha256(bearer_value.encode("utf-8")).hexdigest()[:16]
+            raw_session = f"jwt:{token_hash}"
+        else:
+            raw_session = request.headers.get("X-Conversation-ID") or self._get_client_ip()
+        tenant_id, _err = self.tenant_isolation.resolve_tenant_id(dict(request.headers))
+        return self.tenant_isolation.scope_session_id(tenant_id, str(raw_session))
+
+    def _resolve_tenant(self, data: Dict[str, Any] | None = None) -> tuple[str, Optional[Response]]:
+        headers = dict(request.headers) if has_request_context() else {}
+        tenant_id, err = self.tenant_isolation.resolve_tenant_id(headers, data)
+        if err:
+            return "", Response(f"Bad Request: {err}", status=400)
+        return tenant_id, None
+
+    def _get_bearer_token(self) -> str | None:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.lower().startswith("bearer "):
             return None
-
-        request_token = request.headers.get("X-Guardian-Token")
-        required_token = proxy_config.get('proxy_token')
-        admin_token = self.config.get('security_policies', {}).get('admin_token')
-
-        # Allow if it matches either proxy token OR admin token
-        if request_token and (request_token == required_token or (admin_token and request_token == admin_token)):
-            return None
-
-        # Auth failed
-        latency_ms = (time.time() - start_time) * 1000
-        logger.warning(f"🔐  UNAUTHORIZED ACCESS: Invalid or missing token from {request.remote_addr} for /{path}")
-        
-        self._report_event("unauthorized_access", "MEDIUM", {
-            "path": path,
-            "ip": request.remote_addr,
-            "latency_ms": f"{latency_ms:.2f}ms",
-            "reason": "Missing or invalid X-Guardian-Token"
-        })
-        
-        return Response("Unauthorized: Valid X-Guardian-Token is required.", status=401)
+        bearer_value = auth_header.split(" ", 1)[1].strip()
+        return bearer_value or None
     
     def _extract_prompt(self, data: Dict) -> Optional[str]:
         """Extract prompt from request data (supports multiple formats).
-        Recursively extracts ALL string values to prevent JSON-nesting injection bypasses.
         
         Args:
             data: Request JSON data
@@ -295,32 +520,33 @@ class GuardianProxy:
         """
         if not data:
             return None
-            
-        extracted_strings = []
         
-        def _recursive_extract(node):
-            if isinstance(node, str):
-                extracted_strings.append(node)
-            elif isinstance(node, dict):
-                for value in node.values():
-                    _recursive_extract(value)
-            elif isinstance(node, list):
-                for item in node:
-                    _recursive_extract(item)
-                    
-        try:
-            _recursive_extract(data)
-        except Exception as e:
-            logger.error(f"Error during recursive prompt extraction (Potential structural payload bypass attempt): {e}")
-            # Security: Fail-Closed. If extraction crashes (e.g., recursion limit hit by attacker),
-            # return the entire raw JSON structure as a serialized string blob to guarantee
-            # the threat filter scans the raw payload rather than failing open.
-            import json
-            return json.dumps(data)
+        # Try direct prompt fields
+        prompt = data.get('prompt') or data.get('input') or data.get('content')
         
-        if extracted_strings:
-            return " \n ".join(extracted_strings)
-            
+        # Try OpenAI messages format
+        if not prompt and 'messages' in data:
+            messages = data.get('messages', [])
+            for msg in reversed(messages):
+                if msg.get('role') == 'user':
+                    prompt = msg.get('content', '')
+                    break
+        
+        return prompt if isinstance(prompt, str) else None
+
+    @staticmethod
+    def _extract_system_prompt(data: Optional[Dict[str, Any]]) -> Optional[str]:
+        """Extract system prompt from OpenAI-style messages array."""
+        if not data or not isinstance(data, dict):
+            return None
+        messages = data.get("messages", [])
+        if not isinstance(messages, list):
+            return None
+        for msg in messages:
+            if isinstance(msg, dict) and msg.get("role") == "system":
+                content = msg.get("content", "")
+                if isinstance(content, str) and content.strip():
+                    return content
         return None
     
     def _check_keyword_filter(self, prompt: str, start_time: float, timings: Dict[str, float], show_reason: bool = True) -> Optional[Response]:
@@ -345,8 +571,8 @@ class GuardianProxy:
         reason = "Prompt injection attempt detected (Pattern Match)."
         latency_ms = (time.time() - start_time) * 1000
         
-        logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
-        self._report_event("keyword_filter_blocked", "high", { # Changed event_type to keyword_filter_blocked
+        logger.warning(f"ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
+        self._report_event("injection", "high", {
             "prompt_preview": prompt[:100],
             "reason": reason,
             "latency_ms": f"{latency_ms:.2f}ms",
@@ -358,28 +584,66 @@ class GuardianProxy:
         return Response(msg, status=403)
     
     def _check_threat_feed(self, prompt: str, start_time: float, timings: Dict[str, float]) -> Optional[Response]:
-        """Check prompt against community threat feed patterns."""
+        """Check prompt against community threat feed patterns (compiled, multi-source).
+        
+        Severity-aware decision logic:
+        - critical / high: immediate block (403)
+        - medium: block with pattern detail in evidence
+        - low: audit-only log, no block (returns None)
+        """
         t_start = time.perf_counter()
-        
-        for pattern in self.threat_feed.patterns:
-            if re.search(pattern, prompt, re.IGNORECASE):
-                timings['threat_feed_ms'] = (time.perf_counter() - t_start) * 1000
-                path_taken = "fast_path_threat_feed"
-                reason = "Blocked by Community Threat Feed."
-                latency_ms = (time.time() - start_time) * 1000
-                
-                logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
-                self._report_event("threat_feed_match", "HIGH", {
-                    "prompt_preview": prompt[:100],
-                    "reason": reason,
-                    "latency_ms": f"{latency_ms:.2f}ms",
-                    "component_timings": timings,
-                    "path": path_taken
-                })
-                return Response(f"Forbidden: {reason}", status=403)
-        
+
+        match_result = self.threat_feed.match(prompt)
+        if match_result and not isinstance(match_result, (dict, str)):
+            match_result = None
+            for pattern in getattr(self.threat_feed, "patterns", []) or []:
+                try:
+                    if re.search(pattern, prompt, re.IGNORECASE):
+                        match_result = {
+                            "pattern": pattern,
+                            "severity": "medium",
+                            "category": "unknown",
+                            "source": "legacy",
+                        }
+                        break
+                except re.error:
+                    continue
         timings['threat_feed_ms'] = (time.perf_counter() - t_start) * 1000
+
+        if match_result:
+            # match_result is now a dict: {pattern, severity, category, source}
+            pattern_str = match_result.get("pattern", "unknown")[:120] if isinstance(match_result, dict) else str(match_result)[:120]
+            severity = match_result.get("severity", "medium") if isinstance(match_result, dict) else "medium"
+            category = match_result.get("category", "unknown") if isinstance(match_result, dict) else "unknown"
+            source = match_result.get("source", "unknown") if isinstance(match_result, dict) else "unknown"
+
+            latency_ms = (time.time() - start_time) * 1000
+            event_data = {
+                "prompt_preview": prompt[:100],
+                "matched_pattern": pattern_str,
+                "severity": severity,
+                "category": category,
+                "source": source,
+                "pattern_count": len(self.threat_feed.patterns),
+                "latency_ms": f"{latency_ms:.2f}ms",
+                "component_timings": timings,
+                "path": "fast_path_threat_feed",
+            }
+
+            # Low severity: audit-only (log but don't block)
+            if severity == "low":
+                logger.info(f"THREAT FEED AUDIT: low-severity match (pattern={pattern_str[:60]}, prompt={prompt[:30]}...)")
+                self._report_event("threat_feed_audit", "LOW", event_data)
+                return None  # do NOT block
+
+            # Medium / high / critical: block
+            reason = f"Blocked by Community Threat Feed [{severity.upper()}]."
+            logger.warning(f"ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
+            self._report_event("threat_feed_match", severity.upper(), event_data)
+            return Response(f"Forbidden: {reason}", status=403)
+
         return None
+
     
     def _check_ai_firewall(self, prompt: str, mode: str, start_time: float, timings: Dict[str, float], show_reason: bool = True) -> Optional[Response]:
         """Check prompt using AI semantic analysis."""
@@ -387,25 +651,43 @@ class GuardianProxy:
         path_taken = "ai_firewall"
         
         # Context tracking: Prefer X-Conversation-ID for NAT/VPN environments
-        session_id = request.headers.get('X-Conversation-ID') or request.remote_addr
+        session_id = self._get_session_id()
         self.context_buffer[session_id].append(prompt)
         full_context = " ".join(self.context_buffer[session_id])
 
-        # Adaptive Security: If under high rate-limit pressure, force 'strict' mode
-        pressure = self.rate_limiter.get_pressure(session_id)
-        if pressure < 0.2:
+        # Adaptive Security: escalate only when the bucket is nearly exhausted.
+        # `get_pressure()` returns remaining capacity from 0.0 (empty) to 1.0 (full).
+        client_ip = self._get_client_ip()
+        pressure = self.rate_limiter.get_pressure(client_ip)
+        effective_capacity = getattr(self.rate_limiter, "_get_effective_capacity", lambda _ip: getattr(self.rate_limiter, "capacity", 0))(client_ip)
+        if effective_capacity > 1 and pressure <= 0.2:
             logger.info(f"High pressure detected ({pressure:.2f}). Scaling up to STRICT mode for session: {session_id}")
             mode = "strict"
+        mode = self.brain.recommend_mode(session_id, default_mode=mode)
         
-        # Smart Adaptation: If downstream is unknown/unhealthy, slightly tighten security
-        try:
-            health_check = requests.get(f"{self.target_url}/health", timeout=1)
-            if health_check.status_code != 200:
-                logger.debug("Downstream agent unhealthy. Applying defensive Balanced+ posture.")
-                if mode == "balanced":
-                    mode = "strict"
-        except requests.RequestException as e:
-            logger.debug(f"Health check failed: {e}")
+        # Smart Adaptation: tighten only when the upstream explicitly looks unhealthy.
+        # Some compatible upstreams do not expose `/health`, so 404/405/501 should not
+        # be treated as a signal to harden into strict mode.
+        now = time.time()
+        status_code = 200
+        if now - getattr(self, "_last_health_check_time", 0.0) < 5.0:
+            status_code = getattr(self, "_last_health_check_status", 200)
+        else:
+            try:
+                health_check = requests.get(f"{self.target_url}/health", timeout=1)
+                status_code = int(getattr(health_check, "status_code", 0) or 0)
+                self._last_health_check_time = now
+                self._last_health_check_status = status_code
+            except Exception as e:
+                logger.debug(f"Health check failed: {e}")
+                self._last_health_check_time = now
+                self._last_health_check_status = 500  # Assume unhealthy status on error
+                status_code = 500
+
+        if 500 <= status_code < 600 and status_code != 501:
+            logger.debug("Downstream agent unhealthy. Applying defensive Balanced+ posture.")
+            if mode == "balanced":
+                mode = "strict"
 
         is_malicious = self.ai_firewall.is_malicious(full_context, mode=mode)
         timings['ai_firewall_ms'] = (time.perf_counter() - t_start) * 1000
@@ -413,8 +695,8 @@ class GuardianProxy:
         if is_malicious:
             reason = f"AI Firewall detected malicious intent (Mode: {mode})."
             latency_ms = (time.time() - start_time) * 1000
-            logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
-            self._report_event("ai_firewall_blocked", "HIGH", { # Changed event_type to ai_firewall_blocked
+            logger.warning(f"ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
+            self._report_event("injection_ai", "HIGH", {
                 "prompt_preview": prompt[:100],
                 "reason": reason,
                 "context_used": True,
@@ -427,8 +709,61 @@ class GuardianProxy:
             return Response(msg, status=403)
         
         return None
+
+    def _should_defer_to_output_redaction(self, prompt: str) -> bool:
+        strategy = str(
+            self.config.get("security_policies", {}).get("leak_prevention_strategy", "block")
+        ).strip().lower()
+        if strategy != "redact":
+            return False
+        prompt_lower = (prompt or "").lower()
+        if not prompt_lower:
+            return False
+        request_terms = ("leak", "reveal", "show", "print", "expose", "dump")
+        secret_terms = ("credential", "credentials", "password", "secret", "token", "api key", "key")
+        return any(term in prompt_lower for term in request_terms) and any(term in prompt_lower for term in secret_terms)
     
-    def _process_output_validation(self, raw_content: str, path: str, start_time: float, timings: Dict[str, float]) -> str:
+    def _extract_output_assurance_payload(
+        self,
+        parsed_json: Optional[Dict[str, Any]],
+        message_content: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Extract structured payload candidate for output-assurance checks."""
+        if parsed_json and isinstance(parsed_json, dict):
+            choices = parsed_json.get("choices", [])
+            if choices and isinstance(choices, list):
+                try:
+                    msg_content = choices[0].get("message", {}).get("content", "")
+                    if isinstance(msg_content, dict):
+                        return msg_content
+                    if isinstance(msg_content, str) and msg_content.strip():
+                        parsed_msg = json.loads(msg_content)
+                        if isinstance(parsed_msg, dict):
+                            return parsed_msg
+                except (json.JSONDecodeError, KeyError, IndexError, TypeError):
+                    pass
+            return parsed_json
+        if isinstance(message_content, str) and message_content.strip():
+            try:
+                parsed = json.loads(message_content)
+                if isinstance(parsed, dict):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return None
+
+    def _is_trivially_safe_output(self, content: str) -> bool:
+        text = (content or "").strip()
+        return text.lower() in {"safe response", "ok", "success"}
+
+    def _process_output_validation(
+        self,
+        raw_content: str,
+        path: str,
+        start_time: float,
+        timings: Dict[str, float],
+        tenant_id: Optional[str] = None,
+    ) -> str:
         """Process output validation and PII redaction."""
         t_start = time.perf_counter()
         
@@ -450,6 +785,30 @@ class GuardianProxy:
         except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
             logger.debug(f"Could not parse response JSON: {e}")
 
+        assurance_payload = self._extract_output_assurance_payload(parsed_json, content_to_check)
+        assurance_decision = self.output_assurance.evaluate(assurance_payload)
+        if assurance_decision.action == "block":
+            timings["output_assurance_ms"] = (time.perf_counter() - t_start) * 1000
+            self._report_event(
+                "output_assurance_block",
+                assurance_decision.severity,
+                {
+                    "path": path,
+                    "reason": assurance_decision.reason,
+                    "details": assurance_decision.details,
+                    "component_timings": timings,
+                },
+                tenant_id=tenant_id,
+            )
+            if self.output_assurance.enforcement_mode != "audit":
+                raise ValueError(f"Output assurance blocked: {assurance_decision.reason}")
+        else:
+            timings["output_assurance_ms"] = (time.perf_counter() - t_start) * 1000
+
+        if self._is_trivially_safe_output(content_to_check):
+            timings['output_validator_ms'] = (time.perf_counter() - t_start) * 1000
+            return raw_content
+
         # 1. Check for HARD block (Critical leaks)
         is_valid = self.output_validator.validate_output(content_to_check)
         
@@ -457,7 +816,7 @@ class GuardianProxy:
             strategy = self.config.get('security_policies', {}).get('leak_prevention_strategy', 'block')
             
             if strategy == "block":
-                logger.warning("ðŸš¨  DATA LEAK PREVENTED: Sensitive information detected in agent output. Blocking response.")
+                logger.warning("DATA LEAK PREVENTED: Sensitive information detected in agent output. Blocking response.")
                 sanitized_content, detected = self.output_validator.sanitize_output(content_to_check)
                 timings['output_validator_ms'] = (time.perf_counter() - t_start) * 1000
                 self._report_event("data_leak", "critical", {
@@ -469,7 +828,7 @@ class GuardianProxy:
                 })
                 raise ValueError("Data leak blocked")
             else:
-                logger.warning("ðŸ›¡ï¸  DATA LEAK DETECTED: Redacting sensitive information (Privacy Strategy: REDACT).")
+                logger.warning("DATA LEAK DETECTED: Redacting sensitive information (Privacy Strategy: REDACT).")
                 sanitized_content, detected = self.output_validator.sanitize_output(content_to_check)
                 self._report_event("data_redaction", "INFO", {
                     "path": path,
@@ -507,56 +866,333 @@ class GuardianProxy:
         
         return raw_content
 
-    def _report_event(self, event_type: str, severity: str, details: Dict[str, Any]):
-        """Sends telemetry to backend, logs blocked prompts, and feeds brain."""
-        if event_type in ["jailbreak_attempt", "keyword_filter_blocked", "ai_firewall_blocked"]:
-            prompt = details.get("prompt_preview")
-            if prompt:
-                self._log_blocked_prompt(prompt)
+    def _apply_output_watermark(self, content: str, path: str, timings: Dict[str, float], tenant_id: str) -> str:
+        t_start = time.perf_counter()
+        if not self.output_watermarker.can_apply():
+            timings["output_watermark_ms"] = 0.0
+            return content
+        watermarked, decision = self.output_watermarker.apply(content)
+        timings["output_watermark_ms"] = (time.perf_counter() - t_start) * 1000
+        if decision.action == "allow":
+            if decision.reason == "watermark_applied":
+                self._report_event(
+                    "output_watermark_applied",
+                    "LOW",
+                    {"path": path, "details": decision.details, "component_timings": timings},
+                    tenant_id=tenant_id,
+                )
+            return watermarked
+        self._report_event(
+            "output_watermark_block",
+            decision.severity,
+            {"path": path, "reason": decision.reason, "details": decision.details, "component_timings": timings},
+            tenant_id=tenant_id,
+        )
+        if self.output_watermarker.enforcement_mode != "audit":
+            raise ValueError(f"Output watermark blocked: {decision.reason}")
+        return content
 
-        # Feed the brain with every security event
-        if self.brain:
-            self.brain.on_event(event_type, severity, details)
-
-        backend_config = self.config.get('backend', {})
-        if not backend_config.get('enabled'):
-            return
+    def _report_event(self, event_type: str, severity: str, details: Dict[str, Any], tenant_id: Optional[str] = None):
+        if not tenant_id:
+            tenant_id = self.tenant_isolation.default_tenant_id
+            if has_request_context():
+                resolved_tenant, err = self.tenant_isolation.resolve_tenant_id(dict(request.headers))
+                if not err and resolved_tenant:
+                    tenant_id = resolved_tenant
         
         payload = {
             "guardian_id": self.config.get('guardian_id', 'unknown'),
+            "tenant_id": tenant_id,
             "event_type": event_type,
             "severity": severity,
             "details": details,
             "timestamp": time.time()
         }
+        if getattr(self, "siem_config", None) and self.siem_config.enabled:
+            from backend.siem import build_alert_document
+            alert_doc = build_alert_document(
+                guardian_id=self.config.get('guardian_id', 'unknown'),
+                event_type=event_type,
+                severity=severity,
+                details=details,
+                timestamp=payload["timestamp"],
+            )
+            self.siem_router.enqueue(alert_doc)
+        else:
+            self.tenant_isolation.write_evidence(
+                tenant_id=tenant_id,
+                event_type=event_type,
+                severity=severity,
+                details=details,
+                timestamp=payload["timestamp"],
+            )
+        backend_config = self.config.get('backend', {})
+        if not backend_config.get('enabled'):
+            return
+        backend_token = backend_config.get("token")
+        if not backend_token:
+            backend_token = os.environ.get("GUARDIAN_BACKEND_TOKEN", "").strip()
+        service_id = backend_config.get("service_id") or os.environ.get("GUARDIAN_SERVICE_ID", "guardian-proxy").strip()
+        service_token = backend_config.get("service_auth_token") or os.environ.get("GUARDIAN_SERVICE_AUTH_TOKEN", "").strip()
+        headers = {}
+        if backend_token:
+            headers["Authorization"] = f"Bearer {backend_token}"
+        if service_id and service_token:
+            headers["X-Guardian-Service-Id"] = str(service_id)
+            headers["X-Guardian-Service-Token"] = str(service_token)
+
+        verify: bool | str = True
+        if "tls_verify" in backend_config:
+            verify = bool(backend_config.get("tls_verify"))
+        ca_bundle = backend_config.get("ca_bundle")
+        if ca_bundle:
+            verify = str(ca_bundle)
+        cert = None
+        client_cert = backend_config.get("client_cert")
+        client_key = backend_config.get("client_key")
+        if client_cert and client_key:
+            cert = (str(client_cert), str(client_key))
+        elif client_cert:
+            cert = str(client_cert)
         
         def send_report():
             try:
-                requests.post(backend_config.get('url'), json=payload, timeout=5)
+                requests.post(
+                    backend_config.get('url'),
+                    json=payload,
+                    timeout=5,
+                    headers=headers or None,
+                    verify=verify,
+                    cert=cert,
+                )
             except Exception as e:
                 logger.error(f"Failed to report event to backend: {e}")
 
         # Non-blocking background report
         threading.Thread(target=send_report, daemon=True).start()
 
-    def _log_blocked_prompt(self, prompt: str):
-        """Saves blocked prompts to a persistent file for adversarial learning."""
+    def _build_honeypot_response(self, session_id: str, path: str) -> Response:
+        body = self.honeypot.build_response(session_id, path)
+        if body is None:
+            return Response("Forbidden: Session limited by deception controls.", status=403)
+        return Response(json.dumps(body), status=200, mimetype="application/json")
+
+    def _enforce_tool_policy(self, data: Dict[str, Any] | None, path: str) -> Optional[Response]:
+        headers = dict(request.headers)
+        result = self.tool_policy.evaluate(data, headers=headers)
+        if result.action == "allow":
+            return None
+        if result.action == "confirm":
+            self._report_event("tool_policy_confirmation_required", "MEDIUM", {
+                "path": path,
+                "reason": result.reason,
+                "tools": result.tools,
+            })
+            if self.tool_policy.enforcement_mode == "audit":
+                return None
+            return Response("Precondition Required: Sensitive tool requires explicit confirmation header.", status=428)
+        if result.action == "block":
+            self._report_event("tool_policy_block", "HIGH", {
+                "path": path,
+                "reason": result.reason,
+                "tools": result.tools,
+            })
+            if self.tool_policy.enforcement_mode == "audit":
+                return None
+            return Response("Forbidden: Tool call blocked by Guardian tool policy.", status=403)
+        return None
+
+    def _enforce_agentic_controls(
+        self,
+        data: Dict[str, Any] | None,
+        path: str,
+        tenant_id: str,
+    ) -> Optional[Response]:
+        headers = dict(request.headers)
+        result = self.agentic_security.evaluate(headers, data=data)
+        if result.action == "allow":
+            return None
+        self._report_event(
+            "agentic_policy_block",
+            result.severity,
+            {
+                "path": path,
+                "reason": result.reason,
+                "details": result.details,
+            },
+            tenant_id=tenant_id,
+        )
+        if self.agentic_security.enforcement_mode == "audit":
+            return None
+        return Response(f"Forbidden: Agentic policy blocked request ({result.reason}).", status=403)
+
+    def _enforce_rag_controls(
+        self,
+        data: Dict[str, Any] | None,
+        path: str,
+        tenant_id: str,
+    ) -> Optional[Response]:
+        result = self.rag_security.evaluate(data)
+        if result.action == "allow":
+            return None
+        self._report_event(
+            "rag_policy_block",
+            result.severity,
+            {
+                "path": path,
+                "reason": result.reason,
+                "details": result.details,
+            },
+            tenant_id=tenant_id,
+        )
+        if self.rag_security.enforcement_mode == "audit":
+            return None
+        return Response(f"Forbidden: RAG policy blocked request ({result.reason}).", status=403)
+
+    def _enforce_multimodal_controls(
+        self,
+        data: Dict[str, Any] | None,
+        path: str,
+        tenant_id: str,
+    ) -> Optional[Response]:
+        result = self.multimodal_security.evaluate(data)
+        if result.action == "allow":
+            return None
+        self._report_event(
+            "multimodal_policy_block",
+            result.severity,
+            {
+                "path": path,
+                "reason": result.reason,
+                "details": result.details,
+            },
+            tenant_id=tenant_id,
+        )
+        if self.multimodal_security.enforcement_mode == "audit":
+            return None
+        return Response(f"Forbidden: Multimodal policy blocked request ({result.reason}).", status=403)
+
+    def _resolve_security_mode_for_tenant(
+        self,
+        tenant_id: str,
+        mode: str,
+        show_reason: bool,
+    ) -> tuple[str, bool]:
+        profile = self.tenant_sensitivity.resolve(tenant_id, mode, show_reason)
+        return profile.security_mode, profile.show_block_reason
+
+    def _is_feedback_allowlisted(self, tenant_id: str, prompt: str, event_family: str) -> bool:
+        return self.feedback_loop.is_allowlisted(tenant_id, prompt, event_family)
+
+    def _enforce_memory_controls(self, session_id: str, prompt: str, path: str, tenant_id: str) -> Optional[Response]:
+        result = self.memory_security.evaluate_and_record(session_id, prompt)
+        if result.action == "allow":
+            return None
+        self._report_event(
+            "memory_policy_block",
+            result.severity,
+            {
+                "path": path,
+                "reason": result.reason,
+                "details": result.details,
+            },
+            tenant_id=tenant_id,
+        )
+        if self.memory_security.enforcement_mode == "audit":
+            return None
+        return Response(f"Forbidden: Memory policy blocked request ({result.reason}).", status=403)
+
+    def _decode_obfuscation(self, prompt: str) -> str:
+        """Attempt to decode hex or base64 payloads to scan their true meaning."""
+        import binascii
+        import base64
+        import urllib.parse
+        
+        decoded = prompt
+        # Try URL Decode
+        if "%" in decoded:
+            decoded = urllib.parse.unquote(decoded)
+        
+        # Try Hex Decode (assuming pure hex string)
+        hex_prompt = prompt.replace(" ", "").strip()
+        if len(hex_prompt) > 10 and all(c in "0123456789abcdefABCDEF" for c in hex_prompt):
+            try:
+                decoded += " " + bytes.fromhex(hex_prompt).decode("utf-8")
+            except Exception:
+                pass
+                
+        # Try Base64 Decode
         try:
-            os.makedirs(os.path.dirname(self.blocked_log_path), exist_ok=True)
-            data = []
-            if os.path.exists(self.blocked_log_path):
-                with open(self.blocked_log_path, "r", encoding="utf-8") as f:
-                    try:
-                        data = json.load(f)
-                    except json.JSONDecodeError:
-                        data = []
+            if len(prompt) % 4 == 0 and len(prompt) > 16:
+                b64_decoded = base64.b64decode(prompt).decode("utf-8")
+                if len(b64_decoded) > 5 and b64_decoded.isprintable():
+                    decoded += " " + b64_decoded
+        except Exception:
+            pass
             
-            if prompt not in data:
-                data.append(prompt)
-                with open(self.blocked_log_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2)
+        return decoded
+
+    def _check_language_allowlist(self, prompt: str, session_id: str, path: str) -> Optional[Response]:
+        """Detect language and block if it's not English (Enterprise 'Strict' feature)."""
+        if not prompt or len(prompt.strip()) < 20:
+            return None
+        if self.fast_path.is_known_safe(prompt):
+            return None
+        try:
+            from langdetect import detect
+            lang = detect(prompt)
+            if lang != 'en':
+                self._report_event("language_block", "MEDIUM", {
+                    "session_id": session_id,
+                    "reason": f"Non-English language detected: {lang}",
+                    "path": path,
+                })
+                return Response("Forbidden: Only English language is allowed under strict security policies.", status=403)
         except Exception as e:
-            logger.error(f"Failed to log blocked prompt: {e}")
+            logger.warning(f"Language detection failed: {e}")
+        return None
+
+    def _check_cost_abuse_quarantine(self, session_id: str, path: str) -> Optional[Response]:
+        """Check if session is currently quarantined due to cost abuse."""
+        is_quarantined, remaining_seconds = self.cost_abuse.is_quarantined(session_id)
+        if not is_quarantined:
+            return None
+        self._report_event("session_quarantined", "HIGH", {
+            "session_id": session_id,
+            "reason": "Session blocked by active cost-abuse quarantine.",
+            "path": path,
+            "remaining_seconds": remaining_seconds,
+        })
+        return Response("Forbidden: Session quarantined due to anomalous cost activity.", status=403)
+
+    def _check_trust_exploitation(self, prompt: str, session_id: str, path: str, tenant_id: str, timings: Dict[str, float]) -> Optional[Response]:
+        """Check prompt against human-agent trust exploitation controls (OWASP ASI09)."""
+        t_start = time.perf_counter()
+        decision = self.trust_exploitation.evaluate(prompt, session_id=session_id)
+        timings['trust_exploitation_ms'] = (time.perf_counter() - t_start) * 1000
+        
+        if decision.action == "allow":
+            return None
+            
+        self._report_event(
+            f"trust_exploitation_{decision.action}",
+            decision.severity,
+            {
+                "path": path,
+                "reason": decision.reason,
+                "confidence_score": decision.confidence_score,
+                "deception_score": decision.deception_score,
+                "details": decision.details,
+                "component_timings": timings,
+            },
+            tenant_id=tenant_id,
+        )
+        
+        if self.trust_exploitation.enforcement_mode == "audit":
+            logger.info(f"Trust Exploitation Guard AUDIT: {decision.action} skipped in audit. Reason: {decision.reason}")
+            return None
+            
+        return Response(f"Forbidden: Trust exploitation policy blocked request ({decision.reason}).", status=403)
 
     def proxy(self, path):
         start_time = time.time()
@@ -568,17 +1204,13 @@ class GuardianProxy:
         if rl_resp:
             return rl_resp
 
-        # 1b. Authentication Check (Milestone 1: Universal Auth Proxy)
-        auth_resp = self._check_authentication(start_time, path)
-        if auth_resp:
-            return auth_resp
-
         path_taken = "fast_path_allowlist" # Default path
 
         # 2. Inspect input
         data = None
         prompt = None
         raw_len = 0
+        tenant_id = self.tenant_isolation.default_tenant_id
         
         try:
             # Attempt 1: Flask Built-in (Force ignore Content-Type)
@@ -602,12 +1234,35 @@ class GuardianProxy:
             logger.error(f"DEBUG: content parsing error: {e}")
 
         if data:
+            tenant_id, tenant_resp = self._resolve_tenant(data)
+            if tenant_resp is not None:
+                return tenant_resp
+            multimodal_resp = self._enforce_multimodal_controls(data, path, tenant_id)
+            if multimodal_resp is not None:
+                return multimodal_resp
+            rag_resp = self._enforce_rag_controls(data, path, tenant_id)
+            if rag_resp is not None:
+                return rag_resp
+            agentic_resp = self._enforce_agentic_controls(data, path, tenant_id)
+            if agentic_resp is not None:
+                return agentic_resp
             prompt = self._extract_prompt(data)
             logger.debug(f"DEBUG: Extracted prompt: {str(prompt)[:50] if prompt else 'None'}")
+            tool_policy_resp = self._enforce_tool_policy(data, path)
+            if tool_policy_resp is not None:
+                return tool_policy_resp
+        else:
+            tenant_id, tenant_resp = self._resolve_tenant()
+            if tenant_resp is not None:
+                return tenant_resp
+            agentic_resp = self._enforce_agentic_controls(None, path, tenant_id)
+            if agentic_resp is not None:
+                return agentic_resp
 
         # DEBUG INFO UPDATE
         self._update_debug_info({
             "path": path,
+            "tenant_id": tenant_id,
             "method": request.method,
             "content_type": request.content_type,
             "raw_len": raw_len,
@@ -618,31 +1273,59 @@ class GuardianProxy:
         })
 
         if prompt:
+            session_id = self._get_session_id()
+            
+            # 0.1 Decode obfuscations (Hex/Base64) to expose the true payload
+            prompt = self._decode_obfuscation(prompt)
+            
+            quarantined_resp = self._check_cost_abuse_quarantine(session_id, path)
+            if quarantined_resp is not None:
+                return quarantined_resp
+            memory_resp = self._enforce_memory_controls(session_id, prompt, path, tenant_id)
+            if memory_resp is not None:
+                self.brain.analyze_request(session_id, prompt, blocked=True)
+                return memory_resp
+            self.brain.bind_session_identity(session_id, self._get_bearer_token())
+            pre_action = self.brain.session_action(session_id)
+            if pre_action == "revoke" or self.brain.should_revoke_session(session_id):
+                self.brain.enforce_revocation(session_id, reason="pre_request_gate")
+                self._report_event("session_revoked", "HIGH", {
+                    "session_id": session_id,
+                    "reason": "Blue Team adaptive revoke threshold exceeded.",
+                    "path": path,
+                })
+                return Response("Forbidden: Session revoked by adaptive security controls.", status=403)
+            if pre_action == "honeypot":
+                self._report_event("honeypot_engaged", "MEDIUM", {
+                    "session_id": session_id,
+                    "reason": "Blue Team adaptive honeypot threshold exceeded.",
+                    "path": path,
+                })
+                resp = self._build_honeypot_response(session_id, path)
+                if resp.status_code == 403:
+                    self._report_event("honeypot_rate_limited", "MEDIUM", {
+                        "session_id": session_id,
+                        "path": path,
+                    })
+                return resp
+            # 0.2 Check Language Allowlist after higher-priority adaptive controls.
+            lang_resp = self._check_language_allowlist(prompt, session_id, path)
+            if lang_resp is not None:
+                self.brain.analyze_request(session_id, prompt, blocked=True)
+                return lang_resp
+            # 0.3 Trust Exploitation Guard (OWASP ASI09)
+            te_resp = self._check_trust_exploitation(prompt, session_id, path, tenant_id, timings)
+            if te_resp is not None:
+                self.brain.analyze_request(session_id, prompt, blocked=True)
+                return te_resp
             policies = self.config.get('security_policies', {})
             mode = policies.get('security_mode', 'balanced')
             show_reason = policies.get('show_block_reason', True)
 
-            # Brain: Blue Team behavioral analysis
-            if self.brain:
-                user_id = request.headers.get('X-Conversation-ID') or request.remote_addr
-                brain_result = self.brain.on_request(prompt, user_id, {"path": path})
-                brain_action = brain_result.get("action", "allow")
-
-                if brain_action == "block":
-                    logger.warning(f"BRAIN BLOCK: {brain_result.get('reason')}")
-                    return Response("Forbidden: Behavioral threat detected.", status=403)
-                elif brain_action == "honeypot":
-                    logger.info(f"BRAIN HONEYPOT: {brain_result.get('reason')}")
-                    return Response(json.dumps({"choices": [{"message": {"content": "I appreciate your creative approach! However, I'm designed to assist with legitimate queries. How can I help you today?"}}]}), mimetype='application/json')
-                elif brain_action == "escalate":
-                    override_mode = brain_result.get("security_mode")
-                    if override_mode:
-                        mode = override_mode
-                        logger.info(f"BRAIN ESCALATION: Mode overridden to {mode}")
-
             # 0. Admin Policy Bypass (Trusted Agent)
             admin_token = policies.get('admin_token')
             request_token = request.headers.get("X-Guardian-Token")
+            mode, show_reason = self._resolve_security_mode_for_tenant(tenant_id, mode, show_reason)
             
             if request.headers.get("X-Guardian-Role") == "admin":
                 if admin_token and request_token == admin_token:
@@ -656,29 +1339,38 @@ class GuardianProxy:
                         "prompt_preview": prompt[:50]
                     })
                 else:
-                    logger.warning(f"ðŸ›‘  ADMIN FAIL: Invalid or missing token from {request.remote_addr}. ConfigToken={admin_token}, ReqToken={request_token}")
+                    logger.warning(f"ADMIN FAIL: Invalid or missing token from {request.remote_addr}. ConfigToken={admin_token}, ReqToken={request_token}")
                     # Fall through to normal checks (don't block, just treat as untrusted)
             
             if path_taken != "admin_allowlist":
                 # 3. Fast Keyword/Regex Filter (Known Bad)
-                kw_resp = self._check_keyword_filter(prompt, start_time, timings, show_reason)
+                if self._is_feedback_allowlisted(tenant_id, prompt, "injection"):
+                    kw_resp = None
+                else:
+                    kw_resp = self._check_keyword_filter(prompt, start_time, timings, show_reason)
                 if kw_resp:
+                    self.brain.analyze_request(session_id, prompt, blocked=True)
                     return kw_resp
                 
                 # 3b. Base64 Obfuscation Check (Segment 4)
                 if self.base64_detector.is_suspicious(prompt, entropy_threshold=5.0):
                     reason = "Obfuscated payload detected (Base64/High Entropy)."
-                    logger.warning(f"ðŸš«  ATTACK PREVENTED: {reason}")
+                    logger.warning(f"ATTACK PREVENTED: {reason}")
                     self._report_event("obfuscation", "MEDIUM", {
                         "prompt_preview": "HIDDEN_BASE64_PAYLOAD",
                         "reason": reason,
                         "path": "base64_filter"
                     })
+                    self.brain.analyze_request(session_id, prompt, blocked=True)
                     return Response(f"Forbidden: {reason}", status=403)
                 
                 # 4. Community Threat Feed Check (Dynamic)
-                tf_resp = self._check_threat_feed(prompt, start_time, timings)
+                if self._is_feedback_allowlisted(tenant_id, prompt, "threat_feed_match"):
+                    tf_resp = None
+                else:
+                    tf_resp = self._check_threat_feed(prompt, start_time, timings)
                 if tf_resp:
+                    self.brain.analyze_request(session_id, prompt, blocked=True)
                     return tf_resp
                 
                 # 5. Fast-Path Allowlist (Known Safe - Optimization)
@@ -688,13 +1380,41 @@ class GuardianProxy:
                 # 6. AI Embedding Filter (Semantic Check + Context)
                 else:
                     path_taken = "ai_firewall"
-                    # Pass the Layer 1 cleaned/de-obfuscated text to Layer 2
-                    cleaned_prompt = self.input_filter.deobfuscate(prompt)
-                    af_resp = self._check_ai_firewall(cleaned_prompt, mode, start_time, timings, show_reason)
+                    if self._is_feedback_allowlisted(tenant_id, prompt, "injection_ai"):
+                        af_resp = None
+                    elif self._should_defer_to_output_redaction(prompt):
+                        af_resp = None
+                    else:
+                        af_resp = self._check_ai_firewall(prompt, mode, start_time, timings, show_reason)
                     if af_resp:
+                        self.brain.analyze_request(session_id, prompt, blocked=True)
                         return af_resp
+                assessment = self.brain.analyze_request(session_id, prompt, blocked=False)
+                action = assessment.get("action", "allow")
+                if action == "revoke":
+                    self.brain.enforce_revocation(session_id, reason="post_analysis_gate")
+                    self._report_event("session_revoked", "HIGH", {
+                        "session_id": session_id,
+                        "reason": "Blue Team adaptive revoke threshold exceeded.",
+                        "path": path,
+                    })
+                    return Response("Forbidden: Session revoked by adaptive security controls.", status=403)
+                if action == "honeypot":
+                    self._report_event("honeypot_engaged", "MEDIUM", {
+                        "session_id": session_id,
+                        "reason": "Blue Team adaptive honeypot threshold exceeded.",
+                        "path": path,
+                    })
+                    resp = self._build_honeypot_response(session_id, path)
+                    if resp.status_code == 403:
+                        self._report_event("honeypot_rate_limited", "MEDIUM", {
+                            "session_id": session_id,
+                            "path": path,
+                        })
+                    return resp
         else:
             timings['input_process_ms'] = 0.0
+            session_id = self._get_session_id()
 
         # Forward request
         target = f"{self.target_url}/{path}"
@@ -729,11 +1449,72 @@ class GuardianProxy:
             was_redacted = False
             if self.config.get('security_policies', {}).get('validate_output'):
                 try:
-                    content = self._process_output_validation(raw_content, path, start_time, timings)
+                    content = self._process_output_validation(raw_content, path, start_time, timings, tenant_id=tenant_id)
                     was_redacted = content != raw_content
-                except ValueError:
+                except ValueError as exc:
+                    msg = str(exc)
+                    if msg.startswith("Output assurance blocked:"):
+                        return Response(
+                            "Forbidden: Output assurance policy blocked unsafe or unverifiable model output.",
+                            status=403,
+                        )
                     # Blocked leak
                     return Response("Forbidden: Potential data leak blocked by GuardianAI.", status=403)
+
+            # System Prompt Leakage Protection (OWASP LLM07)
+            if self.system_prompt_guard.enabled:
+                system_prompt = self._extract_system_prompt(data) if data else None
+                leak_decision = self.system_prompt_guard.check_response(
+                    response_text=content,
+                    system_prompt=system_prompt,
+                    user_prompt=prompt,
+                )
+                timings["system_prompt_leak_ms"] = leak_decision.score  # lightweight timing proxy
+                if leak_decision.action == "block":
+                    self._report_event(
+                        "system_prompt_leak_blocked",
+                        leak_decision.severity,
+                        {
+                            "path": path,
+                            "reason": leak_decision.reason,
+                            "score": leak_decision.score,
+                            "details": leak_decision.details,
+                            "component_timings": timings,
+                        },
+                        tenant_id=tenant_id,
+                    )
+                    if self.system_prompt_guard.enforcement_mode != "audit":
+                        return Response(
+                            "Forbidden: Potential system prompt leakage blocked by GuardianAI.",
+                            status=403,
+                        )
+
+            try:
+                content = self._apply_output_watermark(content, path, timings, tenant_id)
+            except ValueError:
+                return Response("Forbidden: Output watermark policy blocked response.", status=403)
+
+            if self.cost_abuse.enabled:
+                estimated_tokens, estimated_cost = self.cost_abuse.estimate_usage(prompt, raw_content)
+                cost_decision = self.cost_abuse.register_usage(
+                    session_id=session_id,
+                    tokens=estimated_tokens,
+                    cost_usd=estimated_cost,
+                    tenant_id=tenant_id,
+                )
+                if cost_decision.action == "quarantine":
+                    self._report_event("cost_abuse_detected", "HIGH", {
+                        **cost_decision.metrics,
+                        "reason": cost_decision.reason,
+                        "target_path": path,
+                    })
+                    self._report_event("session_quarantined", "HIGH", {
+                        "session_id": session_id,
+                        "reason": "Quarantine activated from wallet-drain anomaly detection.",
+                        "target_path": path,
+                        "metrics": cost_decision.metrics,
+                    })
+                    return Response("Forbidden: Session quarantined due to anomalous cost activity.", status=403)
             
             # Report success telemetry (Analytics)
             if not was_redacted:
@@ -782,4 +1563,5 @@ if __name__ == "__main__":
     proxy = GuardianProxy(test_config)
     # Run in main thread for debugging
     proxy._run_server()
+
 

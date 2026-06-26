@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI | Scan History & Regression Tracking</title>
+  <meta name="description" content="Track LLM security score drift, smart contract compliance progression, and regression details over time.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site-assets/style.css?v=20260602web3agent">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050409;
+      --surface: rgba(13, 9, 23, 0.7);
+      --surface-card: rgba(22, 14, 38, 0.45);
+      --border: rgba(139, 92, 246, 0.15);
+      --border-accent: rgba(0, 242, 254, 0.35);
+      --text: #f1f3f9;
+      --text-muted: #948ba3;
+      --text-dark: #4e465f;
+      --primary: #8b5cf6;
+      --primary-glow: rgba(139, 92, 246, 0.25);
+      --indigo: #00f2fe;
+      --green: #10b981;
+      --green-bg: rgba(16, 185, 129, 0.1);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.1);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245, 158, 11, 0.1);
+      --purple: #d946ef;
+      --purple-bg: rgba(217, 70, 239, 0.1);
+      --radius: 16px;
+      --radius-sm: 8px;
+    }
+    
+    html {
+      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      background-image: radial-gradient(circle at 50% -20%, #1c1f26 0%, #121317 100%);
+      overflow-x: hidden;
+    }
+
+    /* LAYOUT */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    header.main-header {
+      margin-bottom: 32px;
+    }
+    header.main-header h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff, #a5f3fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    header.main-header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    /* GRID LAYOUTS */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* FORMS & FILTERS */
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .filter-label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    select {
+      background: #090d16;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      outline: none;
+      font-size: 0.9rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-glow);
+    }
+
+    /* CHART WRAPPER */
+    .chart-container {
+      width: 100%;
+      height: 300px;
+      position: relative;
+    }
+
+    /* COMPARE UTILITY CARD */
+    .compare-card {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .compare-selector-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .compare-selector-group label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .compare-selector-group select {
+      width: 100%;
+    }
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--indigo));
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    /* COMPARE RESULT REPORT */
+    .comparison-report-area {
+      display: none;
+      margin-top: 32px;
+    }
+    .comparison-report-area.visible {
+      display: block;
+    }
+
+    .report-badge-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .delta-metric-card {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.7), rgba(8, 17, 33, 0.9));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .delta-metric-card.regression {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(220, 38, 38, 0.03));
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+    .delta-metric-card.improvement {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.03));
+      border-color: rgba(16, 185, 129, 0.25);
+    }
+
+    .delta-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-top: 8px;
+    }
+    .delta-value.plus { color: var(--green); }
+    .delta-value.minus { color: var(--red); }
+    .delta-value.neutral { color: var(--text-muted); }
+
+    .delta-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* SIDE BY SIDE SUMMARY TABLE */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      font-size: 0.95rem;
+    }
+    .compare-table th {
+      padding: 12px 16px;
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+      background: rgba(0,0,0,0.2);
+    }
+    .compare-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+    }
+    .compare-table tr:hover td {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.01);
+    }
+    .compare-table td strong {
+      color: var(--text);
+    }
+
+    /* GRADE PILLS */
+    .grade-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+    .grade-A { background: var(--green-bg); color: var(--green); }
+    .grade-B { background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
+    .grade-C { background: var(--amber-bg); color: var(--amber); }
+    .grade-D, .grade-F { background: var(--red-bg); color: var(--red); }
+    .grade-NA { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+    /* DETAILED FINDINGS DRIFT */
+    .findings-drift-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      color: #fff;
+      margin: 32px 0 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diff-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .diff-card {
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+    .diff-card.vuln-add {
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.07), transparent);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+    .diff-card.vuln-add:hover {
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+    .diff-card.vuln-remove {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.07), transparent);
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+    .diff-card.vuln-remove:hover {
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+    .diff-card.vuln-common {
+      background: linear-gradient(90deg, rgba(139, 92, 246, 0.07), transparent);
+      border-color: rgba(139, 92, 246, 0.2);
+    }
+    .diff-card.vuln-common:hover {
+      border-color: rgba(139, 92, 246, 0.4);
+    }
+
+    .diff-details h5 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .diff-details p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .diff-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+    .diff-card.vuln-add .diff-tag { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+    .diff-card.vuln-remove .diff-tag { background: rgba(16, 185, 129, 0.15); color: #a7f3d0; }
+    .diff-card.vuln-common .diff-tag { background: rgba(139, 92, 246, 0.15); color: #c084fc; }
+
+    .diff-empty {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-dark);
+      font-size: 0.9rem;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    /* ALL SCANS LIST */
+    .history-card-list {
+      margin-top: 32px;
+    }
+    .scans-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin-top: 16px;
+    }
+    .scans-table th {
+      padding: 12px;
+      text-align: left;
+      color: var(--text-muted);
+      border-bottom: 2px solid var(--border);
+      background: rgba(0,0,0,0.25);
+      font-weight: 600;
+    }
+    .scans-table td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+    }
+    .scans-table tr:hover td {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .action-btn-group {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-select {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-select:hover {
+      background: var(--primary-glow);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    @media(max-width: 900px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .report-badge-container { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <div class="brand-icon"></div>
+        GuardianAI
+      </a>
+      <nav class="nav">
+        <a href="index.html">Gateway</a>
+        <a href="audit.html">Scanner</a>
+        <a href="index.html#workflow">Workflow</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="docs.html">Docs</a>
+        <a href="dashboard.html">Console</a>
+      </nav>
+      <a class="btn btn-primary" href="audit.html">Run Free Scan</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <header class="main-header">
+      <h1>Continuous Monitoring & Regression Analysis</h1>
+      <p>Compare security grades, evaluate prompt injection vulnerability drifts, and trace remediation progress.</p>
+    </header>
+
+    <div class="dashboard-grid">
+      <!-- SCORE TREND -->
+      <div class="card">
+        <div class="card-title">
+          <span>🛡️ Vulnerability Score Trend</span>
+          <div class="filter-row">
+            <span class="filter-label">Filter Target:</span>
+            <select id="targetSelector" onchange="updateTrendChart()">
+              <option value="">-- All Targets --</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- COMPARE PANEL -->
+      <div class="card compare-card">
+        <div class="card-title">🔬 Compare Scans</div>
+        <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.4;">Select two historical scan payloads of the same target to inspect regression or remediation changes.</p>
+        
+        <div class="compare-selector-group">
+          <label for="compareA">Baseline Scan (Older)</label>
+          <select id="compareA"></select>
+        </div>
+        
+        <div class="compare-selector-group">
+          <label for="compareB">Comparison Scan (Newer)</label>
+          <select id="compareB"></select>
+        </div>
+
+        <button class="btn-primary" onclick="executeComparison()">Compare and Analyze</button>
+      </div>
+    </div>
+
+    <!-- COMPARISON RESULTS -->
+    <div class="comparison-report-area" id="comparisonReport">
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="card-title">📊 Regression & Drift Analysis Report</div>
+        
+        <div class="report-badge-container">
+          <!-- DELTA CARD -->
+          <div class="delta-metric-card" id="deltaCard">
+            <span class="delta-label">Security Score Delta</span>
+            <div class="delta-value" id="deltaScoreVal">--</div>
+            <p id="deltaMessage" style="font-size:0.85rem;margin-top:8px;font-weight:500;"></p>
+          </div>
+
+          <!-- COMPARATIVE STATS -->
+          <div>
+            <table class="compare-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th id="headerScanA">Scan A</th>
+                  <th id="headerScanB">Scan B</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Grade</strong></td>
+                  <td><span class="grade-badge" id="gradeA">--</span></td>
+                  <td><span class="grade-badge" id="gradeB">--</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Overall Score</strong></td>
+                  <td><span id="scoreValA" style="font-weight:700;">--</span>/100</td>
+                  <td><span id="scoreValB" style="font-weight:700;">--</span>/100</td>
+                </tr>
+                <tr>
+                  <td><strong>Block Rate</strong></td>
+                  <td><span id="blockRateA">--</span>%</td>
+                  <td><span id="blockRateB">--</span>%</td>
+                </tr>
+                <tr>
+                  <td><strong>Probes Blocked</strong></td>
+                  <td><span id="blockedA">--</span>/<span id="totalA">--</span></td>
+                  <td><span id="blockedB">--</span>/<span id="totalB">--</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Timestamp</strong></td>
+                  <td id="timeA" style="font-size:0.75rem;">--</td>
+                  <td id="timeB" style="font-size:0.75rem;">--</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- DRIFT DRILLDOWN -->
+        <h4 class="findings-drift-title">🚨 Regression Vulnerabilities <span id="regressCountBadge" class="grade-badge grade-D" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;">0</span></h4>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">Attack vectors that were previously successfully blocked but have now become vulnerable.</p>
+        <div class="diff-grid" id="regressionsList">
+          <div class="diff-empty">No new regressions detected. Excellent job maintaining defenses.</div>
+        </div>
+
+        <h4 class="findings-drift-title">❇️ Security Improvements <span id="improveCountBadge" class="grade-badge grade-A" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;">0</span></h4>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">Vulnerabilities that have been mitigated and are now successfully blocked by your real-time guardrails.</p>
+        <div class="diff-grid" id="improvementsList">
+          <div class="diff-empty">No new improvements found in this audit window.</div>
+        </div>
+
+        <h4 class="findings-drift-title">⚠️ Persistent Vulnerabilities <span id="commonCountBadge" class="grade-badge grade-C" style="margin-left:8px;font-size:0.75rem;padding:2px 8px;">0</span></h4>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">Security vulnerabilities that persist across both scans and require configuration updates or system updates.</p>
+        <div class="diff-grid" id="commonList">
+          <div class="diff-empty">No persistent vulnerabilities remaining.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCAN HISTORY LEDGER -->
+    <div class="card history-card-list">
+      <div class="card-title">🕒 Historical Scan Ledger</div>
+      <div style="overflow-x:auto;">
+        <table class="scans-table">
+          <thead>
+            <tr>
+              <th>Scan ID</th>
+              <th>Target URL / Name</th>
+              <th>Score</th>
+              <th>Grade</th>
+              <th>Probes Blocked</th>
+              <th>Mode</th>
+              <th>Executed At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="scansLedgerBody">
+            <tr>
+              <td colspan="8" style="text-align:center;padding:30px;color:var(--text-dark);">Loading historical scan ledger...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      &copy; 2026 GuardianAI Platform. Runtime security for Web3 AI agents.
+    </div>
+  </footer>
+
+  <script>
+    let globalScans = [];
+    let chartInstance = null;
+
+    window.onload = async function() {
+      await fetchScanHistory();
+    };
+
+    async function fetchScanHistory() {
+      try {
+        const token = localStorage.getItem('guardian_token');
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/v1/scan-history?limit=100', {
+          headers: headers
+        });
+        if (!res.ok) {
+          throw new Error('Failed to fetch scans');
+        }
+        globalScans = await res.json();
+        
+        // Handle differences in endpoint response format if any
+        if (Array.isArray(globalScans)) {
+          // already array
+        } else if (globalScans.history) {
+          globalScans = globalScans.history;
+        } else {
+          globalScans = [];
+        }
+
+        populateTargets();
+        populateComparisonSelectors();
+        renderScansLedger();
+        renderTrendChart();
+      } catch (err) {
+        console.error('Error fetching scan history:', err);
+        document.getElementById('scansLedgerBody').innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center;padding:30px;color:var(--red);">
+              ⚠️ Unable to load scan history ledger. Please ensure the backend is running.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function populateTargets() {
+      const targets = [...new Set(globalScans.map(s => s.target_url).filter(Boolean))];
+      const selector = document.getElementById('targetSelector');
+      selector.innerHTML = '<option value="">-- All Targets --</option>';
+      targets.forEach(t => {
+        const name = globalScans.find(s => s.target_url === t)?.target_name || t;
+        selector.innerHTML += `<option value="${t}">${name} (${t})</option>`;
+      });
+    }
+
+    function populateComparisonSelectors() {
+      const compareA = document.getElementById('compareA');
+      const compareB = document.getElementById('compareB');
+      
+      compareA.innerHTML = '';
+      compareB.innerHTML = '';
+
+      if (globalScans.length === 0) {
+        compareA.innerHTML = '<option value="">No scans available</option>';
+        compareB.innerHTML = '<option value="">No scans available</option>';
+        return;
+      }
+
+      globalScans.forEach((s, idx) => {
+        const dateStr = s.started_at ? new Date(s.started_at * 1000).toLocaleString() : 'Recent';
+        const label = `${s.target_name || s.target_url} [${s.scan_id.substring(0, 12)}] (${s.score}/100, ${s.grade}) - ${dateStr}`;
+        
+        // Baseline: default to second item if available, else first
+        const optionA = document.createElement('option');
+        optionA.value = s.scan_id;
+        optionA.textContent = label;
+        if (idx === 1 || (globalScans.length === 1 && idx === 0)) optionA.selected = true;
+        compareA.appendChild(optionA);
+
+        // Comparison: default to first (newest) item
+        const optionB = document.createElement('option');
+        optionB.value = s.scan_id;
+        optionB.textContent = label;
+        if (idx === 0) optionB.selected = true;
+        compareB.appendChild(optionB);
+      });
+    }
+
+    function selectScanForCompare(scanId, slot) {
+      const selector = document.getElementById(slot === 'A' ? 'compareA' : 'compareB');
+      selector.value = scanId;
+      // Scroll smoothly to comparison card
+      document.querySelector('.compare-card').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderScansLedger() {
+      const body = document.getElementById('scansLedgerBody');
+      if (globalScans.length === 0) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center;padding:30px;color:var(--text-dark);">
+              No scan entries found. Perform a vulnerability audit to generate records.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      body.innerHTML = globalScans.map(s => {
+        const dateStr = s.started_at ? new Date(s.started_at * 1000).toLocaleString() : 'N/A';
+        const scoreColor = s.grade?.startsWith('A') ? 'var(--green)' : s.grade?.startsWith('B') ? '#22d3ee' : 'var(--red)';
+        const gradeClass = `grade-${s.grade || 'NA'}`;
+        return `
+          <tr>
+            <td style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--primary);">${s.scan_id}</td>
+            <td>
+              <strong>${s.target_name || 'N/A'}</strong>
+              <div style="font-size:0.75rem;color:var(--text-dark);margin-top:2px;">${s.target_url}</div>
+            </td>
+            <td>
+              <strong style="color:${scoreColor};font-size:1.05rem;">${s.score !== null ? s.score.toFixed(1) : 'N/A'}</strong>/100
+            </td>
+            <td>
+              <span class="grade-badge ${gradeClass}">${s.grade || 'N/A'}</span>
+            </td>
+            <td>
+              ${s.protected_count !== undefined ? `${s.protected_count}/${s.total_vectors}` : 'N/A'}
+            </td>
+            <td style="text-transform:uppercase;font-size:0.75rem;font-weight:600;">
+              ${s.scan_depth || 'standard'}
+            </td>
+            <td style="font-size:0.8rem;">${dateStr}</td>
+            <td>
+              <div class="action-btn-group">
+                <button class="btn-select" onclick="selectScanForCompare('${s.scan_id}', 'A')">Baseline</button>
+                <button class="btn-select" onclick="selectScanForCompare('${s.scan_id}', 'B')">Compare</button>
+                <a class="btn-select" href="/api/v1/scan/${s.scan_id}/report" target="_blank" style="text-decoration:none;">Report</a>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderTrendChart() {
+      const ctx = document.getElementById('trendChart').getContext('2d');
+      const selectedTarget = document.getElementById('targetSelector').value;
+      
+      let filtered = globalScans.filter(s => s.score !== null);
+      if (selectedTarget) {
+        filtered = filtered.filter(s => s.target_url === selectedTarget);
+      }
+
+      // Sort chronological (oldest to newest for trend)
+      filtered.sort((a, b) => (a.started_at || 0) - (b.started_at || 0));
+
+      const labels = filtered.map(s => {
+        return s.started_at ? new Date(s.started_at * 1000).toLocaleDateString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Recent';
+      });
+      const data = filtered.map(s => s.score);
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Vulnerability Score',
+            data: data,
+            borderColor: '#0ea5e9',
+            backgroundColor: 'rgba(14, 165, 233, 0.1)',
+            borderWidth: 3,
+            tension: 0.35,
+            fill: true,
+            pointBackgroundColor: '#22d3ee',
+            pointBorderColor: '#030712',
+            pointBorderWidth: 2,
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              titleColor: '#f8fafc',
+              bodyColor: '#94a3b8',
+              borderColor: 'rgba(99, 102, 241, 0.25)',
+              borderWidth: 1,
+              padding: 12,
+              cornerRadius: 8,
+              fontFamily: 'Inter'
+            }
+          },
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#64748b', font: { family: 'Inter' } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#64748b', font: { family: 'Inter' } }
+            }
+          }
+        }
+      });
+    }
+
+    function updateTrendChart() {
+      renderTrendChart();
+    }
+
+    async function executeComparison() {
+      const id1 = document.getElementById('compareA').value;
+      const id2 = document.getElementById('compareB').value;
+      const reportSection = document.getElementById('comparisonReport');
+
+      if (!id1 || !id2) {
+        alert('Please select two scans to compare.');
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('guardian_token');
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch(`/api/v1/scan/compare?id1=${id1}&id2=${id2}`, {
+          headers: headers
+        });
+        if (!res.ok) {
+          throw new Error('Comparison API request failed');
+        }
+        const data = await res.json();
+
+        renderComparisonReport(data);
+        reportSection.classList.add('visible');
+        reportSection.scrollIntoView({ behavior: 'smooth' });
+      } catch (err) {
+        console.error('Comparison error:', err);
+        alert('Failed to perform comparative regression scan analysis. Please check system logs.');
+      }
+    }
+
+    function renderComparisonReport(data) {
+      const { scan_a, scan_b, delta, comparison } = data;
+
+      // Update headers
+      document.getElementById('headerScanA').textContent = `Baseline [${scan_a.scan_id.substring(0, 8)}]`;
+      document.getElementById('headerScanB').textContent = `Compare [${scan_b.scan_id.substring(0, 8)}]`;
+
+      // Update delta card
+      const deltaScoreVal = document.getElementById('deltaScoreVal');
+      const deltaCard = document.getElementById('deltaCard');
+      const deltaMessage = document.getElementById('deltaMessage');
+      
+      const formattedDelta = delta.score > 0 ? `+${delta.score}` : `${delta.score}`;
+      deltaScoreVal.textContent = formattedDelta;
+      
+      deltaCard.className = 'delta-metric-card';
+      deltaScoreVal.className = 'delta-value';
+
+      if (delta.score < 0) {
+        deltaCard.classList.add('regression');
+        deltaScoreVal.classList.add('minus');
+        deltaMessage.innerHTML = `🚨 Regression Detected!<br/>Score decreased by ${Math.abs(delta.score)} points.`;
+      } else if (delta.score > 0) {
+        deltaCard.classList.add('improvement');
+        deltaScoreVal.classList.add('plus');
+        deltaMessage.innerHTML = `❇️ Mitigation Successful!<br/>Score improved by ${delta.score} points.`;
+      } else {
+        deltaScoreVal.classList.add('neutral');
+        deltaMessage.textContent = '🛡️ Defenses stable. No security drift detected.';
+      }
+
+      // Update summary table
+      document.getElementById('scoreValA').textContent = scan_a.score !== null ? scan_a.score.toFixed(1) : 'N/A';
+      document.getElementById('scoreValB').textContent = scan_b.score !== null ? scan_b.score.toFixed(1) : 'N/A';
+
+      document.getElementById('blockRateA').textContent = scan_a.block_rate !== null ? scan_a.block_rate.toFixed(1) : '0';
+      document.getElementById('blockRateB').textContent = scan_b.block_rate !== null ? scan_b.block_rate.toFixed(1) : '0';
+
+      document.getElementById('blockedA').textContent = scan_a.blocked_count;
+      document.getElementById('totalA').textContent = scan_a.total_vectors;
+
+      document.getElementById('blockedB').textContent = scan_b.blocked_count;
+      document.getElementById('totalB').textContent = scan_b.total_vectors;
+
+      document.getElementById('timeA').textContent = scan_a.timestamp ? new Date(scan_a.timestamp * 1000).toLocaleString() : 'N/A';
+      document.getElementById('timeB').textContent = scan_b.timestamp ? new Date(scan_b.timestamp * 1000).toLocaleString() : 'N/A';
+
+      // Update grade badges
+      const gradeA = document.getElementById('gradeA');
+      gradeA.textContent = scan_a.grade || 'N/A';
+      gradeA.className = `grade-badge grade-${scan_a.grade || 'NA'}`;
+
+      const gradeB = document.getElementById('gradeB');
+      gradeB.textContent = scan_b.grade || 'N/A';
+      gradeB.className = `grade-badge grade-${scan_b.grade || 'NA'}`;
+
+      // Update counts
+      document.getElementById('regressCountBadge').textContent = comparison.regressions_count;
+      document.getElementById('improveCountBadge').textContent = comparison.improvements_count;
+      document.getElementById('commonCountBadge').textContent = comparison.common_count;
+
+      // Render Regressions
+      const regressionsList = document.getElementById('regressionsList');
+      if (comparison.regressions_count > 0) {
+        regressionsList.innerHTML = comparison.regressions.map(r => `
+          <div class="diff-card vuln-add">
+            <div class="diff-details">
+              <h5>${r.name}</h5>
+              <p>Pillar: ${r.pillar} | ID: <strong>${r.vector_id}</strong></p>
+              <p style="margin-top:6px;">Baseline: <span style="color:var(--green);font-weight:600;">${r.status_a}</span> &rarr; Comparison: <span style="color:var(--red);font-weight:600;">${r.status_b}</span></p>
+            </div>
+            <span class="diff-tag">Regression</span>
+          </div>
+        `).join('');
+      } else {
+        regressionsList.innerHTML = '<div class="diff-empty">No new regressions detected. Excellent job maintaining defenses.</div>';
+      }
+
+      // Render Improvements
+      const improvementsList = document.getElementById('improvementsList');
+      if (comparison.improvements_count > 0) {
+        improvementsList.innerHTML = comparison.improvements.map(r => `
+          <div class="diff-card vuln-remove">
+            <div class="diff-details">
+              <h5>${r.name}</h5>
+              <p>Pillar: ${r.pillar} | ID: <strong>${r.vector_id}</strong></p>
+              <p style="margin-top:6px;">Baseline: <span style="color:var(--red);font-weight:600;">${r.status_a}</span> &rarr; Comparison: <span style="color:var(--green);font-weight:600;">${r.status_b}</span></p>
+            </div>
+            <span class="diff-tag">Mitigated</span>
+          </div>
+        `).join('');
+      } else {
+        improvementsList.innerHTML = '<div class="diff-empty">No new improvements found in this audit window.</div>';
+      }
+
+      // Render Common Vulnerabilities
+      const commonList = document.getElementById('commonList');
+      if (comparison.common_count > 0) {
+        commonList.innerHTML = comparison.common_vulnerabilities.map(r => `
+          <div class="diff-card vuln-common">
+            <div class="diff-details">
+              <h5>${r.name}</h5>
+              <p>Pillar: ${r.pillar} | ID: <strong>${r.vector_id}</strong></p>
+              <p style="margin-top:6px;">Status A: <span style="color:var(--red);font-weight:600;">${r.status_a}</span> | Status B: <span style="color:var(--red);font-weight:600;">${r.status_b}</span></p>
+            </div>
+            <span class="diff-tag">Vulnerable</span>
+          </div>
+        `).join('');
+      } else {
+        commonList.innerHTML = '<div class="diff-empty">No persistent vulnerabilities remaining.</div>';
+      }
+    }
+  </script>
+</body>
+</html>

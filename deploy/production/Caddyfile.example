@@ -1,0 +1,31 @@
+# Replace domains with your real DNS records.
+
+guardian.example.com {
+    encode gzip
+    reverse_proxy 127.0.0.1:8081
+}
+
+guardian-admin.example.com {
+    encode gzip
+    reverse_proxy 127.0.0.1:8001
+}
+
+# Agentic Security Phase 2 mTLS example.
+# Use this for agent/tool traffic when agentic_security.require_mtls=true.
+# Replace paths and domains with your real cert material and DNS records.
+agent-gateway.example.com {
+    encode gzip
+
+    tls /etc/caddy/certs/server.crt /etc/caddy/certs/server.key {
+        client_auth {
+            mode require_and_verify
+            trusted_ca_cert_file /etc/caddy/mtls/agent-client-ca.pem
+        }
+    }
+
+    reverse_proxy 127.0.0.1:8081 {
+        header_up X-Guardian-mTLS-Verified SUCCESS
+        header_up X-Guardian-mTLS-Fingerprint {http.request.tls.client.fingerprint}
+        header_up X-Guardian-mTLS-Subject {http.request.tls.client.subject}
+    }
+}

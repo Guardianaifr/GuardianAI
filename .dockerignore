@@ -16,6 +16,7 @@ __pycache__/
 
 # Exclude local DB
 guardian.db
+artifacts/control/license_activation.json
 
 # Exclude node_modules (we don't build React in Docker yet)
 node_modules/
@@ -23,3 +24,9 @@ node_modules/
 # Exclude Git
 .git/
 .gitignore
+
+# Exclude local environment
+.venv*/
+.env
+.env.production
+guardian_data/

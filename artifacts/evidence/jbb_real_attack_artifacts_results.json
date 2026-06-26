@@ -1,0 +1,10 @@
+{
+  "strict": {
+    "blocked": 149,
+    "total": 152
+  },
+  "balanced": {
+    "blocked": 140,
+    "total": 152
+  }
+}

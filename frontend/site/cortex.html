@@ -1,0 +1,1056 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI | Agent Cortex — Verifiable Decision Timeline</title>
+  <meta name="description" content="GuardianAI Agent Cortex — Immutable, cryptographically verifiable AI agent decision timeline with Monad on-chain anchoring, time-travel replay, and insurance certificate generation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#050409;
+      --bg2:#0d0917;
+      --surface:rgba(13, 9, 23, 0.7);
+      --surface2:rgba(22, 14, 38, 0.85);
+      --surface3:rgba(30, 18, 51, 0.9);
+      --border:rgba(139, 92, 246, 0.15);
+      --border2:rgba(0, 242, 254, 0.4);
+      --border3:rgba(0, 242, 254, 0.15);
+      --text:#f1f3f9;
+      --text2:#948ba3;
+      --text3:#4e465f;
+      --accent:#8b5cf6;
+      --accent2:#00f2fe;
+      --accent-glow:rgba(139, 92, 246, 0.25);
+      --green:#10b981;
+      --green-dim:rgba(16, 185, 129, 0.12);
+      --red:#ef4444;
+      --red-dim:rgba(239, 68, 68, 0.12);
+      --amber:#f59e0b;
+      --amber-dim:rgba(245, 158, 11, 0.12);
+      --purple:#d946ef;
+      --purple-dim:rgba(217, 70, 239, 0.12);
+      --cyan:#00f2fe;
+      --cyan-dim:rgba(0, 242, 254, 0.1);
+      --radius:10px;
+      --radius-lg:16px;
+      --transition:all .2s cubic-bezier(.25,.8,.25,1);
+    }
+
+    html{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;scroll-behavior:smooth}
+    body{min-height:100vh;overflow-x:hidden;background:var(--bg);background-image:radial-gradient(circle at 50% -20%, #170d2b 0%, #050409 100%)}
+    .mono{font-family:'JetBrains Mono',monospace;font-size:.82em}
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+    /* ── Layout ── */
+    .app{display:grid;grid-template-rows:56px 1fr;min-height:100vh}
+
+    /* ── Topbar ── */
+    .topbar{background:rgba(13,15,20,.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:100}
+    .topbar-left{display:flex;align-items:center;gap:16px}
+    .brand{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.15rem;color:var(--accent);text-decoration:none;display:flex;align-items:center;gap:8px;letter-spacing:-.02em}
+    .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:cortexPulse 2s ease-in-out infinite}
+    @keyframes cortexPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.7)}}
+    .breadcrumb{display:flex;align-items:center;gap:8px;color:var(--text3);font-size:.82rem}
+    .breadcrumb a{color:var(--text3);text-decoration:none;transition:color .15s}
+    .breadcrumb a:hover{color:var(--text)}
+    .breadcrumb-sep{color:var(--text3)}
+    .topbar-right{display:flex;align-items:center;gap:10px}
+    .badge-live{background:rgba(46,204,113,.15);border:1px solid rgba(46,204,113,.35);color:var(--green);padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600;display:flex;align-items:center;gap:5px}
+    .badge-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:cortexPulse 1.5s ease-in-out infinite}
+    .btn{border:1px solid var(--border);background:var(--surface2);color:var(--text2);border-radius:var(--radius);padding:7px 14px;cursor:pointer;text-decoration:none;font-weight:500;font-size:.82rem;transition:var(--transition);display:inline-flex;align-items:center;gap:6px}
+    .btn:hover{border-color:var(--border2);color:var(--text);background:rgba(75,138,255,.1)}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+    .btn.primary:hover{background:#3a79ee;box-shadow:0 0 20px rgba(75,138,255,.4)}
+    .btn.danger{background:var(--red-dim);border-color:rgba(255,82,82,.3);color:#ff9d9d}
+    .btn.danger:hover{background:rgba(255,82,82,.2)}
+    .btn.sm{padding:5px 10px;font-size:.77rem}
+
+    /* ── Body ── */
+    .body{display:grid;grid-template-columns:300px 1fr 360px;gap:0;height:calc(100vh - 56px);overflow:hidden}
+
+    /* ── Left Sidebar ── */
+    .left-panel{border-right:1px solid var(--border);background:var(--surface);backdrop-filter:blur(16px);overflow-y:auto;display:flex;flex-direction:column;gap:0}
+    .panel-section{padding:20px;border-bottom:1px solid var(--border)}
+    .panel-section:last-child{border-bottom:none;flex:1}
+    .panel-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:.82rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .panel-title-icon{font-size:1rem}
+
+    .field{margin-bottom:12px}
+    .field label{display:block;color:var(--text3);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+    input,select,textarea{width:100%;background:rgba(10,12,18,.6);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:9px 11px;font:inherit;outline:none;transition:var(--transition)}
+    textarea{min-height:80px;resize:vertical}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+    select option{background:#1c1e28}
+
+    /* Stats row */
+    .stats-mini{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
+    .stat-mini{background:rgba(10,12,18,.5);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;text-align:center}
+    .stat-mini .sv{font-family:'Outfit',sans-serif;font-size:1.5rem;font-weight:800;line-height:1}
+    .stat-mini .sl{color:var(--text3);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+    .stat-mini.green .sv{color:var(--green)}
+    .stat-mini.blue .sv{color:var(--accent2)}
+    .stat-mini.amber .sv{color:var(--amber)}
+    .stat-mini.purple .sv{color:var(--purple)}
+
+    /* Trial banner */
+    .trial-banner{background:linear-gradient(135deg,rgba(75,138,255,.12),rgba(196,127,255,.08));border:1px solid rgba(75,138,255,.25);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;font-size:.82rem}
+    .trial-banner .tb-head{font-weight:700;color:var(--accent2);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+    .trial-banner .tb-days{font-size:1.5rem;font-weight:800;color:var(--accent);display:inline-block}
+    .trial-progress{height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+    .trial-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:2px;transition:width .5s ease}
+
+    /* Action buttons */
+    .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .action-btn{border:1px solid var(--border);background:rgba(10,12,18,.5);color:var(--text2);border-radius:var(--radius);padding:10px 8px;cursor:pointer;font:inherit;font-weight:500;font-size:.8rem;transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:6px}
+    .action-btn:hover{border-color:var(--border2);color:var(--text);background:rgba(75,138,255,.08)}
+    .action-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;grid-column:1/-1}
+    .action-btn.primary:hover{background:#3a79ee;box-shadow:0 0 20px rgba(75,138,255,.35)}
+
+    /* Result msg */
+    .result-msg{margin-top:10px;min-height:18px;font-size:.8rem;border-radius:var(--radius);padding:0}
+    .result-msg.ok{color:var(--green)}
+    .result-msg.bad{color:var(--red)}
+    .result-msg.loading{color:var(--text3)}
+
+    /* ── Center: Timeline ── */
+    .center-panel{overflow-y:auto;display:flex;flex-direction:column}
+
+    /* Filter bar */
+    .filter-bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:sticky;top:0;z-index:50;backdrop-filter:blur(16px)}
+    .filter-bar input,.filter-bar select{padding:7px 10px;font-size:.82rem;width:auto;flex:1;min-width:0}
+    .filter-bar select{flex:0 0 auto;width:150px}
+    .filter-chip{border:1px solid var(--border);background:transparent;color:var(--text3);border-radius:20px;padding:4px 12px;cursor:pointer;font-size:.75rem;font-weight:500;transition:var(--transition);white-space:nowrap}
+    .filter-chip.active{border-color:var(--accent);background:var(--accent-glow);color:var(--accent2)}
+    .filter-chips{display:flex;gap:6px}
+
+    /* Global stats bar */
+    .global-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);flex-shrink:0}
+    .gs-item{background:var(--surface);padding:14px 16px;text-align:center}
+    .gs-item .gv{font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:800}
+    .gs-item .gl{color:var(--text3);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+    .gs-item.gblue .gv{color:var(--accent2)}
+    .gs-item.ggreen .gv{color:var(--green)}
+    .gs-item.gamber .gv{color:var(--amber)}
+    .gs-item.gpurple .gv{color:var(--purple)}
+    .gs-item.gcyan .gv{color:var(--cyan)}
+
+    /* Timeline scroll */
+    .timeline-wrap{padding:20px;flex:1}
+    .timeline-scroll{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 16px;min-height:180px}
+    .timeline-scroll::-webkit-scrollbar{height:4px}
+
+    /* Event cards */
+    .ev-card{min-width:176px;max-width:176px;background:rgba(10,12,18,.55);border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:var(--transition);position:relative;overflow:hidden}
+    .ev-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;border-radius:var(--radius);pointer-events:none}
+    .ev-card:hover{border-color:var(--border3);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+    .ev-card:hover::before{opacity:1}
+    .ev-card.active{border-color:var(--accent) !important;box-shadow:0 0 0 1px var(--accent),0 8px 30px rgba(75,138,255,.2) !important}
+    .ev-card.ev-llm_call{border-top:2px solid var(--accent)}
+    .ev-card.ev-decision{border-top:2px solid var(--amber)}
+    .ev-card.ev-tool_invocation{border-top:2px solid var(--green)}
+    .ev-card.ev-policy_gate{border-top:2px solid var(--red)}
+    .ev-card.ev-memory_access{border-top:2px solid var(--purple)}
+    .ev-card.ev-credential_check{border-top:2px solid var(--cyan)}
+    .ev-card.ev-interlock{border-top:2px solid #ff6b9d}
+
+    .ev-type-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .ev-type-pill{display:inline-flex;align-items:center;gap:5px;font-size:.67rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:2px 7px;border-radius:10px}
+    .ev-type-pill.llm_call{background:rgba(75,138,255,.15);color:var(--accent2)}
+    .ev-type-pill.decision{background:var(--amber-dim);color:var(--amber)}
+    .ev-type-pill.tool_invocation{background:var(--green-dim);color:var(--green)}
+    .ev-type-pill.policy_gate{background:var(--red-dim);color:var(--red)}
+    .ev-type-pill.memory_access{background:var(--purple-dim);color:var(--purple)}
+    .ev-type-pill.credential_check{background:var(--cyan-dim);color:var(--cyan)}
+    .ev-type-pill.interlock{background:rgba(255,107,157,.12);color:#ff6b9d}
+
+    .ev-anchored{font-size:.62rem;color:var(--green);background:var(--green-dim);padding:2px 5px;border-radius:6px}
+    .ev-action{font-weight:600;font-size:.83rem;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+    .ev-cat{color:var(--text3);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ev-time{color:var(--text3);font-size:.7rem;margin-top:6px}
+    .ev-hash{color:var(--text3);font-size:.65rem;font-family:'JetBrains Mono',monospace;margin-top:2px}
+    .ev-confidence{margin-top:8px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+    .ev-confidence-bar{height:100%;border-radius:2px;transition:width .5s ease}
+    .ev-confidence-bar.high{background:var(--green)}
+    .ev-confidence-bar.mid{background:var(--amber)}
+    .ev-confidence-bar.low{background:var(--red)}
+
+    /* Timeline connector line */
+    .timeline-connector{position:relative;display:flex;align-items:stretch}
+    .timeline-connector::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border);z-index:0}
+
+    /* Detail pane */
+    .detail-pane{padding:20px;border-top:1px solid var(--border);background:rgba(10,12,18,.3)}
+    .detail-pane h3{font-family:'Outfit',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+    .kv-item{background:rgba(10,12,18,.55);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;min-width:0}
+    .kv-item .k{color:var(--text3);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+    .kv-item .v{word-break:break-all;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--text2)}
+    .kv-item .v.good{color:var(--green)}
+    .kv-item .v.bad{color:var(--red)}
+    .kv-item.full{grid-column:1/-1}
+    .kv-item.accent-border{border-color:var(--border2)}
+
+    /* Empty state */
+    .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text3);padding:40px;text-align:center}
+    .empty-state .icon{font-size:3rem;opacity:.4}
+    .empty-state .title{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;color:var(--text2)}
+    .empty-state .sub{font-size:.85rem;max-width:300px}
+
+    /* ── Right Sidebar ── */
+    .right-panel{border-left:1px solid var(--border);background:var(--surface);backdrop-filter:blur(16px);overflow-y:auto;display:flex;flex-direction:column}
+
+    /* Tabs */
+    .tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+    .tab{flex:1;padding:12px 8px;text-align:center;cursor:pointer;font-size:.78rem;font-weight:600;color:var(--text3);border-bottom:2px solid transparent;transition:var(--transition);background:none;border-top:none;border-left:none;border-right:none}
+    .tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
+    .tab:hover:not(.active){color:var(--text2)}
+    .tab-content{display:none;padding:16px;flex:1;overflow-y:auto}
+    .tab-content.active{display:block}
+
+    /* Proof verify */
+    .verify-result{margin-top:12px;padding:10px 14px;border-radius:var(--radius);font-weight:600;font-size:.85rem;display:none}
+    .verify-result.ok{background:var(--green-dim);border:1px solid rgba(46,204,113,.3);color:var(--green);display:block}
+    .verify-result.bad{background:var(--red-dim);border:1px solid rgba(255,82,82,.3);color:var(--red);display:block}
+
+    /* Interlock viz */
+    .interlock-nodes{display:flex;align-items:center;gap:12px;margin:14px 0;justify-content:center}
+    .node-box{background:rgba(10,12,18,.7);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;text-align:center;font-size:.8rem;min-width:100px}
+    .node-box .nid{color:var(--accent2);font-weight:600;font-family:'JetBrains Mono',monospace;font-size:.7rem}
+    .node-connector{flex:1;height:2px;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:1px;position:relative}
+    .node-connector::after{content:'🔗';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.9rem;line-height:1;background:var(--bg);padding:0 4px}
+
+    /* Insurance cert */
+    .cert-box{background:linear-gradient(135deg,rgba(10,14,24,.95),rgba(20,24,36,.95));border:1px solid var(--border2);border-radius:var(--radius-lg);padding:20px;position:relative;overflow:hidden}
+    .cert-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--purple),var(--cyan))}
+    .cert-header{text-align:center;margin-bottom:16px}
+    .cert-header .ch{font-family:'Outfit',sans-serif;font-weight:800;font-size:1rem;color:var(--accent2);letter-spacing:.1em}
+    .cert-header .cs{font-size:.72rem;color:var(--text3);margin-top:2px}
+    .cert-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem}
+    .cert-row:last-child{border-bottom:none}
+    .cert-row .ck{color:var(--text3)}
+    .cert-row .cv{color:var(--text);font-weight:600;font-family:'JetBrains Mono',monospace;font-size:.75rem}
+    .cert-row .cv.green{color:var(--green)}
+
+    /* Loading spinner */
+    .spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Pre code */
+    pre{background:rgba(10,12,18,.7);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text2);overflow:auto;max-height:300px;white-space:pre-wrap;word-break:break-word;line-height:1.5}
+
+    /* Login overlay */
+    .login-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);backdrop-filter:blur(20px);display:none;align-items:center;justify-content:center;z-index:1000}
+    .login-box{width:min(360px,calc(100% - 32px));background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px;box-shadow:0 0 80px rgba(75,138,255,.12)}
+    .login-box h2{font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:800;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+    .login-err{color:var(--red);font-size:.82rem;margin-top:8px;min-height:18px}
+
+    /* Toast */
+    .toast-wrap{position:fixed;bottom:24px;right:24px;z-index:500;display:flex;flex-direction:column;gap:8px}
+    .toast{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:.82rem;box-shadow:0 8px 30px rgba(0,0,0,.4);animation:toastIn .25s ease;max-width:320px}
+    @keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .toast.ok{border-color:rgba(46,204,113,.35)}
+    .toast.bad{border-color:rgba(255,82,82,.35)}
+
+    /* Responsive */
+    @media(max-width:1200px){.body{grid-template-columns:260px 1fr 0}.right-panel{display:none}}
+    @media(max-width:900px){.body{grid-template-columns:1fr}.left-panel{display:none}.global-stats{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:600px){.filter-bar{flex-wrap:wrap}.global-stats{grid-template-columns:repeat(2,1fr)}.filter-chips{display:none}}
+  </style>
+</head>
+<body>
+
+<!-- ── Login Overlay ── -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>🧠 Agent Cortex</h2>
+    <div class="field">
+      <label for="loginUser">Username</label>
+      <input id="loginUser" value="admin" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="loginPass">Password</label>
+      <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn primary" style="width:100%;justify-content:center" onclick="login()" id="loginBtn">Sign In</button>
+    <div class="login-err" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ── Toast Container ── -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div class="app">
+
+  <!-- ── Topbar ── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="brand" href="dashboard.html">
+        <span class="brand-dot"></span>GuardianAI
+      </a>
+      <div class="breadcrumb">
+        <span class="breadcrumb-sep">/</span>
+        <a href="dashboard.html">Dashboard</a>
+        <span class="breadcrumb-sep">/</span>
+        <span style="color:var(--accent2)">🧠 Agent Cortex</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="badge-live" id="streamBadge" style="display:none">Streaming</div>
+      <a class="btn sm" href="passport.html">🪪 Passport</a>
+      <a class="btn sm" href="dashboard.html">📊 Dashboard</a>
+      <button class="btn sm danger" onclick="logout()">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- ── Body ── -->
+  <div class="body">
+
+    <!-- ── Left Sidebar ── -->
+    <aside class="left-panel">
+
+      <!-- Agent selector -->
+      <div class="panel-section">
+        <div class="panel-title"><span class="panel-title-icon">🤖</span>Agent</div>
+        <div class="field">
+          <label for="agentId">Agent ID</label>
+          <input id="agentId" value="trading-bot-alpha" placeholder="agent-id">
+        </div>
+        <div class="field">
+          <label for="evtFilter">Event Type</label>
+          <select id="evtFilter">
+            <option value="">All Events</option>
+            <option value="llm_call">🔵 LLM Call</option>
+            <option value="decision">🟡 Decision</option>
+            <option value="tool_invocation">🟢 Tool Invocation</option>
+            <option value="policy_gate">🔴 Policy Gate</option>
+            <option value="memory_access">🟣 Memory Access</option>
+            <option value="credential_check">🩵 Credential Check</option>
+            <option value="interlock">💗 Interlock</option>
+          </select>
+        </div>
+        <div class="action-grid">
+          <button class="action-btn primary" onclick="loadTimeline()">⚡ Load Timeline</button>
+          <button class="action-btn" onclick="recordSample()">📝 Record Sample</button>
+          <button class="action-btn" onclick="anchorBatch()">⛓️ Anchor Batch</button>
+          <button class="action-btn" onclick="startStream()">📡 Stream Live</button>
+        </div>
+        <div class="result-msg" id="leftResult"></div>
+      </div>
+
+      <!-- Stats -->
+      <div class="panel-section">
+        <div class="panel-title"><span class="panel-title-icon">📊</span>Stats</div>
+        <div class="stats-mini">
+          <div class="stat-mini blue"><div class="sv" id="statTotal">—</div><div class="sl">Events</div></div>
+          <div class="stat-mini green"><div class="sv" id="statAnchors">—</div><div class="sl">Anchors</div></div>
+          <div class="stat-mini amber"><div class="sv" id="statBlocked">—</div><div class="sl">Blocked</div></div>
+          <div class="stat-mini purple"><div class="sv" id="statDays">—</div><div class="sl">Days Active</div></div>
+        </div>
+      </div>
+
+      <!-- Trial -->
+      <div class="panel-section">
+        <div class="panel-title"><span class="panel-title-icon">⏱️</span>Trial Status</div>
+        <div class="trial-banner" id="trialBanner">
+          <div class="tb-head">⚡ Free Trial</div>
+          <div style="font-size:.8rem;color:var(--text3)">Load an agent to see trial status</div>
+        </div>
+        <button class="action-btn" id="startTrialBtn" onclick="activateTrial()" style="width:100%;justify-content:center;margin-top:8px;display:none">⚡ Start 10-Day Free Trial</button>
+        <a href="pricing.html" style="display:block;text-align:center;font-size:.72rem;color:var(--text3);margin-top:8px;text-decoration:none" onmouseover="this.style.color='var(--accent2)'" onmouseout="this.style.color='var(--text3)'">View Cortex Plans →</a>
+      </div>
+
+
+      <!-- Replay -->
+      <div class="panel-section">
+        <div class="panel-title"><span class="panel-title-icon">⏪</span>Time-Travel Replay</div>
+        <div class="field">
+          <label for="replayTs">Unix Timestamp</label>
+          <input id="replayTs" placeholder="leave blank for now" class="mono">
+        </div>
+        <button class="action-btn" onclick="replay()" style="width:100%;justify-content:center">⏪ Reconstruct State</button>
+        <div class="result-msg" id="replayResult"></div>
+      </div>
+
+    </aside>
+
+    <!-- ── Center Panel ── -->
+    <main class="center-panel">
+
+      <!-- Global stats bar -->
+      <div class="global-stats">
+        <div class="gs-item gblue"><div class="gv" id="gvEvents">—</div><div class="gl">Total Events</div></div>
+        <div class="gs-item ggreen"><div class="gv" id="gvAnchored">—</div><div class="gl">Anchored</div></div>
+        <div class="gs-item gamber"><div class="gv" id="gvPolicyGates">—</div><div class="gl">Policy Gates</div></div>
+        <div class="gs-item gpurple"><div class="gv" id="gvDecisions">—</div><div class="gl">Decisions</div></div>
+        <div class="gs-item gcyan"><div class="gv" id="gvTools">—</div><div class="gl">Tool Calls</div></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <input id="searchFilter" placeholder="🔍 Search events…" oninput="applyFilters()" style="max-width:220px">
+        <div class="filter-chips" id="filterChips">
+          <span class="filter-chip active" data-type="" onclick="setChip(this,'')">All</span>
+          <span class="filter-chip" data-type="llm_call" onclick="setChip(this,'llm_call')">🔵 LLM</span>
+          <span class="filter-chip" data-type="decision" onclick="setChip(this,'decision')">🟡 Decision</span>
+          <span class="filter-chip" data-type="tool_invocation" onclick="setChip(this,'tool_invocation')">🟢 Tool</span>
+          <span class="filter-chip" data-type="policy_gate" onclick="setChip(this,'policy_gate')">🔴 Policy</span>
+          <span class="filter-chip" data-type="memory_access" onclick="setChip(this,'memory_access')">🟣 Memory</span>
+        </div>
+        <button class="btn sm" onclick="exportChain()" style="margin-left:auto">⬇ Export</button>
+      </div>
+
+      <!-- Timeline + detail -->
+      <div class="timeline-wrap">
+        <div id="timelineContainer">
+          <div class="empty-state" id="emptyState">
+            <div class="icon">🧠</div>
+            <div class="title">No Agent Cortex Data</div>
+            <div class="sub">Select an agent and click <strong>Load Timeline</strong> to view their verifiable decision history.</div>
+          </div>
+          <div class="timeline-scroll" id="timeline" style="display:none"></div>
+        </div>
+
+        <!-- Detail pane -->
+        <div class="detail-pane" id="detailPane" style="display:none">
+          <h3 id="detailTitle">Event Detail</h3>
+          <div class="detail-grid" id="detailGrid"></div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ── Right Sidebar ── -->
+    <aside class="right-panel">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab(this,'tabVerify')" id="t-verify">Verify</button>
+        <button class="tab" onclick="switchTab(this,'tabInterlock')" id="t-interlock">Interlock</button>
+        <button class="tab" onclick="switchTab(this,'tabInsurance')" id="t-insurance">Insurance</button>
+      </div>
+
+      <!-- Tab: Verify -->
+      <div class="tab-content active" id="tabVerify">
+        <div class="panel-title" style="margin-bottom:14px"><span class="panel-title-icon">🔍</span>Merkle Proof Verifier</div>
+        <div class="field">
+          <label for="vLeaf">Merkle Leaf Hash</label>
+          <input id="vLeaf" class="mono" placeholder="0x…">
+        </div>
+        <div class="field">
+          <label for="vRoot">Merkle Root</label>
+          <input id="vRoot" class="mono" placeholder="0x…">
+        </div>
+        <div class="field">
+          <label for="vProof">Proof Array (JSON)</label>
+          <textarea id="vProof" class="mono" placeholder='["0xabc…","0xdef…"]'></textarea>
+        </div>
+        <button class="action-btn primary" onclick="verifyProof()" style="width:100%;justify-content:center">🔐 Verify On-Chain Proof</button>
+        <div class="verify-result" id="verifyResult"></div>
+
+        <div style="margin-top:20px">
+          <div class="panel-title" style="margin-bottom:10px"><span class="panel-title-icon">⛓️</span>On-Chain Anchors</div>
+          <div id="anchorList" style="color:var(--text3);font-size:.82rem">Load an agent to see anchors.</div>
+        </div>
+      </div>
+
+      <!-- Tab: Interlock -->
+      <div class="tab-content" id="tabInterlock">
+        <div class="panel-title" style="margin-bottom:14px"><span class="panel-title-icon">🤝</span>Cross-Agent Interlock</div>
+        <p style="font-size:.8rem;color:var(--text3);margin-bottom:14px">Create a mutual cryptographic proof that two agents interacted. Both Cortex recorders get linked events.</p>
+
+        <!-- Visual node diagram -->
+        <div class="interlock-nodes">
+          <div class="node-box">
+            <div style="font-size:.72rem;color:var(--text3);margin-bottom:3px">Agent A</div>
+            <div class="nid" id="nodeA">—</div>
+          </div>
+          <div class="node-connector"></div>
+          <div class="node-box">
+            <div style="font-size:.72rem;color:var(--text3);margin-bottom:3px">Agent B</div>
+            <div class="nid" id="nodeB">—</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="agentB">Counterparty Agent ID</label>
+          <input id="agentB" value="agent-b" placeholder="agent-id" oninput="document.getElementById('nodeB').textContent=this.value||'—'">
+        </div>
+        <div class="field">
+          <label for="interlockType">Interaction Type</label>
+          <select id="interlockType">
+            <option value="data_transfer">Data Transfer</option>
+            <option value="negotiation">Negotiation</option>
+            <option value="tool_delegation">Tool Delegation</option>
+            <option value="audit_request">Audit Request</option>
+            <option value="credential_exchange">Credential Exchange</option>
+          </select>
+        </div>
+        <button class="action-btn primary" onclick="createInterlock()" style="width:100%;justify-content:center">🤝 Create Interlock Proof</button>
+        <div class="result-msg" id="interlockResult"></div>
+      </div>
+
+      <!-- Tab: Insurance -->
+      <div class="tab-content" id="tabInsurance">
+        <div class="panel-title" style="margin-bottom:14px"><span class="panel-title-icon">🛡️</span>Insurance Certificate</div>
+        <p style="font-size:.8rem;color:var(--text3);margin-bottom:14px">Generate a signed evidence package for insurers covering a specific period.</p>
+        <div class="field">
+          <label for="certPeriod">Coverage Period (days)</label>
+          <select id="certPeriod">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </div>
+        <button class="action-btn primary" onclick="generateCert()" style="width:100%;justify-content:center">🛡️ Generate Certificate</button>
+        <div id="certDisplay" style="margin-top:14px"></div>
+      </div>
+
+    </aside>
+
+  </div><!-- /.body -->
+</div><!-- /.app -->
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────
+const API = location.origin;
+let token = localStorage.getItem('guardian_token') || '';
+let allEvents = [];
+let filteredEvents = [];
+let activeChip = '';
+let streamPoll = null;
+
+// ─────────────────────────────────────────────────────────────
+// Auth
+// ─────────────────────────────────────────────────────────────
+function authH(extra = {}) {
+  return token ? { 'Authorization': `Bearer ${token}`, ...extra } : extra;
+}
+
+async function apiFetch(path, opts = {}) {
+  const headers = authH({ 'Content-Type': 'application/json', ...(opts.headers || {}) });
+  const res = await fetch(`${API}${path}`, { ...opts, headers });
+  if (res.status === 401 || res.status === 403) {
+    document.getElementById('loginOverlay').style.display = 'flex';
+    throw new Error('Authentication required');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+async function login() {
+  const user = document.getElementById('loginUser').value;
+  const pass = document.getElementById('loginPass').value;
+  const btn = document.getElementById('loginBtn');
+  btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Authorization': `Basic ${btoa(`${user}:${pass}`)}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Login failed');
+    token = data.access_token;
+    localStorage.setItem('guardian_token', token);
+    document.getElementById('loginOverlay').style.display = 'none';
+    toast('Signed in successfully', 'ok');
+    loadTimeline();
+  } catch (e) {
+    document.getElementById('loginError').textContent = e.message;
+  } finally {
+    btn.innerHTML = 'Sign In';
+    btn.disabled = false;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('guardian_token');
+  token = '';
+  stopStream();
+  document.getElementById('loginOverlay').style.display = 'flex';
+}
+
+// ─────────────────────────────────────────────────────────────
+// Toast
+// ─────────────────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+function agentId() { return document.getElementById('agentId').value.trim(); }
+
+function short(v, l = 8, t = 6) {
+  if (!v) return '—';
+  const s = String(v);
+  if (s.length <= l + t + 3) return s;
+  return `${s.slice(0, l)}…${s.slice(-t)}`;
+}
+
+function esc(v) {
+  return String(v).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function setResult(id, msg, cls = '') {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = `result-msg ${cls}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Timeline
+// ─────────────────────────────────────────────────────────────
+async function loadTimeline() {
+  const aid = agentId();
+  if (!aid) { toast('Enter an agent ID', 'bad'); return; }
+  document.getElementById('nodeA').textContent = short(aid, 12, 0);
+  setResult('leftResult', 'Loading…', 'loading');
+  try {
+    const type = document.getElementById('evtFilter').value;
+    const qs = type ? `?event_type=${encodeURIComponent(type)}&limit=200` : '?limit=200';
+    const [evData, anData] = await Promise.all([
+      apiFetch(`/api/v1/cortex/${encodeURIComponent(aid)}/events${qs}`),
+      apiFetch(`/api/v1/cortex/${encodeURIComponent(aid)}/anchors`),
+    ]);
+    allEvents = evData.events || [];
+    filteredEvents = [...allEvents];
+
+    // Stats
+    const anchors = anData.anchors || [];
+    const blocked = allEvents.filter(e => e.event_type === 'policy_gate').length;
+    const decisions = allEvents.filter(e => e.event_type === 'decision').length;
+    const tools = allEvents.filter(e => e.event_type === 'tool_invocation').length;
+    const anchored = allEvents.filter(e => e.anchored).length;
+
+    // Days active
+    let daysActive = '—';
+    if (allEvents.length > 1) {
+      const oldest = Math.min(...allEvents.map(e => e.timestamp || 0));
+      const newest = Math.max(...allEvents.map(e => e.timestamp || 0));
+      daysActive = Math.max(1, Math.round((newest - oldest) / 86400));
+    }
+
+    setNum('statTotal', allEvents.length);
+    setNum('statAnchors', anchors.length);
+    setNum('statBlocked', blocked);
+    setNum('statDays', daysActive);
+    setNum('gvEvents', evData.total || allEvents.length);
+    setNum('gvAnchored', anchored);
+    setNum('gvPolicyGates', blocked);
+    setNum('gvDecisions', decisions);
+    setNum('gvTools', tools);
+
+    // Trial
+    renderTrial(evData.trial);
+
+    // Anchors right panel
+    renderAnchorList(anchors);
+
+    // Render timeline
+    applyFilters();
+    setResult('leftResult', `✓ ${allEvents.length} events loaded`, 'ok');
+  } catch (e) {
+    setResult('leftResult', e.message, 'bad');
+    toast(e.message, 'bad');
+  }
+}
+
+function setNum(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val === '—' ? '—' : (isNaN(val) ? val : Number(val).toLocaleString());
+}
+
+function renderTrial(trial) {
+  const banner = document.getElementById('trialBanner');
+  const startBtn = document.getElementById('startTrialBtn');
+  if (!trial) {
+    banner.innerHTML = '<div class="tb-head">⚡ Trial</div><div style="color:var(--text3);font-size:.8rem">No trial data</div>';
+    if (startBtn) startBtn.style.display = 'block';
+    return;
+  }
+  if (trial.never_started) {
+    banner.innerHTML = '<div class="tb-head">⚡ Free Trial Available</div><div style="font-size:.8rem;color:var(--text3)">10 days free — Monad RPC & local storage included.</div>';
+    if (startBtn) startBtn.style.display = 'block';
+    return;
+  }
+  if (startBtn) startBtn.style.display = 'none';
+  const days = trial.days_remaining ? Math.ceil(trial.days_remaining) : 0;
+  const pct = trial.is_active ? Math.round((days / 10) * 100) : 0;
+  banner.innerHTML = `
+    <div class="tb-head">${trial.is_active ? '⚡ Active Trial' : '⚠️ Trial Expired'}</div>
+    <div style="font-size:.8rem;color:var(--text3)">${trial.is_active ? `<span class="tb-days">${days}</span> day(s) remaining` : 'Recording paused. Existing events readable.'}</div>
+    <div class="trial-progress"><div class="trial-progress-bar" style="width:${pct}%"></div></div>
+    ${!trial.is_active ? '<div style="font-size:.72rem;color:var(--amber);margin-top:6px">Upgrade at <a href="pricing.html" style="color:inherit">pricing.html</a> to continue.</div>' : ''}
+  `;
+}
+
+async function activateTrial() {
+  const aid = agentId();
+  if (!aid) { toast('Enter an agent ID first', 'bad'); return; }
+  try {
+    const data = await apiFetch(`/api/v1/cortex/${encodeURIComponent(aid)}/start-trial`, { method: 'POST' });
+    toast(`✓ Trial started — ${Math.ceil(data.trial?.days_remaining || 10)} days remaining`, 'ok');
+    renderTrial(data.trial);
+    document.getElementById('startTrialBtn').style.display = 'none';
+  } catch (e) {
+    toast(e.message, 'bad');
+  }
+}
+
+
+
+function renderAnchorList(anchors) {
+  const el = document.getElementById('anchorList');
+  if (!anchors.length) { el.innerHTML = '<span style="color:var(--text3);font-size:.82rem">No on-chain anchors yet. Record events and click <strong>Anchor Batch</strong>.</span>'; return; }
+  el.innerHTML = anchors.map(a => `
+    <div style="background:rgba(10,12,18,.55);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="color:var(--accent2);font-weight:600">🔗 ${a.chain_id || 'monad'}</span>
+        <span style="color:var(--green);font-size:.68rem">${a.event_count} events</span>
+      </div>
+      <div class="mono" style="color:var(--text3);word-break:break-all">${short(a.merkle_root, 12, 8)}</div>
+      <div style="color:var(--text3);margin-top:3px">${fmtTime(a.anchored_at)}</div>
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Filter / Search
+// ─────────────────────────────────────────────────────────────
+function setChip(el, type) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  activeChip = type;
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchFilter').value.toLowerCase();
+  filteredEvents = allEvents.filter(e => {
+    const typeMatch = !activeChip || e.event_type === activeChip;
+    const textMatch = !q || [e.action, e.category, e.event_type, e.event_id].some(f => String(f || '').toLowerCase().includes(q));
+    return typeMatch && textMatch;
+  });
+  renderTimeline();
+}
+
+// ─────────────────────────────────────────────────────────────
+// Render Timeline
+// ─────────────────────────────────────────────────────────────
+function renderTimeline() {
+  const container = document.getElementById('timeline');
+  const empty = document.getElementById('emptyState');
+  if (!filteredEvents.length) {
+    container.style.display = 'none';
+    empty.style.display = 'flex';
+    empty.querySelector('.title').textContent = allEvents.length ? 'No Matching Events' : 'No Agent Cortex Data';
+    empty.querySelector('.sub').textContent = allEvents.length ? 'Try a different filter.' : 'Select an agent and click Load Timeline.';
+    document.getElementById('detailPane').style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  container.style.display = 'flex';
+  container.innerHTML = filteredEvents.map((e, idx) => {
+    const conf = e.confidence || 0;
+    const confClass = conf >= 0.8 ? 'high' : conf >= 0.5 ? 'mid' : 'low';
+    return `<div class="ev-card ev-${esc(e.event_type)}" onclick="selectEvent(${idx})" id="evcard-${idx}">
+      <div class="ev-type-row">
+        <span class="ev-type-pill ${esc(e.event_type)}">${evIcon(e.event_type)} ${esc(e.event_type.replace(/_/g,' '))}</span>
+        ${e.anchored ? '<span class="ev-anchored">⛓ on-chain</span>' : ''}
+      </div>
+      <div class="ev-action">${esc(e.action || '(event recorded)')}</div>
+      <div class="ev-cat">${esc(e.category || '—')}</div>
+      <div class="ev-time">${fmtTime(e.timestamp)}</div>
+      <div class="ev-hash">${short(e.merkle_leaf || e.event_id)}</div>
+      <div class="ev-confidence"><div class="ev-confidence-bar ${confClass}" style="width:${Math.round(conf*100)}%"></div></div>
+    </div>`;
+  }).join('');
+  if (filteredEvents.length > 0) selectEvent(0);
+}
+
+function evIcon(type) {
+  return { llm_call: '🔵', decision: '🟡', tool_invocation: '🟢', policy_gate: '🔴', memory_access: '🟣', credential_check: '🩵', interlock: '💗' }[type] || '⚪';
+}
+
+function selectEvent(idx) {
+  const e = filteredEvents[idx];
+  if (!e) return;
+  document.querySelectorAll('.ev-card').forEach((el, i) => el.classList.toggle('active', i === idx));
+  document.getElementById('vLeaf').value = e.merkle_leaf || '';
+
+  const pane = document.getElementById('detailPane');
+  const grid = document.getElementById('detailGrid');
+  const title = document.getElementById('detailTitle');
+  pane.style.display = 'block';
+  title.innerHTML = `${evIcon(e.event_type)} Event Detail — <span style="font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--text3)">${short(e.event_id,12,8)}</span>`;
+
+  const fields = [
+    ['Event ID', e.event_id, 'full accent-border'],
+    ['Event Type', e.event_type, ''],
+    ['Action', e.action || '—', ''],
+    ['Category', e.category || '—', ''],
+    ['Confidence', `${(e.confidence || 0).toFixed(3)} (${Math.round((e.confidence||0)*100)}%)`, ''],
+    ['Timestamp', fmtTime(e.timestamp), ''],
+    ['Parent Event', e.parent_event_id || '(root event)', ''],
+    ['Input Hash', e.input_hash || '—', ''],
+    ['Output Hash', e.output_hash || '—', ''],
+    ['Reasoning Hash', e.reasoning_hash || '—', ''],
+    ['Context Hash', e.context_hash || '—', ''],
+    ['Merkle Leaf', e.merkle_leaf || '—', ''],
+    ['On-Chain Anchor', e.anchored ? `✓ ${esc(e.anchor_tx || 'anchored')}` : 'Not yet anchored', e.anchored ? 'good' : ''],
+  ];
+
+  grid.innerHTML = fields.map(([k, v, cls]) => {
+    const isGood = cls && cls.includes('good');
+    const isBad = v === 'Not yet anchored';
+    return `<div class="kv-item ${cls && !isGood ? cls : ''}">
+      <div class="k">${esc(k)}</div>
+      <div class="v ${isGood ? 'good' : isBad ? 'bad' : ''}">${esc(String(v))}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Record / Anchor
+// ─────────────────────────────────────────────────────────────
+async function recordSample() {
+  setResult('leftResult', 'Recording…', 'loading');
+  try {
+    const types = ['decision', 'tool_invocation', 'llm_call', 'memory_access', 'credential_check'];
+    const t = types[Math.floor(Math.random() * types.length)];
+    await apiFetch('/api/v1/cortex/record', {
+      method: 'POST',
+      body: JSON.stringify({
+        agent_id: agentId(),
+        event_type: t,
+        category: 'sample',
+        action: `sample_${t}_${Date.now()}`,
+        input_text: 'Sample input for dashboard demo',
+        output_text: 'Sample output recorded',
+        reasoning: 'Generated by dashboard for testing',
+        confidence: 0.75 + Math.random() * 0.25,
+      })
+    });
+    setResult('leftResult', `✓ ${t} event recorded`, 'ok');
+    toast(`Sample ${t} event recorded`, 'ok');
+    await loadTimeline();
+  } catch (e) { setResult('leftResult', e.message, 'bad'); toast(e.message, 'bad'); }
+}
+
+async function anchorBatch() {
+  setResult('leftResult', 'Anchoring to Monad…', 'loading');
+  try {
+    const data = await apiFetch('/api/v1/cortex/anchor', {
+      method: 'POST',
+      body: JSON.stringify({ agent_id: agentId(), chain_id: 'monad' })
+    });
+    if (data.anchor?.merkle_root) document.getElementById('vRoot').value = data.anchor.merkle_root;
+    if (data.simulated) {
+      setResult('leftResult', `⚠️ SIMULATED — ${esc(data.message || 'Merkle root recorded locally. On-chain submission pending.')}`, 'warn');
+      toast('Merkle root recorded (simulated — not yet on-chain)', 'warn');
+    } else {
+      setResult('leftResult', `⛓ ${esc(data.message || 'Anchored on-chain')}`, 'ok');
+      toast('Merkle batch anchored on-chain', 'ok');
+    }
+    await loadTimeline();
+  } catch (e) { setResult('leftResult', e.message, 'bad'); toast(e.message, 'bad'); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Live Stream (polling fallback)
+// ─────────────────────────────────────────────────────────────
+function startStream() {
+  if (streamPoll) { stopStream(); return; }
+  document.getElementById('streamBadge').style.display = 'flex';
+  setResult('leftResult', '📡 Streaming live events…', 'loading');
+  streamPoll = setInterval(async () => {
+    try {
+      const aid = agentId();
+      const data = await apiFetch(`/api/v1/cortex/${encodeURIComponent(aid)}/events?limit=10`);
+      const newEvts = (data.events || []).filter(e => !allEvents.find(a => a.event_id === e.event_id));
+      if (newEvts.length) {
+        allEvents = [...newEvts, ...allEvents];
+        filteredEvents = [...allEvents];
+        applyFilters();
+        toast(`+${newEvts.length} new event(s)`, 'ok');
+      }
+    } catch {}
+  }, 3000);
+}
+
+function stopStream() {
+  if (streamPoll) { clearInterval(streamPoll); streamPoll = null; }
+  document.getElementById('streamBadge').style.display = 'none';
+  setResult('leftResult', '', '');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Replay
+// ─────────────────────────────────────────────────────────────
+async function replay() {
+  const ts = document.getElementById('replayTs').value.trim();
+  setResult('replayResult', 'Reconstructing…', 'loading');
+  try {
+    const qs = ts ? `?timestamp=${encodeURIComponent(ts)}` : '';
+    const data = await apiFetch(`/api/v1/cortex/${encodeURIComponent(agentId())}/replay${qs}`);
+    // Show in detail pane
+    const pane = document.getElementById('detailPane');
+    const grid = document.getElementById('detailGrid');
+    const title = document.getElementById('detailTitle');
+    pane.style.display = 'block';
+    title.innerHTML = '⏪ Time-Travel Snapshot';
+    grid.innerHTML = `<div class="kv-item full"><div class="k">Replay State</div><pre>${esc(JSON.stringify(data.replay || data, null, 2))}</pre></div>`;
+    setResult('replayResult', `✓ Snapshot at ${ts || 'now'}`, 'ok');
+  } catch (e) { setResult('replayResult', e.message, 'bad'); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Proof Verify
+// ─────────────────────────────────────────────────────────────
+async function verifyProof() {
+  const leaf = document.getElementById('vLeaf').value.trim();
+  const root = document.getElementById('vRoot').value.trim();
+  const proofRaw = document.getElementById('vProof').value.trim();
+  if (!leaf || !root) { toast('Leaf and root are required', 'bad'); return; }
+  try {
+    const proof = proofRaw ? JSON.parse(proofRaw) : [];
+    const data = await apiFetch('/api/v1/cortex/verify', {
+      method: 'POST',
+      body: JSON.stringify({ leaf, root, proof })
+    });
+    const el = document.getElementById('verifyResult');
+    el.className = `verify-result ${data.verified ? 'ok' : 'bad'}`;
+    el.innerHTML = data.verified
+      ? '✅ Proof verified. This decision hash is authentically included in the committed Merkle tree.'
+      : '❌ Proof rejected. The leaf hash is NOT present in this Merkle root.';
+    toast(data.verified ? 'Proof verified ✓' : 'Proof rejected ✗', data.verified ? 'ok' : 'bad');
+  } catch (e) {
+    const el = document.getElementById('verifyResult');
+    el.className = 'verify-result bad';
+    el.innerHTML = `Error: ${esc(e.message)}`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Interlock
+// ─────────────────────────────────────────────────────────────
+async function createInterlock() {
+  const agB = document.getElementById('agentB').value.trim();
+  const itype = document.getElementById('interlockType').value;
+  if (!agB) { toast('Enter counterparty agent ID', 'bad'); return; }
+  setResult('interlockResult', 'Creating interlock proof…', 'loading');
+  try {
+    const data = await apiFetch('/api/v1/cortex/interlock', {
+      method: 'POST',
+      body: JSON.stringify({ agent_a_id: agentId(), agent_b_id: agB, interaction_type: itype })
+    });
+    const il = data.interlock;
+    setResult('interlockResult', `✓ Interlock ${short(il?.interlock_id)} created`, 'ok');
+    toast('Mutual interlock proof created', 'ok');
+  } catch (e) { setResult('interlockResult', e.message, 'bad'); toast(e.message, 'bad'); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Insurance Certificate
+// ─────────────────────────────────────────────────────────────
+async function generateCert() {
+  const days = document.getElementById('certPeriod').value;
+  const display = document.getElementById('certDisplay');
+  display.innerHTML = '<div style="text-align:center;padding:20px"><span class="spinner"></span></div>';
+  try {
+    const data = await apiFetch(`/api/v1/cortex/${encodeURIComponent(agentId())}/insurance?period_days=${days}`);
+    const c = data.certificate || {};
+    display.innerHTML = `
+      <div class="cert-box">
+        <div class="cert-header">
+          <div class="ch">🛡️ INSURANCE CERTIFICATE</div>
+          <div class="cs">GuardianAI Cortex — Signed Evidence Package</div>
+        </div>
+        ${[
+          ['Agent', c.agent_id || agentId()],
+          ['Coverage', `${days} days`],
+          ['Period', `${c.period_start ? new Date(c.period_start*1000).toLocaleDateString() : '—'} → ${c.period_end ? new Date(c.period_end*1000).toLocaleDateString() : '—'}`],
+          ['Decisions', (c.total_events || 0).toLocaleString()],
+          ['Anomalies', c.anomalies_detected || '0'],
+          ['Policy Violations', c.policy_violations || '0'],
+          ['Merkle Roots', c.merkle_roots_count || '—'],
+          ['Trust Score', c.trust_score ? `${c.trust_score} (${c.tier || '—'})` : '—'],
+          ['Chain Proofs', c.chain_verified ? '✓ All Verified' : 'Pending'],
+          ['Issued', c.issued_at ? new Date(c.issued_at*1000).toLocaleString() : 'Now'],
+        ].map(([k, v]) => `<div class="cert-row"><div class="ck">${esc(k)}</div><div class="cv ${v && String(v).includes('✓') ? 'green' : ''}">${esc(String(v))}</div></div>`).join('')}
+        ${c.certificate_hash ? `<div style="margin-top:10px;font-size:.68rem;color:var(--text3);word-break:break-all;font-family:'JetBrains Mono',monospace">Hash: ${esc(c.certificate_hash)}</div>` : ''}
+      </div>
+    `;
+    toast('Certificate generated', 'ok');
+  } catch (e) {
+    display.innerHTML = `<div style="color:var(--red);font-size:.82rem">${esc(e.message)}</div>`;
+    toast(e.message, 'bad');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Export
+// ─────────────────────────────────────────────────────────────
+function exportChain() {
+  if (!filteredEvents.length) { toast('No events to export', 'bad'); return; }
+  const blob = new Blob([JSON.stringify(filteredEvents, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cortex-${agentId()}-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${filteredEvents.length} events`, 'ok');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────
+function switchTab(btn, contentId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(contentId).classList.add('active');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+document.getElementById('agentId').addEventListener('change', () => {
+  document.getElementById('nodeA').textContent = short(document.getElementById('agentId').value, 14, 0) || '—';
+});
+document.getElementById('agentB').addEventListener('input', () => {
+  document.getElementById('nodeB').textContent = document.getElementById('agentB').value || '—';
+});
+
+if (!token) {
+  document.getElementById('loginOverlay').style.display = 'flex';
+} else {
+  loadTimeline();
+}
+</script>
+</body>
+</html>

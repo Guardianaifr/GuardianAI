@@ -1,0 +1,31 @@
+{
+  "passed": 25,
+  "total": 25,
+  "results": {
+    "allow_rules": "PASS",
+    "deny_rules": "PASS",
+    "deny_overrides": "PASS",
+    "open_sandbox": "PASS",
+    "traversal_blocked": "PASS",
+    "null_byte": "PASS",
+    "blocked_extensions": "PASS",
+    "safe_extensions": "PASS",
+    "ext_read_allowed": "PASS",
+    "read_only": "PASS",
+    "read_write": "PASS",
+    "execute": "PASS",
+    "symlink_policy": "PASS",
+    "default_denylists": "PASS",
+    "sensitive_blocked": "PASS",
+    "hot_add_allow": "PASS",
+    "hot_add_deny": "PASS",
+    "remove_allow": "PASS",
+    "remove_deny": "PASS",
+    "audit_log": "PASS",
+    "stats": "PASS",
+    "export_rules": "PASS",
+    "sandbox_tmp": "PASS",
+    "perf_1000_checks": "PASS",
+    "perf_traversal": "PASS"
+  }
+}

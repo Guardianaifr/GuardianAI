@@ -1,0 +1,195 @@
+name: 'GuardianAI Security Scan'
+description: 'Run GuardianAI 6-pillar AI security audit on your Web3 project'
+author: 'GuardianAI Security Lab'
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  target_url:
+    description: 'URL of the API endpoint to scan'
+    required: true
+  target_name:
+    description: 'Project name for the report'
+    required: false
+    default: ''
+  depth:
+    description: 'Scan depth: quick (10 vectors), standard (26), deep (49)'
+    required: false
+    default: 'standard'
+  api_key:
+    description: 'GuardianAI API key for authenticated scans'
+    required: false
+    default: ''
+  guardian_url:
+    description: 'GuardianAI server URL'
+    required: false
+    default: 'https://api.guardianai.dev'
+  min_score:
+    description: 'Minimum score to pass (0-100). PR will fail below this.'
+    required: false
+    default: '70'
+  min_grade:
+    description: 'Minimum grade to pass (A+, A, A-, B+, B, B-, C, D, F)'
+    required: false
+    default: 'B-'
+  fail_on_critical:
+    description: 'Fail the check if any critical vulnerability is found'
+    required: false
+    default: 'true'
+  upload_report:
+    description: 'Upload the HTML report as a GitHub artifact'
+    required: false
+    default: 'true'
+
+outputs:
+  grade:
+    description: 'Security grade (A+ to F)'
+  score:
+    description: 'Security score (0-100)'
+  vulnerabilities:
+    description: 'Number of vulnerabilities found'
+  scan_id:
+    description: 'Unique scan identifier'
+  report_url:
+    description: 'URL to the full HTML report'
+  passed:
+    description: 'Whether the scan passed the minimum requirements'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run GuardianAI Security Scan
+      id: scan
+      shell: bash
+      run: |
+        echo "🛡️ GuardianAI Security Scan"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "Target: ${{ inputs.target_url }}"
+        echo "Depth:  ${{ inputs.depth }}"
+        echo ""
+
+        # Build request
+        HEADERS=(-H "Content-Type: application/json")
+        if [ -n "${{ inputs.api_key }}" ]; then
+          HEADERS+=(-H "X-API-Key: ${{ inputs.api_key }}")
+        fi
+
+        # Start scan job
+        RESPONSE=$(curl -s -X POST \
+          "${{ inputs.guardian_url }}/api/v1/scan-jobs" \
+          "${HEADERS[@]}" \
+          -d "{\"target_url\": \"${{ inputs.target_url }}\", \"target_name\": \"${{ inputs.target_name }}\", \"depth\": \"${{ inputs.depth }}\"}")
+
+        JOB_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('job_id',''))" 2>/dev/null)
+
+        if [ -z "$JOB_ID" ]; then
+          echo "❌ Failed to create scan job"
+          echo "$RESPONSE"
+          exit 1
+        fi
+
+        echo "📋 Job ID: $JOB_ID"
+        echo ""
+
+        # Poll for completion
+        for i in $(seq 1 120); do
+          sleep 5
+          STATUS_RESP=$(curl -s "${{ inputs.guardian_url }}/api/v1/scan-jobs/$JOB_ID" "${HEADERS[@]}")
+          STATUS=$(echo "$STATUS_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null)
+          PCT=$(echo "$STATUS_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('progress_pct',0))" 2>/dev/null)
+          LABEL=$(echo "$STATUS_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('progress_label',''))" 2>/dev/null)
+
+          echo "  [$i] $STATUS ${PCT}% - $LABEL"
+
+          if [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ]; then
+            break
+          fi
+        done
+
+        if [ "$STATUS" != "completed" ]; then
+          echo "❌ Scan did not complete (status: $STATUS)"
+          exit 1
+        fi
+
+        # Extract results
+        GRADE=$(echo "$STATUS_RESP" | python3 -c "import sys,json; r=json.load(sys.stdin).get('result',{}); print(r.get('grade','F'))")
+        SCORE=$(echo "$STATUS_RESP" | python3 -c "import sys,json; r=json.load(sys.stdin).get('result',{}); print(r.get('score',0))")
+        VULNS=$(echo "$STATUS_RESP" | python3 -c "import sys,json; r=json.load(sys.stdin).get('result',{}); print(r.get('vulnerabilities_found',0))")
+        SCAN_ID=$(echo "$STATUS_RESP" | python3 -c "import sys,json; r=json.load(sys.stdin).get('result',{}); print(r.get('scan_id',''))")
+        REPORT_URL="${{ inputs.guardian_url }}/api/v1/scan/$SCAN_ID/report"
+
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "🛡️ GUARDIANAI SCAN RESULTS"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "  Grade:           $GRADE"
+        echo "  Score:           $SCORE/100"
+        echo "  Vulnerabilities: $VULNS"
+        echo "  Scan ID:         $SCAN_ID"
+        echo "  Report:          $REPORT_URL"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+        # Set outputs
+        echo "grade=$GRADE" >> $GITHUB_OUTPUT
+        echo "score=$SCORE" >> $GITHUB_OUTPUT
+        echo "vulnerabilities=$VULNS" >> $GITHUB_OUTPUT
+        echo "scan_id=$SCAN_ID" >> $GITHUB_OUTPUT
+        echo "report_url=$REPORT_URL" >> $GITHUB_OUTPUT
+
+        # Check pass/fail criteria
+        PASSED=true
+
+        # Check minimum score
+        MIN_SCORE=${{ inputs.min_score }}
+        if (( $(echo "$SCORE < $MIN_SCORE" | bc -l) )); then
+          echo ""
+          echo "❌ FAILED: Score $SCORE is below minimum $MIN_SCORE"
+          PASSED=false
+        fi
+
+        # Check critical vulnerabilities
+        if [ "${{ inputs.fail_on_critical }}" = "true" ]; then
+          HAS_CRITICAL=$(echo "$STATUS_RESP" | python3 -c "
+        import sys,json
+        r=json.load(sys.stdin).get('result',{})
+        findings=r.get('findings',[])
+        crits=[f for f in findings if f.get('severity')=='critical' and f.get('status')=='vulnerable']
+        print('yes' if crits else 'no')
+        ")
+          if [ "$HAS_CRITICAL" = "yes" ]; then
+            echo "❌ FAILED: Critical vulnerabilities detected"
+            PASSED=false
+          fi
+        fi
+
+        echo "passed=$PASSED" >> $GITHUB_OUTPUT
+
+        if [ "$PASSED" = "false" ]; then
+          echo ""
+          echo "💡 Fix vulnerabilities and re-run. Report: $REPORT_URL"
+          exit 1
+        fi
+
+        echo ""
+        echo "✅ Security scan PASSED ($GRADE - $SCORE/100)"
+
+    - name: Download Report
+      if: inputs.upload_report == 'true' && steps.scan.outputs.scan_id != ''
+      shell: bash
+      run: |
+        HEADERS=()
+        if [ -n "${{ inputs.api_key }}" ]; then
+          HEADERS+=(-H "X-API-Key: ${{ inputs.api_key }}")
+        fi
+        curl -s -o guardianai-report.html \
+          "${{ inputs.guardian_url }}/api/v1/scan/${{ steps.scan.outputs.scan_id }}/report" \
+          "${HEADERS[@]}"
+
+    - name: Upload Report Artifact
+      if: inputs.upload_report == 'true' && steps.scan.outputs.scan_id != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: guardianai-security-report
+        path: guardianai-report.html
+        retention-days: 30

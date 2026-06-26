@@ -1,0 +1,50 @@
+{
+  "feed_id": "guardian-dprk-itw-2026-001",
+  "feed_name": "DPRK IT Worker Payment Network",
+  "feed_version": "1.0",
+  "published": "2026-05-19T00:00:00Z",
+  "source": "zachxbt_onchain_research",
+  "incidents": [
+    {
+      "incident_id": "INC-DPRK-ITW-2026-0501",
+      "name": "DPRK IT Worker Payment Remittance Network",
+      "entity": "DPRK (Sobaeksu / Saenal / Songkwang - OFAC sanctioned)",
+      "incident_type": "insider_theft",
+      "chain": "ethereum",
+      "date_occurred": "2025-11-01",
+      "date_discovered": "2026-05-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 3500000,
+      "exit_exchanges": ["Payoneer"],
+      "laundering_methods": ["exchange_deposit", "p2p_trade"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$3.5M+ received across payment wallets since Nov 2025. 390 accounts on internal luckyguys.site payment server. Default password 123456 unchanged for 10 users. Three OFAC-sanctioned companies: Sobaeksu, Saenal, Songkwang. Workers used Astrill VPN, fake personas for job applications. Admin sent 43 IDA Pro/Hex-Rays training modules. ~$1M/month scheme. Fiat conversion via Chinese bank accounts through Payoneer.",
+      "tags": ["dprk", "north_korea", "it_workers", "ofac", "lazarus_adjacent", "identity_fraud"],
+      "addresses": [
+        {
+          "address": "0xb51DA55047Fd899aD08Ab5CE349823664d311998",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DPRK-ITW-2026-0501",
+          "incident_name": "DPRK IT Worker Payment Network",
+          "role": "payment_wallet",
+          "amount_usd": 3500000,
+          "notes": "Primary ETH payment address for DPRK IT worker remittance network. Linked to known DPRK clusters.",
+          "in_commercial_tools": false,
+          "tags": ["dprk", "payment", "ofac"]
+        },
+        {
+          "address": "TSxYS91qoXrJUoMhWaQfMz9p2b7FTw57L3",
+          "chain": "tron",
+          "threat_level": "critical",
+          "incident_id": "INC-DPRK-ITW-2026-0501",
+          "incident_name": "DPRK IT Worker Payment Network",
+          "role": "payment_wallet",
+          "notes": "Tron payment address. Frozen by Tether in December 2025.",
+          "in_commercial_tools": true,
+          "tags": ["dprk", "payment", "tether_frozen", "tron"]
+        }
+      ]
+    }
+  ]
+}

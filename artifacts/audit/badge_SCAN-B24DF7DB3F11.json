@@ -1,0 +1,14 @@
+{
+  "payload": {
+    "version": "1.0",
+    "issuer": "GuardianAI Security Audit",
+    "target": "https://agentlove.fun/?referrer=twitter",
+    "score": 95.9,
+    "grade": "A+",
+    "scan_mode": "full",
+    "report_id": "SCAN-B24DF7DB3F11",
+    "issued_at": "2026-05-27T15:54:21.599447+00:00"
+  },
+  "signature": "ec1256aa26e3d508a5c76e1da609c3c56db6de7e9adafff49af069e7df606f95",
+  "verification_url": "http://127.0.0.1:8001/api/v1/verify-badge"
+}

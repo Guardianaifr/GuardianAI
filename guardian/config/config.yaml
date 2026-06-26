@@ -1,6 +1,15 @@
 app_name: "GuardianAI"
 version: "0.2.0"
 guardian_id: "guardian-001"
+governance:
+  enabled: false
+  mode: "enforce"             # enforce | audit
+  policy_file: "config/policy_control.yaml"
+  # approval:
+  #   status: "approved"
+  #   approver: "security-team"
+  #   ticket: "SEC-1234"
+  #   config_sha256: "<sha256 of this config file>"
 security_policies:
   block_prompt_injection: true
   validate_output: true
@@ -20,41 +29,394 @@ scanner:
     - exec
     - open
 runtime_monitoring:
-  enabled: true
-  check_interval_seconds: 5
-  max_cpu_percent: 90.0
-  max_memory_percent: 90.0
   blocked_processes:
-    - "nc.exe"
-    - "calc.exe"
-  blocked_hashes: # List of SHA256 hashes to block
-    # - "hash_of_netcat"
+    - nc.exe
+    - ncat.exe
+    - netcat.exe
+    - calc.exe
+    - calculator.exe
+    - calculatorapp.exe
+    - win32calc.exe
+  max_cpu_percent: 95.0
   max_memory_percent: 90.0
   check_interval_seconds: 2
+network_monitoring:
+  enabled: true
+  check_interval_seconds: 5
+  alert_cooldown_seconds: 60
+  sinkhole_enabled: true
+  sinkhole_address: "0.0.0.0"
+  blocked_cidrs:
+    - "192.0.2.0/24"       # TEST-NET-1 (RFC 5737)
+    - "198.51.100.0/24"    # TEST-NET-2
+    - "203.0.113.0/24"     # TEST-NET-3
+  blocked_ips: []
+  blocked_domains:
+    - "ngrok.io"
+    - "ngrok-free.app"
+    - "serveo.net"
+    - "burpcollaborator.net"
+    - "interact.sh"
+    - "oastify.com"
+    - "webhook.site"
+    - "requestbin.net"
+    - "canarytokens.com"
+    - "transfer.sh"
+    - "file.io"
+    - "0x0.st"
+    - "pool.minexmr.com"
+    - "moneroocean.stream"
+  allowlist_cidrs:
+    - "127.0.0.0/8"
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+  allowlist_domains: []
+filesystem_sandbox:
+  enabled: true
+  resolve_symlinks: true
+  use_default_denylists: true
+  allowed_paths:
+    - path: "./workspace"
+      permission: "rw"
+    - path: "./artifacts"
+      permission: "rw"
+    - path: "./logs"
+      permission: "read"
+  denied_paths: []
+  denied_extensions:
+    - ".exe"
+    - ".dll"
+    - ".sys"
+    - ".bat"
+    - ".cmd"
+    - ".ps1"
+    - ".vbs"
+    - ".scr"
+    - ".msi"
+  sandbox_tmp_dir: "./sandbox_tmp"
 proxy:
   enabled: true
   listen_port: 8081
   target_url: "http://127.0.0.1:8080"
-  enforce_auth: true                # Require X-Guardian-Token for all requests
-  proxy_token: "pt-guardian-789"    # General access token for proxied services
 backend:
   enabled: true
   url: "http://127.0.0.1:8001/api/v1/telemetry"
+  # service_id: "guardian-proxy"
+  # tls_verify: true
+  # ca_bundle: "certs/backend-ca.pem"
+  # client_cert: "certs/guardian-client.pem"
+  # client_key: "certs/guardian-client.key"
+siem:
+  enabled: false
+  transport: "file" # file | http | both
+  format: "json" # json | cef
+  out_path: "artifacts/evidence/siem_alerts.log"
+  endpoint_url: "http://127.0.0.1:8001/api/v1/siem"
+  endpoint_auth_token: ""
 rate_limiting:
   enabled: true
   requests_per_minute: 60
-ssh_tunnels:
-  enabled: false  # Set to true and configure tunnels below
-  tunnels:
-    - name: "ComfyUI"
-      remote_host: "remote.gpu.server"
-      remote_user: "user"
-      remote_port: 8188
-      local_port: 8188
+  # Optional distributed mode for multi-instance SaaS deployments:
+  # redis_url: "redis://127.0.0.1:6379/0"
+  # redis_prefix: "guardian:ratelimit"
 threat_feed:
   enabled: false  # Set to true and provide URL below
   url: "https://raw.githubusercontent.com/OpenClaw-Community/GuardianAI-Threats/main/feed.yaml"
   update_interval_seconds: 3600
+  # api_key: ""  # Bearer token for authenticated private feeds
+  #              # Or set env var: GUARDIAN_THREAT_FEED_KEY
+  # hmac_secret: ""  # HMAC-SHA256 secret for feed signature verification
+  #                  # Or set env var: GUARDIAN_FEED_HMAC_SECRET
+  # default_ttl_days: 30  # Patterns expire after N days (null = never)
+  additional_feeds: []
+  #   - "https://your-org.example.com/private-threat-feed.yaml"
+  circuit_breaker:
+    max_failures: 3          # Open circuit after N consecutive fetch failures
+    cooldown_seconds: 300    # Re-attempt after 5 minutes
+  live_apis:
+    urlhaus:
+      enabled: false         # abuse.ch — malicious C2 domain patterns (no key needed)
+      timeout_seconds: 10
+    otx:
+      enabled: false         # AlienVault OTX — LLM attack indicators (free key required)
+      api_key: ""            # Or set env var: OTX_API_KEY
+      timeout_seconds: 10
+    phishtank:
+      enabled: false         # PhishTank phishing detection patterns (no key needed)
+jailbreak_fuzzer:
+  enabled: false
+  interval_seconds: 3600
+  batch_size: 24
+  max_findings_per_run: 10
+  strategies:
+    - "pair"
+    - "tap"
+    - "gcg"
+  push_to_threat_feed: true
+  pattern_ttl_days: 30
+  evidence_file: "artifacts/evidence/jailbreak_fuzzer_findings.jsonl"
+  seed_file: ""
+  seeds: []
+tool_policy:
+  enabled: false
+  # preset: "openai_tools_baseline" # or langchain_tools_baseline / internal_actions_baseline
+  enforcement_mode: "enforce" # enforce | audit
+  unknown_tool_action: "deny" # allow | deny
+  confirmation_header: "X-Guardian-Tool-Confirm"
+  confirmation_value: "true"
+  allowed_tools: []
+  denied_tools: []
+  sensitive_tools: []
+honeypot:
+  enabled: true
+  max_responses_per_window: 3
+  window_seconds: 60
+  min_interval_seconds: 3
+  templates:
+    - "Request accepted. Processing under elevated audit mode."
+    - "Request queued for deep integrity validation. Stand by."
+    - "Action acknowledged. Compliance replay has started."
+    - "Execution staged. Awaiting secure enclave confirmation."
+cost_abuse:
+  enabled: false
+  window_seconds: 120
+  min_events: 3
+  max_tokens_per_window: 12000
+  max_cost_usd_per_window: 0.60
+  spike_multiplier: 3.50
+  quarantine_seconds: 900
+  cost_per_1k_tokens_usd: 0.01
+  tenant_window_seconds: 300
+  min_sessions_for_tenant_anomaly: 3
+  max_tokens_per_tenant_window: 60000
+  max_cost_usd_per_tenant_window: 3.00
+  min_tokens_per_session_for_slow_drain: 100
+  min_cost_per_session_for_slow_drain: 0.001
+tenant_isolation:
+  enabled: false
+  require_tenant_header: false
+  tenant_header: "X-Guardian-Tenant"
+  default_tenant_id: "default"
+  enforce_tenant_scope_on_session: true
+  tenant_evidence_dir: "artifacts/evidence/tenants"
+  allowed_tenant_pattern: "^[a-z0-9][a-z0-9_-]{1,63}$"
+agentic_security:
+  enabled: false
+  enforcement_mode: "enforce" # enforce | audit
+  require_agent_id: true
+  require_execution_id: false
+  require_scope: false
+  agent_id_header: "X-Guardian-Agent-Id"
+  parent_agent_header: "X-Guardian-Agent-Parent"
+  execution_id_header: "X-Guardian-Exec-Id"
+  scope_header: "X-Guardian-Agent-Scope"
+  parent_scope_header: "X-Guardian-Agent-Parent-Scope"
+  hop_header: "X-Guardian-Agent-Hop"
+  mcp_server_header: "X-Guardian-MCP-Server"
+  max_hops: 8
+  agent_id_pattern: "^[A-Za-z0-9._:-]{2,128}$"
+  allowed_parent_child: {}
+  scope_tool_allowlist: {}
+  trusted_mcp_servers: []
+  require_mcp_server_for_tools: false
+  mcp_server_tool_allowlist: {}
+  enforce_scope_non_escalation: false
+  scope_hierarchy:
+    read_only: 0
+    standard: 1
+    privileged: 2
+  revoked_agent_ids: []
+  require_agent_attestation: false
+  attestation_header: "X-Guardian-Agent-Attestation"
+  attestation_timestamp_header: "X-Guardian-Agent-Attestation-Ts"
+  agent_key_id_header: "X-Guardian-Agent-Key-Id"
+  agent_attestation_keys: {}
+  revoked_agent_key_ids: []
+  require_mtls: false
+  mtls_verified_header: "X-Guardian-mTLS-Verified"
+  mtls_fingerprint_header: "X-Guardian-mTLS-Fingerprint"
+  mtls_subject_header: "X-Guardian-mTLS-Subject"
+  mtls_verified_value: "SUCCESS"
+  agent_cert_fingerprints: {}
+  control_plane_file: ""
+  control_plane_reload_seconds: 5
+  attestation_max_age_seconds: 300
+  enforce_policy_graph: false
+  cross_agent_policy_graph: {}
+  require_execution_grant: false
+  execution_grants: {}
+  require_trace_hash: false
+  trace_prev_hash_header: "X-Guardian-Trace-Prev-Hash"
+  trace_hash_header: "X-Guardian-Trace-Hash"
+  trace_replay_cache_enabled: false
+  trace_replay_cache_file: "artifacts/control/agent_trace_hashes.json"
+  risk_adaptive_enabled: false
+  threat_score_header: "X-Guardian-Threat-Score"
+  risk_scope_thresholds: {}
+  kill_switch_threat_score:
+  lateral_movement_detection_enabled: false
+  chain_state_ttl_seconds: 900
+  max_chain_agents: 8
+  max_scope_rank_drift: 0
+  max_new_tools_per_chain: 3
+  chain_circuit_breaker_threshold: 2
+  chain_circuit_breaker_write_kill_switch: true
+  lateral_sensitive_tools:
+    - "wire_transfer"
+    - "delete_user"
+    - "write_file"
+    - "os_exec"
+    - "shell"
+    - "create_api_key"
+  kill_switch_enabled: true
+  kill_switch_file: "artifacts/control/agent_kill_switch.json"
+rag_security:
+  enabled: false
+  enforcement_mode: "enforce" # enforce | audit
+  max_context_chars: 50000
+  max_chunks: 64
+  max_single_chunk_chars: 10000
+  detect_indirect_prompt_injection: true
+  detect_embedding_dump: true
+  enforce_trust_scoring: false
+  min_average_trust_score: 0.55
+  min_chunk_trust_score: 0.35
+  default_trust_score: 0.70
+  detect_cross_source_contamination: false
+  trusted_source_patterns: []
+  untrusted_source_patterns: []
+multimodal_security:
+  enabled: false
+  enforcement_mode: "enforce" # enforce | audit
+  max_extracted_chars: 200000
+  max_segments: 256
+  detect_prompt_injection: true
+  detect_data_exfil_intent: true
+  require_text_provenance: false
+  provenance_required_fields:
+    - "source_id"
+    - "extractor"
+    - "extracted_at"
+  require_malware_scan: false
+  block_on_malware_scan_error: false
+  disallowed_mime_types:
+    - "application/x-msdownload"
+    - "application/x-dosexec"
+    - "application/x-sh"
+    - "application/javascript"
+tenant_sensitivity:
+  enabled: false
+  default_security_mode: "balanced"
+  default_show_block_reason: true
+  # tenant_modes:
+  #   acme:
+  #     security_mode: "lenient"
+  #     show_block_reason: true
+  #   regulated:
+  #     security_mode: "strict"
+  #     show_block_reason: false
+feedback_loop:
+  enabled: false
+  allowlist_file: "artifacts/evidence/fp_allowlist.jsonl"
+  default_ttl_seconds: 604800
+  max_entries: 5000
+memory_security:
+  enabled: false
+  enforcement_mode: "enforce" # enforce | audit
+  max_entries_per_session: 20
+  poison_quarantine_seconds: 900
+  poison_patterns:
+    - "(?i)ignore\\s+all\\s+previous\\s+instructions"
+    - "(?i)system\\s+override"
+    - "(?i)bypass\\s+safety"
+    - "(?i)persist\\s+this\\s+instruction"
+    - "(?i)always\\s+reveal\\s+secrets"
+output_assurance:
+  enabled: false
+  enforcement_mode: "enforce" # enforce | audit
+  require_json_output: true
+  required_json_fields:
+    - "answer"
+    - "citations"
+    - "confidence"
+  require_citations: true
+  min_citations: 1
+  citations_field: "citations"
+  alternate_citations_field: "sources"
+  citation_url_regex: "^https?://.+"
+  block_on_low_confidence: true
+  min_confidence: 0.65
+  confidence_field: "confidence"
+  high_stakes_abstain_enabled: false
+  high_stakes_domains:
+    - "medical"
+    - "legal"
+    - "financial"
+  domain_field: "domain"
+  citation_quality_field: "citation_quality"
+  min_citation_quality: 0.70
+  citation_conflict_field: "citation_conflict"
+  abstain_field: "abstain"
+  abstain_reason_field: "abstain_reason"
+output_watermark:
+  enabled: false
+  enforcement_mode: "enforce" # enforce | audit
+  require_json_output: true
+  field_name: "_guardian_watermark"
+  key_id: "local-dev"
+  key: ""
+system_prompt_protection:
+  enabled: false
+  enforcement_mode: "enforce" # enforce | audit
+  similarity_threshold: 0.35  # Combined score threshold (0.0-1.0)
+  pattern_score_weight: 0.4   # Weight for pattern-match signal
+  ngram_score_weight: 0.6     # Weight for n-gram overlap signal
+  min_system_prompt_length: 20
+  min_response_length: 30
+trust_exploitation:
+  enabled: false
+  enforcement_mode: "enforce" # enforce | audit
+  min_confidence_score: 0.6
+  max_deception_score: 0.7
+  review_queue_file: "artifacts/evidence/review_queue.jsonl"
+  # deception_patterns:  # Override defaults with custom patterns
+  # mandatory_review_keywords:  # Override defaults with custom keywords
+  # high_risk_addresses:  # Override defaults with custom addresses
+  dynamic_feed_enabled: true
+  dynamic_feed_url: "https://raw.githubusercontent.com/OpenClaw-Community/GuardianAI-Threats/main/crypto_intel_feed.json"
+  dynamic_feed_cache_ttl_seconds: 300
+brain:
+  enabled: false
+  red_probe_interval_seconds: 1800
+  auto_heal: true
+  auto_patch_firewall_vectors: true
+  purple_governance:
+    mode: "audit" # audit | enforce
+    approval_file: "config/purple_patch_approval.yaml"
+    evidence_file: "artifacts/evidence/purple_patch_governance.jsonl"
+  blue_escalation_threshold: 6
+  blue_strict_score_threshold: 0.50
+  blue_honeypot_score_threshold: 0.60
+  blue_revoke_score_threshold: 0.80
+  blue_profile_ttl_seconds: 3600
+  blue_max_sessions: 5000
+  blue_cleanup_interval_seconds: 60
+  intel_file: "config/cyberops_intel.json"
+  probe_vectors_file: "config/brain_red_vectors.yaml"
+  heal_store_file: "config/brain_hotfix_patterns.json"
+  jailbreak_vectors_file: "config/jailbreak_vectors.yaml"
+  external_jwt_revocation:
+    enabled: false
+    provider: "generic" # generic | okta | auth0 | azuread
+    url: ""
+    token: ""
+    # okta_revoke_url: "https://your-okta-domain/api/v1/guardian/revoke"
+    # auth0_revoke_url: "https://your-tenant.auth0.com/api/v2/guardian/revoke"
+    # azure_revoke_url: "https://graph.microsoft.com/v1.0/guardian/revoke"
+    timeout_seconds: 2
+    max_retries: 1
+    include_raw_jwt: false
 
 
 

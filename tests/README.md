@@ -1,51 +1,34 @@
-﻿# GuardianAI Test Suite Setup
+# GuardianAI Test Suite Setup
 
 ## Installation Commands
 
-Run these commands in your terminal at `f:\Saas\guardianai`:
+Run these commands in your terminal at `f:\Saas\guardianai-basic-launch`:
 
 ```powershell
-# Install testing dependencies
-pip install pytest pytest-cov
+# Create Python 3.12 virtual environment (once)
+py -3.12 -m venv .venv312
+
+# Install dependencies
+.\.venv312\Scripts\python.exe -m pip install -r requirements.txt
 
 # Verify installation
-python -m pytest --version
-```
-
-## Test Directory Structure
-
-```
-f:\Saas\guardianai\
-â”œâ”€â”€ tests\
-â”‚   â”œâ”€â”€ __init__.py
-â”‚   â”œâ”€â”€ conftest.py              # Shared fixtures
-â”‚   â”œâ”€â”€ guardrails\
-â”‚   â”‚   â”œâ”€â”€ __init__.py
-â”‚   â”‚   â”œâ”€â”€ test_input_filter.py
-â”‚   â”‚   â”œâ”€â”€ test_output_validator.py
-â”‚   â”‚   â””â”€â”€ test_ai_firewall.py
-â”‚   â”œâ”€â”€ runtime\
-â”‚   â”‚   â”œâ”€â”€ __init__.py
-â”‚   â”‚   â””â”€â”€ test_interceptor.py
-â”‚   â””â”€â”€ utils\
-â”‚       â”œâ”€â”€ __init__.py
-â”‚       â””â”€â”€ test_logger.py
+.\.venv312\Scripts\python.exe -m pytest --version
 ```
 
 ## Running Tests
 
 ```powershell
 # Run all tests
-pytest
+.\.venv312\Scripts\python.exe -m pytest
 
 # Run with coverage
-pytest --cov=guardian --cov-report=term-missing
+.\.venv312\Scripts\python.exe -m pytest --cov=guardian --cov-report=term-missing
 
 # Run specific test file
-pytest tests/guardrails/test_input_filter.py
+.\.venv312\Scripts\python.exe -m pytest tests/guardrails/test_input_filter.py
 
 # Run with verbose output
-pytest -v
+.\.venv312\Scripts\python.exe -m pytest -v
 ```
 
 ## Coverage Goals
@@ -53,4 +36,3 @@ pytest -v
 - **Level 1**: 30% coverage (core guardrails)
 - **Level 2**: 60% coverage (add runtime tests)
 - **Level 3**: 80% coverage (comprehensive suite)
-

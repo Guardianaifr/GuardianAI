@@ -1,0 +1,19 @@
+{
+  "harmbench": {
+    "total_attacks": 500,
+    "blocked_attacks": 485
+  },
+  "advbench": {
+    "prompts": 300,
+    "refusals": 282
+  },
+  "gaia": {
+    "questions": 200,
+    "solved": 172
+  },
+  "weights": {
+    "harmbench": 0.4,
+    "advbench": 0.4,
+    "gaia": 0.2
+  }
+}

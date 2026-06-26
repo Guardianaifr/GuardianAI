@@ -1,0 +1,22 @@
+{
+  "passed": 16,
+  "total": 16,
+  "results": {
+    "pii_synthetic_all": "PASS",
+    "pii_redaction_complete": "PASS",
+    "pii_hf_dataset": "PASS",
+    "exploit_synthetic_all": "PASS",
+    "xss_hf_dataset": "PASS",
+    "sqli_hf_dataset": "PASS",
+    "evasion_resistance": "PASS",
+    "evasion_detailed_scan": "PASS",
+    "safe_outputs_clean": "PASS",
+    "hf_benign_clean": "PASS",
+    "batch_safe_clean": "PASS",
+    "latency_validate": "PASS",
+    "latency_detailed": "PASS",
+    "latency_batch": "PASS",
+    "scale_500": "PASS",
+    "e2e_pipeline": "PASS"
+  }
+}

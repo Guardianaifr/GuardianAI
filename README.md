@@ -1,338 +1,86 @@
-## GuardianAI
+# GuardianAI: Bridging AI Security and Web3 Trust
 
-**AI security proxy** that protects LLM applications from prompt injection, jailbreaks, and data leakage.
+GuardianAI is a dual-layer security control plane for LLM applications and autonomous AI agents. It provides a blistering-fast, **off-chain security engine** for real-time protection, paired with a decentralized, **on-chain Web3 layer** for cryptographically verifiable trust, identity, and insurance.
 
-[![Tests](https://img.shields.io/badge/tests-150%2F150%20passing-brightgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-80%25-yellow)]()
-
+By sitting between your application and your model endpoint, GuardianAI neutralizes prompt injections, data leaks, and malicious runtime behaviors in milliseconds—while simultaneously anchoring its security posture to the blockchain (Monad / Base).
 
 ---
 
-## Real-Time Demo Video
+## 🚀 Dual-Layer Architecture
 
-[Watch the GuardianAI Real-Time Protection Demo](demo.mp4)
+### 1. The Off-Chain Security Layer (Millisecond Protection)
+*What stays off-chain is too fast, too dynamic, or contains PII.*
+- **Advanced De-obfuscation:** Decodes extreme Morse variants, Base64, Hex, Braille Steganography, ROT13, Pig Latin, and Homoglyphs.
+- **Semantic Firewall:** 18+ Persona/Roleplay heuristics to detect intent-level jailbreaks.
+- **Output Protection:** PII redaction (EU AI Act compliance), data leakage prevention, and insecure payload blocking (XSS/SQL).
+- **Runtime Monitoring:** Process/resource monitoring, reverse-shell detection, and token-bucket rate limiting.
+- **Dynamic Brain Layer:** Red/Blue/Purple/CyberOps agents for real-time automated probing, hotfix generation, and adaptive session hardening.
 
-[![GuardianAI Demo](https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg)](demo.mp4 "GuardianAI Demo")
-*(Click above to play the local `demo.mp4` walkthrough showcasing real-time protection)*
-
-## Quick Start (Windows)
-
-We've made it easy. Just use our unified launcher:
-
-1.  **Double-click** `start_guardian.bat`.
-2.  Select **Option 2** (Config Wizard) to set up your shield.
-3.  Select **Option 1** (Start Shield) to protect your AI.
-4.  Select **Option 3** (Launch Dashboard) to view live threats.
-
-### Validation Demos
-
-We include 6 ready-to-run scenarios to prove the security works:
-
-| Script | Description |
-| :--- | :--- |
-| `demo_1_safe.bat` | Sends a normal request (Fast-Path verify) |
-| `demo_2_injection.bat` | Simulates a jailbreak attack (Blocked) |
-| `demo_3_pii.bat` | Asks for sensitive data (Redacted) |
-| `demo_4_admin_bypass.bat` | Tests Admin Token access control |
-| `demo_5_rogue_process.bat` | Spawns `calc.exe` to test Runtime Monitor |
-| `demo_6_rate_limit.bat` | Floods the API to test DoS protection |
-
-### Backend Hardening Demos (New Controls)
-
-For backend auth/audit hardening controls, use:
-
-| Script | Why | What it does |
-| :--- | :--- | :--- |
-| `demo_hardening_0_start_backend.bat` | Standardized demo baseline | Starts backend with demo users and lockout config |
-| `demo_hardening_1_posture.bat` | Prove posture visibility | Health, metrics, compliance, RBAC policy |
-| `demo_hardening_2_identity_rbac.bat` | Prove least privilege | JWT issue + role `whoami` permissions |
-| `demo_hardening_3_session_inventory.bat` | Prove session visibility boundaries | Auditor read allowed, user blocked |
-| `demo_hardening_4_revoke_self.bat` | User-led containment | Revoke own other sessions |
-| `demo_hardening_5_revoke_self_jti.bat` | Precise user containment | Revoke one owned session by JTI |
-| `demo_hardening_6_lockout_management.bat` | Brute-force defense ops | Trigger/list/clear auth lockouts |
-| `demo_hardening_7_admin_containment.bat` | Fast incident containment | `revoke-user` + `revoke-all` |
-| `demo_hardening_8_api_key_lifecycle.bat` | Key hygiene validation | Create/list/rotate/revoke API keys |
-| `demo_hardening_9_audit_integrity.bat` | Audit assurance | Verify chain + failure queue + retry |
-
-Step-by-step runbook: `DEMO_HARDENING_BACKEND_GUIDE.md`
-
-### Real-Time OpenClaw Demos
-
-These use your live OpenClaw endpoint through Guardian proxy:
-
-| Script | Why | What it does |
-| :--- | :--- | :--- |
-| `demo_realtime_openclaw_0_start_stack.bat` | Prepare real live stack | Targets your OpenClaw URL, starts backend + proxy |
-| `demo_realtime_openclaw_1_safe_allow.bat` | Prove safe pass-through | Sends benign prompt, expects allow + telemetry |
-| `demo_realtime_openclaw_2_injection_block.bat` | Prove attack prevention | Sends injection prompt, expects block + telemetry |
-| `demo_realtime_openclaw_3_pii_protection.bat` | Prove leak protection | Sends leak-style prompt, checks redaction/leak events |
-| `demo_realtime_openclaw_check.bat` | Verify live stack wiring quickly | Checks status + backend auth + latest event |
-
-`start_guardian.bat` now includes:
-- Option `5`: start real-time OpenClaw stack
-- Option `6`: run real-time stack check
+### 2. The On-Chain Web3 Layer (Cryptographic Trust)
+*What goes on-chain is cryptographic proof, identity, risk scores, and interlock coordination.*
+- **GuardianCortexAnchor:** Periodically publishes Merkle roots of the AI's internal security logs to provide an immutable, timestamped record of its decisions.
+- **GuardianPassportSBT:** Issues non-transferable Soulbound Tokens representing the verifiable identity of an AI Agent or User Session.
+- **GuardianInterlockRegistry:** A decentralized registry for AI agents to request, approve, and verify communication permissions dynamically.
+- **GuardianInsuranceLedger:** An automated SLA liability contract that slashes stakes or pays out affected users if an AI violates safety parameters.
+- **GuardianThreatFeedRegistry:** A decentralized, censorship-resistant threat intelligence repository for sharing zero-day patterns.
+- **GuardianRiskAttestation:** Enables third parties to verify an agent's real-time risk level before executing Web3 transactions.
 
 ---
 
-## Manual Launch
-1.  **Multi-turn Context:** Currently analyzes strictly on a per-request basis. Deep conversation context analysis is planned for **v2.0**.
-2.  **Rate Limiting:** Per-user, per-key, telemetry, and auth endpoint limits are implemented in the backend.
-3.  **Authentication:** Backend supports JWT bearer auth (with revocation) and Basic fallback for compatibility.
+## 🛠️ Quick Start
 
-## Backend Hardening (Implemented)
-1. JWT issuance, verification, and revocation (`/api/v1/auth/token`, `/api/v1/auth/revoke`) plus revocation/session management APIs with immutable audit entries.
-2. Managed API keys for telemetry (`create/list/revoke/rotate`).
-3. Per-user and per-key rate-limit overrides.
-4. HTTPS enforcement and optional TLS cert/key startup.
-5. Prometheus-style metrics endpoint (`/metrics`) and component-aware health endpoint (`/health`).
-6. External audit forwarding (HTTP + Syslog) with strict mode and retry queue.
-6.1 Optional enterprise sink adapters: Splunk HEC and Datadog Logs (Implemented).
-7. Tamper-evident audit hash chain with verification endpoint (`/api/v1/audit-log/verify`).
-8. Role-based endpoint access control (`admin`/`auditor`/`user`) for least-privilege operations.
-9. Optional Redis-backed distributed rate limiting for multi-instance deployments (Implemented).
-10. Compliance posture snapshot endpoint (`/api/v1/compliance/report`) for control-gap visibility.
-11. RBAC policy catalog endpoint (`/api/v1/rbac/policy`) for role and route permission discovery.
-12. Audit summary endpoint (`/api/v1/audit-log/summary`) for integrity and delivery-failure visibility.
-13. Failed-login lockout controls on token issuance (`username + source` scoped, configurable threshold and duration).
-14. Lockout management endpoints for operations (`/api/v1/auth/lockouts`, `/api/v1/auth/lockouts/clear`).
-15. Global incident containment for JWT sessions (`/api/v1/auth/sessions/revoke-all`, self-exclusion supported).
-16. User self-service containment endpoint to revoke own other sessions (`/api/v1/auth/sessions/revoke-self`).
-17. User targeted self-session revoke by JTI (`/api/v1/auth/sessions/revoke-self-jti`) with ownership enforcement.
-
-## Production Hardening (CRITICAL)
-
-**The Reality: GuardianAI is a Lock, Not a Wall.**
-
-Just like a lock doesn't help if you leave the door open, GuardianAI cannot protect you if you expose your LLM insecurely.
-
-**DO NOT:**
-*   Expose your LLM port (e.g., 8080/11434) directly to the internet.
-*   Rely on GuardianAI as your *only* line of defense.
-
-**DO:**
-1.  **Network Security (The Foundation):**
-    *   Bind your LLM to `127.0.0.1` (Localhost only).
-    *   Use a **Firewall** (UFW/AWS Security Groups) to block all external traffic to ports 8080/11434.
-    *   Access remotely via **VPN** or **SSH Tunnel** whenever possible.
-
-2.  **GuardianAI (The Defense Layer):**
-    *   If you *must* expose an endpoint, expose **only port 8081** (Guardian).
-    *   GuardianAI adds **Rate Limiting, Audit Logging, and PII Redaction** to traffic you have *deliberately* decided to allow.
-    *   It protects against application-level attacks:
-        *   **Prompt Injection** (Jailbreaks)
-        *   **PII Leaks** (Keys, Phone Numbers)
-        *   **Output Redaction for RAG** (Prevents sensitive retrieval data from leaking via LLM)
-        *   **Rogue Processes** (Reverse Shells)
-        *   **Unauthorized Access** (No more open ports!)
-
-> **In Short:** GuardianAI protects you from **The AI Blabbing**, not from **The Database Leaking**. 
-> It is the *Lock* on the door, but you must build the *Wall* (Network Security).
-    *   **CRITICAL LIMITATION:** GuardianAI protects the *LLM Output*. It does **NOT** protect your Vector Database (Qdrant/Chroma) if you expose it to the internet! Secure your DB ports.
-    *   See [RAG_SECURITY_GUIDE.md](RAG_SECURITY_GUIDE.md) for DBs.
-    *   See [REMOTE_ACCESS_GUIDE.md](REMOTE_ACCESS_GUIDE.md) for ComfyUI/Remote GPUs.
-
-3.  **Secrets Management:**
-    *   GuardianAI never returns your upstream API keys to the client.
-    *   However, if an attacker gains Admin access (via weak token), they can reconfigure the system. **Set a strong ADMIN_TOKEN.**
-
----
-
-##  Contributing
-...
-
-##  Installation
-
-### Option 0: One-Command Installer (Windows/macOS/Linux)
-```powershell
-# Windows (PowerShell)
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
+### Option A: Local Python Setup
 
 ```bash
-# macOS / Linux
-./install.sh
+py -3.12 -m venv .venv312
+.\.venv312\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv312\Scripts\python.exe guardianctl.py setup
+.\.venv312\Scripts\python.exe guardianctl.py start
 ```
 
-After install:
+### Option B: One-Click Full SaaS Launch (All Features)
+
 ```bash
-python guardianctl.py setup
-python guardianctl.py start
+.\.venv312\Scripts\python.exe guardianctl.py one-click --target-url http://127.0.0.1:8080
+```
+*Generates secure credentials, writes a full-feature config, and starts the proxy & backend immediately.*
+
+### Option C: Web3 Deployment (Monad Testnet)
+
+Ensure you have your wallet private key configured in `.env`, then deploy the integrity layer:
+```bash
+npm install --prefix contracts
+npm run deploy:all:monad --prefix contracts
 ```
 
-### Option 1: Docker / Cloud Deployment (Preferred for Servers)
-**Private Cloud (One Click):**
+### Option D: Docker
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2Fguardianai%2Fguardian&envs=GUARDIAN_ADMIN_PASS,PORT,LOG_LEVEL)
-
-**Manual Docker:**
-Run GuardianAI + Dashboard in one command:
 ```bash
 docker-compose up -d
 ```
-*   **Guardian AI Proxy:** `http://localhost:8081`
-*   **Dashboard:** `http://localhost:8501`
-
-### Option 2: One-Click Executable (Preferred for Desktop)
-Zero dependencies. Double-click to run.
-
-1.  **Build the Exe (First Time Only):**
-    ```cmd
-    build_exe.bat
-    ```
-    *(Creates `dist\GuardianAI\GuardianAI.exe`)*
-
-2.  **Run:**
-    Double-click `GuardianAI.exe`.
-    *   It launches the **Dashboard** and **Proxy** automatically.
-    *   No Python or Docker required!
-
-### Option 3: Manual Installation (Python)
-1.  **Clone the Repo:**
-    ```bash
-    git clone https://github.com/guardianai/guardian.git
-    cd guardian
-    ```
-2.  **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    python -m spacy download en_core_web_lg
-    ```
-3.  **Launch:**
-    ```cmd
-    start_guardian.bat
-    ```
-
-**That's it!** Your LLM is now protected.
+*Endpoints: Proxy (`8081`), Backend API (`8001`), Upstream Target (`8080`).*
 
 ---
 
-##  What It Does
+## 📊 Validation Snapshot
 
-GuardianAI sits between your application and your LLM, providing:
-
-### Input Protection
--  **Jailbreak Detection** - Blocks prompt injection attempts
--  **Command Injection** - Prevents OS command execution
--  **Role Manipulation** - Stops "ignore instructions" attacks
-
-### Output Protection
--  **PII Redaction** - Removes emails, SSNs, credit cards, API keys
--  **Data Leakage Prevention** - Blocks sensitive information exposure
-
-### Advanced Security
--  **AI Firewall** - Semantic analysis of prompts
--  **Rate Limiting** - Prevents abuse
--  **Threat Intelligence** - Real-time threat feed integration
--  **Process Monitoring** - Detects malicious process spawning
+- **Test Suite:** `241/241` passing (including all 46/46 E2E checks)
+- **Smart Contracts:** Full suite of 6 deployed contracts passing 56/56 validation tests.
+- **Security Validation:** Integrated demo/test flows block 100% of adversarial probes in chaos conditions.
 
 ---
 
-##  Performance & Security
+## 📖 Documentation
 
-### Latency & Throughput
-- **Latency:** **12ms p95** (Full interception overhead) 
-- **Throughput:** 1000+ requests/second
+- **[WHITEPAPER.md](WHITEPAPER.md) (Comprehensive architecture and feature breakdown)**
+- `COMPLETE_PROJECT_DOCUMENTATION.md`
+- `API.md`
+- `DEPLOYMENT.md`
+- `ROADMAP.md`
 
-### Security Metrics (Balanced Mode Validation)
-- **Recall:** **100%** (Detected all 500 jailbreak attempts)
-- **Precision:** **94.52%** (29 false positives on 1000 benign inputs)
-- **F1-Score:** **0.9718** (Excellent balance)
-- **Test Corpus:** 1500 prompts (1000 benign, 500 malicious)
+## 🔒 Security Notes
+- **Do not expose upstream LLM ports directly to the internet.** Expose only the Guardian Proxy.
+- Keep `GUARDIAN_DEPLOYER_PRIVATE_KEY` strictly confidential.
 
-See [VALIDATION.md](VALIDATION.md) for detailed breakdown by security mode.
-
----
-
-##  Architecture
-
-```
-            
- Your App      GuardianAI     LLM   
- (Client)             (Proxy)           (Agent) 
-            
-                            
-                            
-                     
-                       Security    
-                       Dashboard   
-                     
-```
-
-**Components:**
-- **Interceptor** - HTTP proxy (Flask)
-- **Input Filter** - Regex-based pattern matching
-- **AI Firewall** - Semantic analysis (embeddings)
-- **Output Validator** - PII detection (Presidio)
-- **Monitor** - Process and resource tracking
-
----
-
-##  Documentation
-
-- **[Deployment Strategy](DEPLOYMENT_STRATEGY.md)** - Production setup and configuration guidelines
-- **[Hardening Guide](DEMO_HARDENING_BACKEND_GUIDE.md)** - Backend RBAC, Audit, and IAM Best Practices
-- **[RAG Security Guide](RAG_SECURITY_GUIDE.md)** - Securing Vector Databases and RAG outputs
-- **[Remote Access Guide](REMOTE_ACCESS_GUIDE.md)** - Safe remote exposure guidelines
-- **[Roadmap](GuardianAI_30DayPlan.md)** - 30-Day Development Plan
-
----
-
-##  Testing
-
-```bash
-# Run all tests
-python -m pytest tests/ -v
-
-# Run with coverage
-python -m pytest --cov=guardian --cov-report=term-missing tests/
-
-# Run specific test
-python -m pytest tests/guardrails/test_input_filter.py -v
-```
-
-**Current Status:** 150/150 tests passing.
-
----
-
-##  Configuration
-
-Create `config.yaml`:
-
-```yaml
-proxy:
-  listen_port: 8080
-  target_url: "http://localhost:18789"
-
-security:
-  mode: "balanced"  # strict | balanced | permissive
-  enable_ai_firewall: true
-  enable_pii_redaction: true
-  
-monitoring:
-  enable_dashboard: true
-  dashboard_port: 5000
-```
-
----
-
-##  Development
-
-```bash
-# Install dev dependencies
-pip install -r requirements.txt
-
-# Run tests
-python -m pytest tests/ -v
-
-# Run with auto-reload
-python guardian/main.py --reload
-
-# View logs
-tail -f guardian.log
-```
-
-
-
-
-
-
+## 📄 License
+MIT. See `LICENSE`.

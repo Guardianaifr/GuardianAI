@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI | Audited Projects Leaderboard</title>
+  <meta name="description" content="Browse verified AI+Web3 projects that passed GuardianAI's 6-pillar security audit. Each badge is cryptographically signed.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site-assets/style.css?v=20260602web3agent">
+  <style>
+    :root{
+      --bg:#050409;
+      --surface:rgba(13, 9, 23, 0.7);
+      --border:rgba(139, 92, 246, 0.15);
+      --text:#f1f3f9;
+      --muted:#948ba3;
+      --primary:#8b5cf6;
+      --cyan:#00f2fe;
+      --danger:#ef4444;
+      --warning:#f59e0b;
+      --success:#10b981;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:'Outfit',sans-serif;
+      background:var(--bg);
+      background-image:radial-gradient(circle at 50% -20%, #170d2b 0%, #050409 100%);
+      color:var(--text);
+      min-height:100vh;
+    }
+    nav{display:flex;align-items:center;justify-content:space-between;padding:16px 40px;border-bottom:1px solid var(--border);background:rgba(5,4,9,0.8);backdrop-filter:blur(12px);position:sticky;top:0;z-index:50}
+    nav .brand{font-weight:800;font-size:1.25rem;color:var(--cyan);letter-spacing:-0.02em;display:flex;align-items:center;gap:10px}
+    nav .links{display:flex;gap:24px}
+    nav .links a{color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;transition:color .2s}
+    nav .links a:hover{color:var(--text)}
+    nav .links a.active{color:var(--cyan)}
+    .hero{text-align:center;padding:60px 20px 30px;max-width:800px;margin:0 auto}
+    .hero .badge-tag{display:inline-block;background:rgba(0,242,254,0.08);color:var(--cyan);padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:16px;border:1px solid rgba(0,242,254,0.25)}
+    .hero h1{font-size:36px;font-weight:900;line-height:1.15;background:linear-gradient(135deg,#fff,var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px}
+    .hero p{color:var(--muted);font-size:15px;max-width:600px;margin:0 auto 30px;line-height:1.7}
+    .controls{max-width:900px;margin:0 auto 24px;padding:0 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .controls input{flex:1;min-width:200px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:14px;font-family:inherit;outline:none}
+    .controls input:focus{border-color:var(--cyan)}
+    .controls select{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:13px;font-family:inherit;outline:none;cursor:pointer}
+    .stats-bar{max-width:900px;margin:0 auto 24px;padding:0 20px;display:flex;gap:16px;flex-wrap:wrap}
+    .stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:13px;font-weight:600}
+    .stat-pill .num{color:var(--cyan);font-size:18px;font-weight:800;margin-right:4px}
+    .board{max-width:900px;margin:0 auto 60px;padding:0 20px}
+    .board-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:14px;display:flex;align-items:center;gap:20px;transition:border-color .2s,transform .15s}
+    .board-card:hover{border-color:var(--primary);transform:translateY(-1px)}
+    .rank{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0}
+    .rank-1{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#78350f}
+    .rank-2{background:linear-gradient(135deg,#94a3b8,#64748b);color:#1e293b}
+    .rank-3{background:linear-gradient(135deg,#d97706,#b45309);color:#451a03}
+    .rank-n{background:rgba(99,102,241,0.12);color:var(--primary)}
+    .card-info{flex:1;min-width:0}
+    .card-info h3{font-size:16px;font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .card-info .url{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .card-info .meta{display:flex;gap:12px;margin-top:6px;font-size:11px;color:#64748b;flex-wrap:wrap}
+    .card-info .meta span{display:flex;align-items:center;gap:4px}
+    .card-grade{text-align:center;flex-shrink:0;width:80px}
+    .card-grade .letter{font-size:32px;font-weight:900;line-height:1}
+    .card-grade .score{font-size:11px;color:var(--muted);margin-top:2px}
+    .grade-A{color:var(--success)}.grade-B{color:var(--cyan)}.grade-C{color:var(--warning)}.grade-D,.grade-F{color:var(--danger)}.grade-NA{color:var(--muted)}
+    .card-badge{flex-shrink:0}
+    .card-badge a{display:inline-block;padding:8px 16px;border-radius:8px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:var(--success);font-size:11px;font-weight:700;text-decoration:none;transition:background .2s}
+    .card-badge a:hover{background:rgba(16,185,129,0.2)}
+    .empty-state{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
+    footer{text-align:center;padding:40px;border-top:1px solid var(--border);color:#475569;font-size:12px}
+    @media(max-width:768px){.board-card{flex-direction:column;align-items:flex-start;gap:12px}.card-grade{width:auto;text-align:left}.controls{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      GuardianAI Leaderboard
+    </div>
+    <div class="links">
+      <a href="index.html">Home</a>
+      <a href="audit.html">Audit</a>
+      <a href="leaderboard.html" class="active">Leaderboard</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="docs.html">Docs</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="badge-tag">VERIFIED SECURITY</div>
+    <h1>Audited Projects Leaderboard</h1>
+    <p>Every project below passed GuardianAI's 6-pillar AI security audit. Each badge is cryptographically signed and independently verifiable.</p>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Search projects..." oninput="filterBoard()">
+    <select id="gradeFilter" onchange="filterBoard()">
+      <option value="">All Grades</option>
+      <option value="A">A+ / A / A-</option>
+      <option value="B">B+ / B / B-</option>
+      <option value="C">C+</option>
+    </select>
+    <select id="sortBy" onchange="filterBoard()">
+      <option value="score">Sort: Highest Score</option>
+      <option value="recent">Sort: Most Recent</option>
+      <option value="name">Sort: Name A-Z</option>
+    </select>
+  </div>
+
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-pill"><span class="num" id="totalAudited">0</span> Projects Audited</div>
+    <div class="stat-pill"><span class="num" id="avgScore">0</span> Avg Score</div>
+    <div class="stat-pill"><span class="num" id="totalVectors">0</span> Vectors Tested</div>
+  </div>
+
+  <div class="board" id="board">
+    <div class="empty-state">Loading audited projects...</div>
+  </div>
+
+  <footer>&copy; 2026 GuardianAI Platform. Enterprise LLM Security for Web3.</footer>
+
+  <script>
+    let allScans = [];
+
+    function escapeHtml(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+    function gradeClass(g){if(!g)return'F';if(g==='N/A'||g==='NA')return'NA';if(g.startsWith('A'))return'A';if(g.startsWith('B'))return'B';if(g.startsWith('C'))return'C';return'F'}
+
+    function timeAgo(iso){
+      if(!iso)return'';
+      const d=new Date(iso),now=new Date(),diff=Math.floor((now-d)/1000);
+      if(diff<60)return'just now';if(diff<3600)return Math.floor(diff/60)+'m ago';
+      if(diff<86400)return Math.floor(diff/3600)+'h ago';return Math.floor(diff/86400)+'d ago';
+    }
+
+    async function loadScans(){
+      try{
+        // Load from scan-jobs and audits endpoints
+        const [jobsResp, auditsResp] = await Promise.all([
+          fetch('/api/v1/scan-jobs?limit=50').catch(()=>({ok:false})),
+          fetch('/api/v1/audits').catch(()=>({ok:false}))
+        ]);
+
+        const scans = [];
+
+        if(jobsResp.ok){
+          const data = await jobsResp.json();
+          (data.jobs||[]).forEach(j=>{
+            if(j.result && j.status==='completed'){
+              scans.push({
+                name: j.target_name || j.target_url,
+                url: j.target_url,
+                grade: j.result.grade,
+                score: j.result.score,
+                scan_id: j.result.scan_id,
+                depth: j.depth,
+                date: j.completed_at,
+                vectors: 0,
+                badge_url: null
+              });
+            }
+          });
+        }
+
+        if(auditsResp.ok){
+          const data = await auditsResp.json();
+          (data.audits||[]).forEach(a=>{
+            if(!scans.find(s=>s.scan_id===a.id)){
+              scans.push({
+                name: a.target || 'Unknown',
+                url: '',
+                grade: a.grade,
+                score: a.score,
+                scan_id: a.id,
+                depth: a.mode,
+                date: a.issued_at,
+                vectors: 0,
+                badge_url: '/api/v1/audits/'+a.id+'/svg'
+              });
+            }
+          });
+        }
+
+        allScans = scans;
+        updateStats();
+        renderBoard(scans);
+      }catch(e){
+        document.getElementById('board').innerHTML = '<div class="empty-state">Unable to load data. Start a scan from the <a href="audit.html" style="color:var(--cyan)">Audit page</a>.</div>';
+      }
+    }
+
+    function updateStats(){
+      document.getElementById('totalAudited').textContent = allScans.length;
+      const validScans = allScans.filter(x => x.score !== null && x.score !== undefined && x.score !== 'null');
+      const avg = validScans.length ? (validScans.reduce((s,x)=>s+(x.score||0),0)/validScans.length).toFixed(1) : '0';
+      document.getElementById('avgScore').textContent = avg;
+      document.getElementById('totalVectors').textContent = allScans.reduce((s,x)=>s+(x.vectors||49),0);
+    }
+
+    function filterBoard(){
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const gf = document.getElementById('gradeFilter').value;
+      const sort = document.getElementById('sortBy').value;
+
+      let filtered = allScans.filter(s=>{
+        if(q && !(s.name||'').toLowerCase().includes(q) && !(s.url||'').toLowerCase().includes(q)) return false;
+        if(gf && !(s.grade||'').startsWith(gf)) return false;
+        return true;
+      });
+
+      if(sort==='score') filtered.sort((a,b)=>(b.score||0)-(a.score||0));
+      else if(sort==='recent') filtered.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+      else if(sort==='name') filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+
+      renderBoard(filtered);
+    }
+
+    function renderBoard(scans){
+      const board = document.getElementById('board');
+      if(!scans.length){
+        board.innerHTML = '<div class="empty-state">No audited projects found. Be the first — <a href="audit.html" style="color:var(--cyan)">run a scan</a>!</div>';
+        return;
+      }
+
+      board.innerHTML = scans.map((s,i)=>{
+        const gc = gradeClass(s.grade);
+        const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n';
+        const badgeLink = s.badge_url
+          ? `<a href="${escapeHtml(s.badge_url)}" target="_blank">View Badge</a>`
+          : `<a href="/api/v1/scan/${escapeHtml(s.scan_id)}/report" target="_blank">View Report</a>`;
+
+        return `<div class="board-card">
+          <div class="rank ${rankCls}">${i+1}</div>
+          <div class="card-info">
+            <h3>${escapeHtml(s.name)}</h3>
+            <div class="url">${escapeHtml(s.url)}</div>
+            <div class="meta">
+              <span>&#128337; ${timeAgo(s.date)}</span>
+              <span>&#128269; ${escapeHtml(s.depth||'standard')} scan</span>
+              <span>&#128196; ${escapeHtml(s.scan_id||'')}</span>
+            </div>
+          </div>
+          <div class="card-grade">
+            <div class="letter grade-${gc}">${escapeHtml(s.grade)}</div>
+            <div class="score">${s.score !== null && s.score !== undefined && s.score !== 'null' ? s.score + '/100' : 'N/A'}</div>
+          </div>
+          <div class="card-badge">${badgeLink}</div>
+        </div>`;
+      }).join('');
+    }
+
+    window.addEventListener('DOMContentLoaded', loadScans);
+  </script>
+</body>
+</html>

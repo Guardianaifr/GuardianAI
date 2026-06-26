@@ -1,0 +1,22 @@
+{
+  "passed": 16,
+  "total": 16,
+  "results": {
+    "regex_malicious_cmdlines": "PASS",
+    "regex_benign_cmdlines": "PASS",
+    "process_termination_logic": "PASS",
+    "baseline_preservation": "PASS",
+    "resource_monitoring_alerts": "PASS",
+    "scale_1000_processes": "PASS",
+    "get_stats": "PASS",
+    "stats_tracking": "PASS",
+    "get_blocked_log": "PASS",
+    "add_remove_process": "PASS",
+    "add_cmdline_pattern": "PASS",
+    "export_blocklist": "PASS",
+    "scan_once": "PASS",
+    "hot_add_then_detect": "PASS",
+    "get_suspicious_processes": "PASS",
+    "start_stop": "PASS"
+  }
+}

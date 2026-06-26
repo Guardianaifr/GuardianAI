@@ -1,0 +1,242 @@
+{
+  "feed_id": "guardian-lab-manipulation-2026-001",
+  "feed_name": "LAB Token Insider Manipulation & Market Fraud",
+  "feed_version": "1.0",
+  "published": "2026-05-19T00:00:00Z",
+  "source": "zachxbt_onchain_research",
+  "incidents": [
+    {
+      "incident_id": "INC-LAB-2026-0514",
+      "name": "LAB Token Insider Supply Manipulation",
+      "entity": "LAB (Vova Sadkov / Mark)",
+      "incident_type": "rug_pull",
+      "chain": "ethereum",
+      "date_occurred": "2026-01-01",
+      "date_discovered": "2026-05-14",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 482000000,
+      "exit_exchanges": ["Bitget", "Binance", "Gate"],
+      "laundering_methods": ["exchange_deposit", "nested_exchange"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "Insiders control >95% of LAB supply. Unilateral vesting changes. Private OTC deals at 60-80% discounts hidden from retail. $482M in LAB withdrawn from Bitget May 11-12. Same playbook as RIVER, RAVE, SIREN, MYX, SKYAI. Founders commingled personal and business funds.",
+      "tags": ["insider_manipulation", "lab_token", "market_manipulation", "cex_fraud", "hidden_supply"],
+      "addresses": [
+        {
+          "address": "0xf09C19328C26088053a8c9CfB982427bafF2Bd0b",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "Borrower address from LAB loan contract. Same wallet used for public buybacks. Signed by Vladimir (Vova) Sadkov as director of BVI shell The Lab Management Ltd.",
+          "in_commercial_tools": false,
+          "tags": ["lab", "insider", "vova_sadkov", "loan_contract"]
+        },
+        {
+          "address": "0x2f7fd9678bd7d89da6a4ffd7d612d919ea813e30",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "personal_exchange_deposit",
+          "destination_exchange": "Bybit",
+          "notes": "Vova's alleged personal Bybit deposit. Received funds from LAB and earlier Eesee project.",
+          "in_commercial_tools": false,
+          "tags": ["lab", "insider", "bybit", "vova_sadkov"]
+        },
+        {
+          "address": "0x3b5341b94dee91ec1a84470463a411c0ab5ed70c",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "personal_exchange_deposit",
+          "destination_exchange": "Gate",
+          "notes": "Vova's alleged Gate deposit. Linked to ENS and NFT holdings.",
+          "in_commercial_tools": false,
+          "tags": ["lab", "insider", "gate", "vova_sadkov"]
+        },
+        {
+          "address": "0xcEA722a1A812EbDFA5BBD8130531cF1D1956eBC9",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "multisig_signer",
+          "notes": "Signer for LAB team multisigs. Funded by insider linked to RIVER manipulation. Received $12M+ RIVER tokens.",
+          "in_commercial_tools": false,
+          "tags": ["lab", "multisig", "river_manipulation"]
+        },
+        {
+          "address": "0x2d81ef9a8c46596d333c1294ae2aaccf61593e5a",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0xef80a2b120925c3aa794c6dcfd999fdecbfec01e",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0x6593aa6c31c88397c37f71259625ec92fe4ee0bf",
+          "chain": "ethereum",
+          "threat_level": "medium",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "exchange_deposit",
+          "destination_exchange": "Bitget",
+          "notes": "Bitget deposit - 46M LAB deposited by insiders",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget", "insider_deposit"]
+        },
+        {
+          "address": "0xdd77bfbdc11cd37fd255ae35a4ac39df1f9d570a",
+          "chain": "ethereum",
+          "threat_level": "medium",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "exchange_deposit",
+          "destination_exchange": "Bitget",
+          "notes": "Bitget deposit - 50M LAB",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget", "insider_deposit"]
+        },
+        {
+          "address": "0xe39f91a0daffc5547ada79a09be30b8556f7dfba",
+          "chain": "ethereum",
+          "threat_level": "medium",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "exchange_deposit",
+          "destination_exchange": "Bitget",
+          "notes": "Bitget deposit - 60M LAB deposited by insiders",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget", "insider_deposit"]
+        },
+        {
+          "address": "0x77156a0a621d2ac7a075c0ac3172707c2e4aa191",
+          "chain": "ethereum",
+          "threat_level": "medium",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "exchange_deposit",
+          "destination_exchange": "Bitget",
+          "notes": "Bitget deposit - 40M LAB",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget", "insider_deposit"]
+        },
+        {
+          "address": "0xd425c56f2eb64646fde7f3c53d7584e60e62fc94",
+          "chain": "ethereum",
+          "threat_level": "medium",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "exchange_deposit",
+          "destination_exchange": "Bitget",
+          "notes": "Bitget deposit - 30M LAB",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget", "insider_deposit"]
+        },
+        {
+          "address": "0x7db446e489b08f3f33354fc233e0022bc59c4032",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0xf05ced86edc1857c977b70728f3c330e9e89b151",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0x82fc0bc04c4326b679bf9dbdc60d653062bea31a",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0x093eb813f3c7082cd816bbb393ae399586a99335",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0x0d95e8d26dd5ca98026970d20c05235a324751d0",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0xbcf0771e983af09a67f10812fb336731e4c5d688",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0x10e8163d1ef9098e942dbf2d1ff2127a4abf33b9",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        },
+        {
+          "address": "0x7c62af1a36a24765043cfde72c85bc1203d807b7",
+          "chain": "ethereum",
+          "threat_level": "high",
+          "incident_id": "INC-LAB-2026-0514",
+          "incident_name": "LAB Token Insider Manipulation",
+          "role": "insider_wallet",
+          "notes": "One of 10 addresses receiving 100M LAB from Bitget (May 11-12)",
+          "in_commercial_tools": false,
+          "tags": ["lab", "bitget_withdrawal", "insider"]
+        }
+      ]
+    }
+  ]
+}

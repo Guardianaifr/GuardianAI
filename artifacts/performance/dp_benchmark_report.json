@@ -1,0 +1,25 @@
+{
+  "true_count": 1000,
+  "rows": [
+    {
+      "epsilon": 0.3,
+      "trials": 500,
+      "mean_absolute_error": 3.42
+    },
+    {
+      "epsilon": 0.5,
+      "trials": 500,
+      "mean_absolute_error": 1.948
+    },
+    {
+      "epsilon": 1.0,
+      "trials": 500,
+      "mean_absolute_error": 1.044
+    },
+    {
+      "epsilon": 2.0,
+      "trials": 500,
+      "mean_absolute_error": 0.428
+    }
+  ]
+}

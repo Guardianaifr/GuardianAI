@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI | Agent Passport</title>
+  <meta name="description" content="AI Agent Passport — Soulbound Trust Identity for autonomous AI agents">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site-assets/style.css?v=20260602web3agent">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#050409;
+      --surface:rgba(13, 9, 23, 0.7);
+      --surface2:rgba(22, 14, 38, 0.85);
+      --surface3:#0d0917;
+      --border:rgba(139, 92, 246, 0.15);
+      --border2:rgba(0, 242, 254, 0.35);
+      --text:#f1f3f9;
+      --text2:#948ba3;
+      --text3:#4e465f;
+      --accent:#8b5cf6;
+      --accent2:#00f2fe;
+      --accent-glow:rgba(139, 92, 246, 0.25);
+      --green:#10b981;
+      --green-bg:rgba(16, 185, 129, 0.1);
+      --red:#ef4444;
+      --red-bg:rgba(239, 68, 68, 0.1);
+      --amber:#f59e0b;
+      --amber-bg:rgba(245, 158, 11, 0.1);
+      --purple:#d946ef;
+      --purple-bg:rgba(217, 70, 239, 0.1);
+      --cyan:#00f2fe;
+      --radius:12px;
+      --radius-sm:8px;
+    }
+    html{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+    body{min-height:100vh;overflow-x:hidden;background: var(--bg);background-image: radial-gradient(circle at 50% -20%, #170d2b 0%, #050409 100%)}
+    .mono{font-family:'JetBrains Mono',monospace;font-size:.85em}
+
+    /* Layout */
+    .page-wrapper{max-width:1200px;margin:0 auto;padding:24px}
+    .page-header{display:flex;align-items:center;justify-content:space-between;padding:16px 0;margin-bottom:32px;border-bottom:1px solid var(--border)}
+    .brand{font-family:'Outfit',sans-serif;font-weight:700;font-size:1.3rem;color:var(--accent);display:flex;align-items:center;gap:10px;letter-spacing:-0.02em;cursor:pointer;text-decoration:none}
+    .brand svg{width:26px;height:26px}
+    .header-right{display:flex;align-items:center;gap:12px}
+    .header-right .back-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:6px 16px;border-radius:var(--radius-sm);cursor:pointer;font-size:.8rem;transition:all .2s;text-decoration:none}
+    .header-right .back-btn:hover{border-color:var(--accent);color:var(--text)}
+
+    /* Login overlay */
+    .login-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;z-index:100}
+    .login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:40px;width:400px;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+    .login-card h2{text-align:center;margin-bottom:8px;font-size:1.4rem;font-family:'Outfit',sans-serif}
+    .login-card p{text-align:center;color:var(--text2);margin-bottom:24px;font-size:.85rem}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;font-size:.8rem;color:var(--text2);margin-bottom:4px;font-weight:500}
+    .form-group input{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.9rem;outline:none;transition:border-color .2s}
+    .form-group input:focus{border-color:var(--accent)}
+    .btn-primary{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:600;font-size:.9rem;cursor:pointer;transition:all .2s}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(50, 121, 249, .3)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .login-error{color:var(--red);font-size:.8rem;text-align:center;margin-top:12px;min-height:20px}
+
+    /* ═══════════ PASSPORT CARD ═══════════ */
+    .passport-section{display:flex;justify-content:center;margin-bottom:48px;perspective:1200px}
+
+    .passport-card{
+      width:480px;
+      min-height:560px;
+      background: linear-gradient(145deg, rgba(24, 25, 29, 0.9) 0%, rgba(33, 34, 38, 0.8) 100%);
+      border:1px solid rgba(50, 121, 249, .25);
+      border-radius:20px;
+      padding:32px;
+      position:relative;
+      overflow:hidden;
+      transform-style:preserve-3d;
+      transition:transform 0.4s ease, box-shadow 0.4s ease;
+      box-shadow:0 20px 60px rgba(0,0,0,.5), 0 0 40px rgba(50, 121, 249, .08);
+      cursor:default;
+    }
+    .passport-card:hover{
+      box-shadow:0 30px 80px rgba(0,0,0,.6), 0 0 60px rgba(50, 121, 249, .15);
+    }
+
+    /* Holographic shimmer overlay */
+    .passport-card::before{
+      content:'';
+      position:absolute;
+      inset:-50%;
+      background:linear-gradient(
+        115deg,
+        transparent 20%,
+        rgba(50, 121, 249, .08) 30%,
+        rgba(50, 121, 249, .08) 40%,
+        rgba(52, 168, 83, .06) 50%,
+        rgba(251, 188, 5, .06) 55%,
+        rgba(234, 67, 53, .04) 60%,
+        rgba(50, 121, 249, .08) 70%,
+        transparent 80%
+      );
+      animation:holoShimmer 6s ease-in-out infinite;
+      pointer-events:none;
+      z-index:1;
+    }
+    @keyframes holoShimmer{
+      0%{transform:translateX(-30%) rotate(0deg)}
+      50%{transform:translateX(30%) rotate(2deg)}
+      100%{transform:translateX(-30%) rotate(0deg)}
+    }
+
+    /* Micro-pattern background */
+    .passport-card::after{
+      content:'';
+      position:absolute;
+      inset:0;
+      background-image:radial-gradient(rgba(50, 121, 249, .03) 1px, transparent 1px);
+      background-size:20px 20px;
+      pointer-events:none;
+      z-index:0;
+    }
+
+    .passport-content{position:relative;z-index:2}
+
+    /* Card header */
+    .passport-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(50, 121, 249, .15)}
+    .passport-title{font-family:'Outfit',sans-serif;font-weight:800;font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);display:flex;align-items:center;gap:6px}
+    .passport-title svg{width:16px;height:16px}
+    .passport-chain{font-size:.65rem;color:var(--text3);background:var(--surface2);padding:3px 10px;border-radius:12px;border:1px solid var(--border)}
+
+    /* Trust score gauge */
+    .score-section{display:flex;align-items:center;gap:28px;margin-bottom:28px}
+    .score-gauge{position:relative;width:120px;height:120px;flex-shrink:0}
+    .score-gauge svg{transform:rotate(-90deg)}
+    .score-gauge .track{fill:none;stroke:rgba(51,65,85,.5);stroke-width:8}
+    .score-gauge .fill{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1.5s ease, stroke 0.5s ease}
+    .score-value{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .score-number{font-family:'Outfit',sans-serif;font-size:2rem;font-weight:800;letter-spacing:-0.03em}
+    .score-label{font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+
+    .score-info{flex:1}
+    .score-info .agent-name{font-family:'Outfit',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:4px;letter-spacing:-0.02em}
+    .score-info .agent-id{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--text3);margin-bottom:10px;word-break:break-all}
+
+    /* Tier badge */
+    .tier-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 14px;border-radius:20px;font-family:'Outfit',sans-serif;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+    .tier-DIAMOND{background:rgba(16,185,129,.15);color:#34d399;box-shadow:0 0 20px rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.3);animation:tierGlow 3s ease-in-out infinite}
+    .tier-GOLD{background:rgba(245,158,11,.15);color:#fbbf24;box-shadow:0 0 20px rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.3);animation:tierGlow 3s ease-in-out infinite}
+    .tier-SILVER{background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3)}
+    .tier-UNVERIFIED{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+    @keyframes tierGlow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.2)}}
+
+    /* Passport details grid */
+    .passport-details{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+    .detail-item{background:rgba(15,23,42,.5);border:1px solid rgba(51,65,85,.3);border-radius:var(--radius-sm);padding:10px 12px}
+    .detail-label{font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+    .detail-value{font-size:.85rem;font-weight:500;font-family:'JetBrains Mono',monospace}
+
+    /* Credential mini badges */
+    .passport-creds{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
+    .cred-mini{display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:.65rem;font-weight:600;background:rgba(56,189,248,.1);color:var(--accent);border:1px solid rgba(56,189,248,.15)}
+    .cred-mini.earned{background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.3);box-shadow:0 0 8px rgba(16,185,129,.15)}
+    .cred-mini.locked{opacity:.4;color:var(--text3);background:var(--surface2);border-color:var(--border)}
+
+    /* QR code area */
+    .passport-footer{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid rgba(56,189,248,.1)}
+    .qr-placeholder{width:56px;height:56px;border:1px solid rgba(56,189,248,.2);border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3)}
+    .qr-placeholder svg{width:36px;height:36px;color:rgba(56,189,248,.4)}
+    .soulbound-tag{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:rgba(56,189,248,.5);text-transform:uppercase;letter-spacing:.15em;animation:soulboundPulse 4s ease-in-out infinite}
+    @keyframes soulboundPulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+    /* ═══════════ PANELS ═══════════ */
+    .section-title{font-family:'Outfit',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+
+    /* Credentials Panel */
+    .credentials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:48px}
+    .cred-card{background:var(--surface);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:all .3s ease;text-align:center}
+    .cred-card:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+    .cred-card.earned{border-color:rgba(16,185,129,.4);box-shadow:0 0 20px rgba(16,185,129,.08)}
+    .cred-card.earned .cred-icon{color:#34d399;filter:drop-shadow(0 0 8px rgba(16,185,129,.4))}
+    .cred-card.locked{opacity:.5}
+    .cred-card.locked .cred-icon{color:var(--text3)}
+    .cred-icon{font-size:2rem;margin-bottom:10px;transition:all .3s}
+    .cred-name{font-family:'Outfit',sans-serif;font-weight:600;font-size:.85rem;margin-bottom:4px}
+    .cred-desc{font-size:.7rem;color:var(--text2);line-height:1.4}
+    .cred-status{margin-top:10px;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:10px;display:inline-block}
+    .cred-status.earned{background:var(--green-bg);color:var(--green)}
+    .cred-status.locked{background:var(--surface2);color:var(--text3)}
+
+    /* Leaderboard */
+    .leaderboard-panel{background:var(--surface);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:48px}
+    .leader-row{display:grid;grid-template-columns:36px 1fr 120px 80px;align-items:center;gap:12px;padding:10px 8px;border-bottom:1px solid var(--border);transition:background .15s}
+    .leader-row:last-child{border-bottom:none}
+    .leader-row:hover{background:var(--surface2)}
+    .leader-rank{font-family:'Outfit',sans-serif;font-weight:700;font-size:1.1rem;text-align:center;color:var(--text3)}
+    .leader-rank.top-3{color:var(--accent)}
+    .leader-name{font-weight:500;font-size:.9rem}
+    .leader-bar{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+    .leader-bar-fill{height:100%;border-radius:4px;transition:width 1s ease}
+    .leader-score{font-family:'JetBrains Mono',monospace;font-size:.8rem;text-align:right;font-weight:500}
+
+    /* Verify Panel */
+    .verify-panel{background:var(--surface);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:48px}
+    .verify-input-row{display:flex;gap:12px;margin-bottom:16px}
+    .verify-input{flex:1;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.9rem;outline:none;transition:border-color .2s;font-family:'JetBrains Mono',monospace}
+    .verify-input:focus{border-color:var(--accent)}
+    .verify-btn{padding:10px 24px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:var(--radius-sm);font-weight:600;font-size:.85rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+    .verify-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(56,189,248,.3)}
+    .verify-result{padding:16px;border-radius:var(--radius-sm);font-size:.85rem;display:none;animation:fadeIn .3s ease}
+    .verify-result.success{display:block;background:var(--green-bg);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .verify-result.fail{display:block;background:var(--red-bg);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Responsive */
+    @media(max-width:768px){
+      .passport-card{width:100%;min-height:auto;padding:24px}
+      .credentials-grid{grid-template-columns:repeat(2,1fr)}
+      .score-section{flex-direction:column;text-align:center}
+      .passport-details{grid-template-columns:1fr}
+      .leader-row{grid-template-columns:30px 1fr 80px 60px}
+    }
+    @media(max-width:480px){
+      .credentials-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h2>🪪 Agent Passport</h2>
+    <p>Sign in to view your AI Agent Passport</p>
+    <div class="form-group">
+      <label for="login-user">Username</label>
+      <input type="text" id="login-user" value="admin" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label for="login-pass">Password</label>
+      <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password">
+    </div>
+    <button type="button" class="btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="page-wrapper" id="mainPage" style="display:none">
+
+  <!-- Header -->
+  <header class="page-header">
+    <a class="brand" href="dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z"/></svg>
+      GuardianAI Passport
+    </a>
+    <div class="header-right">
+      <a class="back-btn" href="dashboard.html">← Dashboard</a>
+      <button class="back-btn" onclick="doLogout()">Logout</button>
+    </div>
+  </header>
+
+  <!-- ═══ PASSPORT CARD ═══ -->
+  <section class="passport-section">
+    <div class="passport-card" id="passportCard">
+      <div class="passport-content">
+        <div class="passport-header">
+          <div class="passport-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z"/></svg>
+            GuardianAI Agent Passport
+          </div>
+          <span class="passport-chain" id="passportChain">Base L2</span>
+        </div>
+
+        <div class="score-section">
+          <div class="score-gauge">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle class="track" cx="60" cy="60" r="52"/>
+              <circle class="fill" id="scoreCircle" cx="60" cy="60" r="52"
+                stroke-dasharray="326.73" stroke-dashoffset="326.73"/>
+            </svg>
+            <div class="score-value">
+              <div class="score-number" id="scoreNumber">0</div>
+              <div class="score-label">Trust</div>
+            </div>
+          </div>
+          <div class="score-info">
+            <div class="agent-name" id="agentName">Loading…</div>
+            <div class="agent-id" id="agentId">—</div>
+            <div id="tierBadge" class="tier-badge tier-UNVERIFIED">🔴 UNVERIFIED</div>
+          </div>
+        </div>
+
+        <div class="passport-details" id="passportDetails">
+          <div class="detail-item">
+            <div class="detail-label">Passport ID</div>
+            <div class="detail-value" id="passportIdVal">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Owner</div>
+            <div class="detail-value" id="ownerVal">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Issued</div>
+            <div class="detail-value" id="issuedVal">—</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Credentials</div>
+            <div class="detail-value" id="credsCountVal">0 verified</div>
+          </div>
+        </div>
+
+        <div class="passport-creds" id="passportCreds">
+          <!-- Mini credential badges injected here -->
+        </div>
+
+        <div class="passport-footer">
+          <div class="soulbound-tag">══ SOULBOUND — NON-TRANSFERABLE ══</div>
+          <div class="qr-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3"/>
+              <rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/>
+              <rect x="18" y="18" width="3" height="3"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CREDENTIALS ═══ -->
+  <h2 class="section-title">🛡️ Verifiable Credentials</h2>
+  <div class="credentials-grid" id="credentialsGrid">
+    <!-- Injected by JS -->
+  </div>
+
+  <!-- ═══ LEADERBOARD ═══ -->
+  <h2 class="section-title">🏆 Trust Leaderboard</h2>
+  <div class="leaderboard-panel" id="leaderboardPanel">
+    <div id="leaderboardList">
+      <div style="color:var(--text3);text-align:center;padding:32px">Loading leaderboard…</div>
+    </div>
+  </div>
+
+  <!-- ═══ VERIFY ═══ -->
+  <h2 class="section-title">🔍 Verify an Agent</h2>
+  <div class="verify-panel">
+    <div class="verify-input-row">
+      <input class="verify-input" type="text" id="verifyAgentInput" placeholder="Enter agent ID to verify…">
+      <button class="verify-btn" onclick="verifyAgent()">Verify Passport</button>
+    </div>
+    <div class="verify-result" id="verifyResult"></div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+let accessToken = null;
+let currentUser = null;
+let currentPassport = null;
+
+// ── Credential type metadata ──────────────────────────
+const CRED_TYPES = [
+  {type:'GuardianAI:SecurityAudit', icon:'🛡️', name:'Security Audit', desc:'Passed 6-pillar security audit with score ≥ 80'},
+  {type:'GuardianAI:PIICompliant', icon:'🔒', name:'PII Compliant', desc:'30+ days with zero PII data leaks'},
+  {type:'GuardianAI:JailbreakResistant', icon:'⚔️', name:'Jailbreak Resistant', desc:'Survived 100+ jailbreak attempts'},
+  {type:'GuardianAI:ZeroIncident90', icon:'✅', name:'Zero Incident 90d', desc:'90 consecutive days without incidents'},
+  {type:'GuardianAI:ThreatFeedCurrent', icon:'📡', name:'Threat Feed Active', desc:'Threat intelligence is active & current'},
+  {type:'GuardianAI:EUAIActReady', icon:'🇪🇺', name:'EU AI Act Ready', desc:'Meets EU AI Act Article 15 requirements'},
+];
+
+// ── Tier colors for score gauge ─────────────────────
+const TIER_COLORS = {
+  DIAMOND: '#34d399',
+  GOLD: '#fbbf24',
+  SILVER: '#94a3b8',
+  UNVERIFIED: '#ef4444',
+};
+const TIER_LABELS = {
+  DIAMOND: '🟢 DIAMOND',
+  GOLD: '🔵 GOLD',
+  SILVER: '🟡 SILVER',
+  UNVERIFIED: '🔴 UNVERIFIED',
+};
+
+// ── Auth ──────────────────────────────────────────────
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: user, password: pass}),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || 'Login failed');
+    }
+    const data = await res.json();
+    accessToken = data.access_token;
+    currentUser = data.user;
+    localStorage.setItem('guardian_token', accessToken);
+    localStorage.setItem('guardian_user', JSON.stringify(currentUser));
+    showPassportPage();
+  } catch (e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+function doLogout() {
+  accessToken = null;
+  currentUser = null;
+  localStorage.removeItem('guardian_token');
+  localStorage.removeItem('guardian_user');
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('mainPage').style.display = 'none';
+}
+
+function showPassportPage() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('mainPage').style.display = 'block';
+  initPassportCard();
+  loadLeaderboard();
+  loadCredentials();
+}
+
+// ── API helpers ──────────────────────────────────────
+async function apiFetch(path, options = {}) {
+  const headers = { ...options.headers };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (res.status === 401) { doLogout(); return null; }
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  return apiFetch(path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+}
+
+// ── Passport Card ────────────────────────────────────
+async function initPassportCard() {
+  // Try to load an existing passport, or auto-issue one
+  let data = await apiFetch('/api/v1/passport/default');
+
+  if (!data || !data.passport) {
+    // Auto-issue a passport for the "default" agent
+    data = await apiPost('/api/v1/passport/issue', {
+      agent_id: 'default',
+      owner_pubkey: '0x' + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join(''),
+      chain_id: 'base',
+      metadata: { name: 'GuardianAI Primary Agent', environment: 'production' },
+    });
+  }
+
+  if (data && data.passport) {
+    currentPassport = data.passport;
+    renderPassportCard(data.passport);
+  } else {
+    // Use demo data if API isn't ready
+    renderPassportCard(getDemoPassport());
+  }
+
+  // 3D tilt effect
+  const card = document.getElementById('passportCard');
+  card.addEventListener('mousemove', (e) => {
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    card.style.transform = `perspective(1200px) rotateY(${x * 12}deg) rotateX(${-y * 12}deg)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = 'perspective(1200px) rotateY(0deg) rotateX(0deg)';
+  });
+}
+
+function renderPassportCard(passport) {
+  const score = passport.trust_score || 0;
+  const tier = passport.tier || 'UNVERIFIED';
+  const color = TIER_COLORS[tier] || TIER_COLORS.UNVERIFIED;
+
+  // Animate score number
+  animateValue('scoreNumber', 0, Math.round(score), 1200);
+
+  // Animate gauge circle
+  const circle = document.getElementById('scoreCircle');
+  const circumference = 326.73;
+  const offset = circumference - (score / 100) * circumference;
+  setTimeout(() => {
+    circle.style.stroke = color;
+    circle.style.strokeDashoffset = offset;
+  }, 100);
+
+  // Agent info
+  document.getElementById('agentName').textContent = passport.metadata?.name || passport.agent_id || 'Agent';
+  document.getElementById('agentId').textContent = passport.agent_id || '—';
+
+  // Tier badge
+  const badge = document.getElementById('tierBadge');
+  badge.className = `tier-badge tier-${tier}`;
+  badge.textContent = TIER_LABELS[tier] || tier;
+
+  // Details
+  const pid = passport.passport_id || '—';
+  document.getElementById('passportIdVal').textContent = pid.length > 12 ? pid.slice(0,6) + '…' + pid.slice(-6) : pid;
+  const owner = passport.owner_pubkey || '—';
+  document.getElementById('ownerVal').textContent = owner.length > 12 ? owner.slice(0,6) + '…' + owner.slice(-6) : owner;
+  document.getElementById('issuedVal').textContent = passport.issued_at ? new Date(passport.issued_at * 1000).toLocaleDateString() : '—';
+  const credsList = passport.credentials || [];
+  document.getElementById('credsCountVal').textContent = `${credsList.length} verified`;
+
+  // Chain
+  document.getElementById('passportChain').textContent = (passport.chain_id || 'base').toUpperCase() + ' L2';
+
+  // Mini credential badges
+  const credsEl = document.getElementById('passportCreds');
+  const earnedTypes = new Set(credsList.map(c => {
+    if (Array.isArray(c.type)) return c.type.find(t => t.startsWith('GuardianAI:')) || '';
+    return c.type || '';
+  }));
+  credsEl.innerHTML = CRED_TYPES.map(ct => {
+    const earned = earnedTypes.has(ct.type);
+    return `<span class="cred-mini ${earned ? 'earned' : 'locked'}">${ct.icon} ${ct.name.split(' ')[0]}</span>`;
+  }).join('');
+}
+
+function getDemoPassport() {
+  return {
+    passport_id: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+    agent_id: 'default',
+    owner_pubkey: '0x1a2b3c4d5e6f7890abcdef1234567890abcdef12',
+    chain_id: 'base',
+    trust_score: 87.5,
+    tier: 'GOLD',
+    credentials: [],
+    metadata: { name: 'GuardianAI Primary Agent' },
+    issued_at: Date.now() / 1000 - 86400 * 30,
+    updated_at: Date.now() / 1000,
+    is_active: true,
+  };
+}
+
+// ── Credentials Grid ─────────────────────────────────
+async function loadCredentials() {
+  const grid = document.getElementById('credentialsGrid');
+  let earnedTypes = new Set();
+
+  if (currentPassport && currentPassport.credentials) {
+    currentPassport.credentials.forEach(c => {
+      const t = Array.isArray(c.type) ? c.type.find(x => x.startsWith('GuardianAI:')) : c.type;
+      if (t) earnedTypes.add(t);
+    });
+  }
+
+  grid.innerHTML = CRED_TYPES.map(ct => {
+    const earned = earnedTypes.has(ct.type);
+    return `<div class="cred-card ${earned ? 'earned' : 'locked'}">
+      <div class="cred-icon">${ct.icon}</div>
+      <div class="cred-name">${ct.name}</div>
+      <div class="cred-desc">${ct.desc}</div>
+      <div class="cred-status ${earned ? 'earned' : 'locked'}">${earned ? '✓ Earned' : '🔒 Locked'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Leaderboard ──────────────────────────────────────
+async function loadLeaderboard() {
+  const list = document.getElementById('leaderboardList');
+  const data = await apiFetch('/api/v1/passport/leaderboard?limit=10');
+
+  if (!data || !data.leaderboard || data.leaderboard.length === 0) {
+    // Show demo leaderboard
+    renderLeaderboard(getDemoLeaderboard());
+    return;
+  }
+  renderLeaderboard(data.leaderboard);
+}
+
+function renderLeaderboard(leaders) {
+  const list = document.getElementById('leaderboardList');
+  const maxScore = Math.max(...leaders.map(l => l.trust_score || 0), 1);
+
+  list.innerHTML = leaders.map((l, i) => {
+    const score = l.trust_score || 0;
+    const tier = l.tier || 'UNVERIFIED';
+    const color = TIER_COLORS[tier] || TIER_COLORS.UNVERIFIED;
+    const pct = (score / maxScore * 100).toFixed(1);
+    const name = l.metadata?.name || l.agent_id || `Agent ${i+1}`;
+    return `<div class="leader-row">
+      <div class="leader-rank ${i < 3 ? 'top-3' : ''}">${i+1}</div>
+      <div>
+        <div class="leader-name">${name}</div>
+        <div class="leader-bar"><div class="leader-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      </div>
+      <div class="tier-badge tier-${tier}" style="font-size:.6rem;padding:2px 8px">${TIER_LABELS[tier] || tier}</div>
+      <div class="leader-score" style="color:${color}">${score.toFixed(1)}</div>
+    </div>`;
+  }).join('');
+}
+
+function getDemoLeaderboard() {
+  const agents = [
+    {agent_id:'trading-bot-alpha', trust_score:96.2, tier:'DIAMOND', metadata:{name:'Trading Bot Alpha'}},
+    {agent_id:'defi-guardian', trust_score:93.8, tier:'DIAMOND', metadata:{name:'DeFi Guardian'}},
+    {agent_id:'nft-sentinel', trust_score:89.1, tier:'GOLD', metadata:{name:'NFT Sentinel'}},
+    {agent_id:'bridge-monitor', trust_score:85.4, tier:'GOLD', metadata:{name:'Bridge Monitor'}},
+    {agent_id:'dao-voter', trust_score:78.2, tier:'GOLD', metadata:{name:'DAO Voter Agent'}},
+    {agent_id:'yield-optimizer', trust_score:72.6, tier:'SILVER', metadata:{name:'Yield Optimizer'}},
+    {agent_id:'data-oracle', trust_score:68.3, tier:'SILVER', metadata:{name:'Data Oracle'}},
+    {agent_id:'swap-agent', trust_score:55.1, tier:'SILVER', metadata:{name:'Swap Agent'}},
+    {agent_id:'test-bot-001', trust_score:32.7, tier:'UNVERIFIED', metadata:{name:'Test Bot 001'}},
+    {agent_id:'new-agent', trust_score:12.4, tier:'UNVERIFIED', metadata:{name:'New Agent'}},
+  ];
+  return agents;
+}
+
+// ── Verify Agent ──────────────────────────────────────
+async function verifyAgent() {
+  const agentId = document.getElementById('verifyAgentInput').value.trim();
+  const resultEl = document.getElementById('verifyResult');
+
+  if (!agentId) {
+    resultEl.className = 'verify-result fail';
+    resultEl.innerHTML = '⚠️ Please enter an agent ID to verify.';
+    return;
+  }
+
+  resultEl.className = 'verify-result';
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = '⏳ Verifying…';
+  resultEl.style.background = 'var(--surface2)';
+  resultEl.style.color = 'var(--text2)';
+  resultEl.style.border = '1px solid var(--border)';
+
+  const data = await apiPost('/api/v1/passport/verify', { agent_id: agentId });
+
+  if (!data || !data.verification) {
+    resultEl.className = 'verify-result fail';
+    resultEl.innerHTML = `❌ <strong>Verification Failed</strong><br>No passport found for agent "${agentId}". The agent may not have a registered passport.`;
+    return;
+  }
+
+  const v = data.verification;
+  if (v.verified) {
+    resultEl.className = 'verify-result success';
+    resultEl.innerHTML = `
+      ✅ <strong>Passport Verified</strong><br>
+      <strong>Agent:</strong> ${v.agent_id}<br>
+      <strong>Trust Score:</strong> ${v.trust_score?.toFixed(1) || 0}/100<br>
+      <strong>Tier:</strong> ${TIER_LABELS[v.tier] || v.tier}<br>
+      <strong>Credentials:</strong> ${v.credentials_valid || 0}/${v.credentials_count || 0} verified<br>
+      ${v.warnings?.length ? '<br>⚠️ ' + v.warnings.join('<br>⚠️ ') : ''}
+    `;
+  } else {
+    resultEl.className = 'verify-result fail';
+    resultEl.innerHTML = `
+      ❌ <strong>Verification Failed</strong><br>
+      <strong>Agent:</strong> ${v.agent_id || agentId}<br>
+      <strong>Errors:</strong> ${(v.errors || ['Unknown error']).join(', ')}<br>
+    `;
+  }
+}
+
+// ── Utilities ──────────────────────────────────────────
+function animateValue(elementId, start, end, duration) {
+  const el = document.getElementById(elementId);
+  const range = end - start;
+  const startTime = performance.now();
+
+  function update(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+    el.textContent = Math.round(start + range * eased);
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ── Init ──────────────────────────────────────────────
+(function init() {
+  const token = localStorage.getItem('guardian_token');
+  const user = localStorage.getItem('guardian_user');
+  if (token && user) {
+    accessToken = token;
+    currentUser = JSON.parse(user);
+    showPassportPage();
+  }
+  document.getElementById('login-pass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+  });
+})();
+</script>
+</body>
+</html>

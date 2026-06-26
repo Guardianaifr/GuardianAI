@@ -38,7 +38,7 @@ class SkillScanner:
             # logger.info(f"Scanning {display_name}...") # Too noisy for logs, maybe print?
             # We'll use a special log format or just do it silently if we want clean logs.
             # But user asked for "real scanner" look.
-            print(f"[SCAN] Scanning skill: {display_name} ...", end="", flush=True)
+            print(f"🔍 Scanning skill: {display_name} ...", end="", flush=True)
             import time
             time.sleep(0.05) # "Processing" delay
 
@@ -54,28 +54,28 @@ class SkillScanner:
                 if isinstance(node, ast.Import):
                     for alias in node.names:
                         if alias.name in self.blocked_imports:
-                            current_file_findings.append(f"[THREAT] Illicit import '{alias.name}' in {display_name}")
+                            current_file_findings.append(f"⚠️  THREAT DETECTED: Illicit import '{alias.name}' in {display_name}")
                 
                 # Check from imports
                 elif isinstance(node, ast.ImportFrom):
                     if node.module in self.blocked_imports:
-                        current_file_findings.append(f"[THREAT] Illicit import '{node.module}' in {display_name}")
+                        current_file_findings.append(f"⚠️  THREAT DETECTED: Illicit import '{node.module}' in {display_name}")
 
                 # Check function calls
                 elif isinstance(node, ast.Call):
                     if isinstance(node.func, ast.Name):
                         if node.func.id in self.blocked_functions:
-                            current_file_findings.append(f"[WARNING] Dangerous function '{node.func.id}' usage in {display_name}")
+                            current_file_findings.append(f"⚠️  RISK WARNING: Dangerous function '{node.func.id}' usage in {display_name}")
             
             findings.extend(current_file_findings)
             
             if current_file_findings:
-                print(" [ THREAT FOUND ]")
+                print(" [ THREAT FOUND ] ❌")
             else:
-                print(" [ SAFE ]")
+                print(" [ SAFE ] ✅")
 
         except Exception as e:
             logger.error(f"Failed to scan {file_path}: {e}")
-            print(f" [ ERROR ]")
+            print(f" [ ERROR ] ❓")
             
         return findings

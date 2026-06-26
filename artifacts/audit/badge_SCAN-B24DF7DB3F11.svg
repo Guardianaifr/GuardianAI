@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="40" viewBox="0 0 220 40">
+  <rect width="130" height="40" fill="#2d3748" rx="4" />
+  <rect x="130" width="90" height="40" fill="#28a745" rx="4" />
+  <path d="M130 0h4v40h-4z" fill="#28a745"/>
+  
+  <text x="65" y="25" fill="#ffffff" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle">
+    GuardianAI
+  </text>
+  <text x="175" y="25" fill="#ffffff" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle">
+    CERT A+
+  </text>
+</svg>

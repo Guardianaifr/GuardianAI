@@ -1,0 +1,23 @@
+{
+  "name": "guardianai-contracts",
+  "version": "1.0.0",
+  "description": "GuardianAI smart contracts — CortexAnchor + PassportSBT",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:cortex:monad": "hardhat run scripts/deploy-cortex.ts --network monad_testnet",
+    "deploy:sbt:monad": "hardhat run scripts/deploy-sbt.ts --network monad_testnet",
+    "deploy:interlock:monad": "hardhat run scripts/deploy-interlock.ts --network monad_testnet",
+    "deploy:insurance:monad": "hardhat run scripts/deploy-insurance.ts --network monad_testnet",
+    "deploy:threatfeed:monad": "hardhat run scripts/deploy-threatfeed.ts --network monad_testnet",
+    "deploy:risk:monad": "hardhat run scripts/deploy-risk.ts --network monad_testnet",
+    "deploy:all:monad": "npm run deploy:cortex:monad && npm run deploy:sbt:monad && npm run deploy:interlock:monad && npm run deploy:insurance:monad && npm run deploy:threatfeed:monad && npm run deploy:risk:monad",
+    "verify:monad": "hardhat verify --network monad_testnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.1.0",
+    "dotenv": "^17.4.2",
+    "hardhat": "^2.22.0"
+  }
+}

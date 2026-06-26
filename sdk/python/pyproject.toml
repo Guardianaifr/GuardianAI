@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guardianai-sdk"
+version = "1.0.0"
+description = "GuardianAI Python SDK — One-line AI security middleware for OpenAI, Anthropic, and any LLM client."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "GuardianAI Security Labs", email = "security@guardianai.com"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+keywords = ["ai", "security", "guardrails", "llm", "openai", "anthropic", "middleware", "firewall"]
+
+[project.optional-dependencies]
+openai = ["openai>=1.0.0"]
+anthropic = ["anthropic>=0.3.0"]
+all = ["openai>=1.0.0", "anthropic>=0.3.0"]
+
+[project.urls]
+Homepage = "https://guardianai.com"
+Documentation = "https://docs.guardianai.com"
+Repository = "https://github.com/GuardianAI/guardianai-basic-launch"
+Issues = "https://github.com/GuardianAI/guardianai-basic-launch/issues"
+
+[tool.setuptools]
+py-modules = ["guardianai"]

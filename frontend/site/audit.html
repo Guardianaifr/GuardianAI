@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI | AI Security Audit for Crypto</title>
+  <meta name="description" content="Scan any AI+Web3 project for prompt injection, data leaks, and smart contract manipulation. Free instant security grade.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="site-assets/style.css?v=20260602web3agent">
+  <style>
+    :root {
+      --bg: #050409; 
+      --surface: rgba(13, 9, 23, 0.7); 
+      --border: rgba(139, 92, 246, 0.15);
+      --text: #f1f3f9; 
+      --muted: #948ba3; 
+      --primary: #8b5cf6; 
+      --cyan: #00f2fe;
+      --danger: #ef4444; 
+      --warning: #f59e0b; 
+      --success: #10b981;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { 
+      font-family: 'Outfit', sans-serif; 
+      background: var(--bg); 
+      background-image: radial-gradient(circle at 50% -20%, #170d2b 0%, #050409 100%);
+      color: var(--text); 
+      min-height: 100vh; 
+    }
+
+    /* HERO */
+    .hero { text-align:center; padding:80px 20px 40px; max-width:800px; margin:0 auto; }
+    .hero .badge { display:inline-block; background:rgba(0, 242, 254, 0.08); color:var(--cyan); padding:6px 16px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:1px; margin-bottom:20px; border:1px solid rgba(0, 242, 254, 0.25); }
+    .hero h1 { font-size:42px; font-weight:900; line-height:1.15; background:linear-gradient(135deg,#fff,var(--primary)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:16px; font-family: var(--font-display); }
+    .hero p { color:var(--muted); font-size:16px; max-width:600px; margin:0 auto 40px; line-height:1.7; }
+
+    /* SCAN FORM */
+    .scan-box { max-width:700px; margin:0 auto 60px; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:32px; backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .scan-box h3 { font-size:16px; font-weight:700; margin-bottom:16px; font-family: var(--font-display); }
+    .input-row { display:flex; gap:12px; margin-bottom:16px; }
+    .input-row input { flex:1; background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:10px; padding:14px 18px; color:var(--text); font-size:15px; font-family:inherit; outline:none; transition:border-color .2s; }
+    .input-row input:focus { border-color:var(--primary); }
+    .input-row input::placeholder { color:#6a6a71; }
+    .depth-row { display:flex; gap:10px; margin-bottom:20px; }
+    .depth-btn { flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:13px; font-weight:600; cursor:pointer; transition:all .2s; text-align:center; }
+    .depth-btn:hover { border-color:var(--primary); color:var(--text); }
+    .depth-btn.active { background:rgba(50, 121, 249, 0.12); border-color:var(--primary); color:var(--primary); }
+    .depth-btn small { display:block; font-weight:400; font-size:11px; margin-top:2px; color:#6a6a71; }
+    .scan-btn { width:100%; padding:16px; border:none; border-radius:10px; background:var(--primary); color:white; font-size:16px; font-weight:700; cursor:pointer; transition:transform .15s,box-shadow .15s; letter-spacing:0.02em; font-family: var(--font-display); box-shadow: 0 4px 15px rgba(50, 121, 249, 0.2); }
+    .scan-btn:hover { transform:translateY(-1px); box-shadow:0 8px 30px rgba(50, 121, 249, 0.3); }
+    .scan-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    /* PROGRESS */
+    .progress-area { display:none; margin-top:24px; }
+    .progress-area.visible { display:block; }
+    .progress-bar-track { width:100%; height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden; margin-bottom:12px; }
+    .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--primary),#4b8afc); border-radius:4px; transition:width .3s; width:0%; }
+    .progress-label { font-size:12px; color:var(--muted); }
+    .progress-log { margin-top:12px; max-height:200px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:12px; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.8; }
+    .log-vuln { color:var(--danger); }
+    .log-ok { color:var(--success); }
+    .log-info { color:var(--muted); }
+
+    /* RESULT CARD */
+    .result-area { display:none; max-width:700px; margin:0 auto 60px; }
+    .result-area.visible { display:block; }
+    .grade-card { text-align:center; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:40px 32px; margin-bottom:24px; backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .grade-letter { font-size:80px; font-weight:900; line-height:1; margin-bottom:8px; font-family: var(--font-display); }
+    .grade-A { color:var(--success); } .grade-B { color:var(--primary); } .grade-C { color:var(--warning); } .grade-D, .grade-F { color:var(--danger); } .grade-NA { color:var(--muted); }
+    .unreachable-banner { background:rgba(30, 41, 59, 0.4); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:24px; text-align:center; }
+    .unreachable-banner .icon { font-size:40px; margin-bottom:12px; }
+    .unreachable-banner h3 { color:var(--text); font-size:18px; margin:0 0 8px; font-weight:700; font-family: var(--font-display); }
+    .unreachable-banner p { color:var(--muted); font-size:14px; margin:0; line-height:1.6; }
+    .unreachable-banner code { background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:4px; font-size:13px; color:var(--text); }
+    .grade-score { font-size:18px; color:var(--muted); font-weight:600; }
+    .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:24px 0; }
+    .stat-box { text-align:center; background:rgba(0,0,0,0.2); border-radius:10px; padding:16px; border: 1px solid var(--border); }
+    .stat-box .val { font-size:24px; font-weight:800; font-family: var(--font-display); }
+    .stat-box .lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+    .pillar-bars { margin-top:20px; }
+    .pillar-row { display:flex; align-items:center; gap:12px; margin:8px 0; }
+    .pillar-name { width:200px; font-size:12px; font-weight:600; text-align:right; flex-shrink:0; color: var(--muted); }
+    .pillar-track { flex:1; height:20px; background:rgba(255,255,255,0.04); border-radius:6px; overflow:hidden; border: 1px solid var(--border); }
+    .pillar-fill { height:100%; border-radius:6px; display:flex; align-items:center; padding-left:8px; font-size:10px; font-weight:700; color:white; transition:width .5s; }
+    .download-btn { display:inline-block; margin-top:24px; padding:14px 32px; border-radius:10px; background:var(--success); color:white; font-weight:700; font-size:14px; text-decoration:none; cursor:pointer; border:none; transition:transform .15s; font-family: var(--font-display); }
+    .download-btn:hover { transform:translateY(-1px); }
+    .cert-notice { margin-top:18px; padding:14px 16px; border-radius:10px; font-size:13px; line-height:1.6; }
+    .cert-notice.certified { background:rgba(52, 168, 83, 0.12); border:1px solid rgba(52, 168, 83, 0.25); color:#d1fae5; }
+    .cert-notice.pending { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); color:#fde68a; }
+    .cert-notice a { color:var(--primary); font-weight:700; text-decoration:none; }
+    .discovery-box { margin-top:20px; text-align:left; background:rgba(0,0,0,0.22); border:1px solid var(--border); border-radius:12px; padding:18px; }
+    .discovery-box h4 { font-size:13px; text-transform:uppercase; letter-spacing:1px; color:var(--primary); margin-bottom:12px; font-family: var(--font-display); }
+    .discovery-box p { color:var(--muted); font-size:13px; line-height:1.7; margin-bottom:10px; }
+    .discovery-box code { font-family:'JetBrains Mono',monospace; color:var(--text); background:rgba(50, 121, 249, 0.12); padding:2px 6px; border-radius:5px; }
+    .endpoint-list { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+    .endpoint-item { background:rgba(255,255,255,0.03); border-radius:8px; padding:10px 12px; font-size:12px; color:var(--text); border: 1px solid var(--border); }
+    .endpoint-item span { color:var(--muted); display:block; margin-top:4px; }
+    .history { max-width:900px; margin:0 auto 60px; padding:0 20px; }
+    .history h2 { text-align:center; font-size:22px; font-weight:800; margin-bottom:8px; font-family: var(--font-display); }
+    .history .sub { text-align:center; color:var(--muted); margin-bottom:24px; font-size:14px; }
+    .history-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+    .history-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; backdrop-filter: blur(16px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .history-card h4 { font-size:15px; margin-bottom:6px; font-family: var(--font-display); }
+    .history-card p { font-size:12px; color:var(--muted); line-height:1.6; }
+    .history-meta { display:flex; justify-content:space-between; gap:12px; margin-top:12px; font-size:12px; color:var(--text); }
+    .history-empty { text-align:center; color:var(--muted); font-size:13px; padding:18px; background:var(--surface); border:1px dashed var(--border); border-radius:12px; }
+
+    /* PILLARS GRID */
+    .pillars { max-width:900px; margin:0 auto 80px; padding:0 20px; }
+    .pillars h2 { text-align:center; font-size:28px; font-weight:800; margin-bottom:8px; font-family: var(--font-display); }
+    .pillars .sub { text-align:center; color:var(--muted); margin-bottom:40px; font-size:14px; }
+    .pillar-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .pillar-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; transition:border-color .2s; backdrop-filter: blur(16px); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+    .pillar-card:hover { border-color:var(--primary); }
+    .pillar-card .icon { font-size:28px; margin-bottom:12px; }
+    .pillar-card h4 { font-size:14px; font-weight:700; margin-bottom:8px; font-family: var(--font-display); }
+    .pillar-card p { font-size:12px; color:var(--muted); line-height:1.6; }
+    .pillar-card .count { font-size:11px; color:var(--primary); font-weight:600; margin-top:8px; }
+
+    @media(max-width:768px) { .pillar-grid { grid-template-columns:1fr; } .input-row { flex-direction:column; } .stats-row { grid-template-columns:1fr; } .history-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <div class="brand-icon"></div>
+        GuardianAI
+      </a>
+      <nav class="nav">
+        <a href="index.html">Gateway</a>
+        <a href="audit.html" class="active">Scanner</a>
+        <a href="index.html#workflow">Workflow</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="docs.html">Docs</a>
+        <a href="dashboard.html">Console</a>
+      </nav>
+      <a class="btn btn-primary" href="audit.html">Run Free Scan</a>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="badge">AI SECURITY FOR CRYPTO</div>
+    <h1>Scan Any AI+Web3 Project in 60 Seconds</h1>
+    <p>Paste your API endpoint. GuardianAI runs 20+ attack vectors across 6 security pillars — prompt injection, data leaks, smart contract manipulation, and more. Get your security grade instantly.</p>
+  </div>
+
+  <div class="scan-box" id="scanBox">
+    <h3>Start Your Free Security Scan</h3>
+    <div class="input-row">
+      <input type="text" id="targetUrl" placeholder="https://your-project.com or https://your-api.com/v1/chat/completions" spellcheck="false">
+    </div>
+    <div class="input-row">
+      <input type="text" id="targetName" placeholder="Project Name (optional)" spellcheck="false">
+    </div>
+    <div class="depth-row">
+      <button class="depth-btn" data-depth="quick" onclick="selectDepth(this)">Quick<small>10 vectors · ~30s</small></button>
+      <button class="depth-btn active" data-depth="standard" onclick="selectDepth(this)">Standard<small>26 vectors · ~2min</small></button>
+      <button class="depth-btn" data-depth="deep" onclick="selectDepth(this)">Deep<small>49 vectors · ~5min</small></button>
+    </div>
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">&#128270; Start Security Scan</button>
+
+    <div class="progress-area" id="progressArea">
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Initializing scan...</div>
+      <div class="progress-log" id="progressLog"></div>
+    </div>
+  </div>
+
+  <div class="result-area" id="resultArea">
+    <div class="grade-card" id="gradeCard">
+      <div class="grade-letter" id="gradeLetter">—</div>
+      <div class="grade-score" id="gradeScore">Scanning...</div>
+      <div class="stats-row">
+        <div class="stat-box"><div class="val" id="statTotal">0</div><div class="lbl">Vectors Tested</div></div>
+        <div class="stat-box"><div class="val" id="statVuln" style="color:var(--danger)">0</div><div class="lbl">Vulnerabilities</div></div>
+        <div class="stat-box"><div class="val" id="statProtected" style="color:var(--success)">0</div><div class="lbl">Protected</div></div>
+      </div>
+      <div class="pillar-bars" id="pillarBars"></div>
+      <div class="discovery-box" id="discoveryBox" style="display:none">
+        <h4>Discovery Summary</h4>
+        <p id="discoverySummary"></p>
+        <div class="endpoint-list" id="endpointList"></div>
+      </div>
+      <button class="download-btn" id="downloadBtn" onclick="downloadReport()" style="display:none">&#128196; Open Full Audit Report</button>
+      <button class="download-btn" id="downloadPdf" onclick="downloadPdf()" style="display:none;margin-left:8px;background:linear-gradient(135deg,#6366f1,#4f46e5)">&#128203; Download PDF</button>
+      <div id="trendCard" style="display:none;margin-top:16px;background:rgba(0,0,0,0.22);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:left">
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--cyan);margin-bottom:10px">&#128200; Trend Analysis</h4>
+        <div id="trendContent" style="font-size:13px;color:var(--muted);line-height:1.8"></div>
+      </div>
+      <div class="cert-notice" id="certNotice" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="history">
+    <h2>Recent Scans</h2>
+    <p class="sub">Your latest audit jobs and completed grades</p>
+    <div class="history-grid" id="historyGrid"></div>
+  </div>
+
+  <div class="pillars">
+    <h2>6-Pillar Security Framework</h2>
+    <p class="sub">Every scan covers these attack categories, mapped to OWASP LLM Top 10</p>
+    <div class="pillar-grid">
+      <div class="pillar-card"><div class="icon">&#128274;</div><h4>Prompt Injection & Jailbreak</h4><p>Direct overrides, indirect injection, multi-turn escalation, encoded payloads, markdown exfiltration, Unicode obfuscation, JSON mode injection, tool-use hijacking</p><div class="count">OWASP LLM01, LLM09 · 12 vectors</div></div>
+      <div class="pillar-card"><div class="icon">&#128373;</div><h4>Data Exfiltration & Privacy</h4><p>System prompt leakage, PII extraction, training data memorization, config side-channel, conversation history, RAG document theft</p><div class="count">OWASP LLM02, LLM07 · 6 vectors</div></div>
+      <div class="pillar-card"><div class="icon">&#9939;</div><h4>Smart Contract Manipulation</h4><p>ABI hallucination, tx parameter injection, oracle spoofing, flash loan attacks, proxy upgrades, reentrancy, infinite approvals</p><div class="count">OWASP LLM05 · 7 vectors</div></div>
+      <div class="pillar-card"><div class="icon">&#129302;</div><h4>Multi-Agent Exploitation</h4><p>Agent-to-agent infection, role impersonation, context poisoning, memory corruption, chain takeover, shared tool poisoning</p><div class="count">OWASP LLM03, LLM06 · 6 vectors</div></div>
+      <div class="pillar-card"><div class="icon">&#128176;</div><h4>Financial Logic Manipulation</h4><p>Betting rigging, yield hijacking, trading signals, MEV sandwich attacks, governance vote manipulation, treasury drains, slippage exploits</p><div class="count">OWASP LLM04, LLM08 · 8 vectors</div></div>
+      <div class="pillar-card"><div class="icon">&#127959;</div><h4>Infrastructure & API Security</h4><p>Rate limiting, error leaks, auth bypass, CORS probes, GraphQL introspection, SSRF, network mapping, log injection, DoS</p><div class="count">OWASP LLM10 · 10 vectors</div></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      &copy; 2026 GuardianAI Platform. Enterprise LLM Security for Web3.
+    </div>
+  </footer>
+
+  <script>
+    let selectedDepth = 'standard';
+    let activeScanJobId = null;
+    let renderedLogCount = 0;
+    function selectDepth(btn) {
+      document.querySelectorAll('.depth-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedDepth = btn.dataset.depth;
+    }
+
+    function setProgressState(percent, label) {
+      document.getElementById('progressFill').style.width = `${Math.max(0, Math.min(percent || 0, 100))}%`;
+      document.getElementById('progressLabel').textContent = label || 'Scanning...';
+    }
+
+
+
+    function addLog(text, cls) {
+      const log = document.getElementById('progressLog');
+      const line = document.createElement('div');
+      line.className = 'log-' + cls;
+      line.textContent = text;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function showResults(data) {
+      const resultArea = document.getElementById('resultArea');
+      resultArea.classList.add('visible');
+      const scanStatus = data.scan_status || 'completed';
+
+      // ── Target unreachable: show informational state, not a failing grade ──
+      if (scanStatus === 'target_unreachable') {
+        document.getElementById('gradeLetter').textContent = 'N/A';
+        document.getElementById('gradeLetter').className = 'grade-letter grade-NA';
+        document.getElementById('gradeScore').textContent = 'Not an AI/LLM endpoint';
+        document.getElementById('statTotal').textContent = '—';
+        document.getElementById('statVuln').textContent = '—';
+        document.getElementById('statProtected').textContent = '—';
+
+        // Show unreachable banner instead of pillar bars
+        const barsDiv = document.getElementById('pillarBars');
+        const targetUrl = data.target_url || data.primary_endpoint || '';
+        barsDiv.innerHTML = `
+          <div class="unreachable-banner">
+            <div class="icon">🔍</div>
+            <h3>No AI Endpoint Detected</h3>
+            <p>GuardianAI scanned <code>${escapeHtml(targetUrl)}</code> and determined it is a standard web application — not an AI agent or LLM API endpoint.</p>
+            <p style="margin-top:12px">To scan this project, provide the direct API endpoint URL<br>(e.g. <code>https://your-app.com/api/v1/chat/completions</code>).</p>
+          </div>`;
+
+        // Still show discovery info if available
+        const discoveryBox = document.getElementById('discoveryBox');
+        const endpoints = data.discovered_endpoints || [];
+        const crawl = data.crawl_summary || {};
+        if (endpoints.length > 0) {
+          const discoverySummary = document.getElementById('discoverySummary');
+          const endpointList = document.getElementById('endpointList');
+          const pagesCrawled = crawl.pages_crawled ?? 0;
+          discoveryBox.style.display = 'block';
+          discoverySummary.innerHTML = `GuardianAI crawled ${pagesCrawled} page${pagesCrawled === 1 ? '' : 's'} and tested ${endpoints.length} candidate endpoint${endpoints.length === 1 ? '' : 's'} — none responded as an AI API.`;
+          endpointList.innerHTML = endpoints.slice(0, 5).map(ep => {
+            const confidence = typeof ep.confidence === 'number' ? `${Math.round(ep.confidence * 100)}%` : '';
+            return `<div class="endpoint-item"><code>${escapeHtml(ep.url)}</code><span>${escapeHtml(ep.source || ep.kind || '')}${confidence ? ` · ${confidence}` : ''}</span></div>`;
+          }).join('');
+        }
+
+        document.getElementById('downloadBtn').style.display = 'none';
+        document.getElementById('downloadPdf').style.display = 'none';
+        document.getElementById('certNotice').style.display = 'none';
+        resultArea.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+
+      // ── Normal scan results ──
+      const grade = data.grade || 'F';
+      const gradeClass = grade.startsWith('A') ? 'A' : grade.startsWith('B') ? 'B' : grade.startsWith('C') ? 'C' : grade.startsWith('D') ? 'D' : 'F';
+      document.getElementById('gradeLetter').textContent = grade;
+      document.getElementById('gradeLetter').className = 'grade-letter grade-' + gradeClass;
+      document.getElementById('gradeScore').textContent = `Security Score: ${data.score}/100`;
+      document.getElementById('statTotal').textContent = data.total_vectors;
+      document.getElementById('statVuln').textContent = data.vulnerabilities_found;
+      document.getElementById('statProtected').textContent = data.protected_count;
+
+      // Pillar bars
+      const barsDiv = document.getElementById('pillarBars');
+      barsDiv.innerHTML = '';
+      const pillars = data.pillar_scores || {};
+      for (const [name, info] of Object.entries(pillars)) {
+        const short = name.length > 25 ? name.substring(0, 25) + '...' : name;
+        const color = info.score >= 80 ? 'var(--success)' : info.score >= 50 ? 'var(--warning)' : 'var(--danger)';
+        barsDiv.innerHTML += `<div class="pillar-row"><div class="pillar-name">${short}</div><div class="pillar-track"><div class="pillar-fill" style="width:${info.score}%;background:${color}">${info.score}%</div></div></div>`;
+      }
+
+      const discoveryBox = document.getElementById('discoveryBox');
+      const discoverySummary = document.getElementById('discoverySummary');
+      const endpointList = document.getElementById('endpointList');
+      const endpoints = data.discovered_endpoints || [];
+      const crawl = data.crawl_summary || {};
+      const selected = data.primary_endpoint || crawl.selected_endpoint || data.target_url;
+      const pagesCrawled = crawl.pages_crawled ?? 0;
+      discoveryBox.style.display = 'block';
+      discoverySummary.innerHTML = `GuardianAI selected <code>${escapeHtml(selected)}</code> after crawling ${pagesCrawled} page${pagesCrawled === 1 ? '' : 's'} and reviewing ${endpoints.length} candidate endpoint${endpoints.length === 1 ? '' : 's'}.`;
+      endpointList.innerHTML = endpoints.slice(0, 5).map(ep => {
+        const confidence = typeof ep.confidence === 'number' ? `${Math.round(ep.confidence * 100)}% confidence` : '';
+        return `<div class="endpoint-item"><code>${escapeHtml(ep.url)}</code><span>${escapeHtml(ep.source || ep.kind || '')}${confidence ? ` · ${confidence}` : ''}</span></div>`;
+      }).join('');
+
+      document.getElementById('downloadBtn').style.display = 'inline-block';
+      document.getElementById('downloadBtn').dataset.scanId = data.scan_id;
+      document.getElementById('downloadBtn').dataset.reportUrl = (data.artifacts && data.artifacts.report_url) || '';
+      document.getElementById('downloadPdf').style.display = 'inline-block';
+
+      // Load trend analysis for this target
+      if (data.target_url) loadTrend(data.target_url);
+
+      const certNotice = document.getElementById('certNotice');
+      certNotice.style.display = 'block';
+      if (data.badge) {
+        certNotice.className = 'cert-notice certified';
+        const badgeUrl = data.artifacts && data.artifacts.badge_svg_url;
+        certNotice.innerHTML = badgeUrl
+          ? `Eligible for signed evidence badge issuance. <a href="${badgeUrl}" target="_blank" rel="noopener">View signed badge</a>.`
+          : 'Eligible for signed evidence badge issuance.';
+      } else {
+        certNotice.className = 'cert-notice pending';
+        certNotice.textContent = 'A signed evidence badge is issued for B+ or higher scores on standard or deep scans.';
+      }
+      resultArea.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function downloadReport() {
+      const btn = document.getElementById('downloadBtn');
+      const reportUrl = btn.dataset.reportUrl;
+      const scanId = btn.dataset.scanId;
+      window.open(reportUrl || ('/api/v1/scan/' + scanId + '/report'), '_blank');
+    }
+
+    function downloadPdf() {
+      const scanId = document.getElementById('downloadBtn').dataset.scanId;
+      window.open('/api/v1/scan/' + scanId + '/pdf', '_blank');
+    }
+
+    async function loadTrend(targetUrl) {
+      try {
+        const token = localStorage.getItem('guardian_token');
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const resp = await fetch('/api/v1/scan-history?target_url=' + encodeURIComponent(targetUrl) + '&limit=10', {
+          headers: headers
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const trend = data.trend;
+        if (!trend) return;
+
+        const trendCard = document.getElementById('trendCard');
+        const trendContent = document.getElementById('trendContent');
+        const arrow = trend.direction === 'up' ? '📈 ↑' : trend.direction === 'down' ? '📉 ↓' : '➡️';
+        const color = trend.direction === 'up' ? 'var(--success)' : trend.direction === 'down' ? 'var(--danger)' : 'var(--muted)';
+        const changeSign = trend.change > 0 ? '+' : '';
+
+        trendContent.innerHTML = `
+          <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <div><strong style="color:${color}">${arrow} ${changeSign}${trend.change}</strong> vs previous scan</div>
+            <div>Current: <strong>${trend.current_score}/100</strong></div>
+            <div>Previous: ${trend.previous_score}/100</div>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:#475569">
+            ${trend.scan_count} total scans | Best: ${trend.best_score} | Worst: ${trend.worst_score} | Avg: ${trend.avg_score}
+          </div>`;
+        trendCard.style.display = 'block';
+      } catch(e) { /* trend is optional */ }
+    }
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function renderJobUpdate(job) {
+      const logs = job.logs || [];
+      for (let i = renderedLogCount; i < logs.length; i++) {
+        addLog(logs[i].message, logs[i].kind || 'info');
+      }
+      renderedLogCount = logs.length;
+      setProgressState(job.progress_pct || 0, job.progress_label || 'Scanning...');
+    }
+
+    async function pollScanJob(jobId) {
+      while (true) {
+        const token = localStorage.getItem('guardian_token');
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const resp = await fetch(`/api/v1/scan-jobs/${encodeURIComponent(jobId)}`, {
+          headers: headers
+        });
+        const job = await resp.json();
+
+        if (!resp.ok) {
+          addLog('ERROR: ' + (job.detail || 'Unable to fetch scan status'), 'vuln');
+          return;
+        }
+
+        renderJobUpdate(job);
+
+        if (job.status === 'completed') {
+          if (job.result) {
+            showResults(job.result);
+          }
+          await loadRecentScans();
+          return;
+        }
+
+        if (job.status === 'failed') {
+          addLog('ERROR: ' + (job.error || 'Scan failed'), 'vuln');
+          await loadRecentScans();
+          return;
+        }
+
+        await sleep(1200);
+      }
+    }
+
+    async function loadRecentScans() {
+      const grid = document.getElementById('historyGrid');
+      try {
+        const token = localStorage.getItem('guardian_token');
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const resp = await fetch('/api/v1/scan-jobs?limit=6', {
+          headers: headers
+        });
+        const payload = await resp.json();
+        const jobs = payload.jobs || [];
+        if (!resp.ok || jobs.length === 0) {
+          grid.innerHTML = '<div class="history-empty">No scan jobs yet. Start your first audit above.</div>';
+          return;
+        }
+
+        grid.innerHTML = jobs.map(job => {
+          const result = job.result || {};
+          const grade = result.grade || 'Pending';
+          const score = typeof result.score === 'number' ? `${result.score}/100` : job.status.toUpperCase();
+          const target = escapeHtml(job.target_name || job.target_url || 'Unknown target');
+          const depth = escapeHtml(job.depth || 'standard');
+          return `<div class="history-card">
+            <h4>${target}</h4>
+            <p>${escapeHtml(job.target_url || '')}</p>
+            <div class="history-meta">
+              <span>Depth: ${depth}</span>
+              <span>Grade: ${escapeHtml(String(grade))}</span>
+              <span>${escapeHtml(String(score))}</span>
+            </div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        grid.innerHTML = '<div class="history-empty">Unable to load recent scans right now.</div>';
+      }
+    }
+
+    async function startScan() {
+      const url = document.getElementById('targetUrl').value.trim();
+      const name = document.getElementById('targetName').value.trim();
+      if (!url) { alert('Please enter a target URL'); return; }
+
+      const btn = document.getElementById('scanBtn');
+      btn.disabled = true;
+      btn.textContent = 'Scanning...';
+
+      document.getElementById('progressArea').classList.add('visible');
+      document.getElementById('progressLog').innerHTML = '';
+      document.getElementById('certNotice').style.display = 'none';
+      document.getElementById('discoveryBox').style.display = 'none';
+      document.getElementById('downloadBtn').style.display = 'none';
+      document.getElementById('resultArea').classList.remove('visible');
+
+      activeScanJobId = null;
+      renderedLogCount = 0;
+      setProgressState(0, 'Queueing scan job...');
+
+      try {
+        const token = localStorage.getItem('guardian_token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const resp = await fetch('/api/v1/scan-jobs', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({ target_url: url, target_name: name, depth: selectedDepth })
+        });
+        const job = await resp.json();
+
+        if (!resp.ok || job.error) {
+          addLog('ERROR: ' + (job.error || 'Unable to create scan job'), 'vuln');
+          return;
+        }
+
+        activeScanJobId = job.job_id;
+        renderJobUpdate(job);
+        await pollScanJob(job.job_id);
+      } catch (e) {
+        addLog('Network error: ' + e.message, 'vuln');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Start Security Scan';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadRecentScans();
+    });
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  </script>
+</body>
+</html>

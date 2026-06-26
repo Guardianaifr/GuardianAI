@@ -1,0 +1,16 @@
+[Unit]
+Description=GuardianAI One-Click Production Stack
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/guardianai-basic-launch
+EnvironmentFile=/opt/guardianai-basic-launch/deploy/production/.env.production
+ExecStart=/usr/bin/python3 /opt/guardianai-basic-launch/guardianctl.py one-click --target-url http://127.0.0.1:8080
+Restart=always
+RestartSec=3
+User=guardian
+Group=guardian
+
+[Install]
+WantedBy=multi-user.target

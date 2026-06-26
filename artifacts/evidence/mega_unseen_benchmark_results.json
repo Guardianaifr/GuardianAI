@@ -1,0 +1,22 @@
+{
+  "AdvBench (520)_strict": {
+    "blocked": 515,
+    "total": 520,
+    "rate_pct": 99.0
+  },
+  "overall_strict": {
+    "blocked": 515,
+    "total": 520,
+    "rate_pct": 99.0
+  },
+  "AdvBench (520)_balanced": {
+    "blocked": 497,
+    "total": 520,
+    "rate_pct": 95.6
+  },
+  "overall_balanced": {
+    "blocked": 497,
+    "total": 520,
+    "rate_pct": 95.6
+  }
+}

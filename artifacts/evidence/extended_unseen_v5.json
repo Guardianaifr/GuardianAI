@@ -1,0 +1,44 @@
+{
+  "jailbreak-classif (harmful)": {
+    "feed_rate": 37.2,
+    "fw_rate": 76.6,
+    "combined_rate": 78.5,
+    "total": 666
+  },
+  "ChatGPT-Jailbreaks (voted)": {
+    "feed_rate": 35.4,
+    "fw_rate": 83.5,
+    "combined_rate": 84.8,
+    "total": 79
+  },
+  "deepset/prompt-injections": {
+    "feed_rate": 5.7,
+    "fw_rate": 15.2,
+    "combined_rate": 19.4,
+    "total": 263
+  },
+  "ToxicChat train (toxic=1)": {
+    "feed_rate": 7.6,
+    "fw_rate": 56.0,
+    "combined_rate": 56.7,
+    "total": 291
+  },
+  "harmful_total": {
+    "feed_rate": 24.1,
+    "fw_rate": 60.0,
+    "combined_rate": 62.0,
+    "total": 1299
+  },
+  "fp_jailbreak-classif (benign)": {
+    "feed_fp_rate": 0.6,
+    "fw_fp_rate": 12.8,
+    "combined_fp_rate": 13.3,
+    "total": 640
+  },
+  "fp_deepset (safe)": {
+    "feed_fp_rate": 0.0,
+    "fw_fp_rate": 6.0,
+    "combined_fp_rate": 6.0,
+    "total": 399
+  }
+}

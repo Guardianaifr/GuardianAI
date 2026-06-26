@@ -1,0 +1,539 @@
+{
+  "feed_id": "guardian-usdc-compliance-2026-001",
+  "feed_name": "Circle USDC Compliance Failure Cases",
+  "feed_version": "1.0",
+  "published": "2026-05-19T00:00:00Z",
+  "source": "zachxbt_onchain_research",
+  "incidents": [
+    {
+      "incident_id": "INC-DRIFT-2026-0401",
+      "name": "Drift Protocol Exploit ($280M) - USDC Not Frozen",
+      "entity": "Drift Protocol",
+      "incident_type": "smart_contract_bug",
+      "chain": "solana",
+      "date_occurred": "2026-04-01",
+      "date_discovered": "2026-04-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 280000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$280M exploit. 232M+ USDC bridged Solana->ETH via CCTP across 100+ txs over 6 hours. Linked to DPRK by Elliptic. Circle froze ZERO despite funds moving through their own native bridge for 6 consecutive hours.",
+      "tags": ["drift", "usdc_compliance_failure", "dprk", "lazarus", "cctp_bridge", "solana"],
+      "addresses": [
+        {
+          "address": "HkGz4KmoZ7Zmk7HN6ndJ31UJ1qZ2qgwQxgVqQwovpZES",
+          "chain": "solana",
+          "threat_level": "critical",
+          "incident_id": "INC-DRIFT-2026-0401",
+          "incident_name": "Drift Protocol Exploit",
+          "role": "theft_address",
+          "amount_usd": 280000000,
+          "notes": "Primary theft address. DPRK-linked (Elliptic attribution). 232M USDC bridged via CCTP unfrozen.",
+          "in_commercial_tools": true,
+          "tags": ["drift", "dprk", "lazarus", "usdc_unfrozen"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-SWAPNET-2026-0125",
+      "name": "SwapNet Exploit ($16M) - Freeze Requests Denied",
+      "entity": "SwapNet",
+      "incident_type": "smart_contract_bug",
+      "chain": "ethereum",
+      "date_occurred": "2026-01-25",
+      "date_discovered": "2026-01-25",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 16000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$16M exploit. 3M USDC sat in exploiter address for 2 days. Both LE and private sector freeze requests denied by Circle. Funds swapped hours before NY court TRO was granted.",
+      "tags": ["swapnet", "usdc_compliance_failure", "freeze_denied"],
+      "addresses": [
+        {
+          "address": "0x6cAad74121bF602e71386505A4687f310e0D833e",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-SWAPNET-2026-0125",
+          "incident_name": "SwapNet Exploit",
+          "role": "theft_address",
+          "amount_usd": 16000000,
+          "notes": "3M USDC sat for 2 days. Circle denied freeze requests from LE and private sector.",
+          "in_commercial_tools": true,
+          "tags": ["swapnet", "usdc_unfrozen"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-RADIANT-2024-1001",
+      "name": "Radiant Capital Hack ($58M) - Lazarus Group",
+      "entity": "Radiant Capital",
+      "incident_type": "key_compromise",
+      "chain": "ethereum",
+      "date_occurred": "2024-10-01",
+      "date_discovered": "2024-10-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 58000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$58M hack by Lazarus Group (AppleJeus). USDC drained via open approvals. Chain-hopped Hyperliquid->Arbitrum via USDC. Multiple instances of USDC sitting in theft addresses for hours without Circle freeze.",
+      "tags": ["radiant", "lazarus", "applejeus", "dprk", "usdc_compliance_failure"],
+      "addresses": [
+        {
+          "address": "0x52263cAEc2e144C3A84cc16d014157360Ac85A89",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-RADIANT-2024-1001",
+          "incident_name": "Radiant Capital Hack (Lazarus)",
+          "role": "theft_address",
+          "in_commercial_tools": true,
+          "tags": ["radiant", "lazarus", "usdc_unfrozen"]
+        },
+        {
+          "address": "0x00E1559184Bf1da0256a495ae9BAec11BCA60eb7",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-RADIANT-2024-1001",
+          "incident_name": "Radiant Capital Hack (Lazarus)",
+          "role": "theft_address",
+          "in_commercial_tools": true,
+          "tags": ["radiant", "lazarus"]
+        },
+        {
+          "address": "0x7997e80F4bD9563d61EE4D06108f7D6cEB23Ab21",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-RADIANT-2024-1001",
+          "incident_name": "Radiant Capital Hack (Lazarus)",
+          "role": "theft_address",
+          "in_commercial_tools": true,
+          "tags": ["radiant", "lazarus"]
+        },
+        {
+          "address": "0x60ABA279E49E5A05DC7e3c84F2204a6Afb032119",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-RADIANT-2024-1001",
+          "incident_name": "Radiant Capital Hack (Lazarus)",
+          "role": "theft_address",
+          "in_commercial_tools": true,
+          "tags": ["radiant", "lazarus"]
+        },
+        {
+          "address": "0x5b10daEdC2D7B5CE47f6B3072188f758f1b14481",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-RADIANT-2024-1001",
+          "incident_name": "Radiant Capital Hack (Lazarus)",
+          "role": "theft_address",
+          "in_commercial_tools": true,
+          "tags": ["radiant", "lazarus"]
+        },
+        {
+          "address": "0x34aa91e574aa963675107011DcF0392C5521005a",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-RADIANT-2024-1001",
+          "incident_name": "Radiant Capital Hack (Lazarus)",
+          "role": "theft_address",
+          "in_commercial_tools": true,
+          "tags": ["radiant", "lazarus"]
+        },
+        {
+          "address": "0x348FC4DfdCD3427D8A4B43Ad965B4443d55CF955",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-RADIANT-2024-1001",
+          "incident_name": "Radiant Capital Hack (Lazarus)",
+          "role": "theft_address",
+          "in_commercial_tools": true,
+          "tags": ["radiant", "lazarus"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-BYBIT-2025-0221",
+      "name": "Bybit Hack ($1.5B) - Lazarus Group",
+      "entity": "Bybit",
+      "incident_type": "exchange_hack",
+      "chain": "ethereum",
+      "date_occurred": "2025-02-21",
+      "date_discovered": "2025-02-21",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 1500000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge", "mixer"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$1.5B Bybit hack by Lazarus. On Feb 28, 106K USDT + 338K USDC consolidated to theft address. Tether froze within hours. Circle took 24 hours longer.",
+      "tags": ["bybit", "lazarus", "dprk", "usdc_compliance_failure"],
+      "addresses": [
+        {
+          "address": "0xDa2e12E94060720581994eEc870F83d9C7200c2c",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-BYBIT-2025-0221",
+          "incident_name": "Bybit Hack (Lazarus Group)",
+          "role": "theft_address",
+          "amount_usd": 1500000000,
+          "notes": "Tether froze within hours. Circle took 24h longer to act.",
+          "in_commercial_tools": true,
+          "tags": ["bybit", "lazarus", "usdc_slow_freeze"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-DPRK-CIRCLE-2025",
+      "name": "DPRK IT Workers Using Circle Withdrawal Addresses",
+      "entity": "Circle / DPRK IT Workers",
+      "incident_type": "insider_theft",
+      "chain": "ethereum",
+      "date_occurred": "2022-10-01",
+      "date_discovered": "2025-07-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 0,
+      "exit_exchanges": ["Circle"],
+      "laundering_methods": ["exchange_deposit"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "Between Oct 2022 and Jan 2025, Circle users withdrew USDC to 3 DPRK IT worker payment addresses. These were 3 hops from a DPRK forfeiture address and 2 hops from a Tether-blacklisted address. Never blacklisted by Circle.",
+      "tags": ["dprk", "it_workers", "usdc_compliance_failure", "circle"],
+      "addresses": [
+        {
+          "address": "0x241d2b20f2c26a2541a0f121d6a33c29cb4cfe69",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DPRK-CIRCLE-2025",
+          "incident_name": "DPRK IT Worker Circle Withdrawals",
+          "role": "payment_wallet",
+          "notes": "Circle withdrawal address linked to DPRK IT workers. 3 hops from forfeiture address. Never blacklisted.",
+          "in_commercial_tools": false,
+          "tags": ["dprk", "circle", "never_blacklisted"]
+        },
+        {
+          "address": "0x3131f63378cedc21a9c2fdf6574248a8cb7eec7a",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DPRK-CIRCLE-2025",
+          "incident_name": "DPRK IT Worker Circle Withdrawals",
+          "role": "payment_wallet",
+          "in_commercial_tools": false,
+          "tags": ["dprk", "circle", "never_blacklisted"]
+        },
+        {
+          "address": "0x5c411cb174c2e163f6465252ae895f3e3e5a8792",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DPRK-CIRCLE-2025",
+          "incident_name": "DPRK IT Worker Circle Withdrawals",
+          "role": "payment_wallet",
+          "in_commercial_tools": false,
+          "tags": ["dprk", "circle", "never_blacklisted"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-CETUS-2025-0522",
+      "name": "Cetus Protocol Exploit ($223M) - USDC Frozen 1 Month Late",
+      "entity": "Cetus Protocol",
+      "incident_type": "smart_contract_bug",
+      "chain": "sui",
+      "date_occurred": "2025-05-22",
+      "date_discovered": "2025-05-22",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 223000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$223M exploit. 61M USDC bridged Sui->ETH via CCTP across 60+ txs over 1.5 hours. Circle blacklisted address ONE MONTH later after USDC already converted to ETH.",
+      "tags": ["cetus", "usdc_compliance_failure", "cctp_bridge", "sui"],
+      "addresses": [
+        {
+          "address": "0xe28b50cef1d633ea43d3296a3f6b67ff0312a5f1a99f0af753c85b8b5de8ff06",
+          "chain": "sui",
+          "threat_level": "critical",
+          "incident_id": "INC-CETUS-2025-0522",
+          "incident_name": "Cetus Protocol Exploit",
+          "role": "theft_address",
+          "amount_usd": 223000000,
+          "in_commercial_tools": false,
+          "tags": ["cetus", "usdc_delayed_freeze"]
+        },
+        {
+          "address": "0x89012a55cD6b88e407C9d4ae9B3425F55924919b",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-CETUS-2025-0522",
+          "incident_name": "Cetus Protocol Exploit",
+          "role": "theft_address",
+          "in_commercial_tools": false,
+          "tags": ["cetus", "usdc_delayed_freeze"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-MANGO-2022-1001",
+      "name": "Mango Markets Exploit ($110M) - USDC Never Frozen",
+      "entity": "Mango Markets",
+      "incident_type": "smart_contract_bug",
+      "chain": "solana",
+      "date_occurred": "2022-10-01",
+      "date_discovered": "2022-10-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 110000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["exchange_deposit"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$110M exploit. $57.5M transferred to Circle deposit on Solana and withdrawn to ETH. Exploiter later charged by SEC. Funds never frozen on-chain.",
+      "tags": ["mango", "usdc_compliance_failure", "sec_charges"],
+      "addresses": [
+        {
+          "address": "yUJw9a2PyoqKkH47i4yEGf4WXomSHMiK7Lp29Xs2NqM",
+          "chain": "solana",
+          "threat_level": "critical",
+          "incident_id": "INC-MANGO-2022-1001",
+          "incident_name": "Mango Markets Exploit",
+          "role": "theft_address",
+          "amount_usd": 110000000,
+          "notes": "Exploiter address. $57.5M to Circle deposit. Never frozen.",
+          "in_commercial_tools": false,
+          "tags": ["mango", "usdc_never_frozen"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-NOMAD-2022-0801",
+      "name": "Nomad Bridge Exploit ($190M) - 45M USDC Unfrozen",
+      "entity": "Nomad Bridge",
+      "incident_type": "bridge_exploit",
+      "chain": "ethereum",
+      "date_occurred": "2022-08-01",
+      "date_discovered": "2022-08-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 190000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$190M exploit. ~45M USDC sat freezable for 30-45 min in 3 exploiter addresses before being swapped. Never blacklisted by Circle.",
+      "tags": ["nomad", "usdc_compliance_failure", "bridge_exploit"],
+      "addresses": [
+        {
+          "address": "0xbf293d5138a2a1ba407b43672643434c43827179",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-NOMAD-2022-0801",
+          "incident_name": "Nomad Bridge Exploit",
+          "role": "theft_address",
+          "in_commercial_tools": false,
+          "tags": ["nomad", "usdc_never_frozen"]
+        },
+        {
+          "address": "0x56d8b635a7c88fd1104d23d632af40c1c3aac4e3",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-NOMAD-2022-0801",
+          "incident_name": "Nomad Bridge Exploit",
+          "role": "theft_address",
+          "in_commercial_tools": false,
+          "tags": ["nomad", "usdc_never_frozen"]
+        },
+        {
+          "address": "0xb5c55f76f90cc528b2609109ca14d8d84593590e",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-NOMAD-2022-0801",
+          "incident_name": "Nomad Bridge Exploit",
+          "role": "theft_address",
+          "in_commercial_tools": false,
+          "tags": ["nomad", "usdc_never_frozen"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-LEDGER-2023-1201",
+      "name": "Ledger Connect Kit Supply Chain Attack ($600K)",
+      "entity": "Ledger",
+      "incident_type": "key_compromise",
+      "chain": "ethereum",
+      "date_occurred": "2023-12-01",
+      "date_discovered": "2023-12-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 600000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "Ledger Connect Kit supply chain attack. Phishing drainer added. USDC sat 3+ hours without Circle action. Tether froze stolen USDT in same address.",
+      "tags": ["ledger", "usdc_compliance_failure", "supply_chain"],
+      "addresses": [
+        {
+          "address": "0x658729879fCa881D9526480B82aE00EFc54B5c2d",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-LEDGER-2023-1201",
+          "incident_name": "Ledger Connect Kit Supply Chain Attack",
+          "role": "theft_address",
+          "amount_usd": 600000,
+          "notes": "USDC sat 3+ hours. Tether froze USDT in same address. Circle took no action.",
+          "in_commercial_tools": false,
+          "tags": ["ledger", "usdc_unfrozen"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-GMX-2025-0709",
+      "name": "GMX Exploit ($40M) - USDC Not Frozen",
+      "entity": "GMX",
+      "incident_type": "smart_contract_bug",
+      "chain": "arbitrum",
+      "date_occurred": "2025-07-09",
+      "date_discovered": "2025-07-09",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 40000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$40M exploit. 9M USDC sat 2+ hours, partially bridged Arbitrum->ETH via CCTP. Exploiter returned assets minus $5M bounty. USDC not frozen during 2+ hour window.",
+      "tags": ["gmx", "usdc_compliance_failure", "arbitrum"],
+      "addresses": [
+        {
+          "address": "0xDF3340A436c27655bA62F8281565C9925C3a5221",
+          "chain": "arbitrum",
+          "threat_level": "critical",
+          "incident_id": "INC-GMX-2025-0709",
+          "incident_name": "GMX Exploit",
+          "role": "theft_address",
+          "amount_usd": 40000000,
+          "in_commercial_tools": false,
+          "tags": ["gmx", "usdc_unfrozen"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-REMITANO-2023-0901",
+      "name": "Remitano Hot Wallet Hack ($8.5M)",
+      "entity": "Remitano",
+      "incident_type": "exchange_hack",
+      "chain": "ethereum",
+      "date_occurred": "2023-09-01",
+      "date_discovered": "2023-09-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 8500000,
+      "exit_exchanges": [],
+      "laundering_methods": ["exchange_deposit"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "$8.5M hot wallet hack. 441K USDC sat 8 hours without Circle action. Tether froze 1.4M USDT in same addresses.",
+      "tags": ["remitano", "usdc_compliance_failure"],
+      "addresses": [
+        {
+          "address": "CznNhNTBduDTbAUsFbJrCfLCrgzpyNWZwXpbVSkH7p3u",
+          "chain": "solana",
+          "threat_level": "critical",
+          "incident_id": "INC-REMITANO-2023-0901",
+          "incident_name": "Remitano Hot Wallet Hack",
+          "role": "theft_address",
+          "in_commercial_tools": false,
+          "tags": ["remitano", "usdc_unfrozen"]
+        },
+        {
+          "address": "0x74530e81e9f4715c720b6b237f682cd0e298b66c",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-REMITANO-2023-0901",
+          "incident_name": "Remitano Hot Wallet Hack",
+          "role": "theft_address",
+          "in_commercial_tools": false,
+          "tags": ["remitano", "usdc_unfrozen"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-DEFI-2022-1101",
+      "name": "DeFi Builder Multi-Wallet Theft ($20M)",
+      "entity": "Unknown DeFi Builder",
+      "incident_type": "key_compromise",
+      "chain": "ethereum",
+      "date_occurred": "2022-11-01",
+      "date_discovered": "2022-11-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 20000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["bridge"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "~$20M stolen from multiple wallets. 513K USDC sat in theft address for 1 month with no Circle freeze. Tether froze stolen USDT in same address.",
+      "tags": ["defi_builder", "usdc_compliance_failure"],
+      "addresses": [
+        {
+          "address": "0x741564f5563abbe85f1b091eb39e38c000cb3e70",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-DEFI-2022-1101",
+          "incident_name": "DeFi Builder Multi-Wallet Theft",
+          "role": "theft_address",
+          "amount_usd": 20000000,
+          "notes": "513K USDC sat 1 month. Tether froze USDT. Circle took no action.",
+          "in_commercial_tools": false,
+          "tags": ["defi_builder", "usdc_unfrozen"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-PIGBUTCHER-2025-0601",
+      "name": "SE Asian Pig Butchering Syndicate - DOJ Forfeiture ($225M)",
+      "entity": "SE Asian Pig Butchering Syndicate",
+      "incident_type": "phishing",
+      "chain": "ethereum",
+      "date_occurred": "2025-06-01",
+      "date_discovered": "2025-06-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 225000000,
+      "exit_exchanges": [],
+      "laundering_methods": ["exchange_deposit"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "DOJ civil forfeiture complaint for $225M USDT seizure. 1.7M+ USDC linked to illicit funds transferred through intermediaries to Circle deposit address. Civil Action No. 25-cv-1907.",
+      "tags": ["pig_butchering", "usdc_compliance_failure", "doj"],
+      "addresses": [
+        {
+          "address": "0xb4875c44fa2b00291637793196f077b197daaa87",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-PIGBUTCHER-2025-0601",
+          "incident_name": "SE Asian Pig Butchering Syndicate - DOJ Forfeiture",
+          "role": "exchange_deposit",
+          "destination_exchange": "Circle",
+          "notes": "Circle deposit address receiving 1.7M+ USDC from pig butchering syndicate.",
+          "in_commercial_tools": false,
+          "tags": ["pig_butchering", "circle_deposit"]
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-GARANTEX-2025-0301",
+      "name": "Garantex OFAC Seizure - Circle Inaction on 200K USDC",
+      "entity": "Garantex",
+      "incident_type": "exchange_hack",
+      "chain": "ethereum",
+      "date_occurred": "2025-03-01",
+      "date_discovered": "2025-03-01",
+      "total_stolen_btc": 0,
+      "total_stolen_usd": 0,
+      "exit_exchanges": [],
+      "laundering_methods": ["exchange_deposit"],
+      "source": "zachxbt_onchain_tracing",
+      "notes": "LE from multiple jurisdictions seized Garantex infrastructure (OFAC sanctioned since 2022). Tether froze $22M in connected addresses. Circle took no action on 200K+ USDC in same addresses.",
+      "tags": ["garantex", "ofac", "usdc_compliance_failure"],
+      "addresses": [
+        {
+          "address": "0xb271036d95b205a26bae5cb2d4eb922c000903a2",
+          "chain": "ethereum",
+          "threat_level": "critical",
+          "incident_id": "INC-GARANTEX-2025-0301",
+          "incident_name": "Garantex OFAC Seizure",
+          "role": "exchange_deposit",
+          "notes": "Garantex address. Tether froze $22M. Circle took no action on 200K+ USDC.",
+          "in_commercial_tools": false,
+          "tags": ["garantex", "ofac", "usdc_unfrozen"]
+        }
+      ]
+    }
+  ]
+}

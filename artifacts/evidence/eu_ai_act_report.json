@@ -1,0 +1,330 @@
+{
+  "generated_at_utc": "2026-04-20T08:47:49.652535+00:00",
+  "framework": "EU AI Act (Regulation 2024/1689)",
+  "framework_version": "2024",
+  "system_name": "GuardianAI",
+  "system_version": "1.0",
+  "risk_classification": {
+    "risk_level": "limited",
+    "annex_iii_category": "general_purpose_ai_security",
+    "rationale": "System provides AI security controls. Not directly classified as high-risk under Annex III, but may be embedded in high-risk deployments. Limited risk transparency obligations apply.",
+    "applicable_articles": [
+      "art_13",
+      "art_15"
+    ]
+  },
+  "article_assessments": [
+    {
+      "article_id": "art_9",
+      "article_title": "Risk Management System",
+      "status": "compliant",
+      "score": 1.0,
+      "findings": [
+        "5/5 controls verified with evidence"
+      ],
+      "evidence_refs": [
+        "threat_model_quarterly.md",
+        "perf_chaos_report.json",
+        "FALSE_NEGATIVE_TAXONOMY.md",
+        "brain/orchestrator.py",
+        "security_slo_targets.json"
+      ],
+      "recommendations": []
+    },
+    {
+      "article_id": "art_10",
+      "article_title": "Data and Data Governance",
+      "status": "compliant",
+      "score": 1.0,
+      "findings": [
+        "4/4 controls verified with evidence"
+      ],
+      "evidence_refs": [
+        "data_governance_audit.md",
+        "differential_privacy.py",
+        "supply_chain.py",
+        "output_validator.py"
+      ],
+      "recommendations": []
+    },
+    {
+      "article_id": "art_11",
+      "article_title": "Technical Documentation",
+      "status": "compliant",
+      "score": 1.0,
+      "findings": [
+        "4/4 controls verified with evidence"
+      ],
+      "evidence_refs": [
+        "END_TO_END_PROJECT_DOCUMENTATION.md",
+        "FEATURE_BENCHMARK_ANALYSIS.md",
+        "API.md",
+        "RELEASE_NOTES.md"
+      ],
+      "recommendations": []
+    },
+    {
+      "article_id": "art_12",
+      "article_title": "Record-Keeping and Logging",
+      "status": "compliant",
+      "score": 1.0,
+      "findings": [
+        "5/5 controls verified with evidence"
+      ],
+      "evidence_refs": [
+        "evidence_export.py",
+        "interceptor.py",
+        "tenant_isolation.py",
+        "siem.py",
+        "incident_drill_report.md"
+      ],
+      "recommendations": []
+    },
+    {
+      "article_id": "art_13",
+      "article_title": "Transparency and Provision of Information",
+      "status": "compliant",
+      "score": 1.0,
+      "findings": [
+        "5/5 controls verified with evidence"
+      ],
+      "evidence_refs": [
+        "README.md",
+        "DEPLOYMENT.md",
+        "TROUBLESHOOTING.md",
+        "public_benchmark_report.md",
+        "OPERATIONS.md"
+      ],
+      "recommendations": []
+    },
+    {
+      "article_id": "art_14",
+      "article_title": "Human Oversight",
+      "status": "compliant",
+      "score": 1.0,
+      "findings": [
+        "5/5 controls verified with evidence"
+      ],
+      "evidence_refs": [
+        "agentic_controls.py",
+        "feedback_loop.py",
+        "tenant_sensitivity.py",
+        "policy_governance.py",
+        "brain/orchestrator.py"
+      ],
+      "recommendations": []
+    },
+    {
+      "article_id": "art_15",
+      "article_title": "Accuracy, Robustness and Cybersecurity",
+      "status": "compliant",
+      "score": 1.0,
+      "findings": [
+        "6/6 controls verified with evidence"
+      ],
+      "evidence_refs": [
+        "perf_chaos_report.json",
+        "public_benchmark_report.json",
+        "ai_firewall.py",
+        "input_filter.py",
+        "rate_limiter.py",
+        "hardening_checks.py"
+      ],
+      "recommendations": []
+    },
+    {
+      "article_id": "art_17",
+      "article_title": "Quality Management System",
+      "status": "compliant",
+      "score": 0.83,
+      "findings": [
+        "5/6 controls verified with evidence",
+        "1 controls missing evidence: pytest.ini + tests/"
+      ],
+      "evidence_refs": [
+        "CONTRIBUTING.md",
+        "RELEASE_NOTES.md",
+        ".github/",
+        "SECURITY.md",
+        "compliance_bundle.json"
+      ],
+      "recommendations": []
+    }
+  ],
+  "overall_score": 0.98,
+  "overall_status": "compliant",
+  "summary": "EU AI Act compliance assessment for GuardianAI v1.0. Risk classification: limited (general_purpose_ai_security). Overall score: 98% (compliant). Articles assessed: 8.",
+  "rms_document": "# Risk Management System \u2014 GuardianAI\n\n**Framework**: EU AI Act, Article 9\n**Generated**: 2026-04-20 08:47 UTC\n**System**: GuardianAI v1.0\n\n## 1. System Description\n\nAI security control plane providing real-time guardrails, governance, and compliance for enterprise AI deployments.\n\n**Intended Purpose**: Protect AI systems against prompt injection, data leakage, cost abuse, and adversarial attacks in production environments.\n\n## 2. Risk Identification\n\n### 2.1 Known Risks\n- Prompt injection attacks bypassing input guardrails\n- Data leakage through model outputs (PII, secrets, system prompts)\n- Cost abuse via token-draining attack patterns\n- Adversarial attacks degrading model safety controls\n- Supply chain compromise via poisoned models or dependencies\n- Agentic systems exceeding authorized scope\n\n### 2.2 Risk Assessment Methodology\n- Continuous red/blue/purple team automated probing\n- Public benchmark alignment (HarmBench, AdvBench, GAIA)\n- Quarterly threat model refresh (threat_model_quarterly.md)\n- Community threat feed integration\n\n## 3. Risk Mitigation Measures\n\n| Risk | Mitigation Control | Evidence |\n|------|-------------------|----------|\n| Prompt injection | Input filter + AI semantic firewall | input_filter.py, ai_firewall.py |\n| Data leakage | Output validator + PII redaction | output_validator.py |\n| System prompt leakage | System prompt guard | system_prompt_guard.py |\n| Cost abuse | Token budget + behavioral anomaly | cost_abuse.py |\n| Supply chain | SBOM + model provenance | supply_chain.py |\n| Agentic scope | Agent identity + scope enforcement | agentic_controls.py |\n| Memory poisoning | Session memory guard | memory_guard.py |\n\n## 4. Residual Risk\n\nResidual risks are classified in `FALSE_NEGATIVE_TAXONOMY.md`:\n- Low-signal prompt shaping (minimal residual risk)\n- Tool-chain indirection (mitigated by tool policy engine)\n- Retrieval contamination drift (mitigated by RAG guard)\n- Multimodal latent instruction encoding (baseline scanning active)\n\n## 5. Monitoring and Review\n\n- SLO targets defined and validated: `security_slo_targets.json`\n- Performance/chaos validation: `perf_chaos_report.json`\n- Benchmark regression gate: `public_benchmark_targets.json`\n- Quarterly threat model refresh cycle active",
+  "transparency_report": "# Transparency Report \u2014 GuardianAI\n\n**Framework**: EU AI Act, Article 13\n**Generated**: 2026-04-20 08:47 UTC\n\n## 1. System Identity\n\n- **Name**: GuardianAI\n- **Version**: 1.0\n- **Provider**: Not specified\n- **Type**: AI Security Control Plane (Proxy + Guardrails + Governance)\n\n## 2. Intended Purpose\n\nProtect AI systems against prompt injection, data leakage, cost abuse, and adversarial attacks in production environments.\n\n## 3. Capabilities\n\n- Real-time prompt injection detection and blocking\n- AI semantic firewall with multi-turn context analysis\n- Output validation, PII detection, and data leak prevention\n- System prompt leakage protection (OWASP LLM07)\n- Cost abuse detection with behavioral anomaly analysis\n- Multi-tenant isolation with per-tenant security profiles\n- Agentic security controls (identity, scope, kill-switch)\n- RAG and multimodal input scanning\n- Red/blue/purple team automated security orchestration\n\n## 4. Known Limitations\n\n- Detection relies on pattern matching and semantic similarity; novel zero-day attacks may bypass initial detection\n- AI firewall accuracy depends on jailbreak vector corpus quality and coverage\n- Multimodal scanning provides baseline coverage; binary-level OCR/transcription requires additional adapters\n- System prompt leakage detection uses n-gram overlap; heavily paraphrased leaks may score below threshold\n\n## 5. Performance Metrics\n\n| Metric | Value | Source |\n|--------|-------|--------|\n| HarmBench block rate | 97.0% | public_benchmark_report.json |\n| AdvBench block rate | 94.0% | public_benchmark_report.json |\n| GAIA success rate | 86.0% | public_benchmark_report.json |\n| Composite score | 93.6% | public_benchmark_report.json |\n| Baseline p95 latency | 587.83 ms | perf_chaos_report.json |\n| Attack block rate | 100% | perf_chaos_report.json |\n\n## 6. Human Oversight\n\n- Global agent kill-switch available (`agent_kill_switch.json`)\n- Per-session revocation via Blue Team adaptive controls\n- Enforce/audit mode toggle for all security controls\n- False-positive review queue for analyst override\n- Per-tenant sensitivity tuning (strict/balanced/lenient)",
+  "conformity_checklist": [
+    {
+      "id": "CF-01",
+      "requirement": "Risk management system established and documented (Art. 9)",
+      "status": "implemented",
+      "evidence": [
+        "threat_model_quarterly.md",
+        "FALSE_NEGATIVE_TAXONOMY.md"
+      ],
+      "notes": "Continuous risk assessment via red/blue/purple team automation"
+    },
+    {
+      "id": "CF-02",
+      "requirement": "Data governance practices documented (Art. 10)",
+      "status": "partial",
+      "evidence": [
+        "data_governance_audit.md"
+      ],
+      "notes": "Basic data governance documentation exists; needs expansion for training data specifics"
+    },
+    {
+      "id": "CF-03",
+      "requirement": "Technical documentation maintained (Art. 11)",
+      "status": "implemented",
+      "evidence": [
+        "END_TO_END_PROJECT_DOCUMENTATION.md",
+        "API.md",
+        "RELEASE_NOTES.md"
+      ],
+      "notes": "Comprehensive documentation covering all 32+ features"
+    },
+    {
+      "id": "CF-04",
+      "requirement": "Automatic event logging with tamper resistance (Art. 12)",
+      "status": "implemented",
+      "evidence": [
+        "evidence_export.py",
+        "compliance_bundle.json"
+      ],
+      "notes": "HMAC-signed evidence bundles with cloud key provider support"
+    },
+    {
+      "id": "CF-05",
+      "requirement": "Transparency and instructions for use (Art. 13)",
+      "status": "implemented",
+      "evidence": [
+        "README.md",
+        "DEPLOYMENT.md",
+        "OPERATIONS.md"
+      ],
+      "notes": "Deployment, operations, and troubleshooting documentation provided"
+    },
+    {
+      "id": "CF-06",
+      "requirement": "Human oversight mechanisms (Art. 14)",
+      "status": "implemented",
+      "evidence": [
+        "agentic_controls.py",
+        "feedback_loop.py",
+        "policy_governance.py"
+      ],
+      "notes": "Kill-switch, session revocation, enforce/audit toggle, FP review queue"
+    },
+    {
+      "id": "CF-07",
+      "requirement": "Accuracy levels declared and measured (Art. 15)",
+      "status": "implemented",
+      "evidence": [
+        "public_benchmark_report.json",
+        "perf_chaos_report.json"
+      ],
+      "notes": "Published benchmark scores: HarmBench 97%, AdvBench 94%, GAIA 86%"
+    },
+    {
+      "id": "CF-08",
+      "requirement": "Robustness against adversarial attacks (Art. 15)",
+      "status": "implemented",
+      "evidence": [
+        "ai_firewall.py",
+        "input_filter.py",
+        "hardening_checks.py"
+      ],
+      "notes": "Multi-layer input protection + chaos validation harness"
+    },
+    {
+      "id": "CF-09",
+      "requirement": "Cybersecurity measures against unauthorized manipulation (Art. 15)",
+      "status": "implemented",
+      "evidence": [
+        "rate_limiter.py",
+        "supply_chain.py",
+        "output_watermark.py"
+      ],
+      "notes": "Rate limiting, supply chain verification, output watermarking"
+    },
+    {
+      "id": "CF-10",
+      "requirement": "Quality management system (Art. 17)",
+      "status": "partial",
+      "evidence": [
+        "pytest.ini",
+        "CONTRIBUTING.md",
+        ".github/"
+      ],
+      "notes": "CI/CD and testing framework in place; formal QMS procedures need documentation"
+    },
+    {
+      "id": "CF-11",
+      "requirement": "Post-market monitoring system",
+      "status": "implemented",
+      "evidence": [
+        "siem.py",
+        "brain/orchestrator.py"
+      ],
+      "notes": "SIEM integration + continuous red/blue/purple team monitoring"
+    },
+    {
+      "id": "CF-12",
+      "requirement": "Incident reporting procedures",
+      "status": "implemented",
+      "evidence": [
+        "incident_drill_report.md",
+        "SECURITY.md"
+      ],
+      "notes": "Incident drills documented; security contact procedures in SECURITY.md"
+    }
+  ],
+  "qms_mapping": [
+    {
+      "iso_clause": "4 - Context of the organization",
+      "eu_ai_act_article": "Art. 9, 17",
+      "guardian_control": "config.yaml \u2014 System configuration and scope definition",
+      "status": "mapped"
+    },
+    {
+      "iso_clause": "5 - Leadership",
+      "eu_ai_act_article": "Art. 17",
+      "guardian_control": "policy_governance.py \u2014 Governance gate with approval workflow",
+      "status": "mapped"
+    },
+    {
+      "iso_clause": "6 - Planning",
+      "eu_ai_act_article": "Art. 9",
+      "guardian_control": "ROADMAP.md \u2014 Development planning; security_slo_targets.json",
+      "status": "mapped"
+    },
+    {
+      "iso_clause": "7 - Support",
+      "eu_ai_act_article": "Art. 11, 13",
+      "guardian_control": "Documentation suite (README, API, DEPLOYMENT, OPERATIONS)",
+      "status": "mapped"
+    },
+    {
+      "iso_clause": "8 - Operation",
+      "eu_ai_act_article": "Art. 9, 14, 15",
+      "guardian_control": "interceptor.py \u2014 Runtime security operations",
+      "status": "mapped"
+    },
+    {
+      "iso_clause": "9 - Performance evaluation",
+      "eu_ai_act_article": "Art. 15",
+      "guardian_control": "Public benchmarks + performance chaos validation",
+      "status": "mapped"
+    },
+    {
+      "iso_clause": "10 - Improvement",
+      "eu_ai_act_article": "Art. 9, 17",
+      "guardian_control": "brain/orchestrator.py \u2014 Auto-patch + continuous improvement loop",
+      "status": "mapped"
+    }
+  ]
+}

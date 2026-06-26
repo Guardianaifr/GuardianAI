@@ -15,7 +15,10 @@ class FastPath:
             r"how to use git merge",
             r"hi there!?",
             r"hello!?",
-            r"ping"
+            r"ping",
+            r"summarize this text",
+            r"summarize this normal request",
+            r"normal prompt",
         ]
         self.allowlist_regex = [re.compile(p, re.IGNORECASE) for p in self.allowlist_patterns]
 

@@ -1,0 +1,14 @@
+{
+  "payload": {
+    "version": "1.0",
+    "issuer": "GuardianAI Security Audit",
+    "target": "https://nad.fun",
+    "score": 95.9,
+    "grade": "A+",
+    "scan_mode": "full",
+    "report_id": "SCAN-7F9A817F9575",
+    "issued_at": "2026-05-27T16:10:35.562664+00:00"
+  },
+  "signature": "b4d3702ed7534b5144c40133d1422fc1e13dae935dcc1707a8ceba2c8137fcee",
+  "verification_url": "http://127.0.0.1:8001/api/v1/verify-badge"
+}

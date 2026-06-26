@@ -1,0 +1,28 @@
+{
+  "passed": 20,
+  "total": 20,
+  "results": {
+    "hmac_valid_accepted": "PASS",
+    "hmac_tampered_rejected": "PASS",
+    "hmac_missing_sig_rejected": "PASS",
+    "hmac_disabled_accepts_any": "PASS",
+    "match_returns_severity_dict": "PASS",
+    "severity_on_unseen_jailbreaks": "PASS",
+    "add_pattern_with_severity": "PASS",
+    "ttl_pattern_expires": "PASS",
+    "ttl_pattern_not_expired": "PASS",
+    "ttl_none_never_expires": "PASS",
+    "expired_pattern_skipped_in_match": "PASS",
+    "purge_expired_removes_old": "PASS",
+    "add_pattern_blocks_new": "PASS",
+    "add_pattern_rejects_dup": "PASS",
+    "remove_pattern_unblocks": "PASS",
+    "dump_patterns_metadata": "PASS",
+    "brain_hotpatch_blocks_missed": "PASS",
+    "brain_hotpatch_in_dump": "PASS",
+    "brain_coverage_improvement": "PASS",
+    "status_has_severity_breakdown": "PASS"
+  },
+  "unseen_jailbreaks": 92,
+  "unseen_injections": 46
+}

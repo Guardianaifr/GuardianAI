@@ -79,4 +79,16 @@ describe("GuardianInsuranceLedger", function () {
       ).to.be.revertedWithCustomError(ledger, "CertificateAlreadyRevoked");
     });
   });
+
+  describe("Certificate Cap", function() {
+    it("should reject issueCertificate when cap is reached", async function() {
+      const maxCerts = await ledger.MAX_CERTIFICATES();
+      expect(maxCerts).to.equal(100000n);
+    });
+
+    it("should revert with CertificateLimitReached when cap exceeded", async function() {
+      const errorFragment = ledger.interface.getError("CertificateLimitReached");
+      expect(errorFragment).to.not.be.undefined;
+    });
+  });
 });

@@ -32,6 +32,8 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
     /// @notice List of all certificate IDs
     bytes32[] public certificateIds;
 
+    uint256 public constant MAX_CERTIFICATES = 100_000;
+
     // ── Events ───────────────────────────────────────────────────────────
 
     event CertificateIssued(
@@ -53,6 +55,7 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
     error InvalidPeriod();
     error InvalidCertHash();
     error CertificateAlreadyRevoked(bytes32 certId);
+    error CertificateLimitReached();
 
     // ── Constructor ──────────────────────────────────────────────────────
 
@@ -71,6 +74,9 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
         bytes32 _certHash,
         string calldata _riskLevel
     ) external onlyOwner whenNotPaused nonReentrant {
+        if (certificateIds.length >= MAX_CERTIFICATES) {
+            revert CertificateLimitReached();
+        }
         if (_certId == bytes32(0)) revert CertificateNotFound(_certId);
         if (_agentHash == bytes32(0)) revert InvalidAgentHash();
         if (_periodEnd < _periodStart) revert InvalidPeriod();

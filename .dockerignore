@@ -30,3 +30,16 @@ node_modules/
 .env
 .env.production
 guardian_data/
+
+# Additional exclusions
+tests/
+tools/
+contracts/
+htmlcov/
+*.md
+!README.md
+!DEPLOYMENT.md
+scratch/
+demo.mp4
+*.png
+*.spec

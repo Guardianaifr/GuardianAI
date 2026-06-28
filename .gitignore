@@ -61,7 +61,11 @@ benchmark_debug.log
 # Ignored Binaries and Media
 cloudflared-windows-amd64.exe
 demo.mp4
-*.png
+# *.png (removed — too broad)
+# Allow frontend assets
+frontend/public/*.png
+# Block root-level images
+/*.png
 
 # Temporary Text/Scratch Files
 200
@@ -72,3 +76,19 @@ Expects
 check.txt
 diff.txt
 diff_utf8.txt
+
+# Database files
+*.db
+
+# Debug and scratch output
+tools/_*.txt
+tools/_*_scratch/
+
+# Scratch files
+payload.json
+
+# Docker and build artifacts  
+htmlcov/
+*.spec
+demo.mp4
+scratch/

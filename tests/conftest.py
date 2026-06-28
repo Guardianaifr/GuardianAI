@@ -3,11 +3,15 @@ Shared test fixtures and configuration for GuardianAI tests.
 """
 import pytest
 import sys
+import os
 from pathlib import Path
 
 # Add guardian directory to path
 guardian_path = Path(__file__).parent.parent / "guardian"
 sys.path.insert(0, str(guardian_path))
+
+os.environ["GUARDIAN_ADMIN_PASS"] = "guardian_default"
+os.environ["GUARDIAN_JWT_SECRET"] = "guardian_jwt_dev_secret_change_me"
 
 
 @pytest.fixture

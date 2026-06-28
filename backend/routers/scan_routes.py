@@ -14,6 +14,17 @@ globals().update({k: v for k, v in backend_main.__dict__.items()})
 
 router = APIRouter()
 
+import re
+SAFE_SCAN_ID = re.compile(r'^[a-zA-Z0-9_-]+$')
+def validate_scan_id(scan_id: str) -> str:
+    if not SAFE_SCAN_ID.match(scan_id):
+        raise HTTPException(status_code=400, 
+            detail="Invalid scan_id format")
+    if any(c in scan_id for c in ['..', '/', '\\', '\x00']):
+        raise HTTPException(status_code=400,
+            detail="Invalid scan_id format")
+    return scan_id
+
 @router.post("/api/v1/scan-jobs", tags=["Audit Scanner"])
 def create_crypto_scan_job(req: ScanRequest):
     """Queue a background security scan and return a live job handle."""
@@ -79,6 +90,7 @@ def run_crypto_scan(req: ScanRequest, request: Request):
 @router.get("/api/v1/scan/{scan_id}/report", tags=["Audit Scanner"])
 def get_scan_report(scan_id: str):
     """Get the HTML report for a completed scan."""
+    validate_scan_id(scan_id)
     report_path = AUDIT_ARTIFACTS_DIR / f"report_{scan_id}.html"
     if report_path.exists():
         return HTMLResponse(content=report_path.read_text(encoding="utf-8"))
@@ -94,6 +106,7 @@ def get_scan_report(scan_id: str):
 @router.get("/api/v1/scan/{scan_id}/pdf", tags=["Audit Scanner"])
 def get_scan_report_pdf(scan_id: str):
     """Download the audit report as a PDF file."""
+    validate_scan_id(scan_id)
     import subprocess
     import tempfile
 
@@ -127,7 +140,7 @@ def get_scan_report_pdf(scan_id: str):
             try:
                 subprocess.run([
                     chrome_bin,
-                    "--headless", "--disable-gpu", "--no-sandbox",
+                    "--headless", "--disable-gpu",
                     f"--print-to-pdf={pdf_path.resolve()}",
                     "--print-to-pdf-no-header",
                     report_url,
@@ -261,6 +274,7 @@ def get_leaderboard(limit: int = 50):
 @router.get("/api/v1/scan/{scan_id}/sarif", tags=["Audit Scanner"])
 def get_scan_sarif(scan_id: str):
     """Download scan results in SARIF 2.1.0 format (GitHub Security tab compatible)."""
+    validate_scan_id(scan_id)
     from guardian.audit.sarif_exporter import generate_sarif_string
     scan_data = _load_crypto_scan_json(scan_id)
     sarif = generate_sarif_string(scan_data)

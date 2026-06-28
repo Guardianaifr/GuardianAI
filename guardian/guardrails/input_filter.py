@@ -44,6 +44,7 @@ Author: GuardianAI Team
 License: MIT
 """
 import re
+import os
 import math
 import base64
 import binascii
@@ -53,7 +54,8 @@ from guardrails.encoding_detector import EncodingDetector
 class InputFilter:
     def __init__(self):
         self.encoding_detector = EncodingDetector()
-        self.entropy_threshold = 4.8  # Threshold to catch random Base64/Gibberish
+        self.entropy_threshold = 5.5  # Threshold to catch random Base64/Gibberish
+        self.max_prompt_length = int(os.getenv("GUARDIAN_MAX_PROMPT_LENGTH", "8000"))
         # Basic regex patterns for known jailbreak/injection attempts
         self.block_patterns = [
             r"ignore (all )?(?:previous |prior )?(instructions|directions|rules|programming|mission|goal|prompt)",
@@ -159,17 +161,46 @@ class InputFilter:
             
         return " | ".join(variations)
 
+    def is_code_input(self, text: str) -> bool:
+        """Determines if the text contains code-like patterns (e.g., function definitions or code blocks)."""
+        code_indicators = [
+            r'^\s*(def|class|import|from|function|const|let|var|public\s+class|fn|package|using|include)\b',
+            r'[{};][\s\n]*$',
+            r'^\s*#include\b',
+            r'^\s*<\?php\b',
+            r'^\s*xml\b',
+            r'/\*.*?\*/',
+            r'//\s+.*',
+        ]
+        if any(re.search(pat, text, re.MULTILINE) for pat in code_indicators):
+            return True
+        code_lines = 0
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if (stripped.endswith(';') or 
+                stripped.endswith('{') or 
+                stripped.endswith('}') or 
+                stripped.endswith('):') or
+                stripped.startswith('def ') or
+                stripped.startswith('class ') or
+                stripped.startswith('import ') or
+                stripped.startswith('from ')):
+                code_lines += 1
+        return code_lines > 1
+
     def check_prompt(self, prompt: str) -> bool:
         """
         Checks the prompt using Layer 1 (Entropy + De-obfuscation) and regex patterns.
         Returns True (Safe) if no patterns match, False (Blocked) if they do.
         """
         # Layer 0: Prompt Length Limit for DoS protection
-        if len(prompt) > 8000:
+        if len(prompt) > self.max_prompt_length:
             return False
             
-        # Layer 1a: Entropy Warning (Gibberish / Encoded)
-        if self.calculate_entropy(prompt) > self.entropy_threshold:
+        # Layer 1a: Entropy Warning (Gibberish / Encoded) - bypass if code-like
+        if not self.is_code_input(prompt) and self.calculate_entropy(prompt) > self.entropy_threshold:
             return False
             
         # Layer 1b: De-obfuscation Normalizer

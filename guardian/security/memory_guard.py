@@ -19,7 +19,7 @@ class MemoryDecision:
 class MemoryPoisoningGuard:
     def __init__(self, config: Dict[str, Any] | None = None):
         cfg = config or {}
-        self.enabled = bool(cfg.get("enabled", False))
+        self.enabled = bool(cfg.get("enabled", True))
         self.enforcement_mode = str(cfg.get("enforcement_mode", "enforce")).lower()
         self.max_entries_per_session = int(cfg.get("max_entries_per_session", 20))
         self.poison_quarantine_seconds = int(cfg.get("poison_quarantine_seconds", 900))

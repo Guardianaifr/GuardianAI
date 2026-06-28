@@ -4,7 +4,94 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPBearer, HTTPAuthorizationCredentials
 import io
 import csv
-from pydantic import BaseModel
+from pydantic import BaseModel as PydanticBaseModel, Field
+from typing import Annotated, Optional, Union, Any, get_origin, get_args
+
+class BaseModel(PydanticBaseModel):
+    def __init_subclass__(cls, **kwargs):
+        annotations = getattr(cls, "__annotations__", {})
+        for field_name, ann in list(annotations.items()):
+            is_annotated = get_origin(ann) is Annotated
+            base_type = ann
+            metadata = []
+            if is_annotated:
+                args = get_args(ann)
+                base_type = args[0]
+                metadata = list(args[1:])
+            
+            is_str = False
+            is_optional_str = False
+            
+            if base_type is str:
+                is_str = True
+            elif base_type == Optional[str] or base_type == Union[str, None]:
+                is_optional_str = True
+            elif get_origin(base_type) is Union:
+                args = get_args(base_type)
+                if str in args:
+                    if type(None) in args:
+                        is_optional_str = True
+                    else:
+                        is_str = True
+            
+            if is_str or is_optional_str:
+                has_max_length = False
+                for meta in metadata:
+                    if hasattr(meta, "max_length"):
+                        has_max_length = True
+                        break
+                
+                field_val = getattr(cls, field_name, None)
+                from pydantic.fields import FieldInfo
+                if isinstance(field_val, FieldInfo):
+                    for meta in field_val.metadata:
+                        if hasattr(meta, "max_length"):
+                            has_max_length = True
+                            break
+                    if not has_max_length:
+                        from annotated_types import MaxLen
+                        field_val.metadata.append(MaxLen(512))
+                else:
+                    if not has_max_length:
+                        new_field = Field(max_length=512)
+                        annotations[field_name] = Annotated[base_type, new_field]
+                        if field_val is not None:
+                            setattr(cls, field_name, Field(field_val, max_length=512))
+
+        super().__init_subclass__(**kwargs)
+
+class LimitUploadSizeMiddleware:
+    def __init__(self, app, max_upload_size: int):
+        self.app = app
+        self.max_upload_size = max_upload_size
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            total_size = 0
+            async def receive_with_limit():
+                nonlocal total_size
+                message = await receive()
+                if message["type"] == "http.request":
+                    body_len = len(message.get("body", b""))
+                    total_size += body_len
+                    if total_size > self.max_upload_size:
+                        await send({
+                            "type": "http.response.start",
+                            "status": 413,
+                            "headers": [
+                                (b"content-type", b"application/json"),
+                            ]
+                        })
+                        await send({
+                            "type": "http.response.body",
+                            "body": b'{"detail": "Request body too large"}',
+                            "more_body": False
+                        })
+                        return {"type": "http.disconnect"}
+                return message
+            await self.app(scope, receive_with_limit, send)
+            return
+        await self.app(scope, receive, send)
 import secrets
 import time
 import logging
@@ -25,28 +112,50 @@ import socket
 from pathlib import Path
 import random
 
+try:
+    import redis
+except ImportError:
+    class DummyRedisError(Exception):
+        pass
+    import sys
+    import types
+    redis = types.ModuleType("redis")
+    redis.RedisError = DummyRedisError
+    sys.modules["redis"] = redis
+
 from guardian.security.differential_privacy import noisy_count
 from backend.siem import SiemConfig, SiemRouter, build_alert_document
-from backend.auth import hash_password, verify_password
+from backend.auth import hash_password, verify_password, _jwt_encode, _jwt_decode, _b64url_encode, _b64url_decode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("guardian_backend")
 
 ADMIN_USER = os.getenv("GUARDIAN_ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("GUARDIAN_ADMIN_PASS", "guardian_default") # Simple default for local demo
+_raw_admin_pass = os.getenv("GUARDIAN_ADMIN_PASS", "")
+if _raw_admin_pass:
+    ADMIN_PASS = _raw_admin_pass
+else:
+    ADMIN_PASS = secrets.token_urlsafe(32)
+    print(f"\n{'='*60}\nWARNING: GUARDIAN_ADMIN_PASS not set.\nGenerated ephemeral admin password: {ADMIN_PASS}\n{'='*60}\n")
+
 AUDITOR_USER = os.getenv("GUARDIAN_AUDITOR_USER", "").strip()
 AUDITOR_PASS = os.getenv("GUARDIAN_AUDITOR_PASS", "").strip()
 USER_USER = os.getenv("GUARDIAN_USER_USER", "").strip()
 USER_PASS = os.getenv("GUARDIAN_USER_PASS", "").strip()
-JWT_SECRET = os.getenv("GUARDIAN_JWT_SECRET", "guardian_jwt_dev_secret_change_me")
+
+_raw_jwt_secret = os.getenv("GUARDIAN_JWT_SECRET", "").strip()
+if _raw_jwt_secret:
+    JWT_SECRET = _raw_jwt_secret
+else:
+    JWT_SECRET = secrets.token_urlsafe(64)
+    logger.warning("GUARDIAN_JWT_SECRET not set. Using ephemeral key. NOT suitable for production.")
 
 import sys
 if os.getenv("GUARDIAN_ENV", "development").strip().lower() == "production":
-    if ADMIN_PASS == "guardian_default":
-        logger.error("CRITICAL SECURITY ERROR: ADMIN_PASS is set to default in production mode! Refusing to start.")
-        sys.exit(1)
-    if JWT_SECRET == "guardian_jwt_dev_secret_change_me":
-        logger.error("CRITICAL SECURITY ERROR: JWT_SECRET is set to default in production mode! Refusing to start.")
+    if not _raw_admin_pass:
+        logger.warning("Starting in production mode without explicit GUARDIAN_ADMIN_PASS. Ephemeral password used.")
+    if not _raw_jwt_secret:
+        logger.error("CRITICAL SECURITY ERROR: JWT_SECRET is not set in production mode! Refusing to start.")
         sys.exit(1)
 
 JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
@@ -65,7 +174,7 @@ RATE_LIMIT_BACKEND = os.getenv("GUARDIAN_RATE_LIMIT_BACKEND", "memory").strip().
 RATE_LIMIT_REDIS_URL = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_URL", "").strip()
 RATE_LIMIT_REDIS_KEY_PREFIX = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_KEY_PREFIX", "guardian:ratelimit").strip() or "guardian:ratelimit"
 RATE_LIMIT_REDIS_TIMEOUT_SEC = float(os.getenv("GUARDIAN_RATE_LIMIT_REDIS_TIMEOUT_SEC", "0.2"))
-RATE_LIMIT_REDIS_FAIL_OPEN = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN", "true").strip().lower() in {"1", "true", "yes", "on"}
+RATE_LIMIT_REDIS_FAIL_OPEN = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN", "false").strip().lower() == "true"
 AUDIT_SINK_URL = os.getenv("GUARDIAN_AUDIT_SINK_URL", "").strip()
 AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
 AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
@@ -94,7 +203,7 @@ METRICS_ENABLED = os.getenv("GUARDIAN_METRICS_ENABLED", "true").strip().lower() 
 BACKEND_HOST = os.getenv("GUARDIAN_BACKEND_HOST", "0.0.0.0").strip() or "0.0.0.0"
 BACKEND_PORT = int(os.getenv("GUARDIAN_BACKEND_PORT", "8001"))
 BILLING_MODE = os.getenv("GUARDIAN_BILLING_MODE", "mock").strip().lower() or "mock"
-PUBLIC_BASE_URL = os.getenv("GUARDIAN_PUBLIC_BASE_URL", f"http://127.0.0.1:{BACKEND_PORT}").rstrip("/")
+PUBLIC_BASE_URL = os.getenv("GUARDIAN_PUBLIC_URL", "http://localhost:8001")
 CHECKOUT_SUCCESS_URL = os.getenv("GUARDIAN_CHECKOUT_SUCCESS_URL", f"{PUBLIC_BASE_URL}/site/success").strip() or f"{PUBLIC_BASE_URL}/site/success"
 CHECKOUT_CANCEL_URL = os.getenv("GUARDIAN_CHECKOUT_CANCEL_URL", f"{PUBLIC_BASE_URL}/site/cancel").strip() or f"{PUBLIC_BASE_URL}/site/cancel"
 STRIPE_SECRET_KEY = os.getenv("GUARDIAN_STRIPE_SECRET_KEY", "").strip()
@@ -115,10 +224,7 @@ DP_EPSILON = float(os.getenv("GUARDIAN_DP_EPSILON", "1.0"))
 DP_SEED = int(os.getenv("GUARDIAN_DP_SEED", "7"))
 APP_START_TIME = time.time()
 
-if ADMIN_PASS == "guardian_default":
-    logger.warning("USING DEFAULT PASSWORD! Set GUARDIAN_ADMIN_PASS environment variable for production.")
-if JWT_SECRET == "guardian_jwt_dev_secret_change_me":
-    logger.warning("USING DEFAULT JWT SECRET! Set GUARDIAN_JWT_SECRET environment variable for production.")
+
 
 app = FastAPI(title="GuardianAI Backend v1.0")
 
@@ -126,9 +232,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[PUBLIC_BASE_URL, "http://localhost:8001", "http://127.0.0.1:8001"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key",
+                   "X-Guardian-Service-Id", "X-Guardian-Service-Token"],
 )
+app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=1048576)
 
 DB_PATH = "guardian.db"
 PROXY_EVENT_TYPES = (
@@ -234,18 +342,11 @@ _telemetry_rate_limit_overrides = _parse_limit_overrides(
 )
 
 
-def _b64url_encode(raw: bytes) -> str:
-    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
-
-def _b64url_decode(raw: str) -> bytes:
-    padding = "=" * (-len(raw) % 4)
-    return base64.urlsafe_b64decode((raw + padding).encode("ascii"))
 
 
 def _issue_jwt(subject: str, role: str, org_id: str = "org_default", ttl_minutes: int = JWT_EXPIRES_MIN) -> tuple[str, Dict[str, Any]]:
     now = int(time.time())
-    header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": subject,
         "role": role,
@@ -255,45 +356,19 @@ def _issue_jwt(subject: str, role: str, org_id: str = "org_default", ttl_minutes
         "iss": JWT_ISSUER,
         "jti": secrets.token_hex(12),
     }
-    header_seg = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    payload_seg = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    signing_input = f"{header_seg}.{payload_seg}".encode("ascii")
-    signature = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
-    token = f"{header_seg}.{payload_seg}.{_b64url_encode(signature)}"
+    token = _jwt_encode(payload, JWT_SECRET)
     return token, payload
 
 
 def _decode_jwt(token: str) -> Dict[str, Any]:
     try:
-        header_seg, payload_seg, sig_seg = token.split(".")
+        # We use auth.py's _jwt_decode for the heavy lifting (alg check, signature, exp, nbf, aud)
+        payload = _jwt_decode(token, JWT_SECRET)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format") from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
 
-    signing_input = f"{header_seg}.{payload_seg}".encode("ascii")
-    expected_sig = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
-    try:
-        provided_sig = _b64url_decode(sig_seg)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature") from exc
-
-    if not hmac.compare_digest(expected_sig, provided_sig):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature")
-
-    try:
-        header = json.loads(_b64url_decode(header_seg).decode("utf-8"))
-        payload = json.loads(_b64url_decode(payload_seg).decode("utf-8"))
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token payload") from exc
-
-    if header.get("alg") != "HS256":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unsupported token algorithm")
     if payload.get("iss") != JWT_ISSUER:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token issuer")
-
-    now = int(time.time())
-    exp = payload.get("exp")
-    if not isinstance(exp, int) or exp < now:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
 
     sub = payload.get("sub")
     if not isinstance(sub, str) or not sub:
@@ -370,7 +445,7 @@ def _get_redis_client() -> Any | None:
         )
         _redis_client.ping()
         return _redis_client
-    except Exception as exc:  # noqa: BLE001
+    except redis.RedisError as exc:
         _redis_client = None
         _log_redis_fallback(f"unable to connect to redis: {exc}")
         return None
@@ -383,7 +458,7 @@ def _load_redis_rate_limit_script(client: Any) -> str | None:
     try:
         _redis_script_sha = client.script_load(_REDIS_RATE_LIMIT_SCRIPT)
         return _redis_script_sha
-    except Exception as exc:  # noqa: BLE001
+    except redis.RedisError as exc:
         _log_redis_fallback(f"unable to load redis script: {exc}")
         return None
 
@@ -396,7 +471,7 @@ def _enforce_rate_limit_distributed(identity: str, limit_per_minute: int) -> boo
     if client is None:
         if RATE_LIMIT_REDIS_FAIL_OPEN:
             return False
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Rate limiter backend unavailable")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Rate limiter unavailable")
 
     key = f"{RATE_LIMIT_REDIS_KEY_PREFIX}:{identity}"
     now_ms = int(time.time() * 1000)
@@ -410,11 +485,11 @@ def _enforce_rate_limit_distributed(identity: str, limit_per_minute: int) -> boo
             allowed = int(client.eval(_REDIS_RATE_LIMIT_SCRIPT, 1, key, now_ms, 60_000, limit_per_minute, member))
     except HTTPException:
         raise
-    except Exception as exc:  # noqa: BLE001
+    except redis.RedisError as exc:
         _log_redis_fallback(f"redis eval failed: {exc}")
         if RATE_LIMIT_REDIS_FAIL_OPEN:
             return False
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Rate limiter backend unavailable")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Rate limiter unavailable")
 
     if allowed != 1:
         raise HTTPException(
@@ -921,11 +996,11 @@ def init_db():
 init_db()
 
 class SecurityEvent(BaseModel):
-    guardian_id: str
-    tenant_id: str = "default"
-    event_type: str
-    severity: str
-    details: dict
+    guardian_id: str = Field(..., max_length=256)
+    tenant_id: str = Field("default", max_length=512)
+    event_type: str = Field(..., max_length=128)
+    severity: str = Field(..., max_length=512)
+    details: dict = Field(default_factory=dict)
     timestamp: float = 0.0
 
 # WebSocket Connection Manager
@@ -945,6 +1020,60 @@ class ConnectionManager:
             await connection.send_text(message)
 
 manager = ConnectionManager()
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none';"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+
+@app.middleware("http")
+async def csrf_middleware(request: Request, call_next):
+    is_m2m = (
+        request.headers.get("x-api-key") is not None or
+        request.headers.get("x-guardian-service-token") is not None or
+        request.headers.get("authorization") is not None
+    )
+    exempt_paths = {
+        "/login",
+        "/api/v1/auth/token",
+        "/logout",
+    }
+    path = request.url.path
+    is_exempt = path in exempt_paths or any(path.startswith(p) for p in ["/ws/", "/api/v1/public/"])
+
+    uses_cookie = request.cookies.get("guardian_token") is not None
+    if request.method in {"POST", "PUT", "DELETE"} and uses_cookie and not is_m2m and not is_exempt:
+        cookie_token = request.cookies.get("guardian_csrf")
+        header_token = request.headers.get("x-csrf-token") or request.headers.get("x-xsrf-token")
+        
+        if not cookie_token or not header_token or not hmac.compare_digest(cookie_token, header_token):
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "CSRF token validation failed"}
+            )
+            
+    response = await call_next(request)
+    
+    if request.method == "GET" or path == "/login":
+        if not request.cookies.get("guardian_csrf"):
+            csrf_token = secrets.token_hex(32)
+            response.set_cookie(
+                key="guardian_csrf",
+                value=csrf_token,
+                httponly=False,
+                samesite="lax",
+                secure=False
+            )
+            
+    return response
 
 
 @app.middleware("http")
@@ -2869,17 +2998,17 @@ def _build_compliance_report() -> Dict[str, Any]:
 
     add_control(
         "admin_password_configured",
-        "pass" if ADMIN_PASS != "guardian_default" else "fail",
-        "Admin password is set to a non-default value."
-        if ADMIN_PASS != "guardian_default"
-        else "Default admin password is still configured.",
+        "pass" if _raw_admin_pass and ADMIN_PASS != "guardian_default" else "fail",
+        "Admin password is set explicitly."
+        if _raw_admin_pass and ADMIN_PASS != "guardian_default"
+        else "Default or ephemeral admin password is in use.",
     )
     add_control(
         "jwt_secret_configured",
-        "pass" if JWT_SECRET != "guardian_jwt_dev_secret_change_me" else "fail",
-        "JWT signing secret is non-default."
-        if JWT_SECRET != "guardian_jwt_dev_secret_change_me"
-        else "Default JWT secret is configured.",
+        "pass" if _raw_jwt_secret and JWT_SECRET != "guardian_jwt_dev_secret_change_me" else "fail",
+        "JWT signing secret is explicitly configured."
+        if _raw_jwt_secret and JWT_SECRET != "guardian_jwt_dev_secret_change_me"
+        else "Default or ephemeral JWT secret is in use.",
     )
     add_control(
         "jwt_expiry_configured",

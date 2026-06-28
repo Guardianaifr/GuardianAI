@@ -1,6 +1,10 @@
 import pytest
 import sys
 import importlib
+import os
+
+os.environ["GUARDIAN_ADMIN_PASS"] = "guardian_default"
+os.environ["GUARDIAN_JWT_SECRET"] = "guardian_jwt_dev_secret_change_me"
 
 @pytest.fixture(autouse=True)
 def sync_monkeypatch(monkeypatch):
@@ -11,13 +15,29 @@ def sync_monkeypatch(monkeypatch):
     import backend.main as backend_main
     original_setattr = monkeypatch.setattr
 
-    def synced_setattr(target, name, value, *args, **kwargs):
-        original_setattr(target, name, value, *args, **kwargs)
-        if target is backend_main or getattr(target, "__name__", "") == "backend.main":
+    def synced_setattr(*args, **kwargs):
+        original_setattr(*args, **kwargs)
+        if not args:
+            return
+        target = args[0]
+        name_attr = None
+        val = None
+        is_backend_main = False
+        if len(args) >= 3:
+            name_attr = args[1]
+            val = args[2]
+            if target is backend_main or getattr(target, "__name__", "") == "backend.main":
+                is_backend_main = True
+        elif len(args) == 2:
+            val = args[1]
+            if isinstance(target, str) and target.startswith("backend.main."):
+                name_attr = target.split(".")[-1]
+                is_backend_main = True
+        if is_backend_main and name_attr:
             for mod_name, mod in sys.modules.items():
                 if mod_name.startswith("backend.routers."):
-                    if hasattr(mod, name):
-                        setattr(mod, name, value)
+                    if hasattr(mod, name_attr):
+                        original_setattr(mod, name_attr, val)
 
     monkeypatch.setattr = synced_setattr
 
@@ -30,7 +50,6 @@ def sync_monkeypatch(monkeypatch):
             for k in list(sys.modules.keys()):
                 if k.startswith("backend.routers.") or k == "backend.routers":
                     sys.modules.pop(k, None)
-            sys.modules.pop("backend.main", None)
         return original_reload(module)
 
     importlib.reload = synced_reload

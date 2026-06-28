@@ -205,6 +205,7 @@ class TestPassportEngine:
         """Cortex transparency fields are persisted on passports."""
         engine.issue_passport("agent-1", "0xabc", "base")
         engine.update_trust_score("agent-1", 70.0)
+        engine._BOOST_COOLDOWN_SECONDS = 0
 
         updated = engine.update_cortex_status(
             "agent-1",

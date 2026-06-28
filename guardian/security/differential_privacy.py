@@ -4,10 +4,19 @@ from __future__ import annotations
 
 import math
 import random
+import os
 from typing import Any
 
 
-def laplace_noise(scale: float, rng: random.Random) -> float:
+def _get_default_rng() -> random.Random:
+    if os.getenv("GUARDIAN_ENV") == "production":
+        return random.SystemRandom()
+    return random.Random(42)
+
+
+def laplace_noise(scale: float, rng: random.Random | None = None) -> float:
+    if rng is None:
+        rng = _get_default_rng()
     if scale <= 0:
         return 0.0
     u = rng.random() - 0.5
@@ -16,7 +25,9 @@ def laplace_noise(scale: float, rng: random.Random) -> float:
     return -scale * math.copysign(math.log(1 - 2 * abs(u)), u)
 
 
-def noisy_count(true_count: int, epsilon: float, rng: random.Random) -> int:
+def noisy_count(true_count: int, epsilon: float, rng: random.Random | None = None) -> int:
+    if rng is None:
+        rng = _get_default_rng()
     eps = max(float(epsilon), 1e-6)
     scale = 1.0 / eps
     return max(0, int(round(float(true_count) + laplace_noise(scale, rng))))
@@ -53,7 +64,9 @@ def benchmark_count_noise(
 # 2026-Standard Advanced Differential Privacy Capabilities
 # ═══════════════════════════════════════════════════════════════════════════
 
-def gaussian_noise(scale: float, rng: random.Random) -> float:
+def gaussian_noise(scale: float, rng: random.Random | None = None) -> float:
+    if rng is None:
+        rng = _get_default_rng()
     """Generate Gaussian noise for (epsilon, delta)-DP (L2 sensitivity)."""
     if scale <= 0:
         return 0.0
@@ -87,7 +100,9 @@ def clip_value(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, value))
 
 
-def noisy_sum(values: list[float], epsilon: float, lower: float, upper: float, rng: random.Random) -> float:
+def noisy_sum(values: list[float], epsilon: float, lower: float, upper: float, rng: random.Random | None = None) -> float:
+    if rng is None:
+        rng = _get_default_rng()
     """Compute DP sum using Laplace mechanism."""
     eps = max(float(epsilon), 1e-6)
     # L1 sensitivity is max(abs(lower), abs(upper)) if we clip to [lower, upper]
@@ -98,7 +113,9 @@ def noisy_sum(values: list[float], epsilon: float, lower: float, upper: float, r
     return clipped + laplace_noise(scale, rng)
 
 
-def noisy_average(values: list[float], epsilon: float, lower: float, upper: float, rng: random.Random) -> float:
+def noisy_average(values: list[float], epsilon: float, lower: float, upper: float, rng: random.Random | None = None) -> float:
+    if rng is None:
+        rng = _get_default_rng()
     """Compute DP average (splits epsilon between sum and count)."""
     eps = max(float(epsilon), 1e-6)
     eps_sum = eps * 0.9
@@ -117,8 +134,10 @@ def exponential_mechanism(
     score_fn: callable,
     epsilon: float,
     sensitivity: float,
-    rng: random.Random
+    rng: random.Random | None = None
 ) -> Any:
+    if rng is None:
+        rng = _get_default_rng()
     """Select categorical candidate using Exponential Mechanism."""
     if not candidates:
         return None
@@ -147,9 +166,9 @@ def exponential_mechanism(
 
 class LocalDPResponse:
     """Local Differential Privacy via Randomized Response (RAPPOR-lite)."""
-    def __init__(self, epsilon: float, rng: random.Random):
+    def __init__(self, epsilon: float, rng: random.Random | None = None):
         self.epsilon = max(float(epsilon), 1e-6)
-        self.rng = rng
+        self.rng = rng if rng is not None else _get_default_rng()
         # Probability of telling the truth
         self.p_truth = math.exp(self.epsilon) / (1.0 + math.exp(self.epsilon))
 

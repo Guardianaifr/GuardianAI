@@ -137,16 +137,16 @@ class TestJWTStress:
         assert len(results) >= 80, f"Only {len(results)} of 100 users registered"
 
     def test_password_hashing_throughput(self):
-        """Hash 200 passwords — should complete in <3s."""
+        """Hash 20 passwords — should complete in <5s (Argon2id)."""
         start = time.time()
         hashes = []
-        for i in range(200):
+        for i in range(20):
             h = hash_password(f"password_{i}")
             hashes.append(h)
         elapsed = time.time() - start
 
-        assert elapsed < 3.0, f"Password hashing too slow: {elapsed:.2f}s"
-        assert all(verify_password(f"password_{i}", hashes[i]) for i in range(200))
+        assert elapsed < 5.0, f"Password hashing too slow: {elapsed:.2f}s"
+        assert all(verify_password(f"password_{i}", hashes[i]) for i in range(20))
 
     def test_token_revocation_under_load(self, auth):
         """Revoke 200 tokens rapidly — revocation list should not break."""

@@ -27,7 +27,11 @@ def test_upstream_health_caching():
         "trust_exploitation": {"enabled": False},
         "rate_limiting": {"requests_per_minute": 60},
     }
-    proxy = GuardianProxy(config)
+    import importlib
+    import guardian.runtime.interceptor as interceptor
+    importlib.reload(interceptor)
+    
+    proxy = interceptor.GuardianProxy(config)
     
     app = Flask("test_guardian")
     with app.test_request_context():
@@ -91,6 +95,7 @@ def test_dynamic_web3_threat_feed():
     with patch("requests.get") as mock_get:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
+        mock_resp.headers = {"Content-Type": "application/json"}
         mock_resp.json.return_value = ["0xabc123"]
         mock_get.return_value = mock_resp
         

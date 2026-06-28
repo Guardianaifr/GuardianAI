@@ -7,6 +7,8 @@ import json
 import base64
 import hashlib
 import sqlite3
+import asyncio
+from backend.auth import _jwt_decode
 
 # Import all shared dependencies from backend.main
 import backend.main as backend_main
@@ -482,14 +484,20 @@ async def public_site():
 
 @router.websocket("/ws/threats")
 async def websocket_endpoint(websocket: WebSocket):
-    token = websocket.query_params.get("token")
-    if not token:
-        await websocket.close(code=4001)
-        return
+    await websocket.accept()
     try:
-        _decode_jwt(token)
+        message_str = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
+        data = json.loads(message_str)
+        token = data.get("token")
+        if not token:
+            raise ValueError("Missing token")
+        _jwt_decode(token, JWT_SECRET)
     except Exception:
-        await websocket.close(code=4001)
+        try:
+            await websocket.send_json({"error": "unauthorized"})
+            await websocket.close(code=1008)
+        except Exception:
+            pass
         return
 
     await manager.connect(websocket)
@@ -499,5 +507,3 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-
-

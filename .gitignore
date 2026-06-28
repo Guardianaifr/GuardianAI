@@ -83,6 +83,9 @@ diff_utf8.txt
 # Debug and scratch output
 tools/_*.txt
 tools/_*_scratch/
+tools/rl_out.txt
+tools/rl_output.txt
+tools/unseen_results.txt
 
 # Scratch files
 payload.json

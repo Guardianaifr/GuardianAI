@@ -95,3 +95,5 @@ htmlcov/
 *.spec
 demo.mp4
 scratch/
+.admin_pass
+

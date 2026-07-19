@@ -19,6 +19,8 @@ DEFAULT_EXCLUDE_DIRS = {
     ".pytest_cache",
     "artifacts",
     "htmlcov",
+    "models",
+    ".cache",
 }
 
 DEFAULT_EXCLUDE_SUFFIXES = {
@@ -41,6 +43,10 @@ DEFAULT_EXCLUDE_SUFFIXES = {
     ".sqlite",
     ".sqlite3",
     ".pdb",
+    ".incomplete",
+    ".part",
+    ".tmp",
+    ".bin",
 }
 
 SECRET_PATTERNS: dict[str, re.Pattern[str]] = {
@@ -79,14 +85,20 @@ class ScanFinding:
 
 
 def _iter_files(root: Path) -> Iterable[Path]:
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part in DEFAULT_EXCLUDE_DIRS for part in path.parts):
-            continue
-        if path.suffix.lower() in DEFAULT_EXCLUDE_SUFFIXES:
-            continue
-        yield path
+    import os
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in DEFAULT_EXCLUDE_DIRS]
+        dp = Path(dirpath)
+        for name in filenames:
+            path = dp / name
+            if path.suffix.lower() in DEFAULT_EXCLUDE_SUFFIXES:
+                continue
+            try:
+                if path.stat().st_size > 10 * 1024 * 1024:
+                    continue
+            except OSError:
+                pass
+            yield path
 
 
 def _load_allowlist(allowlist_path: Path | None) -> list[str]:

@@ -30,6 +30,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Ownable2Step__factory>;
     getContractFactory(
+      name: "TimelockController",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.TimelockController__factory>;
+    getContractFactory(
       name: "IERC1155Errors",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC1155Errors__factory>;
@@ -41,6 +45,14 @@ declare module "hardhat/types/runtime" {
       name: "IERC721Errors",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC721Errors__factory>;
+    getContractFactory(
+      name: "IERC1155Receiver",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC1155Receiver__factory>;
+    getContractFactory(
+      name: "ERC1155Holder",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ERC1155Holder__factory>;
     getContractFactory(
       name: "ERC721",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -57,6 +69,18 @@ declare module "hardhat/types/runtime" {
       name: "IERC721Receiver",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC721Receiver__factory>;
+    getContractFactory(
+      name: "ERC721Holder",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ERC721Holder__factory>;
+    getContractFactory(
+      name: "Address",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Address__factory>;
+    getContractFactory(
+      name: "Errors",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Errors__factory>;
     getContractFactory(
       name: "ERC165",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -105,6 +129,22 @@ declare module "hardhat/types/runtime" {
       name: "GuardianThreatFeedRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.GuardianThreatFeedRegistry__factory>;
+    getContractFactory(
+      name: "GuardianTimelock",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.GuardianTimelock__factory>;
+    getContractFactory(
+      name: "IGuardianPassportSBT",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IGuardianPassportSBT__factory>;
+    getContractFactory(
+      name: "PassportMintAttacker",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.PassportMintAttacker__factory>;
+    getContractFactory(
+      name: "RejectingReceiver",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.RejectingReceiver__factory>;
 
     getContractAt(
       name: "AccessControl",
@@ -127,6 +167,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.Ownable2Step>;
     getContractAt(
+      name: "TimelockController",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.TimelockController>;
+    getContractAt(
       name: "IERC1155Errors",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -141,6 +186,16 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.IERC721Errors>;
+    getContractAt(
+      name: "IERC1155Receiver",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC1155Receiver>;
+    getContractAt(
+      name: "ERC1155Holder",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ERC1155Holder>;
     getContractAt(
       name: "ERC721",
       address: string | ethers.Addressable,
@@ -161,6 +216,21 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.IERC721Receiver>;
+    getContractAt(
+      name: "ERC721Holder",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ERC721Holder>;
+    getContractAt(
+      name: "Address",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Address>;
+    getContractAt(
+      name: "Errors",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Errors>;
     getContractAt(
       name: "ERC165",
       address: string | ethers.Addressable,
@@ -221,6 +291,26 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.GuardianThreatFeedRegistry>;
+    getContractAt(
+      name: "GuardianTimelock",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.GuardianTimelock>;
+    getContractAt(
+      name: "IGuardianPassportSBT",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IGuardianPassportSBT>;
+    getContractAt(
+      name: "PassportMintAttacker",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.PassportMintAttacker>;
+    getContractAt(
+      name: "RejectingReceiver",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.RejectingReceiver>;
 
     deployContract(
       name: "AccessControl",
@@ -239,6 +329,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Ownable2Step>;
     deployContract(
+      name: "TimelockController",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.TimelockController>;
+    deployContract(
       name: "IERC1155Errors",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC1155Errors>;
@@ -250,6 +344,14 @@ declare module "hardhat/types/runtime" {
       name: "IERC721Errors",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC721Errors>;
+    deployContract(
+      name: "IERC1155Receiver",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC1155Receiver>;
+    deployContract(
+      name: "ERC1155Holder",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC1155Holder>;
     deployContract(
       name: "ERC721",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -266,6 +368,18 @@ declare module "hardhat/types/runtime" {
       name: "IERC721Receiver",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC721Receiver>;
+    deployContract(
+      name: "ERC721Holder",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC721Holder>;
+    deployContract(
+      name: "Address",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Address>;
+    deployContract(
+      name: "Errors",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Errors>;
     deployContract(
       name: "ERC165",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -314,6 +428,22 @@ declare module "hardhat/types/runtime" {
       name: "GuardianThreatFeedRegistry",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.GuardianThreatFeedRegistry>;
+    deployContract(
+      name: "GuardianTimelock",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.GuardianTimelock>;
+    deployContract(
+      name: "IGuardianPassportSBT",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IGuardianPassportSBT>;
+    deployContract(
+      name: "PassportMintAttacker",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.PassportMintAttacker>;
+    deployContract(
+      name: "RejectingReceiver",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.RejectingReceiver>;
 
     deployContract(
       name: "AccessControl",
@@ -336,6 +466,11 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Ownable2Step>;
     deployContract(
+      name: "TimelockController",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.TimelockController>;
+    deployContract(
       name: "IERC1155Errors",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -350,6 +485,16 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC721Errors>;
+    deployContract(
+      name: "IERC1155Receiver",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC1155Receiver>;
+    deployContract(
+      name: "ERC1155Holder",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC1155Holder>;
     deployContract(
       name: "ERC721",
       args: any[],
@@ -370,6 +515,21 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC721Receiver>;
+    deployContract(
+      name: "ERC721Holder",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC721Holder>;
+    deployContract(
+      name: "Address",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Address>;
+    deployContract(
+      name: "Errors",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Errors>;
     deployContract(
       name: "ERC165",
       args: any[],
@@ -430,6 +590,26 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.GuardianThreatFeedRegistry>;
+    deployContract(
+      name: "GuardianTimelock",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.GuardianTimelock>;
+    deployContract(
+      name: "IGuardianPassportSBT",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IGuardianPassportSBT>;
+    deployContract(
+      name: "PassportMintAttacker",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.PassportMintAttacker>;
+    deployContract(
+      name: "RejectingReceiver",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.RejectingReceiver>;
 
     // default types
     getContractFactory(

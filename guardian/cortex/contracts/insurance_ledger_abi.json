@@ -27,6 +27,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "CertificateLimitReached",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "bytes32",
@@ -60,6 +65,17 @@
   {
     "inputs": [],
     "name": "InvalidPeriod",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "riskLevel",
+        "type": "string"
+      }
+    ],
+    "name": "InvalidRiskLevel",
     "type": "error"
   },
   {
@@ -208,6 +224,19 @@
     ],
     "name": "Unpaused",
     "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_CERTIFICATES",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [],

@@ -1,41 +1,63 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
-import time
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import StreamingResponse
+from typing import List, Dict, Any
 import json
-import base64
-import hashlib
 import sqlite3
+import csv
+import datetime
+import io
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    DB_PATH,
+    SecurityEventResponse,
+    get_current_principal,
+    _enforce_rate_limit,
+    _get_user_rate_limit,
+)
+from backend.security.authorization import can_access_tenant
 
 router = APIRouter()
 
 @router.get("/api/v1/export/json", response_model=List[SecurityEventResponse])
-async def export_json(username: str = Depends(enforce_user_rate_limit)):
+async def export_json(principal: Dict[str, Any] = Depends(get_current_principal)):
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    role = principal.get("role", "user")
+    user_tenant = principal.get("org_id", "default")
+    is_global = role == "admin" or (role == "auditor" and user_tenant == "org_guardian")
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("SELECT id, guardian_id, tenant_id, event_type, severity, details, timestamp FROM security_events ORDER BY timestamp DESC")
+    if is_global:
+        cur.execute("SELECT id, guardian_id, tenant_id, event_type, severity, details, timestamp FROM security_events ORDER BY timestamp DESC")
+    else:
+        cur.execute("SELECT id, guardian_id, tenant_id, event_type, severity, details, timestamp FROM security_events WHERE tenant_id = ? ORDER BY timestamp DESC", (user_tenant,))
     rows = cur.fetchall()
     conn.close()
     
     data = [
         {
             "id": r[0], "guardian_id": r[1], "tenant_id": r[2], "event_type": r[3], 
-            "severity": r[4], "details": json.loads(r[5]), "timestamp": r[6]
+            "severity": r[4], "details": json.loads(r[5]) if isinstance(r[5], str) and r[5] else {}, "timestamp": r[6]
         } for r in rows
     ]
     return data
 
 
 @router.get("/api/v1/export/csv")
-async def export_csv(username: str = Depends(enforce_user_rate_limit)):
+async def export_csv(principal: Dict[str, Any] = Depends(get_current_principal)):
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    role = principal.get("role", "user")
+    user_tenant = principal.get("org_id", "default")
+    is_global = role == "admin" or (role == "auditor" and user_tenant == "org_guardian")
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("SELECT id, guardian_id, tenant_id, event_type, severity, details, timestamp FROM security_events ORDER BY timestamp DESC")
+    if is_global:
+        cur.execute("SELECT id, guardian_id, tenant_id, event_type, severity, details, timestamp FROM security_events ORDER BY timestamp DESC")
+    else:
+        cur.execute("SELECT id, guardian_id, tenant_id, event_type, severity, details, timestamp FROM security_events WHERE tenant_id = ? ORDER BY timestamp DESC", (user_tenant,))
     rows = cur.fetchall()
     conn.close()
     
@@ -54,7 +76,20 @@ async def export_csv(username: str = Depends(enforce_user_rate_limit)):
 
 
 @router.get("/api/v1/events", response_model=List[SecurityEventResponse])
-async def get_events(tenant_id: str | None = None, limit: int = 50, username: str = Depends(enforce_user_rate_limit)):
+async def get_events(tenant_id: str | None = None, limit: int = 50, principal: Dict[str, Any] = Depends(get_current_principal)):
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    role = principal.get("role", "user")
+    user_tenant = principal.get("org_id", "default")
+    is_global = role == "admin" or (role == "auditor" and user_tenant == "org_guardian")
+
+    if tenant_id:
+        if not can_access_tenant(principal, tenant_id):
+            raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this tenant's data.")
+    else:
+        if not is_global:
+            tenant_id = user_tenant
+
     limit = min(max(1, limit), 1000)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -83,5 +118,3 @@ async def get_events(tenant_id: str | None = None, limit: int = 50, username: st
             "timestamp": r[6]
         } for r in rows
     ]
-
-

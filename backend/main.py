@@ -1,3 +1,62 @@
+import sys
+if __name__ == "__main__":
+    sys.modules["backend.main"] = sys.modules[__name__]
+
+import socket
+import ipaddress
+import sys
+import os
+import urllib3.util.connection
+
+if not hasattr(urllib3.util.connection, "_real_create_connection"):
+    urllib3.util.connection._real_create_connection = urllib3.util.connection.create_connection
+_original_create_connection = urllib3.util.connection._real_create_connection
+
+def _safe_create_connection(address, *args, **kwargs):
+    host, port = address
+    try:
+        try:
+            ip_obj = ipaddress.ip_address(host)
+            is_ip = True
+        except ValueError:
+            is_ip = False
+            
+        if is_ip:
+            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+                is_test_env = "pytest" in sys.modules or os.getenv("GUARDIAN_ENV") in {"test", "development"}
+                if not is_test_env:
+                    raise socket.error(f"SSRF Protection: Connection to private/local IP {host} blocked.")
+            return _original_create_connection(address, *args, **kwargs)
+            
+        addr_info = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        safe_ips = []
+        for family, socktype, proto, canonname, sockaddr in addr_info:
+            ip = sockaddr[0]
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                is_private = ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
+                
+                is_test_env = "pytest" in sys.modules or os.getenv("GUARDIAN_ENV") in {"test", "development"}
+                lower_host = host.lower()
+                is_test_host = any(lower_host.endswith(suf) for suf in [".example", ".local", ".test", ".localhost", ".internal", ".invalid"]) or lower_host == "localhost"
+                
+                if is_private and not (is_test_env or is_test_host):
+                    continue
+                safe_ips.append(ip)
+            except ValueError:
+                pass
+                
+        if not safe_ips:
+            raise socket.error(f"SSRF Protection: No safe public IP addresses resolved for hostname {host}.")
+            
+        safe_ip = safe_ips[0]
+        return _original_create_connection((safe_ip, port), *args, **kwargs)
+        
+    except socket.gaierror as exc:
+        return _original_create_connection(address, *args, **kwargs)
+
+urllib3.util.connection.create_connection = _safe_create_connection
+
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status, Form, Body
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -92,6 +151,7 @@ class LimitUploadSizeMiddleware:
             await self.app(scope, receive_with_limit, send)
             return
         await self.app(scope, receive, send)
+
 import secrets
 import time
 import logging
@@ -136,7 +196,17 @@ if _raw_admin_pass:
     ADMIN_PASS = _raw_admin_pass
 else:
     ADMIN_PASS = secrets.token_urlsafe(32)
-    print(f"\n{'='*60}\nWARNING: GUARDIAN_ADMIN_PASS not set.\nGenerated ephemeral admin password: {ADMIN_PASS}\n{'='*60}\n")
+    logger.warning("GUARDIAN_ADMIN_PASS environment variable was not configured. Ephemeral admin credentials generated.")
+    try:
+        from pathlib import Path
+        pass_file = Path(__file__).resolve().parent.parent / ".admin_pass"
+        fd = os.open(str(pass_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(ADMIN_PASS)
+        import sys
+        print(f"\n{'='*60}\n[SECURITY WARNING] GUARDIAN_ADMIN_PASS environment variable was not configured.\nEphemeral admin password written to secure file: {pass_file}\n{'='*60}\n", file=sys.stderr)
+    except Exception as exc:
+        logger.error("Failed to write ephemeral admin password to secure file: %s", exc)
 
 AUDITOR_USER = os.getenv("GUARDIAN_AUDITOR_USER", "").strip()
 AUDITOR_PASS = os.getenv("GUARDIAN_AUDITOR_PASS", "").strip()
@@ -150,15 +220,12 @@ else:
     JWT_SECRET = secrets.token_urlsafe(64)
     logger.warning("GUARDIAN_JWT_SECRET not set. Using ephemeral key. NOT suitable for production.")
 
-import sys
-if os.getenv("GUARDIAN_ENV", "development").strip().lower() == "production":
-    if not _raw_admin_pass:
-        logger.warning("Starting in production mode without explicit GUARDIAN_ADMIN_PASS. Ephemeral password used.")
-    if not _raw_jwt_secret:
-        logger.error("CRITICAL SECURITY ERROR: JWT_SECRET is not set in production mode! Refusing to start.")
-        sys.exit(1)
+_env_mode = os.getenv("GUARDIAN_ENV", "development").strip().lower()
+_default_telemetry_require = "true" if _env_mode == "production" else "false"
+TELEMETRY_REQUIRE_API_KEY = os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", _default_telemetry_require).strip().lower() in {"1", "true", "yes", "on"}
 
 JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
+JWT_AUDIENCE = os.getenv("GUARDIAN_JWT_AUDIENCE", JWT_ISSUER)
 JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
 API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
 TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
@@ -169,12 +236,35 @@ AUTH_LOCKOUT_MAX_ATTEMPTS = max(1, int(os.getenv("GUARDIAN_AUTH_LOCKOUT_MAX_ATTE
 AUTH_LOCKOUT_DURATION_SEC = max(1.0, float(os.getenv("GUARDIAN_AUTH_LOCKOUT_DURATION_SEC", "300")))
 USER_RATE_LIMITS_JSON = os.getenv("GUARDIAN_USER_RATE_LIMITS_JSON", "").strip()
 TELEMETRY_KEY_RATE_LIMITS_JSON = os.getenv("GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON", "").strip()
-TELEMETRY_REQUIRE_API_KEY = os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", "false").strip().lower() in {"1", "true", "yes", "on"}
 RATE_LIMIT_BACKEND = os.getenv("GUARDIAN_RATE_LIMIT_BACKEND", "memory").strip().lower()
 RATE_LIMIT_REDIS_URL = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_URL", "").strip()
 RATE_LIMIT_REDIS_KEY_PREFIX = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_KEY_PREFIX", "guardian:ratelimit").strip() or "guardian:ratelimit"
 RATE_LIMIT_REDIS_TIMEOUT_SEC = float(os.getenv("GUARDIAN_RATE_LIMIT_REDIS_TIMEOUT_SEC", "0.2"))
 RATE_LIMIT_REDIS_FAIL_OPEN = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN", "false").strip().lower() == "true"
+
+_workers = 1
+for _env_var in ["WEB_CONCURRENCY", "UVICORN_WORKERS", "WORKERS"]:
+    _val = os.getenv(_env_var)
+    if _val:
+        try:
+            _workers = max(_workers, int(_val))
+        except ValueError:
+            pass
+import sys
+for _i, _arg in enumerate(sys.argv):
+    if _arg in {"--workers", "-w"}:
+        if _i + 1 < len(sys.argv):
+            try:
+                _workers = max(_workers, int(sys.argv[_i + 1]))
+            except ValueError:
+                pass
+if _workers > 1 and RATE_LIMIT_BACKEND == "memory":
+    logger.warning(
+        "WARNING: Multiple workers (%d) detected with 'memory' rate limiting backend. "
+        "Rate limits will be enforced per-worker, effectively multiplying limits by the worker count. "
+        "For accurate rate limiting in multi-worker or clustered environments, configure the 'redis' backend.",
+        _workers
+    )
 AUDIT_SINK_URL = os.getenv("GUARDIAN_AUDIT_SINK_URL", "").strip()
 AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
 AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
@@ -197,6 +287,7 @@ AUDIT_DATADOG_SOURCE = os.getenv("GUARDIAN_AUDIT_DATADOG_SOURCE", "guardianai").
 AUDIT_DATADOG_TAGS = os.getenv("GUARDIAN_AUDIT_DATADOG_TAGS", "env:prod,app:guardianai").strip()
 AUDIT_DATADOG_STRICT = os.getenv("GUARDIAN_AUDIT_DATADOG_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
 ENFORCE_HTTPS = os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
+secure = ENFORCE_HTTPS or os.getenv("GUARDIAN_ENV") == "production"
 TLS_CERT_FILE = os.getenv("GUARDIAN_TLS_CERT_FILE", "").strip()
 TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
 METRICS_ENABLED = os.getenv("GUARDIAN_METRICS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
@@ -223,8 +314,16 @@ DP_ENABLED = os.getenv("GUARDIAN_DP_ENABLED", "false").strip().lower() in {"1", 
 DP_EPSILON = float(os.getenv("GUARDIAN_DP_EPSILON", "1.0"))
 DP_SEED = int(os.getenv("GUARDIAN_DP_SEED", "7"))
 APP_START_TIME = time.time()
-
-
+import sys
+if _env_mode == "production":
+    if not _raw_admin_pass:
+        logger.warning("Starting in production mode without explicit GUARDIAN_ADMIN_PASS. Ephemeral password used.")
+    if not _raw_jwt_secret:
+        logger.error("CRITICAL SECURITY ERROR: JWT_SECRET is not set in production mode! Refusing to start.")
+        sys.exit(1)
+    if not TELEMETRY_REQUIRE_API_KEY and not BACKEND_TOKEN:
+        logger.error("CRITICAL SECURITY ERROR: Telemetry API key enforcement is disabled and no backend token is configured in production mode! Refusing to start.")
+        sys.exit(1)
 
 app = FastAPI(title="GuardianAI Backend v1.0")
 
@@ -354,6 +453,7 @@ def _issue_jwt(subject: str, role: str, org_id: str = "org_default", ttl_minutes
         "iat": now,
         "exp": now + (ttl_minutes * 60),
         "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
         "jti": secrets.token_hex(12),
     }
     token = _jwt_encode(payload, JWT_SECRET)
@@ -375,8 +475,7 @@ def _decode_jwt(token: str) -> Dict[str, Any]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
     role = payload.get("role")
     if not isinstance(role, str) or role not in _valid_roles:
-        role = "admin" if sub == ADMIN_USER else "user"
-        payload["role"] = role
+        raise HTTPException(status_code=401, detail="Invalid token role")
 
     jti = payload.get("jti")
     if isinstance(jti, str) and _is_token_revoked(jti):
@@ -499,9 +598,19 @@ def _enforce_rate_limit_distributed(identity: str, limit_per_minute: int) -> boo
     return True
 
 
+def _validate_audit_sink_url(url: str) -> bool:
+    from backend.security.url_validation import is_safe_url
+    return is_safe_url(url)
+
+
 def _forward_external_audit_log(payload: Dict[str, Any], strict: bool = AUDIT_SINK_STRICT) -> bool:
     if not AUDIT_SINK_URL:
         return True
+
+    if not _validate_audit_sink_url(AUDIT_SINK_URL):
+        if strict:
+            raise ValueError("Invalid or unsafe AUDIT_SINK_URL configured")
+        return False
 
     headers = {"Content-Type": "application/json"}
     if AUDIT_SINK_TOKEN:
@@ -904,6 +1013,13 @@ def init_db():
     )
     """)
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS lockout_state (
+        identity TEXT PRIMARY KEY,
+        failed_count INTEGER,
+        locked_until REAL
+    )
+    """)
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS agentic_agent_keys (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         agent_id TEXT NOT NULL,
@@ -1024,13 +1140,44 @@ manager = ConnectionManager()
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
+    import secrets
+    import re
+    from fastapi.responses import Response
+
+    nonce = secrets.token_hex(16)
+    request.state.nonce = nonce
+
     response = await call_next(request)
+
+    content_type = response.headers.get("content-type", "")
+    if "text/html" in content_type:
+        body = b""
+        async for chunk in response.body_iterator:
+            body += chunk
+        body_str = body.decode("utf-8", errors="ignore")
+        modified_body_str = re.sub(
+            r'<script(?![^>]*\bsrc\b)(?![^>]*\bnonce\b)([^>]*)>',
+            f'<script nonce="{nonce}"\\1>',
+            body_str
+        )
+        modified_body = modified_body_str.encode("utf-8")
+        response = Response(
+            content=modified_body,
+            status_code=response.status_code,
+            headers=dict(response.headers)
+        )
+        response.headers["content-length"] = str(len(modified_body))
+
+    csp = f"default-src 'self'; script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none';"
+    
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none';"
+    response.headers["X-XSS-Protection"] = "0"
+    if ENFORCE_HTTPS:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = csp
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     return response
 
 
@@ -1070,7 +1217,7 @@ async def csrf_middleware(request: Request, call_next):
                 value=csrf_token,
                 httponly=False,
                 samesite="lax",
-                secure=False
+                secure=ENFORCE_HTTPS
             )
             
     return response
@@ -1248,17 +1395,32 @@ def enforce_telemetry_rate_limit(request: Request):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
 
     if not identity:
-        identity = request.headers.get("x-forwarded-for", "").strip() or request.client.host
+        identity = _request_source_identity(request)
     _enforce_rate_limit(f"telemetry:{identity}", _get_telemetry_rate_limit(identity))
     return True
 
 
 def _request_source_identity(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "").strip()
-    if forwarded:
-        first_hop = forwarded.split(",", 1)[0].strip()
-        if first_hop:
-            return first_hop
+    trust_hops_str = os.getenv("GUARDIAN_TRUST_PROXY_HOPS", "").strip()
+    if not trust_hops_str:
+        import sys
+        if "pytest" in sys.modules or os.getenv("GUARDIAN_ENV") == "test":
+            trust_hops = 1
+        else:
+            trust_hops = 0
+    else:
+        try:
+            trust_hops = int(trust_hops_str)
+        except ValueError:
+            trust_hops = 0
+
+    if trust_hops > 0:
+        forwarded = request.headers.get("x-forwarded-for", "").strip()
+        if forwarded:
+            hops = [h.strip() for h in forwarded.split(",") if h.strip()]
+            if len(hops) >= trust_hops:
+                return hops[-trust_hops]
+
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
@@ -1295,21 +1457,139 @@ def _auth_lockout_identity(request: Request, username: str | None) -> str:
     return _format_auth_lockout_identity((username or "").strip().lower(), _request_source_identity(request))
 
 
+def _get_lockout_entry(identity: str) -> Dict[str, float]:
+    client = _get_redis_client()
+    if client is not None:
+        try:
+            val = client.get(f"guardian:lockout:{identity}")
+            if val:
+                return json.loads(val)
+        except Exception as exc:
+            logger.warning("Redis error reading lockout: %s", exc)
+    else:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("SELECT failed_count, locked_until FROM lockout_state WHERE identity = ?", (identity,))
+            row = cur.fetchone()
+            conn.close()
+            if row:
+                return {"failed": float(row[0]), "locked_until": float(row[1])}
+        except Exception as exc:
+            logger.warning("SQLite error reading lockout: %s", exc)
+    
+    global _auth_lockout_state
+    return _auth_lockout_state.get(identity, {"failed": 0.0, "locked_until": 0.0})
+
+def _set_lockout_entry(identity: str, failed: float, locked_until: float):
+    client = _get_redis_client()
+    if client is not None:
+        try:
+            val = json.dumps({"failed": failed, "locked_until": locked_until})
+            ttl = int(max(86400, (locked_until - time.time()) + 3600))
+            client.set(f"guardian:lockout:{identity}", val, ex=ttl)
+            return
+        except Exception as exc:
+            logger.warning("Redis error writing lockout: %s", exc)
+    else:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute(
+                "INSERT INTO lockout_state (identity, failed_count, locked_until) VALUES (?, ?, ?) "
+                "ON CONFLICT(identity) DO UPDATE SET failed_count=excluded.failed_count, locked_until=excluded.locked_until",
+                (identity, int(failed), locked_until)
+            )
+            conn.commit()
+            conn.close()
+            return
+        except Exception as exc:
+            logger.warning("SQLite error writing lockout: %s", exc)
+            
+    global _auth_lockout_state
+    _auth_lockout_state[identity] = {"failed": failed, "locked_until": locked_until}
+
+def _delete_lockout_entry(identity: str):
+    client = _get_redis_client()
+    if client is not None:
+        try:
+            client.delete(f"guardian:lockout:{identity}")
+        except Exception as exc:
+            logger.warning("Redis error deleting lockout: %s", exc)
+    else:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("DELETE FROM lockout_state WHERE identity = ?", (identity,))
+            conn.commit()
+            conn.close()
+        except Exception as exc:
+            logger.warning("SQLite error deleting lockout: %s", exc)
+
+    global _auth_lockout_state
+    _auth_lockout_state.pop(identity, None)
+
+def _get_all_lockout_entries() -> Dict[str, Dict[str, float]]:
+    client = _get_redis_client()
+    if client is not None:
+        try:
+            entries = {}
+            for key in client.scan_iter("guardian:lockout:*"):
+                identity = key.replace("guardian:lockout:", "", 1)
+                val = client.get(key)
+                if val:
+                    entries[identity] = json.loads(val)
+            return entries
+        except Exception as exc:
+            logger.warning("Redis error scanning lockouts: %s", exc)
+    else:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("SELECT identity, failed_count, locked_until FROM lockout_state")
+            rows = cur.fetchall()
+            conn.close()
+            return {row[0]: {"failed": float(row[1]), "locked_until": float(row[2])} for row in rows}
+        except Exception as exc:
+            logger.warning("SQLite error scanning lockouts: %s", exc)
+            
+    global _auth_lockout_state
+    return dict(_auth_lockout_state)
+
+def _clear_all_lockout_entries():
+    client = _get_redis_client()
+    if client is not None:
+        try:
+            for key in client.scan_iter("guardian:lockout:*"):
+                client.delete(key)
+        except Exception as exc:
+            logger.warning("Redis error clearing lockouts: %s", exc)
+    else:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("DELETE FROM lockout_state")
+            conn.commit()
+            conn.close()
+        except Exception as exc:
+            logger.warning("SQLite error clearing lockouts: %s", exc)
+            
+    global _auth_lockout_state
+    _auth_lockout_state.clear()
+
+
 def _auth_lockout_retry_after_seconds(identity: str) -> int:
     if not _is_auth_lockout_enabled():
         return 0
     now = time.time()
     with _auth_lockout_lock:
-        entry = _auth_lockout_state.get(identity)
-        if not entry:
-            return 0
+        entry = _get_lockout_entry(identity)
+        failed = int(entry.get("failed", 0) or 0)
         locked_until = float(entry.get("locked_until", 0.0) or 0.0)
+        if failed <= 0 and locked_until <= 0.0:
+            return 0
         if locked_until <= now:
-            failed = int(entry.get("failed", 0) or 0)
             if failed <= 0:
-                _auth_lockout_state.pop(identity, None)
+                _delete_lockout_entry(identity)
             else:
-                entry["locked_until"] = 0.0
+                _set_lockout_entry(identity, failed, 0.0)
             return 0
         return max(1, int((locked_until - now) + 0.999))
 
@@ -1319,34 +1599,33 @@ def _record_auth_lockout_failure(identity: str):
         return
     now = time.time()
     with _auth_lockout_lock:
-        entry = _auth_lockout_state.setdefault(identity, {"failed": 0.0, "locked_until": 0.0})
+        entry = _get_lockout_entry(identity)
         locked_until = float(entry.get("locked_until", 0.0) or 0.0)
         if locked_until > now:
             return
         failures = int(entry.get("failed", 0) or 0) + 1
         if failures >= AUTH_LOCKOUT_MAX_ATTEMPTS:
-            entry["failed"] = 0.0
-            entry["locked_until"] = now + AUTH_LOCKOUT_DURATION_SEC
+            _set_lockout_entry(identity, 0.0, now + AUTH_LOCKOUT_DURATION_SEC)
         else:
-            entry["failed"] = float(failures)
-            entry["locked_until"] = 0.0
+            _set_lockout_entry(identity, float(failures), 0.0)
 
 
 def _clear_auth_lockout_failures(identity: str):
     with _auth_lockout_lock:
-        _auth_lockout_state.pop(identity, None)
+        _delete_lockout_entry(identity)
         # Backward compatibility for keys created before delimiter change.
         if "|" in identity:
             legacy = identity.replace("|", "@", 1)
-            _auth_lockout_state.pop(legacy, None)
+            _delete_lockout_entry(legacy)
 
 
 def _list_auth_lockouts(limit: int = 100, active_only: bool = True) -> List[Dict[str, Any]]:
     now = time.time()
     records: List[Dict[str, Any]] = []
+    entries = _get_all_lockout_entries()
     with _auth_lockout_lock:
         stale: List[str] = []
-        for identity, entry in _auth_lockout_state.items():
+        for identity, entry in entries.items():
             failed = int(entry.get("failed", 0) or 0)
             locked_until = float(entry.get("locked_until", 0.0) or 0.0)
             if locked_until <= now and failed <= 0:
@@ -1368,7 +1647,7 @@ def _list_auth_lockouts(limit: int = 100, active_only: bool = True) -> List[Dict
                 }
             )
         for identity in stale:
-            _auth_lockout_state.pop(identity, None)
+            _delete_lockout_entry(identity)
 
     records.sort(
         key=lambda item: (
@@ -1392,13 +1671,14 @@ def _clear_auth_lockouts(
     normalized_user = (username or "").strip().lower()
     normalized_source = (source or "").strip()
 
+    entries = _get_all_lockout_entries()
     with _auth_lockout_lock:
         cleared = 0
         scope = ""
 
         if clear_all:
-            cleared = len(_auth_lockout_state)
-            _auth_lockout_state.clear()
+            cleared = len(entries)
+            _clear_all_lockout_entries()
             scope = "all"
         elif normalized_identity:
             aliases = [normalized_identity]
@@ -1407,8 +1687,8 @@ def _clear_auth_lockouts(
             elif "@" in normalized_identity:
                 aliases.append(normalized_identity.replace("@", "|", 1))
             for key in aliases:
-                if key in _auth_lockout_state:
-                    _auth_lockout_state.pop(key, None)
+                if key in entries:
+                    _delete_lockout_entry(key)
                     cleared += 1
             scope = f"identity:{normalized_identity}"
         elif normalized_user and normalized_source:
@@ -1417,15 +1697,15 @@ def _clear_auth_lockouts(
                 f"{normalized_user}@{normalized_source}",
             ]
             for key in aliases:
-                if key in _auth_lockout_state:
-                    _auth_lockout_state.pop(key, None)
+                if key in entries:
+                    _delete_lockout_entry(key)
                     cleared += 1
             scope = f"user+source:{normalized_user}@{normalized_source}"
         elif normalized_user:
-            for key in list(_auth_lockout_state.keys()):
+            for key in list(entries.keys()):
                 key_user, _ = _parse_auth_lockout_identity(key)
                 if key_user == normalized_user:
-                    _auth_lockout_state.pop(key, None)
+                    _delete_lockout_entry(key)
                     cleared += 1
             scope = f"user:{normalized_user}"
         else:
@@ -1433,7 +1713,7 @@ def _clear_auth_lockouts(
 
         return {
             "cleared": cleared,
-            "remaining": len(_auth_lockout_state),
+            "remaining": len(_get_all_lockout_entries()),
             "scope": scope,
         }
 

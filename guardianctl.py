@@ -309,7 +309,8 @@ def build_one_click_config(
             "blocked_functions": ["eval", "exec", "open"],
         },
         "runtime_monitoring": {
-            "blocked_processes": ["nc.exe", "ncat.exe", "netcat.exe", "calc.exe", "powershell.exe"],
+            "blocked_cmdline_patterns": [],
+            "blocked_processes": ["nc.exe", "ncat.exe", "netcat.exe", "calc.exe"],
             "max_cpu_percent": 95.0,
             "max_memory_percent": 90.0,
             "check_interval_seconds": 2,

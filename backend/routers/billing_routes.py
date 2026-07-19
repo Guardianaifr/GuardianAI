@@ -1,18 +1,32 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
+from typing import List, Dict, Any, Optional
 import time
-import json
-import base64
-import hashlib
 import sqlite3
+import secrets
+import requests
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    BILLING_MODE,
+    BillingCheckoutRequest,
+    BillingConfirmRequest,
+    CHECKOUT_CANCEL_URL,
+    CHECKOUT_SUCCESS_URL,
+    CRYPTO_API_KEY,
+    DB_PATH,
+    LicenseIssueRequest,
+    STRIPE_PRICE_ENTERPRISE,
+    STRIPE_PRICE_PRO,
+    STRIPE_PRICE_STARTER,
+    STRIPE_SECRET_KEY,
+    _build_checkout_url,
+    _upsert_customer,
+    enforce_admin_rate_limit,
+    enforce_user_rate_limit,
+)
 
 router = APIRouter()
+VALID_PLANS = {"free", "starter", "pro", "enterprise", "lifetime"}
 
 @router.get("/api/v1/public/plans")
 async def public_plans():
@@ -49,7 +63,9 @@ async def public_plans():
 
 
 @router.post("/api/v1/billing/checkout")
-async def billing_checkout(payload: BillingCheckoutRequest):
+async def billing_checkout(payload: BillingCheckoutRequest, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
+    if payload.plan not in VALID_PLANS:
+        raise HTTPException(status_code=400, detail="Invalid plan")
     now = time.time()
     order_id = f"ord_{secrets.token_hex(8)}"
     provider = "mock"
@@ -206,5 +222,3 @@ async def delete_tenant_data(tenant_id: str, username: str = Depends(enforce_adm
     conn.commit()
     conn.close()
     return {"tenant_id": tenant_id, "deleted_security_events": deleted_events, "deleted_analytics": deleted_analytics}
-
-

@@ -11,7 +11,8 @@ import "@openzeppelin/contracts/governance/TimelockController.sol";
  *
  * Roles:
  * - PROPOSER_ROLE: multi-sig wallet that proposes operations
- * - EXECUTOR_ROLE: address(0) = anyone can execute after delay
+ * - EXECUTOR_ROLE: address(0) = anyone can execute after delay. This is an intentional OpenZeppelin
+ *   TimelockController pattern; security relies on the restricted proposer set, not the executor.
  * - CANCELLER_ROLE: same as proposer (can cancel pending ops)
  * - TIMELOCK_ADMIN_ROLE: renounced after setup (no admin backdoor)
  */

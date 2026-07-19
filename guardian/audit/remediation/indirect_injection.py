@@ -49,6 +49,14 @@ class IndirectInjectionFilter:
         # Action requests
         r"execute\s+(?:the\s+)?(?:following|this)\s+(?:command|action|function|code)",
         r"run\s+(?:this\s+)?(?:command|query|script|code)",
+        # HTML comment embedded injections
+        r"<!--[\s\S]*?(?:ignore|system update|override|instructions|output exactly)[\s\S]*?-->",
+        # JSON structured output manipulation (field-level injection)
+        # Pattern A: any field whose value is a 0x wallet/attacker address
+        r"\"(?:action|status|to|amount|value|address|recipient|destination)\"\s*:\s*\"0x[a-fA-F0-9]+\"",
+        # Pattern B: well-known dangerous action values or MAX amount sentinel
+        r"\"(?:action|operation|cmd|command)\"\s*:\s*\"(?:approve_transfer|transfer|drain|withdraw|execute)[^\"]*\"",
+        r"\"(?:amount|value|qty|quantity)\"\s*:\s*\"(?:MAX|UNLIMITED|type\(uint256\)\.max|115792089)\"",
     ]
 
     def __init__(self):

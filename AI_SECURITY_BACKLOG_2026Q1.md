@@ -236,3 +236,15 @@ Status update:
   - `tools/run_dp_analytics_benchmark.py`
   - `tests/backend/test_tenant_isolation_backend.py`
   - `tests/security/test_differential_privacy.py`
+
+13. Financial Logic / Web3 Security Gaps (Known Gaps) - `planned`
+- GuardianAI has no real guardrail logic for yield/APY validation, trading signal source verification, governance vote weight validation, or slippage bounds.
+- These are currently only defended in the test mock (`mock_target_hardened.py`), not the actual product.
+- Must implement real product guardrails for these vectors (FL_002, FL_003, FL_005, FL_008) to safely deploy in live DeFi environments.
+
+14. Agentic Security Fail-Open State (Known Gap) - `planned`
+- The `agentic_security` parent module currently defaults to `enabled: False` (a fail-open state), completely bypassing its sub-controls.
+- Permanent accepted risk: The current architecture cannot safely default to enabled because `require_agent_id` unconditionally blocks any request without an `X-Guardian-Agent-Id` header. In mixed agentic/non-agentic environments, this would break all standard human traffic if naively enabled.
+- Open design options for a real fix (not decisions):
+  1. Auto-detect agentic vs. human traffic and only enforce agentic controls conditionally.
+  2. Default `require_agent_id` to `False` so non-agentic traffic passes by default.

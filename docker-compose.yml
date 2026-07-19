@@ -12,14 +12,15 @@ services:
     environment:
       # Administrative Credentials
       - GUARDIAN_ADMIN_USER=${GUARDIAN_ADMIN_USER:-admin}
-      - GUARDIAN_ADMIN_PASS=${GUARDIAN_ADMIN_PASS:-guardian_secure_2026}
+      - GUARDIAN_ADMIN_PASS=${GUARDIAN_ADMIN_PASS:?GUARDIAN_ADMIN_PASS must be set}
       
       # Routing
       - TARGET_URL=${TARGET_URL:-http://host.docker.internal:8080}
+      - GUARDIAN_PROXY_HOST=${GUARDIAN_PROXY_HOST:-0.0.0.0}
       
       # Rate Limiting & Metering
       - GUARDIAN_RATE_LIMIT_BACKEND=redis
-      - GUARDIAN_RATE_LIMIT_REDIS_URL=redis://:${REDIS_PASSWORD:-guardian_redis_2026}@guardian_redis:6379/0
+      - GUARDIAN_RATE_LIMIT_REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@guardian_redis:6379/0
       
       # Billing & DRM Licensing (Set these in production .env)
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
@@ -48,7 +49,7 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-guardian_redis_2026}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
 
 volumes:
   redis_data:

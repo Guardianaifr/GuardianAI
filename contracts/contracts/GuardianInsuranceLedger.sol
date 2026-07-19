@@ -30,6 +30,7 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
     mapping(bytes32 => Certificate) public certificates;
 
     /// @notice List of all certificate IDs
+    // NOTE: Growing array can lead to high gas costs. Pagination should be added if off-chain enumeration becomes a bottleneck.
     bytes32[] public certificateIds;
 
     uint256 public constant MAX_CERTIFICATES = 100_000;
@@ -56,6 +57,8 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
     error InvalidCertHash();
     error CertificateAlreadyRevoked(bytes32 certId);
     error CertificateLimitReached();
+    /// @notice _riskLevel must be exactly "LOW", "MEDIUM", or "HIGH" (case-sensitive, uppercase).
+    error InvalidRiskLevel(string riskLevel);
 
     // ── Constructor ──────────────────────────────────────────────────────
 
@@ -74,6 +77,8 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
         bytes32 _certHash,
         string calldata _riskLevel
     ) external onlyOwner whenNotPaused nonReentrant {
+        require(bytes(_riskLevel).length <= 32, "Risk level too long");
+        if (!_validRiskLevel(_riskLevel)) revert InvalidRiskLevel(_riskLevel);
         if (certificateIds.length >= MAX_CERTIFICATES) {
             revert CertificateLimitReached();
         }
@@ -133,4 +138,17 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
 
     function pause() external onlyOwner { _pause(); }
     function unpause() external onlyOwner { _unpause(); }
+
+    // ── Internal Helpers ─────────────────────────────────────────────────
+
+    /**
+     * @dev Returns true iff riskLevel is exactly "LOW", "MEDIUM", or "HIGH".
+     *      Casing is uppercase to match the Python _assess_risk() output convention.
+     */
+    function _validRiskLevel(string calldata riskLevel) internal pure returns (bool) {
+        bytes32 h = keccak256(bytes(riskLevel));
+        return h == keccak256(bytes("LOW"))
+            || h == keccak256(bytes("MEDIUM"))
+            || h == keccak256(bytes("HIGH"));
+    }
 }

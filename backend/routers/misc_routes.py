@@ -1,16 +1,68 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse, JSONResponse
+from typing import List, Any
+import hmac
+import os
+import random
 import time
 import json
-import base64
 import hashlib
 import sqlite3
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    # Private helpers
+    _build_audit_summary,
+    _build_compliance_report,
+    _build_metrics_payload,
+    _build_rbac_policy,
+    _check_db_health,
+    _compute_audit_entry_hash,
+    _forward_audit_payload,
+    _generate_api_key_material,
+    _hash_api_key,
+    _retry_failed_audit_deliveries,
+    _to_ms,
+    _verify_audit_log_chain_internal,
+    _write_siem_alert,
+    # Pydantic models
+    AnalyticsResponse,
+    ApiKeyResponse,
+    AuditDeliveryFailureResponse,
+    AuditLogEntryResponse,
+    AuditSummaryResponse,
+    AuditVerifyResponse,
+    ComplianceReportResponse,
+    CreateApiKeyRequest,
+    CreatedApiKeyResponse,
+    HealthResponse,
+    RbacPolicyResponse,
+    RetryFailuresResponse,
+    TelemetryIngestResponse,
+    # Constants
+    APP_START_TIME,
+    BLOCKED_EVENT_TYPES,
+    DB_PATH,
+    DP_ENABLED,
+    DP_EPSILON,
+    DP_SEED,
+    JWT_SECRET,
+    METRICS_ENABLED,
+    PROXY_EVENT_TYPES,
+    # Auth dependencies
+    enforce_admin_rate_limit,
+    enforce_auditor_rate_limit,
+    enforce_telemetry_rate_limit,
+    enforce_user_rate_limit,
+    get_current_principal,
+    _enforce_rate_limit,
+    _get_user_rate_limit,
+    # Other
+    logger,
+    noisy_count,
+    send_webhook_alert,
+    SecurityEvent,
+)
+from backend.security.authorization import can_access_tenant
 
 router = APIRouter()
 
@@ -375,8 +427,22 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
 async def get_analytics(
     tenant_id: str | None = None,
     dp: bool = True,
-    username: str = Depends(enforce_user_rate_limit),
+    principal: dict = Depends(get_current_principal),
 ):
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    role = principal.get("role", "user")
+    user_tenant = principal.get("org_id", "default")
+    is_global = role == "admin" or (role == "auditor" and user_tenant == "org_guardian")
+
+    if tenant_id:
+        if not can_access_tenant(principal, tenant_id):
+            raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this tenant's data.")
+    else:
+        if not is_global:
+            tenant_id = user_tenant
+
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
@@ -525,7 +591,9 @@ async def health_check():
     now = time.time()
     # Resolve optional config variables that may not exist in all deployment variants
     _https_enforced: bool = bool(os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").lower() in {"1", "true", "yes", "on"})
-    _telemetry_api_key: bool = bool(os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", "false").lower() in {"1", "true", "yes", "on"})
+    _env_mode = os.getenv("GUARDIAN_ENV", "development").strip().lower()
+    _default_telemetry_require = "true" if _env_mode == "production" else "false"
+    _telemetry_api_key: bool = bool(os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", _default_telemetry_require).lower() in {"1", "true", "yes", "on"})
     _audit_sink: bool = bool(
         os.getenv("GUARDIAN_AUDIT_SINK_URL")
         or os.getenv("GUARDIAN_AUDIT_SYSLOG_HOST")
@@ -804,5 +872,3 @@ async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(
 async def retry_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_admin_rate_limit)):
     limit = min(max(1, limit), 1000)
     return _retry_failed_audit_deliveries(limit=limit)
-
-

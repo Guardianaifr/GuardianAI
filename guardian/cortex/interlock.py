@@ -15,6 +15,8 @@ import uuid
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
+from guardian.onchain_safety import OwnershipNotTransferredError
+
 logger = logging.getLogger("guardian.cortex.interlock")
 
 
@@ -292,6 +294,9 @@ class InterlockProtocol:
 
         if mode == "live":
             try:
+                from guardian.onchain_safety import assert_timelock_owns_all
+                assert_timelock_owns_all(chain=chain)
+
                 from web3 import Web3
                 from eth_account import Account
 
@@ -354,6 +359,8 @@ class InterlockProtocol:
                     "chain": chain,
                     "simulated": False,
                 }
+            except OwnershipNotTransferredError:
+                raise  # Safety checks must never be silently swallowed
             except Exception as e:
                 logger.exception("Failed to anchor interlock live")
                 return {"success": False, "error": str(e)}

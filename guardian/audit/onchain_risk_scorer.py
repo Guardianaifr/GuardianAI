@@ -8,6 +8,8 @@ import time
 
 import requests
 
+from guardian.onchain_safety import OwnershipNotTransferredError
+
 logger = logging.getLogger("guardian.audit.onchain_risk_scorer")
 
 
@@ -236,6 +238,9 @@ class OnChainRiskScorer:
 
         if mode == "live":
             try:
+                from guardian.onchain_safety import assert_timelock_owns_all
+                assert_timelock_owns_all(chain=chain)
+
                 from web3 import Web3
                 from eth_account import Account
 
@@ -288,6 +293,8 @@ class OnChainRiskScorer:
                 w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
 
                 return {"success": True, "tx_hash": tx_hash, "chain": chain, "simulated": False}
+            except OwnershipNotTransferredError:
+                raise  # Safety checks must never be silently swallowed
             except Exception as e:
                 import logging
                 logging.getLogger("guardian.audit.onchain_risk_scorer").exception("Failed to attest risk on-chain")

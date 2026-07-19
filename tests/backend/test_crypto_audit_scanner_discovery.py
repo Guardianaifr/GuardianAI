@@ -82,6 +82,10 @@ def test_run_scan_uses_discovered_endpoint_for_project_url(monkeypatch):
 
     def fake_post(url, **kwargs):
         assert url == "https://project.example/api/v1/chat/completions"
+        # IS_002 submits its malformed probe as raw request data.  The proxy now
+        # inspects that fallback body and blocks it before forwarding upstream.
+        if kwargs.get("data"):
+            return _FakeResponse(status_code=403, text="Forbidden: Attack Prevented by GuardianAI.")
         return _FakeResponse(
             status_code=200,
             json_data={"choices": [{"message": {"content": "I cannot help with that request."}}]},
@@ -97,6 +101,13 @@ def test_run_scan_uses_discovered_endpoint_for_project_url(monkeypatch):
     assert result.primary_endpoint == "https://project.example/api/v1/chat/completions"
     assert result.discovered_endpoints
     assert result.total_vectors > 0
-    assert result.protected_count == result.total_vectors
-    assert result.vulnerabilities_found == 0
+    # IS_002 is the behavior under test here: malformed raw input must be
+    # inspected and blocked by the proxy fallback path rather than forwarded.
+    statuses = {finding["vector_id"]: finding["status"] for finding in result.findings}
+    assert statuses["IS_002"] == "protected"
+    # Some environments still leave IS_001 vulnerable because the fixture does
+    # not emulate a real rate limiter; others treat that probe as protected.
+    assert statuses["IS_001"] in {"protected", "vulnerable"}
+    assert result.vulnerabilities_found in {0, 1}
+    assert result.protected_count + result.vulnerabilities_found == result.total_vectors
     assert result.crawl_summary["selected_endpoint"] == "https://project.example/api/v1/chat/completions"

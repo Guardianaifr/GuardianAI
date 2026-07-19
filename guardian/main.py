@@ -50,7 +50,7 @@ import io
 import os
 
 # Force UTF-8 for Windows console to support emojis
-if sys.platform.startswith('win'):
+if sys.platform.startswith('win') and 'pytest' not in sys.modules:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
@@ -58,6 +58,27 @@ from utils.logger import setup_logger
 from guardrails.input_filter import InputFilter
 
 logger = setup_logger("GuardianAI")
+
+_PLACEHOLDER_PATTERNS = {"***REDACTED***", "changeme", "admin", 
+                           "password", "token", ""}
+
+def _is_valid_admin_token(token: str | None) -> bool:
+    if not token:
+        return False
+    if token.lower() in _PLACEHOLDER_PATTERNS:
+        return False
+    if os.environ.get("GUARDIAN_ENV") == "test":
+        return len(token) >= 8
+    return len(token) >= 32
+
+def validate_security_config(policies: dict):
+    admin_token = policies.get('admin_token')
+    if admin_token is not None and not _is_valid_admin_token(admin_token):
+        raise RuntimeError(
+            "SECURITY: admin_token is set to a placeholder or weak value. "
+            "Generate a real token and set it via environment variable "
+            "before starting."
+        )
 
 def load_config(path: str):
     try:
@@ -103,6 +124,8 @@ def main():
             config['security_policies'] = {}
         config['security_policies']['admin_token'] = env_admin_token
         logger.info("Admin token overridden from environment variable.")
+
+    validate_security_config(config.get('security_policies', {}))
 
     # Governance gate: optional approval/integrity enforcement for high-risk config changes.
     try:
@@ -154,6 +177,16 @@ def main():
         except Exception as e:
             logger.error(f"Failed to start RuntimeMonitor: {e}")
 
+    # Initialize and run Network Monitor
+    net_monitor = None
+    if config.get('network_monitoring'):
+        try:
+            from runtime.network_monitor import NetworkMonitor
+            net_monitor = NetworkMonitor(config)
+            net_monitor.start()
+        except Exception as e:
+            logger.error(f"Failed to start NetworkMonitor: {e}")
+
     # Initialize and run Interceptor Proxy
     proxy = None
     if config.get('proxy', {}).get('enabled'):
@@ -190,6 +223,8 @@ def main():
     
     if monitor:
         monitor.stop()
+    if net_monitor:
+        net_monitor.stop()
     if proxy:
         proxy.stop()
 

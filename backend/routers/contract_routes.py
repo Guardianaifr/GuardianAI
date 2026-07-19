@@ -1,16 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
-import time
-import json
-import base64
-import hashlib
-import sqlite3
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
+from typing import List, Dict, Any, Optional
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    ContractAnalyzeRequest,
+    ContractOnChainAnalyzeRequest,
+    ETHERSCAN_API_KEY,
+    enforce_user_rate_limit,
+    logger,
+)
 
 router = APIRouter()
 
@@ -39,7 +37,7 @@ def analyze_smart_contract(req: ContractAnalyzeRequest, principal: Dict[str, str
         return asdict(result)
     except Exception as exc:
         logger.exception("Smart contract analysis failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Smart contract static analysis failed. Check server logs for details.")
 
 
 @router.post("/api/v1/contract/analyze/onchain", tags=["Smart Contract Analyzer"])
@@ -64,10 +62,16 @@ def analyze_smart_contract_onchain(req: ContractOnChainAnalyzeRequest, principal
         result = analyzer.analyze()
         return asdict(result)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        msg = str(exc)
+        if any(keyword in msg for keyword in ["Unsupported chain", "is non-EVM", "Invalid EVM contract address"]):
+            raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to retrieve or analyze verified on-chain smart contract source. Please check the address and chain parameters."
+        )
     except Exception as exc:
         logger.exception("On-chain smart contract analysis failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="On-chain smart contract analysis failed. Check server logs for details.")
 
 
 @router.get("/api/v1/contract/chains", tags=["Smart Contract Analyzer"])
@@ -101,5 +105,3 @@ def list_contract_rules(principal: Dict[str, str] = Depends(enforce_user_rate_li
             for r in VULN_RULES
         ],
     }
-
-

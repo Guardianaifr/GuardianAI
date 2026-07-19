@@ -30,6 +30,7 @@ def test_rag_guard_blocks_cross_source_contamination_by_claim_id():
     guard = RAGSecurityGuard(
         {
             "enabled": True,
+            "enforce_trust_scoring": False,
             "detect_cross_source_contamination": True,
             "default_trust_score": 0.7,
         }

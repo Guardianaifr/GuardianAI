@@ -9,9 +9,7 @@ from typing import Any
 
 
 def _get_default_rng() -> random.Random:
-    if os.getenv("GUARDIAN_ENV") == "production":
-        return random.SystemRandom()
-    return random.Random(42)
+    return random.SystemRandom()
 
 
 def laplace_noise(scale: float, rng: random.Random | None = None) -> float:
@@ -39,6 +37,7 @@ def benchmark_count_noise(
     trials: int = 500,
     seed: int = 7,
 ) -> dict[str, Any]:
+    """Uses seeded PRNG for reproducibility. Never use for production DP queries."""
     rows = []
     for idx, eps in enumerate(epsilons):
         rng = random.Random(seed + idx)

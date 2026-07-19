@@ -16,14 +16,14 @@ class RAGDecision:
 class RAGSecurityGuard:
     def __init__(self, config: Dict[str, Any] | None):
         cfg = config or {}
-        self.enabled = bool(cfg.get("enabled", False))
+        self.enabled = bool(cfg.get("enabled", True))
         self.enforcement_mode = str(cfg.get("enforcement_mode", "enforce")).lower()
         self.max_context_chars = int(cfg.get("max_context_chars", 50000))
         self.max_chunks = int(cfg.get("max_chunks", 64))
         self.detect_embedding_dump = bool(cfg.get("detect_embedding_dump", True))
         self.detect_indirect_prompt_injection = bool(cfg.get("detect_indirect_prompt_injection", True))
         self.max_single_chunk_chars = int(cfg.get("max_single_chunk_chars", 10000))
-        self.enforce_trust_scoring = bool(cfg.get("enforce_trust_scoring", False))
+        self.enforce_trust_scoring = bool(cfg.get("enforce_trust_scoring", True))
         self.min_average_trust_score = float(cfg.get("min_average_trust_score", 0.55))
         self.min_chunk_trust_score = float(cfg.get("min_chunk_trust_score", 0.35))
         self.default_trust_score = float(cfg.get("default_trust_score", 0.70))

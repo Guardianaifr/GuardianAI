@@ -30,7 +30,9 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
       | "FEED_WRITER_ROLE"
       | "acceptOwnership"
       | "addAddress"
+      | "addAddressesBatch"
       | "addStringAddress"
+      | "addStringAddressesBatch"
       | "evmAddressCount"
       | "evmAddresses"
       | "evmRegistry"
@@ -88,8 +90,16 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
     values: [AddressLike, string]
   ): string;
   encodeFunctionData(
+    functionFragment: "addAddressesBatch",
+    values: [AddressLike[], string[]]
+  ): string;
+  encodeFunctionData(
     functionFragment: "addStringAddress",
     values: [string, string]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "addStringAddressesBatch",
+    values: [string[], string[]]
   ): string;
   encodeFunctionData(
     functionFragment: "evmAddressCount",
@@ -186,7 +196,15 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "addAddress", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "addAddressesBatch",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "addStringAddress",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "addStringAddressesBatch",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -475,8 +493,20 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     "nonpayable"
   >;
 
+  addAddressesBatch: TypedContractMethod<
+    [_addresses: AddressLike[], _reasons: string[]],
+    [void],
+    "nonpayable"
+  >;
+
   addStringAddress: TypedContractMethod<
     [_malicious: string, _reason: string],
+    [void],
+    "nonpayable"
+  >;
+
+  addStringAddressesBatch: TypedContractMethod<
+    [_addresses: string[], _reasons: string[]],
     [void],
     "nonpayable"
   >;
@@ -608,9 +638,23 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "addAddressesBatch"
+  ): TypedContractMethod<
+    [_addresses: AddressLike[], _reasons: string[]],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "addStringAddress"
   ): TypedContractMethod<
     [_malicious: string, _reason: string],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "addStringAddressesBatch"
+  ): TypedContractMethod<
+    [_addresses: string[], _reasons: string[]],
     [void],
     "nonpayable"
   >;

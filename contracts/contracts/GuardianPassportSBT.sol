@@ -131,13 +131,18 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable {
         uint256 _score,
         string calldata _metadataURI
     ) external onlyOwner whenNotPaused returns (uint256 tokenId) {
+        // ── Checks ───────────────────────────────────────────────────────
         if (agentToken[_agentHash] != 0) {
             revert AgentAlreadyHasPassport(_agentHash);
         }
         if (_score > 10000) revert InvalidScore();
 
+        // ── Effects ──────────────────────────────────────────────────────
+        // All state is written BEFORE the external call (_safeMint) to
+        // comply with Checks-Effects-Interactions and prevent reentrancy
+        // via onERC721Received callbacks. If _safeMint reverts, Solidity's
+        // atomic transaction semantics roll back all writes below.
         tokenId = _nextTokenId++;
-        _safeMint(_to, tokenId);
 
         passports[tokenId] = Passport({
             agentHash:   _agentHash,
@@ -153,6 +158,12 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable {
         activePassportCount++;
 
         emit Locked(tokenId);  // ERC-5192 compliance
+
+        // ── Interactions ─────────────────────────────────────────────────
+        // _safeMint calls onERC721Received on the recipient if it is a contract.
+        // A reentrant call to mint() will find agentToken[_agentHash] != 0
+        // and revert with AgentAlreadyHasPassport.
+        _safeMint(_to, tokenId);
     }
 
     /**

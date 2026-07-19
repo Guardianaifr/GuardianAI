@@ -32,6 +32,8 @@ proxy:
   listen_port: 8083               # Port for Claude Shield
   target_url: "https://api.anthropic.com" # Cloud Target
   upstream_key: "change_me_claude_api_key" # Guardian will inject this key into requests
+  enforce_auth: true
+  proxy_token: ""
 
 backend:
   enabled: true

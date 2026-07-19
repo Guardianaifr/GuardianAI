@@ -6,6 +6,7 @@ import time
 import re
 import collections
 import hashlib
+import secrets
 import json
 import os
 from pathlib import Path
@@ -172,8 +173,16 @@ class GuardianProxy:
         self.app.add_url_rule('/api/threat-feed/test', view_func=self.threat_feed_test, methods=['POST'])
         self.app.add_url_rule('/api/threat-feed/export', view_func=self.threat_feed_export, methods=['GET'])
         self.app.add_url_rule('/api/threat-feed/metrics', view_func=self.threat_feed_metrics, methods=['GET'])
+        
+
         self.app.add_url_rule('/', defaults={'path': ''}, view_func=self.proxy, methods=['GET', 'POST', 'PUT', 'DELETE'])
         self.app.add_url_rule('/<path:path>', view_func=self.proxy, methods=['GET', 'POST', 'PUT', 'DELETE'])
+
+        @self.app.after_request
+        def _strip_version_headers(response):
+            for header in ['Server', 'X-Powered-By', 'Via']:
+                response.headers.pop(header, None)
+            return response
 
         self._thread = None
         self.last_debug_info = {}
@@ -390,6 +399,17 @@ class GuardianProxy:
         self.last_debug_info = info
 
     def debug_info(self):
+        """Admin-only debug endpoint.
+
+        SECURITY: requires admin Bearer token (same gate as /api/reload-model and
+        /api/threat-feed/metrics).  last_debug_info contains the full headers of the
+        most recently proxied request, including X-Guardian-Token, Authorization, and
+        any X-Api-Key values sent by clients — credential disclosure if left open.
+        Confirmed live via _debug_info_probe.py (2026-07-15).
+        """
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
         return Response(json.dumps(self.last_debug_info, default=str), mimetype='application/json')
 
     def start(self):
@@ -416,7 +436,8 @@ class GuardianProxy:
         try:
             host = os.environ.get("GUARDIAN_PROXY_HOST", "0.0.0.0").strip() or "0.0.0.0"
             logger.info(f"Proxy application starting on {host}:{self.port}...")
-            # DEBUG ROUTE
+            # DEBUG ROUTE — admin-only (requires Authorization: Bearer <admin_token>).
+            # See debug_info() docstring for why this must be gated.
             self.app.add_url_rule('/debug/info', view_func=self.debug_info, methods=['GET'])
             wsgi_server = os.environ.get("GUARDIAN_WSGI_SERVER", "waitress").strip().lower()
             if wsgi_server == "waitress":
@@ -425,7 +446,7 @@ class GuardianProxy:
 
                     threads = int(os.environ.get("GUARDIAN_WSGI_THREADS", "32").strip() or "32")
                     logger.info(f"Using waitress WSGI server (threads={threads}).")
-                    serve(self.app, host=host, port=self.port, threads=threads, clear_untrusted_proxy_headers=False)
+                    serve(self.app, host=host, port=self.port, threads=threads, clear_untrusted_proxy_headers=False, ident=None)
                     return
                 except Exception as e:
                     logger.warning(f"Waitress unavailable, falling back to Flask dev server. Error: {e}")
@@ -1194,17 +1215,56 @@ class GuardianProxy:
             
         return Response(f"Forbidden: Trust exploitation policy blocked request ({decision.reason}).", status=403)
 
+    def _check_authentication(self, start_time: float, path: str) -> Optional[Response]:
+        """Verify X-Guardian-Token for proxied requests.
+
+        SECURITY: Defaults to True (fail-closed). Authentication is REQUIRED
+        unless explicitly disabled via `proxy.enforce_auth: false` in config.
+        Previously defaulted to False — a fail-open default on a security product.
+
+        Returns Response(401) if unauthorized, None if authorized.
+        """
+        proxy_config = self.config.get('proxy', {})
+        if not proxy_config.get('enforce_auth', True):
+            return None
+
+        request_token = request.headers.get("X-Guardian-Token")
+        required_token = proxy_config.get('proxy_token')
+        admin_token = self.config.get('security_policies', {}).get('admin_token')
+
+        if request_token:
+            if required_token and secrets.compare_digest(request_token, required_token):
+                return None
+            if admin_token and secrets.compare_digest(request_token, admin_token):
+                return None
+
+        latency_ms = (time.time() - start_time) * 1000
+        client_ip = self._get_client_ip()
+        logger.warning(f"UNAUTHORIZED ACCESS: Invalid or missing token from {client_ip} for /{path}")
+        self._report_event("unauthorized_access", "MEDIUM", {
+            "path": path,
+            "ip": client_ip,
+            "latency_ms": f"{latency_ms:.2f}ms",
+            "reason": "Missing or invalid X-Guardian-Token",
+        })
+        return Response("Unauthorized: Valid X-Guardian-Token is required.", status=401)
+
     def proxy(self, path):
         start_time = time.time()
         timings = {}
         logger.info(f"DEBUG: Proxy received request for /{path}")
-        
+
         # 1. Rate Limiting Check
         rl_resp = self._check_rate_limit(start_time, path)
         if rl_resp:
             return rl_resp
 
-        path_taken = "fast_path_allowlist" # Default path
+        # 1b. Authentication (fail-closed unless enforce_auth=false in config)
+        auth_resp = self._check_authentication(start_time, path)
+        if auth_resp:
+            return auth_resp
+
+        path_taken = "fast_path_allowlist"  # Default path
 
         # 2. Inspect input
         data = None
@@ -1258,6 +1318,19 @@ class GuardianProxy:
             agentic_resp = self._enforce_agentic_controls(None, path, tenant_id)
             if agentic_resp is not None:
                 return agentic_resp
+
+        if not prompt and request.method in ['POST', 'PUT']:
+            raw_data = request.get_data()
+            if raw_data:
+                try:
+                    decoded = raw_data.decode('utf-8')
+                    if not any(c.isprintable() and not c.isspace() for c in decoded):
+                        return Response("Bad Request: Uninspectable or empty body", status=400)
+                    prompt = decoded
+                except UnicodeDecodeError:
+                    return Response("Bad Request: Uninspectable or empty body", status=400)
+            else:
+                return Response("Bad Request: Uninspectable or empty body", status=400)
 
         # DEBUG INFO UPDATE
         self._update_debug_info({
@@ -1526,7 +1599,7 @@ class GuardianProxy:
                     "target_path": path
                 })
             
-            excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+            excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'server', 'x-powered-by', 'via']
             headers = [(name, value) for (name, value) in resp.raw.headers.items()
                        if name.lower() not in excluded_headers]
             

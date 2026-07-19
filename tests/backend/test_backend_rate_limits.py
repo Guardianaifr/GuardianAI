@@ -56,3 +56,16 @@ def test_rate_limit_falls_back_to_memory_when_distributed_unavailable(monkeypatc
     with pytest.raises(HTTPException) as exc_info:
         backend_main._enforce_rate_limit("user:admin", 1)
     assert exc_info.value.status_code == 429
+
+
+def test_rate_limit_distributed_fail_closed_when_redis_unavailable(monkeypatch):
+    monkeypatch.setattr(backend_main, "RATE_LIMIT_BACKEND", "redis")
+    monkeypatch.setattr(backend_main, "RATE_LIMIT_REDIS_URL", "redis://localhost:9999")
+    monkeypatch.setattr(backend_main, "RATE_LIMIT_REDIS_FAIL_OPEN", False)
+    
+    monkeypatch.setattr(backend_main, "_get_redis_client", lambda: None)
+    
+    with pytest.raises(HTTPException) as exc_info:
+        backend_main._enforce_rate_limit_distributed("user:admin", 10)
+    assert exc_info.value.status_code == 503
+    assert "Rate limiter unavailable" in exc_info.value.detail

@@ -176,6 +176,9 @@ class SiemRouter:
         endpoint = (self.cfg.endpoint_url or "").strip()
         if not endpoint:
             raise RuntimeError("siem_endpoint_missing")
+        from backend.security.url_validation import is_safe_url
+        if not is_safe_url(endpoint):
+            raise RuntimeError("siem_endpoint_unsafe")
         headers: dict[str, str] = {"Content-Type": "application/json"}
         token = (self.cfg.endpoint_auth_token or "").strip()
         if token:

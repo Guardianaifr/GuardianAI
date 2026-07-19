@@ -63,7 +63,14 @@ def _normalize_model_entries(manifest: dict[str, Any]) -> tuple[list[dict[str, s
     return entries, meta
 
 
-def verify_model_provenance(model_manifest_path: Path) -> dict[str, Any]:
+def verify_model_provenance(
+    model_manifest_path: Path,
+    verification_key: str | None = None,
+    signature_path: Path | None = None,
+    enforce_signature: bool = True,
+    last_known_version: int | None = None,
+) -> dict[str, Any]:
+    import os
     report: dict[str, Any] = {
         "enabled": True,
         "manifest_path": str(model_manifest_path),
@@ -88,6 +95,46 @@ def verify_model_provenance(model_manifest_path: Path) -> dict[str, Any]:
     if not isinstance(manifest, dict):
         report["errors"].append("model manifest must be a JSON object")
         return report
+
+    # 1. Enforce signature validation
+    if enforce_signature:
+        if last_known_version is None:
+            report["errors"].append("last_known_version is required when signature enforcement is enabled")
+            return report
+
+        signing_key = verification_key or os.environ.get("GUARDIAN_RELEASE_SIGNING_KEY", "").strip()
+        if not signing_key:
+            report["errors"].append("signature verification key is required but missing")
+            return report
+
+        sig_file = signature_path or model_manifest_path.with_suffix(".sig")
+        if not sig_file.exists():
+            report["errors"].append(f"signature file missing: {sig_file}")
+            return report
+        try:
+            signature_b64 = sig_file.read_text(encoding="utf-8").strip()
+        except Exception as exc:
+            report["errors"].append(f"failed to read signature file: {exc}")
+            return report
+
+        if not verify_manifest_signature(manifest, signature_b64, signing_key):
+            report["errors"].append("manifest signature verification failed: signature mismatch")
+            return report
+
+    # 2. Decoupled rollback and version field validation
+    if enforce_signature or last_known_version is not None:
+        if "version" not in manifest:
+            report["errors"].append("manifest missing required version field")
+            return report
+        try:
+            version_val = int(manifest["version"])
+        except (ValueError, TypeError):
+            report["errors"].append("manifest version must be an integer")
+            return report
+
+        if last_known_version is not None and version_val < last_known_version:
+            report["errors"].append(f"Rollback detected: manifest version {version_val} < last_known_version {last_known_version}")
+            return report
 
     entries, meta = _normalize_model_entries(manifest)
     report.update(meta)
@@ -122,10 +169,20 @@ def build_sbom(
     requirements_path: Path,
     project_name: str = "guardianai-basic-launch",
     model_manifest_path: Path | None = None,
+    verification_key: str | None = None,
+    signature_path: Path | None = None,
+    enforce_signature: bool = True,
+    last_known_version: int | None = None,
 ) -> dict[str, Any]:
     components, unpinned = parse_requirements(requirements_path)
     model_provenance = (
-        verify_model_provenance(model_manifest_path) if model_manifest_path else {
+        verify_model_provenance(
+            model_manifest_path,
+            verification_key=verification_key,
+            signature_path=signature_path,
+            enforce_signature=enforce_signature,
+            last_known_version=last_known_version,
+        ) if model_manifest_path else {
             "enabled": False,
             "manifest_path": "",
             "model_id": "",
@@ -156,7 +213,7 @@ def build_sbom(
     }
 
 
-def create_release_manifest(artifacts: list[Path]) -> dict[str, Any]:
+def create_release_manifest(artifacts: list[Path], version: int = 1) -> dict[str, Any]:
     normalized = sorted({str(path) for path in artifacts})
     files: list[dict[str, Any]] = []
     for item in normalized:
@@ -169,6 +226,7 @@ def create_release_manifest(artifacts: list[Path]) -> dict[str, Any]:
             }
         )
     return {
+        "version": version,
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "algorithm": "sha256",
         "files": files,

@@ -42,7 +42,7 @@ class AgenticSecurityManager:
         self.trusted_mcp_servers = set(str(v).strip() for v in (cfg.get("trusted_mcp_servers", []) or []) if str(v).strip())
         self.require_mcp_server_for_tools = bool(cfg.get("require_mcp_server_for_tools", False))
         self.mcp_server_tool_allowlist = cfg.get("mcp_server_tool_allowlist", {}) or {}
-        self.enforce_scope_non_escalation = bool(cfg.get("enforce_scope_non_escalation", False))
+        self.enforce_scope_non_escalation = bool(cfg.get("enforce_scope_non_escalation", True))
         self.scope_hierarchy = cfg.get("scope_hierarchy", {"read_only": 0, "standard": 1, "privileged": 2}) or {}
         self.kill_switch_enabled = bool(cfg.get("kill_switch_enabled", True))
         kill_switch_path = str(cfg.get("kill_switch_file", "artifacts/control/agent_kill_switch.json"))
@@ -70,7 +70,7 @@ class AgenticSecurityManager:
         self._control_plane_loaded_at = 0.0
         self._control_plane_mtime = 0.0
         self.attestation_max_age_seconds = int(cfg.get("attestation_max_age_seconds", 300))
-        self.enforce_policy_graph = bool(cfg.get("enforce_policy_graph", False))
+        self.enforce_policy_graph = bool(cfg.get("enforce_policy_graph", True))
         self.cross_agent_policy_graph = cfg.get("cross_agent_policy_graph", {}) or {}
         self.require_execution_grant = bool(cfg.get("require_execution_grant", False))
         self.execution_grants = cfg.get("execution_grants", {}) or {}

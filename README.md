@@ -81,6 +81,7 @@ docker-compose up -d
 ## 🔒 Security Notes
 - **Do not expose upstream LLM ports directly to the internet.** Expose only the Guardian Proxy.
 - Keep `GUARDIAN_DEPLOYER_PRIVATE_KEY` strictly confidential.
+- **Financial Controls (Decision FL_008):** Slippage-setting via GuardianAI is explicitly unsupported and intentionally hard-blocked until a valid 1inch API key is provisioned in the configuration to allow dynamic depth verification.
 
 ## 📄 License
 MIT. See `LICENSE`.

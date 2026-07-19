@@ -13,6 +13,9 @@ DEFAULT_EXCLUDE_DIRS = {
     ".git",
     ".venv",
     ".venv312",
+    # Any other .venv* name created during troubleshooting/testing
+    ".testvenv",
+    ".venv_baseline",
     "node_modules",
     "dist",
     "__pycache__",
@@ -67,7 +70,7 @@ IAC_SUSPICIOUS_PATTERNS: dict[str, re.Pattern[str]] = {
         r'(?i)\b(?:password|secret|api[_-]?key|token)\b\s*=\s*"[^"]{6,}"'
     ),
     "iac_secret_kv_line": re.compile(
-        r'(?i)\b(?:password|secret|api[_-]?key|token)\b\s*[:=]\s*["\']?[A-Za-z0-9_\-./+=]{8,}'
+        r'(?i)\b(?:password|secret|api[_-]?key|token)\b\s*[:=]\s*["\'"]?[A-Za-z0-9_\-./+=]{8,}'
     ),
 }
 
@@ -87,7 +90,7 @@ class ScanFinding:
 def _iter_files(root: Path) -> Iterable[Path]:
     import os
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in DEFAULT_EXCLUDE_DIRS]
+        dirnames[:] = [d for d in dirnames if d not in DEFAULT_EXCLUDE_DIRS and not (d.startswith(".venv") or d in {"venv", "env"})]
         dp = Path(dirpath)
         for name in filenames:
             path = dp / name

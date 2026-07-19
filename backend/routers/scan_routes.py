@@ -1,20 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from fastapi.responses import HTMLResponse, JSONResponse
+from typing import List, Dict, Any, Optional
 import time
 import json
-import base64
-import hashlib
-import sqlite3
+import os
+import re
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    AUDIT_ARTIFACTS_DIR,
+    ScanRequest,
+    _get_scan_job,
+    _load_crypto_badge,
+    _load_crypto_scan_json,
+    _persist_crypto_scan_artifacts,
+    _render_crypto_scan_report_html,
+    _scan_jobs,
+    _scan_jobs_lock,
+    _scan_results_cache,
+    _start_scan_job,
+    enforce_user_rate_limit,
+    logger,
+)
 
 router = APIRouter()
 
-import re
 SAFE_SCAN_ID = re.compile(r'^[a-zA-Z0-9_-]+$')
 def validate_scan_id(scan_id: str) -> str:
     if not SAFE_SCAN_ID.match(scan_id):
@@ -25,14 +34,24 @@ def validate_scan_id(scan_id: str) -> str:
             detail="Invalid scan_id format")
     return scan_id
 
+def validate_scan_target(url: str) -> str:
+    from backend.security.url_validation import is_safe_url
+    if not is_safe_url(url):
+        raise HTTPException(
+            status_code=400,
+            detail="Access to private/local/invalid target URLs is blocked."
+        )
+    return url
+
 @router.post("/api/v1/scan-jobs", tags=["Audit Scanner"])
-def create_crypto_scan_job(req: ScanRequest):
+def create_crypto_scan_job(req: ScanRequest, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     """Queue a background security scan and return a live job handle."""
+    validate_scan_target(req.target_url)
     return _start_scan_job(req)
 
 
 @router.get("/api/v1/scan-jobs", tags=["Audit Scanner"])
-def list_crypto_scan_jobs(limit: int = 20):
+def list_crypto_scan_jobs(limit: int = Query(default=20, le=100), principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     with _scan_jobs_lock:
         jobs = sorted(_scan_jobs.values(), key=lambda item: item.get("created_at", 0), reverse=True)
     trimmed = jobs[: max(1, min(limit, 100))]
@@ -59,14 +78,15 @@ def list_crypto_scan_jobs(limit: int = 20):
 
 
 @router.get("/api/v1/scan-jobs/{job_id}", tags=["Audit Scanner"])
-def get_crypto_scan_job(job_id: str):
+def get_crypto_scan_job(job_id: str, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     """Fetch live scan-job status, logs, and final result when ready."""
     return _get_scan_job(job_id)
 
 
 @router.post("/api/v1/scan", tags=["Audit Scanner"])
-def run_crypto_scan(req: ScanRequest, request: Request):
+def run_crypto_scan(req: ScanRequest, request: Request, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     """Run an automated 6-pillar security scan against any AI+Web3 target."""
+    validate_scan_target(req.target_url)
     from guardian.audit.crypto_scanner import CryptoAuditScanner, ScanDepth
 
     depth_map = {"quick": ScanDepth.QUICK, "standard": ScanDepth.STANDARD, "deep": ScanDepth.DEEP}
@@ -84,11 +104,11 @@ def run_crypto_scan(req: ScanRequest, request: Request):
         return scan_payload
     except Exception as e:
         logger.exception("Scan failed")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Internal scan error"})
 
 
 @router.get("/api/v1/scan/{scan_id}/report", tags=["Audit Scanner"])
-def get_scan_report(scan_id: str):
+def get_scan_report(scan_id: str, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     """Get the HTML report for a completed scan."""
     validate_scan_id(scan_id)
     report_path = AUDIT_ARTIFACTS_DIR / f"report_{scan_id}.html"
@@ -104,7 +124,7 @@ def get_scan_report(scan_id: str):
 
 
 @router.get("/api/v1/scan/{scan_id}/pdf", tags=["Audit Scanner"])
-def get_scan_report_pdf(scan_id: str):
+def get_scan_report_pdf(scan_id: str, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     """Download the audit report as a PDF file."""
     validate_scan_id(scan_id)
     import subprocess
@@ -272,7 +292,7 @@ def get_leaderboard(limit: int = 50):
 
 
 @router.get("/api/v1/scan/{scan_id}/sarif", tags=["Audit Scanner"])
-def get_scan_sarif(scan_id: str):
+def get_scan_sarif(scan_id: str, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     """Download scan results in SARIF 2.1.0 format (GitHub Security tab compatible)."""
     validate_scan_id(scan_id)
     from guardian.audit.sarif_exporter import generate_sarif_string
@@ -446,5 +466,3 @@ def compare_scans(id1: str, id2: str, principal: Dict[str, str] = Depends(enforc
             "common_count": len(common_vulns)
         }
     }
-
-

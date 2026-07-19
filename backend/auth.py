@@ -181,9 +181,14 @@ def _jwt_decode(token: str, secret: str) -> dict:
 
 # Argon2id hasher with recommended parameters
 if _ARGON2_AVAILABLE:
-    _ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
+    _ph = PasswordHasher(time_cost=7, memory_cost=65536, parallelism=4)
 else:
     _ph = None
+    if os.getenv("GUARDIAN_ENV", "development").strip().lower() == "production":
+        raise RuntimeError(
+            "CRITICAL SECURITY ERROR: argon2-cffi is not installed or failed to load, "
+            "but system is running in PRODUCTION mode. Refusing to fall back to legacy SHA-256 password hashing."
+        )
     _logger.warning(
         "argon2-cffi not installed. Password hashing will use legacy SHA-256. "
         "Install argon2-cffi for production use."
@@ -197,6 +202,8 @@ def hash_password(password: str) -> str:
     """
     if _ARGON2_AVAILABLE:
         return _ph.hash(password)
+    if os.getenv("GUARDIAN_ENV", "development").strip().lower() == "production":
+        raise RuntimeError("Argon2 is unavailable in production mode.")
     # Legacy fallback — should not be used in production
     salt = secrets.token_hex(16)
     h = hashlib.sha256(f"{salt}{password}".encode("utf-8")).hexdigest()

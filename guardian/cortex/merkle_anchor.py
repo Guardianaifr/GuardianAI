@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from guardian.onchain_safety import OwnershipNotTransferredError
+
 logger = logging.getLogger("guardian.cortex.merkle")
 
 # ── Chain Configuration ────────────────────────────────────────
@@ -231,6 +233,11 @@ class Web3ChainClient:
     def __init__(self, chain_config: Dict[str, Any], chain_name: str):
         from web3 import Web3
         from eth_account import Account
+        from guardian.onchain_safety import assert_timelock_owns_all
+
+        # Pre-flight: verify all 5 Guardian contracts are owned by the
+        # timelock before allowing any live transaction to proceed.
+        assert_timelock_owns_all(chain=chain_name)
 
         self.config = chain_config
         self.chain_name = chain_name
@@ -372,6 +379,8 @@ class MerkleAnchor:
                 client = Web3ChainClient(self.chain_config, primary_chain)
                 self._web3_clients[primary_chain] = client
                 logger.info("MerkleAnchor: LIVE mode on %s", primary_chain)
+            except (OwnershipNotTransferredError, EnvironmentError):
+                raise  # Safety checks must never be silently swallowed
             except Exception as exc:
                 logger.warning(
                     "MerkleAnchor: Failed to init live mode for %s (%s). "

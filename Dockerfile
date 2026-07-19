@@ -21,6 +21,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 
@@ -56,6 +57,7 @@ EXPOSE 8081 8001
 # Default environment variables for the Orchestrator
 ENV GUARDIAN_ENV=production
 ENV TARGET_URL=http://host.docker.internal:8080
+ENV GUARDIAN_PROXY_HOST=0.0.0.0
 ENV GUARDIAN_PROXY_PORT=8081
 ENV GUARDIAN_BACKEND_PORT=8001
 

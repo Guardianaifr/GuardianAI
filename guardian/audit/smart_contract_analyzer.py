@@ -25,6 +25,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
 
 from guardian.audit.token_contract_analyzer import TokenContractAnalyzer
+from guardian.audit.slither_engine import run_slither_analysis
+
 
 
 # ——— Enums ———————————————————————————————————————————————————————————
@@ -1462,6 +1464,10 @@ class SmartContractAnalyzer:
         findings: List[ContractVulnerability] = []
         safe_count = 0
 
+        slither_findings = None
+        if lang == ContractLanguage.SOLIDITY:
+            slither_findings = run_slither_analysis(source)
+
         for rule in VULN_RULES:
             # Skip rules for the wrong language
             if rule.language is not None and rule.language != lang:
@@ -1471,17 +1477,28 @@ class SmartContractAnalyzer:
             matched_lines: List[int] = []
             matched_snippets: List[str] = []
 
-            for pattern, flags in rule.patterns:
-                try:
-                    for m in re.finditer(pattern, source, flags):
-                        matched = True
-                        matched_lines.extend(_get_line_numbers(source, m))
-                        matched_snippets.append(_safe_snippet(source, m))
-                        break  # one match per pattern is enough
-                    if matched:
-                        break
-                except re.error:
-                    continue
+            is_slither_targeted = rule.id in [
+                "SC-001", "SC-031", "SC-041", "SC-060", "SC-119", "SC-102", "SC-111", "SC-116",
+                "SC-020", "SC-114", "SC-030", "SC-042", "SC-050", "SC-105", "SC-101", "SC-122",
+                "SC-113", "SC-112"
+            ]
+
+            if slither_findings is not None and is_slither_targeted:
+                if slither_findings.get(rule.id):
+                    matched = True
+                    matched_snippets = slither_findings[rule.id]
+            else:
+                for pattern, flags in rule.patterns:
+                    try:
+                        for m in re.finditer(pattern, source, flags):
+                            matched = True
+                            matched_lines.extend(_get_line_numbers(source, m))
+                            matched_snippets.append(_safe_snippet(source, m))
+                            break  # one match per pattern is enough
+                        if matched:
+                            break
+                    except re.error:
+                        continue
 
             if matched:
                 findings.append(ContractVulnerability(

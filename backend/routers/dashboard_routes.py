@@ -1,18 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
-import time
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBasicCredentials
 import json
-import base64
-import hashlib
 import sqlite3
 import asyncio
 from backend.auth import _jwt_decode
-
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    DB_PATH,
+    JWT_SECRET,
+    _decode_jwt,
+    _enforce_rbac_and_user_rate_limit,
+    _extract_basic_credentials_from_header,
+    _get_user_role,
+    _validate_basic,
+    manager,
+)
 
 router = APIRouter()
 
@@ -249,7 +251,7 @@ async def dashboard(
 
                 <!-- Security Warning (Hidden for Demo) -->
                 <div style="background: rgba(255, 0, 60, 0.1); border: 1px solid var(--accent-red); padding: 10px; margin-bottom: 20px; text-align: center; color: var(--accent-red); font-weight: bold; font-size: 0.8rem; display: none;">
-                    âš ï¸ WARNING: You are using default credentials. Set GUARDIAN_ADMIN_PASS environment variable immediately.
+                    âš ï¸ WARNING: You are using default credentials. Set GUARDIAN_ADMIN_PASS environment variable immediately.
                 </div>
 
                 <div class="mode-banner">
@@ -491,7 +493,10 @@ async def websocket_endpoint(websocket: WebSocket):
         token = data.get("token")
         if not token:
             raise ValueError("Missing token")
-        _jwt_decode(token, JWT_SECRET)
+        payload = _jwt_decode(token, JWT_SECRET)
+        if payload.get("role") not in {"admin", "auditor"}:
+            await websocket.close(code=1008)
+            return
     except Exception:
         try:
             await websocket.send_json({"error": "unauthorized"})

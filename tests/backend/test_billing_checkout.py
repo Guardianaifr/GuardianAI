@@ -70,7 +70,11 @@ def test_mock_checkout_returns_redirect(monkeypatch, tmp_path):
     backend = _load_backend(monkeypatch, tmp_path, billing_mode="mock")
     client = TestClient(backend.app)
 
-    resp = client.post("/api/v1/billing/checkout", json={"plan": "pro", "payment_method": "card"})
+    resp = client.post(
+        "/api/v1/billing/checkout",
+        json={"plan": "pro", "payment_method": "card"},
+        auth=(backend.ADMIN_USER, backend.ADMIN_PASS)
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["provider"] == "mock"
@@ -102,10 +106,14 @@ def test_live_card_checkout_uses_stripe(monkeypatch, tmp_path):
         return _Resp()
 
     monkeypatch.setattr(backend.requests, "post", _fake_post)
-    resp = client.post("/api/v1/billing/checkout", json={"plan": "lifetime", "payment_method": "card"})
+    resp = client.post(
+        "/api/v1/billing/checkout",
+        json={"plan": "lifetime", "payment_method": "card"},
+        auth=(backend.ADMIN_USER, backend.ADMIN_PASS)
+    )
     assert resp.status_code == 200
     assert resp.json()["provider"] == "stripe"
-    assert resp.json()["url"] == "https://checkout.stripe.com/c/session_123"
+    assert resp.json()["checkout_url"] == "https://checkout.stripe.com/c/session_123"
 
     import backend.routers.billing_routes
     print('TEST SEES BILLING_MODE=', backend.routers.billing_routes.BILLING_MODE)

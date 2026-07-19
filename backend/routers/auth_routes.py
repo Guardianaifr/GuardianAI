@@ -1,18 +1,73 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
+import os
 import time
-import json
-import base64
-import hashlib
 import sqlite3
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
+from fastapi.responses import RedirectResponse
+from typing import List, Dict, Any, Set
+
+from backend.main import (
+    # Security classes
+    HTTPBasic,
+    HTTPBasicCredentials,
+    # Constants
+    DB_PATH,
+    ENFORCE_HTTPS,
+    JWT_EXPIRES_MIN,
+    # Dependency functions
+    enforce_admin_rate_limit,
+    enforce_auditor_rate_limit,
+    enforce_auth_rate_limit,
+    enforce_user_rate_limit,
+    get_current_principal,
+    get_current_token_payload,
+    # Pydantic models
+    AuthLockoutEntryResponse,
+    AuthSessionResponse,
+    ClearAuthLockoutsRequest,
+    ClearAuthLockoutsResponse,
+    PruneRevokedTokensResponse,
+    RevokeAllSessionsRequest,
+    RevokeAllSessionsResponse,
+    RevokeSessionByJtiRequest,
+    RevokeSessionByJtiResponse,
+    RevokeSelfSessionByJtiRequest,
+    RevokeSelfSessionByJtiResponse,
+    RevokeSelfSessionsRequest,
+    RevokeSelfSessionsResponse,
+    RevokeTokenResponse,
+    RevokeUserSessionsRequest,
+    RevokeUserSessionsResponse,
+    RevokedTokenEntryResponse,
+    TokenResponse,
+    WhoAmIResponse,
+    # Private helpers
+    _auth_lockout_identity,
+    _auth_lockout_retry_after_seconds,
+    _auth_users,
+    _clear_auth_lockout_failures,
+    _clear_auth_lockouts,
+    _enforce_rbac_and_user_rate_limit,
+    _get_user_role,
+    _issue_jwt,
+    _list_auth_lockouts,
+    _list_auth_sessions,
+    _list_revoked_tokens,
+    _mark_issued_token_revoked,
+    _permissions_for_role,
+    _prune_revoked_tokens,
+    _record_auth_lockout_failure,
+    _record_issued_token,
+    _revoke_all_sessions,
+    _revoke_self_session_by_jti,
+    _revoke_session_by_jti,
+    _revoke_user_sessions,
+    _validate_basic,
+    _write_control_plane_audit_entry,
+)
 
 router = APIRouter()
+secure = ENFORCE_HTTPS or os.getenv("GUARDIAN_ENV") == "production"
 
 @router.post(
     "/api/v1/auth/token",
@@ -723,28 +778,37 @@ async def auth_whoami(
 
 @router.post("/login")
 async def login(
+    request: Request,
     username: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
+    _: bool = Depends(enforce_auth_rate_limit),
 ):
+    lockout_identity = _auth_lockout_identity(request, username)
+    retry_after = _auth_lockout_retry_after_seconds(lockout_identity)
+    if retry_after > 0:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+
     try:
         creds = HTTPBasicCredentials(username=username, password=password)
         validated_user = _validate_basic(creds)
     except HTTPException:
+        _record_auth_lockout_failure(lockout_identity)
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-        
+
+    _clear_auth_lockout_failures(lockout_identity)
     role = _get_user_role(validated_user)
     user_config = _auth_users.get(validated_user, {})
     org_id = user_config.get("org_id", "org_default")
-    
+
     token, _ = _issue_jwt(validated_user, role, org_id)
-    
+
     response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     response.set_cookie(
         key="guardian_token",
         value=token,
         httponly=True,
         samesite="lax",
-        secure=False
+        secure=secure
     )
     return response
 
@@ -754,5 +818,3 @@ async def logout():
     response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie("guardian_token")
     return response
-
-

@@ -22,7 +22,9 @@ class TestAuditLoggingInternal(unittest.TestCase):
         }
 
     @patch('backend.main.requests.post')
-    def test_forward_external_audit_log_http(self, mock_post):
+    @patch('socket.getaddrinfo')
+    def test_forward_external_audit_log_http(self, mock_getaddrinfo, mock_post):
+        mock_getaddrinfo.return_value = [(2, 1, 6, "", ("8.8.8.8", 80))]
         # Setup configuration
         with patch.object(backend_main, 'AUDIT_SINK_URL', 'http://mock-sink.com'), \
              patch.object(backend_main, 'AUDIT_SINK_TOKEN', 'mock-token'):

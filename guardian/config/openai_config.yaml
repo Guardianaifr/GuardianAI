@@ -29,6 +29,8 @@ proxy:
   listen_port: 8084               # Port for OpenAI Shield
   target_url: "https://api.openai.com" # Cloud Target
   upstream_key: "change_me_openai_api_key" # Guardian will inject this key into requests
+  enforce_auth: true
+  proxy_token: ""
 
 backend:
   enabled: true

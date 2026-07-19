@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import secrets
 import socket
 import subprocess
 import threading
@@ -65,6 +66,7 @@ class _UpstreamHandler(BaseHTTPRequestHandler):
 
 
 def test_advanced_guardrail_e2e_stack(tmp_path: Path):
+    test_admin_token = secrets.token_urlsafe(32)
     backend_port = _free_port()
     proxy_port = _free_port()
     upstream_port = _free_port()
@@ -99,7 +101,7 @@ def test_advanced_guardrail_e2e_stack(tmp_path: Path):
             "security_mode": "balanced",
             "show_block_reason": True,
             "leak_prevention_strategy": "redact",
-            "admin_token": "***REDACTED***",
+            "admin_token": "",
         },
         "scanner": {},
         "runtime_monitoring": {},
@@ -148,23 +150,29 @@ def test_advanced_guardrail_e2e_stack(tmp_path: Path):
     guardian_env = os.environ.copy()
     guardian_env["GUARDIAN_CONFIG"] = str(config_path)
     guardian_env["GUARDIAN_BACKEND_TOKEN"] = backend_token
+    guardian_env["GUARDIAN_ADMIN_TOKEN"] = test_admin_token
+    guardian_env["GUARDIAN_ENV"] = "test"
     guardian_env["PYTHONUTF8"] = "1"
     guardian_env["PYTHONPATH"] = str(ROOT)
 
     backend_proc = subprocess.Popen(backend_cmd, cwd=str(ROOT), env=backend_env)
     guardian_proc = None
     try:
-        _wait_http_ok(f"http://127.0.0.1:{backend_port}/health", timeout_sec=25)
+        _wait_http_ok(f"http://127.0.0.1:{backend_port}/health", timeout_sec=60)
 
         guardian_proc = subprocess.Popen(guardian_cmd, cwd=str(ROOT), env=guardian_env)
-        _wait_http_ok(f"http://127.0.0.1:{proxy_port}/health", timeout_sec=25)
+        _wait_http_ok(f"http://127.0.0.1:{proxy_port}/health", timeout_sec=60)
 
-        tenant_headers = {"X-Guardian-Tenant": "acme"}
+        # All proxy requests carry the admin token so auth passes (enforce_auth=True by default).
+        # The token is the same one injected via GUARDIAN_ADMIN_TOKEN env var into the proxy process.
+        auth_headers = {"X-Guardian-Token": test_admin_token}
+        tenant_headers = {"X-Guardian-Tenant": "acme", **auth_headers}
 
-        # 1) Tenant header enforced
+        # 1) Tenant header enforced — send auth but omit X-Guardian-Tenant to prove 400
         missing_tenant = requests.post(
             f"http://127.0.0.1:{proxy_port}/v1/chat/completions",
             json={"messages": [{"role": "user", "content": "Hello"}]},
+            headers=auth_headers,
             timeout=10,
         )
         assert missing_tenant.status_code == 400

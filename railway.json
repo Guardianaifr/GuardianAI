@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
@@ -19,8 +19,7 @@
   },
   "variables": {
     "GUARDIAN_ADMIN_PASS": {
-      "description": "Password for the GuardianAI Admin Dashboard",
-      "defaultValue": "guardian_default",
+      "description": "Password for the GuardianAI Admin Dashboard. Must be a strong, unique password.",
       "required": true
     },
     "PORT": {
@@ -30,6 +29,11 @@
     "LOG_LEVEL": {
       "description": "Logging Verbosity",
       "defaultValue": "INFO",
+      "required": false
+    },
+    "GUARDIAN_PROXY_HOST": {
+      "description": "Host bind address for the security proxy",
+      "defaultValue": "0.0.0.0",
       "required": false
     }
   }

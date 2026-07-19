@@ -46,8 +46,6 @@ _LEAK_PATTERNS: List[re.Pattern] = [
     re.compile(r"(?i)\b(?:sure|okay|certainly|of\s+course)[,!.]?\s+(?:here\s+(?:are|is)\s+)?(?:my|the)\s+(?:system\s+)?(?:prompt|instructions?)\b"),
     re.compile(r"(?i)\byou\s+(?:asked|want)\s+(?:me\s+)?to\s+(?:repeat|reveal|show|display|share)\s+(?:my|the)\s+(?:system\s+)?(?:prompt|instructions?)\b"),
 
-    # Identity disclosure patterns that often accompany leaks
-    re.compile(r"(?i)\bi\s+am\s+(?:an?\s+)?(?:ai\s+)?(?:assistant|chatbot|language\s+model|llm)\s+(?:designed|built|created|configured|programmed)\s+(?:to|for|by)\b"),
 
     # Structured leak patterns (numbered/bulleted instruction lists)
     re.compile(r"(?i)(?:instruction|rule|guideline)\s*(?:#?\d+|one|two|three|four|five)\s*[:\-]\s*.{10,}"),
@@ -67,7 +65,24 @@ _LEAK_PATTERNS: List[re.Pattern] = [
     re.compile(r"(?i)\bi(?:'m|\s+am)\s+supposed\s+to\b"),
 
     # Multi-line rule/table leak patterns (markdown tables or numbered lists)
-    re.compile(r"(?i)\|\s*\d+\s*\|[^|]*(?:never|always|must|should|forbidden)[^|]*\|"),
+    re.compile(r"(?i)\|\s*\d+\s*\|[^|]*(?:never|always|must|should|forbidden|refuse|protect|comply)[^|]*\|"),
+
+    # "The directives I operate under" / "The directives I follow"
+    re.compile(r"(?i)\b(?:the\s+)?(?:directives?|mandates?)\s+(?:i|we)\s+(?:operate|function|work|act)\s+under\b"),
+
+    # "My instructions state that" / "My rules indicate that"
+    re.compile(r"(?i)\bmy\s+(?:instructions?|rules?|guidelines?|directives?)\s+(?:state|indicate|say|specify|dictate|require)\s+(?:that\s+)?(?:i|we)\b"),
+
+    # Nested JSON leak: system prompt dumped inside a JSON field with a telltale key
+    re.compile(r"""(?i)["'](?:system_?(?:config|prompt|instructions?|message|rules?)|internal_?(?:config|rules|guidelines|prompt)|hidden_?(?:prompt|instructions?|config))["']\s*:\s*["']"""),
+]
+
+# Supporting patterns: often ACCOMPANY leaks but are not strong standalone
+# indicators. A single supporting-only match uses a lower base score (0.25)
+# so it doesn't breach the 0.35 threshold by itself.
+_SUPPORTING_PATTERNS: List[re.Pattern] = [
+    # Identity disclosure (common in benign responses too)
+    re.compile(r"(?i)\bi\s+am\s+(?:an?\s+)?(?:ai\s+)?(?:assistant|chatbot|language\s+model|llm)\s+(?:designed|built|created|configured|programmed)\s+(?:to|for|by)\b"),
 ]
 
 # Phrases that attackers commonly use to extract system prompts — if the model
@@ -181,9 +196,9 @@ class SystemPromptGuard:
                 + self.ngram_score_weight * max(ngram_score, keyword_score)
             )
         else:
-            # Without a system prompt to compare against, rely on patterns only
-            # but require higher confidence
-            combined_score = pattern_score * 0.8
+            # Without a system prompt to compare against, rely on patterns only.
+            # Do NOT discount — patterns are the sole defense in this path.
+            combined_score = pattern_score
 
         # Boost score if this looks like a response to an extraction attempt
         if extraction_attempt and combined_score > 0.1:
@@ -221,22 +236,42 @@ class SystemPromptGuard:
         """
         Check response against known leak indicator patterns.
 
+        Primary patterns are strong standalone leak signals.
+        Supporting patterns (e.g. identity disclosure) only add
+        confidence when combined with a primary pattern.
+
         Returns:
             Tuple of (score 0.0–1.0, list of matched pattern descriptions).
         """
-        matched: list[str] = []
+        primary_matched: list[str] = []
+        supporting_matched: list[str] = []
+
         for pattern in _LEAK_PATTERNS:
             match = pattern.search(response_text)
             if match:
-                matched.append(match.group(0)[:80])
+                primary_matched.append(match.group(0)[:80])
 
-        if not matched:
+        for pattern in _SUPPORTING_PATTERNS:
+            match = pattern.search(response_text)
+            if match:
+                supporting_matched.append(match.group(0)[:80])
+
+        all_matched = primary_matched + supporting_matched
+        if not all_matched:
             return 0.0, []
 
-        # Score scales with number of distinct patterns matched
-        # 1 match = 0.4, 2 matches = 0.65, 3+ matches = 0.85+
-        score = min(1.0, 0.4 + 0.25 * (len(matched) - 1))
-        return score, matched
+        total = len(all_matched)
+        if primary_matched:
+            # At least one strong indicator — full base score
+            # 1 match = 0.4, 2 matches = 0.65, 3+ matches = 0.85+
+            score = min(1.0, 0.4 + 0.25 * (total - 1))
+        else:
+            # Only supporting patterns — reduced base score so a
+            # single benign identity disclosure (0.25) stays below
+            # the default 0.35 threshold.
+            score = min(1.0, 0.25 * total)
+
+        return score, all_matched
 
     def _check_ngram_overlap(
         self,

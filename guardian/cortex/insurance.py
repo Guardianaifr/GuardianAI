@@ -16,7 +16,14 @@ import uuid
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
+from guardian.onchain_safety import OwnershipNotTransferredError
+
 logger = logging.getLogger("guardian.cortex.insurance")
+
+# Allowlist of valid risk levels accepted for on-chain anchoring.
+# Must stay in sync with GuardianInsuranceLedger.sol _validRiskLevel() helper.
+# Casing convention: ALL UPPERCASE, matching _assess_risk() output.
+VALID_RISK_LEVELS: frozenset = frozenset({"LOW", "MEDIUM", "HIGH"})
 
 
 def _sha256(data: str) -> str:
@@ -394,14 +401,34 @@ class InsuranceCertificateGenerator:
         cert.onchain_chain = row[13]
         cert.onchain_simulated = bool(row[14])
 
+        # Short-circuit: cert already anchored — return cached result idempotently.
+        # This must fire BEFORE risk_level validation, since re-checking risk_level
+        # on an already-committed ledger entry serves no purpose and would block
+        # legitimate idempotent re-anchoring queries.
         if cert.onchain_tx:
             return {"success": True, "tx_hash": cert.onchain_tx, "chain": cert.onchain_chain, "simulated": cert.onchain_simulated}
+
+        # ── Risk level validation (Python-side gate) ──────────────────────
+        # Reject before any on-chain call if risk_level is not in the known
+        # valid set. "UNKNOWN" means insufficient assessment data and must
+        # never be permanently written to the immutable ledger.
+        if cert.risk_level not in VALID_RISK_LEVELS:
+            raise ValueError(
+                f"Cannot anchor certificate with insufficient assessment data. "
+                f"risk_level={cert.risk_level!r} is not one of the valid values: "
+                f"{sorted(VALID_RISK_LEVELS)}. "
+                "Generate or re-assess the certificate with sufficient event history first."
+            )
+
 
         mode = os.getenv("GUARDIAN_ANCHOR_MODE", "simulated").strip().lower()
         chain = chain_id or "monad"
 
         if mode == "live":
             try:
+                from guardian.onchain_safety import assert_timelock_owns_all
+                assert_timelock_owns_all(chain=chain)
+
                 from web3 import Web3
                 from eth_account import Account
 
@@ -463,6 +490,8 @@ class InsuranceCertificateGenerator:
                 conn.close()
 
                 return {"success": True, "tx_hash": tx_hash, "chain": chain, "simulated": False}
+            except OwnershipNotTransferredError:
+                raise  # Safety checks must never be silently swallowed
             except Exception as e:
                 logger.exception("Failed to anchor certificate live")
                 return {"success": False, "error": str(e)}

@@ -1,16 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
+from typing import List, Dict, Any, Optional
 import time
 import json
-import base64
-import hashlib
 import sqlite3
+import secrets
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    AgenticConfigSnapshotResponse,
+    AgenticExecutionGrantRequest,
+    AgenticExecutionGrantResponse,
+    AgenticKeyCreateRequest,
+    AgenticKeyResponse,
+    AgenticMetricsResponse,
+    AgenticPolicyEdgeRequest,
+    AgenticPolicyEdgeResponse,
+    AgenticRevokeRequest,
+    CreatedAgenticKeyResponse,
+    DB_PATH,
+    _agentic_edge_response,
+    _agentic_encrypt_secret,
+    _agentic_grant_response,
+    _agentic_key_response,
+    _build_agentic_config_snapshot,
+    _build_agentic_metrics,
+    _hash_agentic_secret,
+    _new_agentic_secret,
+    _normalize_agentic_id,
+    _normalize_cert_fingerprint,
+    _write_control_plane_audit_entry,
+    enforce_admin_rate_limit,
+    enforce_auditor_rate_limit,
+)
 
 router = APIRouter()
 
@@ -335,5 +356,3 @@ async def get_agentic_config_snapshot(username: str = Depends(enforce_admin_rate
 @router.get("/api/v1/agentic/metrics", response_model=AgenticMetricsResponse)
 async def get_agentic_metrics(username: str = Depends(enforce_auditor_rate_limit)):
     return _build_agentic_metrics()
-
-

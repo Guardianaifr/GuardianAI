@@ -30,6 +30,7 @@ def test_checkout_persists_order_and_customer(monkeypatch, tmp_path):
             "customer_email": "owner@example.com",
             "tenant_name": "acme",
         },
+        auth=("admin", "guardian_default")
     )
     assert r.status_code == 200
     order_id = r.json()["order_id"]
@@ -50,6 +51,7 @@ def test_confirm_and_issue_license_flow(monkeypatch, tmp_path):
     checkout = client.post(
         "/api/v1/billing/checkout",
         json={"plan": "lifetime", "payment_method": "crypto", "customer_email": "buyer@example.com"},
+        auth=("admin", "guardian_default")
     )
     assert checkout.status_code == 200
     order_id = checkout.json()["order_id"]

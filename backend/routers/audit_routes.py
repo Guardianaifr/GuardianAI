@@ -1,21 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
-import time
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from typing import Dict, Any
+import os
 import json
-import base64
-import hashlib
-import sqlite3
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    AUDIT_ARTIFACTS_DIR,
+    BadgeVerificationRequest,
+    get_current_principal,
+    _enforce_rate_limit,
+    _get_user_rate_limit,
+)
 
 router = APIRouter()
 
 @router.get("/api/v1/audits", tags=["Audits"])
-def get_audits():
+def get_audits(principal: Dict[str, Any] = Depends(get_current_principal)):
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+
     audits = []
     audit_dir = AUDIT_ARTIFACTS_DIR
     if audit_dir.exists():
@@ -40,7 +43,10 @@ def get_audits():
 
 
 @router.get("/api/v1/audits/{badge_id}/svg", tags=["Audits"])
-def get_audit_badge_svg(badge_id: str):
+def get_audit_badge_svg(badge_id: str, principal: Dict[str, Any] = Depends(get_current_principal)):
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+
     svg_path = AUDIT_ARTIFACTS_DIR / f"badge_{badge_id}.svg"
     if not svg_path.exists():
         raise HTTPException(status_code=404, detail="Badge not found")
@@ -50,7 +56,10 @@ def get_audit_badge_svg(badge_id: str):
 
 
 @router.post("/api/v1/verify-badge", tags=["Audits"])
-def verify_audit_badge(request: BadgeVerificationRequest):
+def verify_audit_badge(request: BadgeVerificationRequest, principal: Dict[str, Any] = Depends(get_current_principal)):
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+
     from guardian.audit.certification import CertificationEngine
     badge_key = os.getenv("GUARDIAN_BADGE_SECRET_KEY", "dev_secret_key")
     if badge_key == "dev_secret_key" and os.getenv("GUARDIAN_ENV", "development").strip().lower() == "production":
@@ -66,5 +75,3 @@ def verify_audit_badge(request: BadgeVerificationRequest):
         return {"status": "valid", "message": "Badge signature is valid and authentic."}
     else:
         raise HTTPException(status_code=400, detail="Invalid badge signature. Badge may be forged or tampered with.")
-
-

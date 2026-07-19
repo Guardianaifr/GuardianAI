@@ -31,7 +31,7 @@ class TestAgenticSecurityManager:
         assert decision.reason == "disabled"
 
     def test_require_agent_id(self, root_dir):
-        manager = AgenticSecurityManager({"enabled": True, "require_agent_id": True}, root_dir)
+        manager = AgenticSecurityManager({"enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": True}, root_dir)
 
         # Missing Agent ID
         decision = manager.evaluate({})
@@ -50,7 +50,7 @@ class TestAgenticSecurityManager:
 
     def test_require_execution_id(self, root_dir):
         manager = AgenticSecurityManager(
-            {"enabled": True, "require_agent_id": False, "require_execution_id": True}, root_dir
+            {"enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "require_execution_id": True}, root_dir
         )
 
         # Missing Execution ID
@@ -65,7 +65,7 @@ class TestAgenticSecurityManager:
 
     def test_require_scope(self, root_dir):
         manager = AgenticSecurityManager(
-            {"enabled": True, "require_agent_id": False, "require_scope": True}, root_dir
+            {"enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "require_scope": True}, root_dir
         )
 
         # Missing Scope
@@ -80,7 +80,7 @@ class TestAgenticSecurityManager:
 
     def test_hop_limit(self, root_dir):
         manager = AgenticSecurityManager(
-            {"enabled": True, "require_agent_id": False, "max_hops": 5}, root_dir
+            {"enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "max_hops": 5}, root_dir
         )
 
         # Exceeds max hops
@@ -102,7 +102,7 @@ class TestAgenticSecurityManager:
 
     def test_parent_child_routes(self, root_dir):
         config = {
-            "enabled": True,
+            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "allowed_parent_child": {
                 "parent-a": ["child-a1", "child-a2"],
@@ -130,7 +130,7 @@ class TestAgenticSecurityManager:
 
     def test_scope_tool_allowlist(self, root_dir):
         config = {
-            "enabled": True,
+            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "scope_tool_allowlist": {
                 "read_only": ["search_docs", "view_profile"],
@@ -165,7 +165,7 @@ class TestAgenticSecurityManager:
 
     def test_require_mcp_server_for_tools(self, root_dir):
         config = {
-            "enabled": True,
+            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "require_mcp_server_for_tools": True,
         }
@@ -183,7 +183,7 @@ class TestAgenticSecurityManager:
 
     def test_untrusted_mcp_server(self, root_dir):
         config = {
-            "enabled": True,
+            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "trusted_mcp_servers": ["mcp://trusted-a", "mcp://trusted-b"],
         }
@@ -200,7 +200,7 @@ class TestAgenticSecurityManager:
 
     def test_mcp_server_tool_allowlist(self, root_dir):
         config = {
-            "enabled": True,
+            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "mcp_server_tool_allowlist": {
                 "mcp://trusted-a": ["search_docs"],
@@ -221,7 +221,7 @@ class TestAgenticSecurityManager:
 
     def test_scope_escalation(self, root_dir):
         config = {
-            "enabled": True,
+            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "enforce_scope_non_escalation": True,
             "scope_hierarchy": {"read_only": 0, "standard": 1, "privileged": 2},
@@ -249,7 +249,7 @@ class TestAgenticSecurityManager:
         kill_file = root_dir / "agent_kill_switch.json"
         
         config = {
-            "enabled": True,
+            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "kill_switch_enabled": True,
             "kill_switch_file": str(kill_file.relative_to(root_dir)),
@@ -294,7 +294,7 @@ class TestAgenticSecurityManager:
         sig = hmac.new(b"secret-a", material.encode("utf-8"), hashlib.sha256).hexdigest()
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_attestation": True,
                 "agent_attestation_keys": {"agent-a": {"key-1": "secret-a"}},
                 "revoked_agent_ids": ["agent-revoked"],
@@ -350,7 +350,7 @@ class TestAgenticSecurityManager:
         token = f"{signing_input}.{b64url(sig)}"
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_attestation": True,
                 "agent_attestation_keys": {"agent-a": {"key-1": "secret-a"}},
             },
@@ -375,7 +375,7 @@ class TestAgenticSecurityManager:
     def test_mtls_fingerprint_binding(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": True,
                 "require_mtls": True,
                 "agent_cert_fingerprints": {
@@ -406,7 +406,7 @@ class TestAgenticSecurityManager:
     def test_cross_agent_policy_graph_is_deny_by_default(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "enforce_policy_graph": True,
                 "cross_agent_policy_graph": {
@@ -446,7 +446,7 @@ class TestAgenticSecurityManager:
     def test_time_bounded_execution_grants(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "require_execution_grant": True,
                 "execution_grants": {
@@ -484,7 +484,7 @@ class TestAgenticSecurityManager:
         cache_file = root_dir / "trace_hashes.json"
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "require_trace_hash": True,
                 "trace_replay_cache_enabled": True,
@@ -524,7 +524,7 @@ class TestAgenticSecurityManager:
     def test_risk_adaptive_scope_tightening_and_kill_switch(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "risk_adaptive_enabled": True,
                 "risk_scope_thresholds": {"0.70": "read_only"},
@@ -548,7 +548,7 @@ class TestAgenticSecurityManager:
     def test_lateral_movement_detects_task_scope_drift(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "lateral_movement_detection_enabled": True,
                 "max_scope_rank_drift": 0,
@@ -581,7 +581,7 @@ class TestAgenticSecurityManager:
     def test_lateral_movement_detects_agent_parent_change(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "lateral_movement_detection_enabled": True,
                 "chain_circuit_breaker_threshold": 3,
@@ -608,7 +608,7 @@ class TestAgenticSecurityManager:
         kill_file = root_dir / "agent_kill_switch.json"
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "lateral_movement_detection_enabled": True,
                 "chain_circuit_breaker_threshold": 2,
@@ -670,7 +670,7 @@ class TestAgenticSecurityManager:
         )
         manager = AgenticSecurityManager(
             {
-                "enabled": True,
+                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "require_execution_grant": True,
                 "control_plane_file": str(control_file.relative_to(root_dir)),

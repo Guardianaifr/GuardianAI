@@ -56,6 +56,7 @@ export declare namespace GuardianInsuranceLedger {
 export interface GuardianInsuranceLedgerInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "MAX_CERTIFICATES"
       | "acceptOwnership"
       | "certificateIds"
       | "certificates"
@@ -82,6 +83,10 @@ export interface GuardianInsuranceLedgerInterface extends Interface {
       | "Unpaused"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "MAX_CERTIFICATES",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "acceptOwnership",
     values?: undefined
@@ -134,6 +139,10 @@ export interface GuardianInsuranceLedgerInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
 
+  decodeFunctionResult(
+    functionFragment: "MAX_CERTIFICATES",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "acceptOwnership",
     data: BytesLike
@@ -316,6 +325,8 @@ export interface GuardianInsuranceLedger extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  MAX_CERTIFICATES: TypedContractMethod<[], [bigint], "view">;
+
   acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   certificateIds: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
@@ -385,6 +396,9 @@ export interface GuardianInsuranceLedger extends BaseContract {
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "MAX_CERTIFICATES"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "acceptOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;

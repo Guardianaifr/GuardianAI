@@ -109,6 +109,60 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
     }
 
     /**
+     * @notice Batch-add EVM addresses. All-or-nothing: if any address is
+     *         invalid, the entire call reverts (atomic).
+     * @param _addresses  Array of malicious EVM addresses.
+     * @param _reasons    Array of reason strings (same length as _addresses).
+     */
+    function addAddressesBatch(
+        address[] calldata _addresses,
+        string[] calldata _reasons
+    ) external onlyRole(FEED_WRITER_ROLE) whenNotPaused {
+        require(_addresses.length == _reasons.length, "Length mismatch");
+        require(_addresses.length <= 50, "Batch too large");
+
+        for (uint256 i = 0; i < _addresses.length; i++) {
+            address addr = _addresses[i];
+            require(addr != address(0), "Invalid address");
+            if (!evmRegistry[addr].isMalicious) {
+                evmAddresses.push(addr);
+            }
+            evmRegistry[addr] = ThreatInfo({
+                isMalicious: true,
+                reason: _reasons[i],
+                addedAt: block.timestamp
+            });
+            emit AddressAdded(addr, _reasons[i]);
+        }
+    }
+
+    /**
+     * @notice Batch-add non-EVM string addresses. All-or-nothing.
+     * @param _addresses  Array of malicious string addresses.
+     * @param _reasons    Array of reason strings (same length as _addresses).
+     */
+    function addStringAddressesBatch(
+        string[] calldata _addresses,
+        string[] calldata _reasons
+    ) external onlyRole(FEED_WRITER_ROLE) whenNotPaused {
+        require(_addresses.length == _reasons.length, "Length mismatch");
+        require(_addresses.length <= 50, "Batch too large");
+
+        for (uint256 i = 0; i < _addresses.length; i++) {
+            require(bytes(_addresses[i]).length > 0, "Empty string address");
+            if (!stringRegistry[_addresses[i]].isMalicious) {
+                stringAddresses.push(_addresses[i]);
+            }
+            stringRegistry[_addresses[i]] = ThreatInfo({
+                isMalicious: true,
+                reason: _reasons[i],
+                addedAt: block.timestamp
+            });
+            emit StringAddressAdded(_addresses[i], _reasons[i]);
+        }
+    }
+
+    /**
      * @notice Remove a non-EVM string address from the registry.
      */
     function removeStringAddress(string calldata _malicious)

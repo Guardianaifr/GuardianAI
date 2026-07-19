@@ -1,27 +1,57 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
+from fastapi.responses import JSONResponse
+from typing import List, Dict, Any, Optional
 import time
-import json
-import base64
-import hashlib
-import sqlite3
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    _get_cortex_engine,
+    _get_insurance_generator,
+    _get_interlock_protocol,
+    _get_merkle_anchor,
+    _get_passport_engine,
+    _get_risk_scorer,
+    get_current_principal,
+    _enforce_rate_limit,
+    _get_user_rate_limit,
+    logger,
+)
+from backend.security.authorization import can_access_agent
 
 router = APIRouter()
 
+def check_agent_access(principal: Dict[str, Any], agent_id: str):
+    role = principal.get("role", "user")
+    user_tenant = principal.get("org_id", "default")
+    is_global = role == "admin" or (role == "auditor" and user_tenant == "org_guardian")
+    if is_global:
+        return
+        
+    engine = _get_passport_engine()
+    passport = engine.get_passport(agent_id)
+    if passport is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Agent must be registered with a passport for your tenant."
+        )
+    if not can_access_agent(principal, passport.tenant_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: You do not have access to this agent's cortex events."
+        )
+
 @router.post("/api/v1/cortex/record", tags=["Guardian Cortex"])
-def cortex_record_event(body: Dict[str, Any] = Body(...), user=Depends(get_current_user)):
+def cortex_record_event(body: Dict[str, Any] = Body(...), principal: Dict[str, Any] = Depends(get_current_principal)):
     """Record a decision event in the agent's Cortex memory."""
-    engine = _get_cortex_engine()
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
     agent_id = body.get("agent_id", "")
     if not agent_id:
         raise HTTPException(status_code=400, detail="agent_id is required")
 
+    check_agent_access(principal, agent_id)
+
+    engine = _get_cortex_engine()
     event = engine.record_event(
         agent_id=agent_id,
         event_type=body.get("event_type", "decision"),
@@ -43,8 +73,13 @@ def cortex_record_event(body: Dict[str, Any] = Body(...), user=Depends(get_curre
 
 
 @router.get("/api/v1/cortex/{agent_id}/events", tags=["Guardian Cortex"])
-def cortex_get_events(agent_id: str, event_type: str = None, limit: int = 100, user=Depends(get_current_user)):
+def cortex_get_events(agent_id: str, event_type: str = None, limit: int = 100, principal: Dict[str, Any] = Depends(get_current_principal)):
     """List Cortex events for an agent with optional filters."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    check_agent_access(principal, agent_id)
+
     engine = _get_cortex_engine()
     events = engine.get_events(agent_id=agent_id, event_type=event_type, limit=min(limit, 500))
     return {
@@ -56,8 +91,13 @@ def cortex_get_events(agent_id: str, event_type: str = None, limit: int = 100, u
 
 
 @router.get("/api/v1/cortex/{agent_id}/replay", tags=["Guardian Cortex"])
-def cortex_replay(agent_id: str, timestamp: float = None, user=Depends(get_current_user)):
+def cortex_replay(agent_id: str, timestamp: float = None, principal: Dict[str, Any] = Depends(get_current_principal)):
     """Time-travel replay — reconstruct agent state at a specific timestamp."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    check_agent_access(principal, agent_id)
+
     engine = _get_cortex_engine()
     ts = timestamp if timestamp else time.time()
     snapshot = engine.replay_at(agent_id=agent_id, timestamp=ts)
@@ -65,8 +105,13 @@ def cortex_replay(agent_id: str, timestamp: float = None, user=Depends(get_curre
 
 
 @router.get("/api/v1/cortex/{agent_id}/chain/{event_id}", tags=["Guardian Cortex"])
-def cortex_event_chain(agent_id: str, event_id: str, user=Depends(get_current_user)):
+def cortex_event_chain(agent_id: str, event_id: str, principal: Dict[str, Any] = Depends(get_current_principal)):
     """Get the full decision chain for an event (parent traversal)."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    check_agent_access(principal, agent_id)
+
     engine = _get_cortex_engine()
     chain = engine.get_event_chain(event_id=event_id)
     return {
@@ -78,16 +123,24 @@ def cortex_event_chain(agent_id: str, event_id: str, user=Depends(get_current_us
 
 
 @router.post("/api/v1/cortex/anchor", tags=["Guardian Cortex"])
-def cortex_anchor(body: Dict[str, Any] = Body(...), user=Depends(get_current_admin)):
+def cortex_anchor(body: Dict[str, Any] = Body(...), principal: Dict[str, Any] = Depends(get_current_principal)):
     """Trigger Merkle anchor — batch unanchored events and commit root on-chain."""
-    engine = _get_cortex_engine()
-    anchor = _get_merkle_anchor()
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    if principal.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privilege required")
 
     agent_id = body.get("agent_id", "")
     chain_id = body.get("chain_id", "monad")
 
     if not agent_id:
         raise HTTPException(status_code=400, detail="agent_id is required")
+
+    check_agent_access(principal, agent_id)
+
+    engine = _get_cortex_engine()
+    anchor = _get_merkle_anchor()
 
     events = engine.get_unanchored_events(agent_id)
     if not events:
@@ -139,8 +192,13 @@ def cortex_anchor(body: Dict[str, Any] = Body(...), user=Depends(get_current_adm
 
 
 @router.get("/api/v1/cortex/{agent_id}/anchors", tags=["Guardian Cortex"])
-def cortex_get_anchors(agent_id: str, user=Depends(get_current_user)):
+def cortex_get_anchors(agent_id: str, principal: Dict[str, Any] = Depends(get_current_principal)):
     """List all on-chain Merkle anchors for an agent."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    check_agent_access(principal, agent_id)
+
     engine = _get_cortex_engine()
     anchors = engine.get_anchors(agent_id)
     # Include anchor mode for transparency
@@ -155,8 +213,11 @@ def cortex_get_anchors(agent_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/api/v1/cortex/chains", tags=["Guardian Cortex"])
-def cortex_get_chains():
+def cortex_get_chains(principal: Dict[str, Any] = Depends(get_current_principal)):
     """Return supported chains with their deployment status (live vs simulated)."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
     from guardian.cortex.merkle_anchor import MerkleAnchor
     anchor = MerkleAnchor()
     return {
@@ -182,16 +243,21 @@ def cortex_verify_proof(body: Dict[str, Any] = Body(...)):
 
 
 @router.post("/api/v1/cortex/interlock", tags=["Guardian Cortex"])
-def cortex_create_interlock(body: Dict[str, Any] = Body(...), user=Depends(get_current_user)):
+def cortex_create_interlock(body: Dict[str, Any] = Body(...), principal: Dict[str, Any] = Depends(get_current_principal)):
     """Create a cross-agent interlock (mutual proof of interaction)."""
-    protocol = _get_interlock_protocol()
-
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
     agent_a = body.get("agent_a_id", "")
     agent_b = body.get("agent_b_id", "")
 
     if not agent_a or not agent_b:
         raise HTTPException(status_code=400, detail="agent_a_id and agent_b_id are required")
 
+    check_agent_access(principal, agent_a)
+    check_agent_access(principal, agent_b)
+
+    protocol = _get_interlock_protocol()
     proof = protocol.create_interlock(
         agent_a_id=agent_a,
         agent_b_id=agent_b,
@@ -202,8 +268,16 @@ def cortex_create_interlock(body: Dict[str, Any] = Body(...), user=Depends(get_c
 
 
 @router.get("/api/v1/cortex/{agent_id}/insurance", tags=["Guardian Cortex"])
-def cortex_insurance_certificate(agent_id: str, period_days: int = 30, user=Depends(get_current_admin)):
+def cortex_insurance_certificate(agent_id: str, period_days: int = 30, principal: Dict[str, Any] = Depends(get_current_principal)):
     """Generate an insurance evidence certificate for an agent."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    if principal.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privilege required")
+
+    check_agent_access(principal, agent_id)
+
     generator = _get_insurance_generator()
     now = time.time()
     period_start = now - (period_days * 86400)
@@ -231,8 +305,13 @@ def cortex_insurance_certificate(agent_id: str, period_days: int = 30, user=Depe
 
 
 @router.get("/api/v1/cortex/{agent_id}/trial", tags=["Guardian Cortex"])
-def cortex_trial_status(agent_id: str, user=Depends(get_current_user)):
+def cortex_trial_status(agent_id: str, principal: Dict[str, Any] = Depends(get_current_principal)):
     """Get the 10-day free trial status for an agent's Cortex recording."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    check_agent_access(principal, agent_id)
+
     engine = _get_cortex_engine()
     trial = engine.check_trial(agent_id)
     if trial.get("never_started"):
@@ -246,8 +325,13 @@ def cortex_trial_status(agent_id: str, user=Depends(get_current_user)):
 
 
 @router.post("/api/v1/cortex/{agent_id}/start-trial", tags=["Guardian Cortex"])
-def cortex_start_trial(agent_id: str, user=Depends(get_current_user)):
+def cortex_start_trial(agent_id: str, principal: Dict[str, Any] = Depends(get_current_principal)):
     """Start or resume the 10-day free Cortex recording trial for an agent. Idempotent."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    check_agent_access(principal, agent_id)
+
     engine = _get_cortex_engine()
     engine.start_trial(agent_id)
     trial = engine.check_trial(agent_id)
@@ -260,8 +344,14 @@ def cortex_start_trial(agent_id: str, user=Depends(get_current_user)):
 
 
 @router.post("/api/v1/interlock/{interlock_id}/anchor", tags=["Guardian Cortex"])
-def cortex_anchor_interlock(interlock_id: str, chain: Optional[str] = None, user=Depends(get_current_admin)):
+def cortex_anchor_interlock(interlock_id: str, chain: Optional[str] = None, principal: Dict[str, Any] = Depends(get_current_principal)):
     """Anchor a specific cross-agent interlock proof on-chain (admin only)."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    if principal.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privilege required")
+
     protocol = _get_interlock_protocol()
     res = protocol.anchor_interlock(interlock_id, chain_id=chain)
     if not res.get("success"):
@@ -270,16 +360,28 @@ def cortex_anchor_interlock(interlock_id: str, chain: Optional[str] = None, user
 
 
 @router.get("/api/v1/insurance/{agent_id}/certificates", tags=["Guardian Cortex"])
-def cortex_list_insurance_certificates(agent_id: str, user=Depends(get_current_user)):
+def cortex_list_insurance_certificates(agent_id: str, principal: Dict[str, Any] = Depends(get_current_principal)):
     """List generated insurance certificates for an agent, including on-chain details."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    check_agent_access(principal, agent_id)
+
     generator = _get_insurance_generator()
     certs = generator.get_certificates(agent_id)
     return {"agent_id": agent_id, "certificates": [c.to_dict() for c in certs]}
 
 
 @router.post("/api/v1/insurance/{certificate_id}/anchor", tags=["Guardian Cortex"])
-def cortex_anchor_insurance_certificate(certificate_id: str, chain: Optional[str] = None, user=Depends(get_current_admin)):
+def cortex_anchor_insurance_certificate(certificate_id: str, chain: Optional[str] = None, principal: Dict[str, Any] = Depends(get_current_principal)):
     """Anchor a generated insurance certificate on-chain (admin only)."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    if principal.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privilege required")
+
+    # Access checking for insurance certificates is based on admin role, which has global access.
     generator = _get_insurance_generator()
     res = generator.anchor_certificate(certificate_id, chain_id=chain)
     if not res.get("success"):
@@ -288,8 +390,14 @@ def cortex_anchor_insurance_certificate(certificate_id: str, chain: Optional[str
 
 
 @router.get("/api/v1/risk/{chain}/{address}/attest", tags=["Audit Scanner"])
-def risk_attest_onchain(chain: str, address: str, api_key: Optional[str] = None, user=Depends(get_current_admin)):
+def risk_attest_onchain(chain: str, address: str, api_key: Optional[str] = None, principal: Dict[str, Any] = Depends(get_current_principal)):
     """Score a contract and attest the score/grade on-chain (admin only)."""
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+    
+    if principal.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privilege required")
+
     scorer = _get_risk_scorer()
     try:
         score_obj = scorer.score_contract(chain, address, api_key=api_key)
@@ -301,6 +409,5 @@ def risk_attest_onchain(chain: str, address: str, api_key: Optional[str] = None,
             "attestation": attest_res
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
+        logger.exception("On-chain risk attestation failed")
+        raise HTTPException(status_code=400, detail="On-chain risk attestation failed")

@@ -73,8 +73,14 @@ class _ImmediateThread:
 
 
 def test_crypto_scan_generates_report_and_badge_artifacts(tmp_path, monkeypatch):
+    import sys
+    backend_main = sys.modules["backend.main"]
     audit_dir = tmp_path / "audit"
+    ar = sys.modules["backend.routers.audit_routes"]
+    sr = sys.modules["backend.routers.scan_routes"]
     monkeypatch.setattr(backend_main, "AUDIT_ARTIFACTS_DIR", audit_dir)
+    monkeypatch.setattr(ar, "AUDIT_ARTIFACTS_DIR", audit_dir)
+    monkeypatch.setattr(sr, "AUDIT_ARTIFACTS_DIR", audit_dir)
     monkeypatch.setattr(backend_main, "PUBLIC_BASE_URL", "https://guardian.example")
     monkeypatch.setenv("GUARDIAN_BADGE_SECRET_KEY", "unit-test-secret")
     monkeypatch.setattr("guardian.audit.crypto_scanner.CryptoAuditScanner", _SuccessfulScanner)
@@ -87,6 +93,7 @@ def test_crypto_scan_generates_report_and_badge_artifacts(tmp_path, monkeypatch)
             "target_name": "Monad Demo",
             "depth": "standard",
         },
+        auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS),
     )
 
     assert response.status_code == 200
@@ -107,43 +114,59 @@ def test_crypto_scan_generates_report_and_badge_artifacts(tmp_path, monkeypatch)
     assert badge_svg_path.exists()
     assert len(scan_json_files) == 1
 
-    report_response = client.get("/api/v1/scan/SCAN-TEST-001/report")
+    report_response = client.get("/api/v1/scan/SCAN-TEST-001/report", auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS))
     assert report_response.status_code == 200
     assert "GuardianAI Security Audit Report" in report_response.text
     assert "Monad Demo" in report_response.text
 
-    audits_response = client.get("/api/v1/audits")
+    audits_response = client.get("/api/v1/audits", auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS))
     assert audits_response.status_code == 200
     audits = audits_response.json()["audits"]
     assert len(audits) == 1
     assert audits[0]["id"] == "SCAN-TEST-001"
     assert audits[0]["grade"] == "A"
 
-    svg_response = client.get("/api/v1/audits/SCAN-TEST-001/svg")
+    svg_response = client.get(
+        "/api/v1/audits/SCAN-TEST-001/svg",
+        auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS)
+    )
     assert svg_response.status_code == 200
     assert "<svg" in svg_response.text
 
-    verify_response = client.post("/api/v1/verify-badge", json={"badge_data": body["badge"]})
+    verify_response = client.post(
+        "/api/v1/verify-badge",
+        json={"badge_data": body["badge"]},
+        auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS)
+    )
     assert verify_response.status_code == 200
     assert verify_response.json()["status"] == "valid"
 
 
 def test_crypto_scan_returns_http_500_on_scanner_failure(monkeypatch):
+    import sys
+    backend_main = sys.modules["backend.main"]
     monkeypatch.setattr("guardian.audit.crypto_scanner.CryptoAuditScanner", _FailingScanner)
 
     client = TestClient(backend_main.app)
     response = client.post(
         "/api/v1/scan",
         json={"target_url": "https://demo.example/v1/chat/completions", "depth": "quick"},
+        auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS),
     )
 
     assert response.status_code == 500
-    assert response.json()["error"] == "upstream target unavailable"
+    assert response.json()["error"] == "Internal scan error"
 
 
 def test_crypto_scan_job_reports_live_status_and_result(tmp_path, monkeypatch):
+    import sys
+    backend_main = sys.modules["backend.main"]
     audit_dir = tmp_path / "audit"
+    ar = sys.modules["backend.routers.audit_routes"]
+    sr = sys.modules["backend.routers.scan_routes"]
     monkeypatch.setattr(backend_main, "AUDIT_ARTIFACTS_DIR", audit_dir)
+    monkeypatch.setattr(ar, "AUDIT_ARTIFACTS_DIR", audit_dir)
+    monkeypatch.setattr(sr, "AUDIT_ARTIFACTS_DIR", audit_dir)
     monkeypatch.setattr(backend_main, "PUBLIC_BASE_URL", "https://guardian.example")
     monkeypatch.setenv("GUARDIAN_BADGE_SECRET_KEY", "unit-test-secret")
     monkeypatch.setattr("guardian.audit.crypto_scanner.CryptoAuditScanner", _SuccessfulScanner)
@@ -157,6 +180,7 @@ def test_crypto_scan_job_reports_live_status_and_result(tmp_path, monkeypatch):
             "target_name": "Monad Demo",
             "depth": "standard",
         },
+        auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS),
     )
 
     assert create_response.status_code == 200
@@ -166,13 +190,13 @@ def test_crypto_scan_job_reports_live_status_and_result(tmp_path, monkeypatch):
     assert job["result"]["scan_id"] == "SCAN-TEST-001"
     assert len(job["logs"]) >= 4
 
-    detail_response = client.get(f"/api/v1/scan-jobs/{job['job_id']}")
+    detail_response = client.get(f"/api/v1/scan-jobs/{job['job_id']}", auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS))
     assert detail_response.status_code == 200
     detail = detail_response.json()
     assert detail["status"] == "completed"
     assert detail["result"]["grade"] == "A"
 
-    list_response = client.get("/api/v1/scan-jobs")
+    list_response = client.get("/api/v1/scan-jobs", auth=(backend_main.ADMIN_USER, backend_main.ADMIN_PASS))
     assert list_response.status_code == 200
     jobs = list_response.json()["jobs"]
     assert len(jobs) >= 1

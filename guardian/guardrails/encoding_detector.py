@@ -113,6 +113,13 @@ _HOMOGLYPHS = {
     "\uff51": "q", "\uff52": "r", "\uff53": "s", "\uff54": "t",
     "\uff55": "u", "\uff56": "v", "\uff57": "w", "\uff58": "x",
     "\uff59": "y", "\uff5a": "z",
+    # Small Capitals homoglyphs
+    "\u026a": "i", "\u0262": "g", "\u0274": "n", "\u1d0f": "o",
+    "\u0280": "r", "\u1d07": "e", "\u1d00": "a", "\u029f": "l",
+    "\u1d18": "p", "\u1d20": "v", "\u1d1c": "u", "\u1d1b": "t",
+    "\u1d04": "c", "\u1d0a": "j", "\u1d0b": "k", "\u1d0d": "m",
+    "\u1d21": "w", "\u028f": "y", "\u1d22": "z", "\u0299": "b",
+    "\u1d05": "d", "\u029c": "h", "\u0266": "h", "\ua730": "f",
 }
 
 
@@ -402,6 +409,16 @@ class EncodingDetector:
         if len(hex_pct) >= 3:
             try:
                 decoded = bytes(int(h, 16) for h in hex_pct).decode("utf-8", errors="replace")
+                results.append(decoded)
+            except Exception:
+                pass
+
+        # Pattern 4: Space-separated pure hex sequence (e.g. "49 67 6e 6f...")
+        clean_text = text.strip()
+        if re.match(r"^[0-9a-fA-F]{2}(?:\s+[0-9a-fA-F]{2}){2,}$", clean_text):
+            try:
+                parts = clean_text.split()
+                decoded = bytes(int(h, 16) for h in parts).decode("utf-8", errors="replace")
                 results.append(decoded)
             except Exception:
                 pass

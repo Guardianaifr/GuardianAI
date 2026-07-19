@@ -2,6 +2,7 @@ import os
 import sys
 import yaml
 import time
+import secrets
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -89,7 +90,8 @@ def main():
 
     # 2.2 Admin Access
     print("\n--- [3] Access Control ---")
-    admin_token = get_input("Set an Admin/Bypass Token (Password for high-privilege actions)", "***REDACTED***")
+    default_token = secrets.token_urlsafe(32)
+    admin_token = get_input("Set an Admin/Bypass Token (Password for high-privilege actions)", default_token)
 
     # Generate Config
     config = {

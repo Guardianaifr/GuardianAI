@@ -27,6 +27,11 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
+      - name: Run pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
       - name: Run Test Suite
         run: |
           python -m pytest -q

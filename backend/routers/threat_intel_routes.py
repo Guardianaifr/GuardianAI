@@ -1,16 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
-import time
-import json
-import base64
-import hashlib
-import sqlite3
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
+from typing import List, Dict, Any, Optional
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    AddressScreenRequest,
+    BatchScreenRequest,
+    enforce_user_rate_limit,
+    get_current_admin,
+)
 
 router = APIRouter()
 
@@ -90,7 +87,5 @@ def sync_threat_intel_onchain(chain: Optional[str] = None, user=Depends(get_curr
     guard = TrustExploitationGuard({"enabled": True})
     res = guard.sync_to_chain(chain_id=chain)
     if not res.get("success"):
-        raise HTTPException(status_code=400, detail=res.get("error", "Failed to sync threat feed"))
+        return JSONResponse(status_code=400, content=res)
     return res
-
-

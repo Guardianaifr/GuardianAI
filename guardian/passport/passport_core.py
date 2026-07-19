@@ -58,6 +58,7 @@ class AgentPassport:
     is_active: bool = True
     cortex_events_count: int = 0
     last_anchor_tx: str = ""
+    tenant_id: str = "default"
 
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -69,16 +70,17 @@ class AgentPassport:
             passport_id=row[0],
             agent_id=row[1],
             owner_pubkey=row[2],
-            chain_id=row[3],
-            trust_score=float(row[4]),
-            tier=row[5],
+            chain_id=row[3] if row[3] else "base",
+            trust_score=float(row[4]) if row[4] is not None else 0.0,
+            tier=row[5] if row[5] else "UNVERIFIED",
             credentials=json.loads(row[6]) if row[6] else [],
             metadata=json.loads(row[7]) if row[7] else {},
-            issued_at=float(row[8]),
-            updated_at=float(row[9]),
-            is_active=bool(row[10]),
+            issued_at=float(row[8]) if row[8] is not None else 0.0,
+            updated_at=float(row[9]) if row[9] is not None else 0.0,
+            is_active=bool(row[10]) if row[10] is not None else True,
             cortex_events_count=int(row[11]) if len(row) > 11 and row[11] is not None else 0,
             last_anchor_tx=row[12] if len(row) > 12 and row[12] else "",
+            tenant_id=row[13] if len(row) > 13 and row[13] else "default",
         )
 
 
@@ -122,7 +124,8 @@ class PassportEngine:
                 updated_at    REAL,
                 is_active     INTEGER DEFAULT 1,
                 cortex_events_count INTEGER DEFAULT 0,
-                last_anchor_tx TEXT DEFAULT ''
+                last_anchor_tx TEXT DEFAULT '',
+                tenant_id     TEXT DEFAULT 'default'
             )
         """)
         existing_columns = {
@@ -132,6 +135,16 @@ class PassportEngine:
             cur.execute("ALTER TABLE agent_passports ADD COLUMN cortex_events_count INTEGER DEFAULT 0")
         if "last_anchor_tx" not in existing_columns:
             cur.execute("ALTER TABLE agent_passports ADD COLUMN last_anchor_tx TEXT DEFAULT ''")
+        if "tenant_id" not in existing_columns:
+            try:
+                cur.execute("SELECT agent_id FROM agent_passports")
+                existing_passports = [r[0] for r in cur.fetchall()]
+            except Exception:
+                existing_passports = []
+            cur.execute("ALTER TABLE agent_passports ADD COLUMN tenant_id TEXT DEFAULT 'default'")
+            for agent in existing_passports:
+                print(f"[PASSPORT MIGRATION AUDIT] Migrated passport {agent} to default tenant")
+                logger.info("[PASSPORT MIGRATION AUDIT] Migrated passport %s to default tenant", agent)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS passport_credentials (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -166,6 +179,7 @@ class PassportEngine:
         owner_pubkey: str,
         chain_id: str = "base",
         metadata: Optional[Dict] = None,
+        tenant_id: str = "default",
     ) -> AgentPassport:
         """
         Issue a new passport for an AI agent.
@@ -192,6 +206,7 @@ class PassportEngine:
             issued_at=now,
             updated_at=now,
             is_active=True,
+            tenant_id=tenant_id,
         )
 
         conn = sqlite3.connect(self.db_path)
@@ -202,8 +217,8 @@ class PassportEngine:
                 INSERT INTO agent_passports
                     (passport_id, agent_id, owner_pubkey, chain_id,
                      trust_score, tier, credentials, metadata,
-                     issued_at, updated_at, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     issued_at, updated_at, is_active, tenant_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     passport.passport_id,
@@ -217,6 +232,7 @@ class PassportEngine:
                     passport.issued_at,
                     passport.updated_at,
                     1,
+                    passport.tenant_id,
                 ),
             )
             conn.commit()
@@ -244,7 +260,7 @@ class PassportEngine:
             SELECT passport_id, agent_id, owner_pubkey, chain_id,
                    trust_score, tier, credentials, metadata,
                    issued_at, updated_at, is_active,
-                   cortex_events_count, last_anchor_tx
+                   cortex_events_count, last_anchor_tx, tenant_id
             FROM agent_passports WHERE agent_id = ?
             """,
             (agent_id,),
@@ -264,7 +280,7 @@ class PassportEngine:
             SELECT passport_id, agent_id, owner_pubkey, chain_id,
                    trust_score, tier, credentials, metadata,
                    issued_at, updated_at, is_active,
-                   cortex_events_count, last_anchor_tx
+                   cortex_events_count, last_anchor_tx, tenant_id
             FROM agent_passports WHERE passport_id = ?
             """,
             (passport_id,),
@@ -484,7 +500,7 @@ class PassportEngine:
                 SELECT passport_id, agent_id, owner_pubkey, chain_id,
                        trust_score, tier, credentials, metadata,
                        issued_at, updated_at, is_active,
-                       cortex_events_count, last_anchor_tx
+                       cortex_events_count, last_anchor_tx, tenant_id
                 FROM agent_passports WHERE is_active = 1
                 ORDER BY updated_at DESC LIMIT ?
                 """,
@@ -496,7 +512,7 @@ class PassportEngine:
                 SELECT passport_id, agent_id, owner_pubkey, chain_id,
                        trust_score, tier, credentials, metadata,
                        issued_at, updated_at, is_active,
-                       cortex_events_count, last_anchor_tx
+                       cortex_events_count, last_anchor_tx, tenant_id
                 FROM agent_passports ORDER BY updated_at DESC LIMIT ?
                 """,
                 (limit,),
@@ -514,7 +530,7 @@ class PassportEngine:
             SELECT passport_id, agent_id, owner_pubkey, chain_id,
                    trust_score, tier, credentials, metadata,
                    issued_at, updated_at, is_active,
-                   cortex_events_count, last_anchor_tx
+                   cortex_events_count, last_anchor_tx, tenant_id
             FROM agent_passports
             WHERE is_active = 1
             ORDER BY trust_score DESC

@@ -17,6 +17,11 @@ def main() -> int:
     parser.add_argument("--enforce-pinned", action="store_true")
     parser.add_argument("--model-manifest", default="")
     parser.add_argument("--enforce-model-provenance", action="store_true")
+    parser.add_argument("--signature", default="", help="Path to manifest signature file.")
+    parser.add_argument("--key-env", default="GUARDIAN_RELEASE_SIGNING_KEY", help="Env var name for verification key.")
+    parser.add_argument("--no-enforce-signature", dest="enforce_signature", action="store_false", help="Disable signature verification.")
+    parser.add_argument("--last-known-version", type=int, default=None, help="The last known good release version of the manifest.")
+    parser.set_defaults(enforce_signature=True)
     args = parser.parse_args()
 
     req_path = Path(args.requirements)
@@ -25,7 +30,20 @@ def main() -> int:
         return 1
 
     model_manifest = Path(args.model_manifest) if args.model_manifest else None
-    sbom = build_sbom(req_path, project_name=args.project_name, model_manifest_path=model_manifest)
+    sig_path = Path(args.signature) if args.signature else None
+
+    import os
+    verification_key = os.environ.get(args.key_env, "").strip() or None
+
+    sbom = build_sbom(
+        req_path,
+        project_name=args.project_name,
+        model_manifest_path=model_manifest,
+        verification_key=verification_key,
+        signature_path=sig_path,
+        enforce_signature=args.enforce_signature,
+        last_known_version=args.last_known_version,
+    )
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(sbom, indent=2), encoding="utf-8")

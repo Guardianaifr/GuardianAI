@@ -1,16 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, WebSocket, WebSocketDisconnect, Form, Body
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional, Set
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from typing import List, Dict, Any, Optional
+from pathlib import Path
 import time
 import json
-import base64
-import hashlib
-import sqlite3
 
-# Import all shared dependencies from backend.main
-import backend.main as backend_main
-globals().update({k: v for k, v in backend_main.__dict__.items()})
+from backend.main import (
+    CampaignCreateRequest,
+    CUSTOM_PACKS_DIR,
+    RemediationRequest,
+    ScheduleInput,
+    _get_audit_scheduler,
+    _get_campaign_engine,
+    _write_json_file,
+    enforce_admin_rate_limit,
+    enforce_user_rate_limit,
+    logger,
+)
 
 router = APIRouter()
 
@@ -129,7 +135,8 @@ async def validate_vector_pack(request: Request, principal: Dict[str, str] = Dep
         finally:
             os.unlink(tmp_path)
     except Exception as e:
-        return JSONResponse(status_code=400, content={"valid": False, "error": str(e)})
+        logger.exception("Vector pack validation failed")
+        return JSONResponse(status_code=400, content={"valid": False, "error": "Invalid vector pack format"})
 
 
 @router.post("/api/v1/vector-packs/upload", tags=["Vector Packs"])
@@ -147,7 +154,8 @@ async def upload_vector_pack(request: Request, principal: Dict[str, str] = Depen
         pack = CustomVectorPack(str(pack_path))
         return {"saved": True, "pack_id": pack.pack_id, "vectors": len(pack.vectors), "path": str(pack_path)}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"error": str(e)})
+        logger.exception("Vector pack upload failed")
+        return JSONResponse(status_code=400, content={"error": "Failed to upload vector pack"})
 
 
 @router.get("/api/v1/vector-packs", tags=["Vector Packs"])
@@ -227,5 +235,3 @@ def verify_remediation(req: RemediationRequest, principal: Dict[str, str] = Depe
     _write_json_file(Path(matches[0]), original_scan)
     
     return {"status": "success", "scan_id": req.scan_id, "new_score": round(score, 1)}
-
-

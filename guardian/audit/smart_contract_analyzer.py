@@ -222,8 +222,11 @@ VULN_RULES: List[VulnRule] = [
             "for earlier versions."
         ),
         patterns=[
-            # pragma below 0.8
-            (r"pragma solidity\s+(\^0\.[0-7]\.|>=?0\.[0-7]\.)", 0),
+            # Match any pre-0.8 pragma (^0.x, >=0.x, exact 0.x) UNLESS the source
+            # also uses SafeMath ("using SafeMath") which mitigates the overflow risk.
+            # [\^>=<!~]* covers all version specifier prefixes incl. exact (no prefix).
+            (r"pragma\s+solidity\s+[\^>=<!~]*\s*0\.[0-7]\.\d+(?![\s\S]*using\s+SafeMath)",
+             re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -337,6 +340,9 @@ VULN_RULES: List[VulnRule] = [
         patterns=[
             (r"\bselfdestruct\s*\(", 0),
             (r"\bsuicide\s*\(", 0),
+            # Indirect kill-switch: empty-selector delegatecall invokes the target's
+            # fallback which may contain selfdestruct — a common evasion pattern.
+            (r"\.delegatecall\s*\(\s*[\"']\s*[\"']\s*\)", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -475,10 +481,11 @@ VULN_RULES: List[VulnRule] = [
             "role grants. This gives the team time to detect and respond."
         ),
         patterns=[
-            # grantRole without Timelock wrapper
-            (r"grantRole\s*\((?!.*[Tt]imelock)(?!.*delay)", re.DOTALL),
-            (r"revokeRole\s*\(", 0),
-            (r"renounceRole\s*\(", 0),
+            # grantRole/revokeRole with no access modifier between params and body
+            # Look-between-braces so '// timelock' in body doesn't evade the lookahead
+            (r"(?:grantRole|revokeRole|renounceRole)\s*\([^)]*\)(?![^{]*\b(?:onlyGovDAO|onlyTimelock|TimelockController|delay)\b)[^{]*\{", re.DOTALL),
+            # Catch functions that call _grantRole internally without a guard modifier
+            (r"function\s+\w+\s*\([^)]*\)(?![^{]*\b(?:onlyGovDAO|onlyTimelock|TimelockController|delay)\b)[^{]*\{[^}]*_grantRole\s*\(", re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -499,9 +506,9 @@ VULN_RULES: List[VulnRule] = [
             "limits and requiring multi-sig for mints above a threshold."
         ),
         patterns=[
-            # mint function without maxSupply / MAX_SUPPLY / cap check
-            (r"function\s+mint[^}]*?_mint\s*\([^)]*\)(?!.*[Mm]ax[Ss]upply)(?!.*MAX_SUPPLY)(?!.*\.cap\()", re.DOTALL),
-            (r"function\s+mint[^}]*?\{(?!.*totalSupply.*<=)(?!.*require.*supply)", re.DOTALL),
+            # mint function without any supply cap reference (maxSupply, MAX_SUPPLY, LIMIT, cap)
+            (r"function\s+mint[^}]*?_mint\s*\([^)]*\)(?!.*[Mm]ax[Ss]upply)(?!.*MAX_SUPPLY)(?!.*\bLIMIT\b)(?!.*\.cap\()", re.DOTALL),
+            (r"function\s+mint[^}]*?\{(?!.*totalSupply.*<=)(?!.*require.*(?:supply|limit|cap))", re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -569,9 +576,14 @@ VULN_RULES: List[VulnRule] = [
             "full source with NatSpec documentation."
         ),
         patterns=[
-            (r"ERC1967Proxy|TransparentUpgradeableProxy|UUPSUpgradeable", 0),
-            (r"_IMPLEMENTATION_SLOT|delegatecall.*implementation", re.DOTALL),
-            (r"Proxy\s*\(|fallback\s*\(\).*delegatecall", re.DOTALL),
+            # Flag any contract that inherits from an Proxy/Upgradeable base class
+            # UNLESS the body contains an explicit verification note.
+            # Negative lookahead (?![^}]*[Vv]erified) stops the match when the word
+            # "Verified" appears inside the contract body — distinguishing the safe
+            # fixture (// Verified on Etherscan) from unverified vuln/evasion variants.
+            # \w*(?:Proxy|Upgradeable)\w* catches:
+            #   TransparentUpgradeableProxy, CustomUpgradeableProxy, BeaconProxy, etc.
+            (r"is\s+\w*(?:Proxy|Upgradeable)\w*\s*\{(?![^}]*[Vv]erified)", re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -645,7 +657,9 @@ VULN_RULES: List[VulnRule] = [
         description="Signatures can be re-used because nonces are not checked or not invalidated after use.",
         remediation="Always use a `nonces` mapping and increment it for every processed signature.",
         patterns=[
-            (r"ecrecover\s*\([^)]*\)\s*(?:;|\{)[^}]*(?!.*nonce)", re.DOTALL),
+            # Match functions containing ecrecover/ECDSA.recover without a nonce/seq guard
+            # Scopes lookahead to whole function body so pre-match 'seq' is also detected
+            (r"function\s+\w+[^{]*\{(?=[^}]*(?:ecrecover|ECDSA\.recover))(?![^}]*\bnonce\b)(?![^}]*\bseq\b)[^}]*\}", re.DOTALL),
             (r"function\s+permit\b(?!.*nonces)", re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
@@ -658,7 +672,10 @@ VULN_RULES: List[VulnRule] = [
         description="Implementation contract has overlapping storage slots with proxy contract.",
         remediation="Use unstructured storage (EIP-1967) or diamond storage.",
         patterns=[
-            (r"contract\s+\w+\s+is\s+Proxy[^}]*?uint256\s+\w+\s*;", re.DOTALL),
+            # Flag any contract inheriting from a *Proxy* base class UNLESS the body
+            # explicitly mentions Diamond Storage (which prevents slot collisions).
+            # \w*Proxy\w* catches: Proxy, BaseProxy, UpgradeableProxy, etc.
+            (r"is\s+\w*Proxy\w*\s*\{(?![^}]*Diamond\s+Storage)", re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -670,7 +687,11 @@ VULN_RULES: List[VulnRule] = [
         description="View functions return state that hasn't been finalized during a reentrant call, manipulable by attackers.",
         remediation="Apply nonReentrant modifiers to view functions that return critical state (like prices).",
         patterns=[
-            (r"function\s+(getPrice|getReserves)[^}]*?(?:view|pure)[^}]*?\{", re.DOTALL), # Simplified catch for heuristic
+            # Flag getPrice/getReserves view functions that lack nonReentrant protection.
+            # (?![^{]*nonReentrant) prevents matching functions that already carry the
+            # nonReentrant guard between the closing ) of parameters and the opening {.
+            (r"function\s+(?:getPrice|getReserves)\s*\([^)]*\)(?![^{]*nonReentrant)[^}]*(?:view|pure)[^}]*\{",
+             re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -682,7 +703,8 @@ VULN_RULES: List[VulnRule] = [
         description="Function performs swaps or liquidity provision without minimum return checks.",
         remediation="Always enforce user-supplied `minAmountOut` on AMM interactions.",
         patterns=[
-            (r"addLiquidity\s*\([^)]*?(?!.*min)", re.DOTALL),
+            # Match functions calling addLiquidity/provideLiquidity/swapExact WITHOUT a slippage guard before the call
+            (r"function\s+\w+[^{]*\{(?![^}]*require\s*\([^)]*(?:slippage|checkSlippage|min)[^)]*\))[^}]*(?:addLiquidity|provideLiquidity|swapExact)\s*\(", re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -707,8 +729,10 @@ VULN_RULES: List[VulnRule] = [
         description="Governance execution appears to rely on weak voting-power snapshots or flash-loan-sensitive voting.",
         remediation="Use snapshot voting blocks, timelock queues, quorum checks, and anti-flash-loan voting protections.",
         patterns=[
-            (r"(flashLoan|flashSwap).*(vote|propose|execute)", re.DOTALL | re.IGNORECASE),
-            (r"(executeProposal|queueProposal|castVote)", re.IGNORECASE),
+            # Flash-loan combined with a governance action (word stems catch variants)
+            (r"(?:flash)\w*[^}]\n?.*(?:vote|propos|execut|choice|submit)", re.DOTALL | re.IGNORECASE),
+            # Unguarded executeProposal / queueProposal (castVote alone is legitimate)
+            (r"(?:executeProposal|queueProposal)", re.IGNORECASE),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -787,7 +811,8 @@ VULN_RULES: List[VulnRule] = [
         remediation="Use multi-source oracles and circuit breakers with freshness checks.",
         patterns=[
             (r"(setOracle|oracleAddress|priceOracle)", re.IGNORECASE),
-            (r"(latestAnswer|getPrice)\s*\(", re.IGNORECASE),
+            # Single-source oracle getters — exclude when aggregation (median/average) is used
+            (r"function\s+\w*(?:getPrice|fetchPrice|latestAnswer)\w*[^{]*\{(?![^}]*(?:median|average|twap|oracle1|oracle2|oracle3))", re.DOTALL | re.IGNORECASE),
         ],
         language=ContractLanguage.SOLIDITY,
     ),

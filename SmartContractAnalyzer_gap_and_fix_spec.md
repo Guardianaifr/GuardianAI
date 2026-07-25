@@ -1,10 +1,45 @@
 # Smart Contract Static Analyzer — Gap Documentation & Fix Spec
 
-**Severity: CRITICAL**
-**Scope: `guardian/audit/smart_contract_analyzer.py` — all 52 declared vulnerability rules; 18 tested directly**
-**Date raised: 2026-07-19**
+**Severity: CRITICAL (18 classes) — RESOLVED for those 18 as of 2026-07-23**
+**Remaining scope: ~34 of 52 declared rules — still UNTESTED, not yet in scope**
+**Scope: `guardian/audit/smart_contract_analyzer.py` / `guardian/audit/slither_detectors.py`**
+**Date raised: 2026-07-19 — Date of fix + verification: 2026-07-23**
+**Fix commit: `f9bc2a4695b4bc8a4cec4fa3f00582a2fd23b66b`**
 
 ---
+
+## Resolution Summary (added 2026-07-23)
+
+The 18 highest-severity classes documented below as FALSE-SIGNAL/SHALLOW have been
+rebuilt on a hybrid Slither AST/CFG + custom-detector engine and are now verified
+**18/18 correctly passing** their vulnerable/safe/evasion test triples, plus additional
+sanity-check contracts constructed independently of the original diagnostic fixtures.
+
+- **Engine:** `slither-analyzer==0.11.5` (pinned in `requirements.txt`), used via its
+  Python API for structural analysis (control flow, state-mutation ordering, actual
+  modifier resolution), with custom AST-walking logic layered on top for
+  GuardianAI-specific semantic checks Slither doesn't natively know about (e.g. that a
+  renamed `mint`-like function is still a minting function).
+- **Verification:** 92 fixture contracts (the original 3-per-class plus additional
+  named-alternate and sanity-check variants) now run as parametrized pytest cases in
+  `tests/audit/test_smart_contract_analyzer.py` — promoted from a standalone script so
+  this runs as part of the normal test suite going forward, not a manual step someone
+  has to remember. Current state: 92/92 passing, full suite regression-checked at 1065
+  passed / 2 skipped, 0 failed.
+- **Process note:** the medium/high-complexity rules (SC-101, SC-102, SC-111, SC-114,
+  SC-116, SC-122) were implemented in a single combined round rather than the
+  originally-agreed one-sub-batch-at-a-time checkpoint process. This was caught,
+  disclosed, and retroactively verified via reconstructed pre/post isolation testing and
+  file-modification-time/diff evidence (git tracking was added only at the end of this
+  work) — no cross-contamination between rules was found, but the deviation itself is
+  noted here as a process lesson for any future batch of this size.
+- **Business/compliance exposure (Section "Business/compliance exposure" below):** the
+  original concern — that Feature 32's SOC-2/ISO 27001 compliance-mapping claims
+  couldn't be trusted while 17/18 rules were false-signal — is resolved for these 18
+  classes. It remains an open concern for the ~34 untested rules below.
+
+The original diagnostic findings are preserved below for record — they describe the
+state *before* this fix, not the current state.
 
 ## Gap Documentation
 
@@ -140,4 +175,9 @@ classes.
 
 ## Status
 
-**REMEDIATED (2026-07-19)**: The 18 CRITICAL/High-severity rules have been migrated to a Hybrid Detection engine using Slither AST parsing (`guardian/audit/slither_detectors.py` and `slither_engine.py`). Custom AST detectors now structurally verify the presence of access control modifiers, correct state transitions (Checks-Effects-Interactions), and valid primitive usage, eliminating the regex-based false positives and successfully catching syntactic evasions. The remaining 34 lower-priority rules continue to use regex fallback but are slated for AST migration. Feature 32 in the whitepaper has been updated to reflect this AST-driven capability.
+**18 of 52 rules: FIXED, verified (92/92 fixture pass rate), committed
+(`f9bc2a4695b4bc8a4cec4fa3f00582a2fd23b66b`), and covered by permanent pytest
+regression tests.**
+
+**34 of 52 rules: still untested.** Do not assume safe or broken without the same
+empirical methodology used here. This is the remaining open scope of this finding.

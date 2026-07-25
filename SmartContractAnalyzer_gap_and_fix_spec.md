@@ -1,9 +1,9 @@
 # Smart Contract Static Analyzer — Gap Documentation & Fix Spec
 
-**Severity: CRITICAL (18 classes) — RESOLVED for those 18 as of 2026-07-23**
-**Remaining scope: ~34 of 52 declared rules — still UNTESTED, not yet in scope**
+**Severity: CRITICAL (29 classes)**
+**Remaining scope: 29 of 52 declared rules (23 FALSE-SIGNAL + 6 SHALLOW)**
 **Scope: `guardian/audit/smart_contract_analyzer.py` / `guardian/audit/slither_detectors.py`**
-**Date raised: 2026-07-19 — Date of fix + verification: 2026-07-23**
+**Date raised: 2026-07-19 — Date of fix + verification: 2026-07-23 (for first 18) / 2026-07-25 (5 additional genuine)**
 **Fix commit: `f9bc2a4695b4bc8a4cec4fa3f00582a2fd23b66b`**
 
 ---
@@ -50,8 +50,10 @@ The smart contract static analyzer's detection logic is entirely regex/pattern-b
 changes. Of the 18 highest-severity classes tested with matched vulnerable/safe/evasion
 contract triples, **17 of 18 (94%) are FALSE-SIGNAL**: they flag the properly-mitigated,
 secure version of the code identically to the vulnerable version. Only 1 class (SC-119 /
-whitepaper SC-010, Unprotected `initialize()`) correctly distinguishes vulnerable from
-safe code — and even that one is trivially evaded by renaming the function.
+whitepaper SC-010, Unprotected `initialize()`) correctly distinguishes vulnerable- **Pending Migration Scope (29 Rules):**
+  - **FALSE-SIGNAL (23):** `SC-002`, `SC-010`, `SC-011`, `SC-061`, `SC-100`, `SC-103`, `SC-104`, `SC-106`, `SC-107`, `SC-110`, `SC-115`, `SC-117`, `SC-118`, `SC-121`, `SC-123`, `SC-124`, `SC-080`, `VY-001`, `VY-003`, `VY-004`, `SC-130`, `SC-133`, `SC-135`
+  - **SHALLOW (6):** `SC-021`, `SC-032`, `SC-081`, `VY-005`, `SC-132`, `SC-134`
+  - **GENUINE (23):** 18 previously fixed + 5 confirmed genuine in the pending set (`SC-040`, `SC-070`, `SC-120`, `VY-002`, `SC-131`). These 5 require no fix work, only test verification.
 
 This is a more severe failure mode than a normal detection gap. A tool that cannot tell
 vulnerable code from the code that correctly fixes that exact vulnerability is not

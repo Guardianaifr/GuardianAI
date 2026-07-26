@@ -8,21 +8,11 @@ FIXTURES_DIR = os.path.abspath(
     )
 )
 
-UNTESTED_34_RULES = [
-    "SC-002",
-    "SC-010",
-    "SC-011",
+UNTESTED_24_RULES = [
     "SC-021",
     "SC-032",
     "SC-040",
-    "SC-061",
     "SC-070",
-    "SC-100",
-    "SC-103",
-    "SC-104",
-    "SC-106",
-    "SC-107",
-    "SC-110",
     "SC-115",
     "SC-117",
     "SC-118",
@@ -50,7 +40,7 @@ def get_untested_fixtures():
         return []
     files = []
     for f in sorted(os.listdir(FIXTURES_DIR)):
-        for rid in UNTESTED_34_RULES:
+        for rid in UNTESTED_24_RULES:
             if f.startswith(rid + "_"):
                 files.append(f)
                 break

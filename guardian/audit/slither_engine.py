@@ -47,7 +47,17 @@ CUSTOM_MAP = {
     "guardian-timestamp": "SC-050",
     "guardian-unverified-proxy": "SC-105",
     "guardian-read-only-reentrancy": "SC-113",
-    "guardian-storage-collision": "SC-112"
+    "guardian-storage-collision": "SC-112",
+    "guardian-no-reentrancy-guard": "SC-002",
+    "guardian-front-running": "SC-010",
+    "guardian-missing-slippage": "SC-011",
+    "guardian-spot-price-oracle": "SC-061",
+    "guardian-single-eoa-admin": "SC-100",
+    "guardian-admin-mint": "SC-103",
+    "guardian-instant-role": "SC-104",
+    "guardian-collateral-freshness": "SC-106",
+    "guardian-role-monitor": "SC-107",
+    "guardian-bridge-replay": "SC-110"
 }
 
 def run_slither_analysis(source_code: str) -> Dict[str, List[str]]:

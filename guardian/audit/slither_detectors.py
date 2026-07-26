@@ -363,6 +363,382 @@ class ReentrancyDetector(GuardianAbstractDetector):
                     results.append(self.generate_result(info))
         return results
 
+class SC002Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-no-reentrancy-guard'
+    HELP = 'No Reentrancy Guard on External Call (SC-002)'
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions:
+                if function.visibility not in ["external", "public"]:
+                    continue
+                if function.is_constructor_variables or getattr(function, "is_fallback", False) or getattr(function, "is_receive", False):
+                    continue
+                
+                # Check if it makes external calls
+                has_external_call = len(function.high_level_calls) > 0 or len(function.low_level_calls) > 0
+                # Fallback to string matching for .call in case Slither misses unstructured sends
+                if not has_external_call:
+                    for node in function.nodes:
+                        expr = str(node.expression) if node.expression is not None else ""
+                        if ".call" in expr.lower() or ".send" in expr.lower():
+                            has_external_call = True
+                            break
+                            
+                if has_external_call:
+                    has_guard = any("reentrant" in m.name.lower() or "lock" in m.name.lower() for m in function.modifiers)
+                    if not has_guard:
+                        self.guardian_findings.append(function.name)
+                        info = [function, " makes external calls without a reentrancy guard\n"]
+                        results.append(self.generate_result(info))
+        return results
+
+class SC010Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-front-running'
+    HELP = 'Front-Running via Transaction Ordering (SC-010)'
+
+    def _detect(self):
+        results = []
+        trade_keywords = ["swap", "trade", "exchange", "buy", "sell"]
+        safe_params = ["min", "deadline", "amountoutmin", "limit"]
+        
+        for contract in self.contracts:
+            for function in contract.functions:
+                if function.visibility not in ["external", "public"]:
+                    continue
+                if function.is_constructor_variables or getattr(function, "is_fallback", False) or getattr(function, "is_receive", False):
+                    continue
+                
+                fname = function.name.lower()
+                is_trade = any(kw in fname for kw in trade_keywords)
+                
+                if is_trade:
+                    # Check if parameters offer protection
+                    has_protection = False
+                    for param in function.parameters:
+                        pname = param.name.lower()
+                        if any(sp in pname for sp in safe_params):
+                            has_protection = True
+                            break
+                            
+                    if not has_protection:
+                        self.guardian_findings.append(function.name)
+                        info = [function, " lacks front-running/slippage protection parameters (minOut, deadline)\n"]
+                        results.append(self.generate_result(info))
+        return results
+
+class SC011Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-missing-slippage'
+    HELP = 'Missing Slippage Protection (SC-011)'
+
+    def _detect(self):
+        results = []
+        trade_keywords = ["swap", "trade", "exchange"]
+        safe_params = ["amountoutmin", "minout", "minamount", "deadline"]
+        
+        for contract in self.contracts:
+            for function in contract.functions:
+                if function.visibility not in ["external", "public"]:
+                    continue
+                if function.is_constructor_variables or getattr(function, "is_fallback", False) or getattr(function, "is_receive", False):
+                    continue
+                
+                fname = function.name.lower()
+                is_trade = any(kw in fname for kw in trade_keywords)
+                
+                if is_trade:
+                    # Check if parameters offer standard slippage protection
+                    has_protection = False
+                    for param in function.parameters:
+                        pname = param.name.lower()
+                        if any(sp in pname for sp in safe_params):
+                            has_protection = True
+                            break
+                            
+                    if not has_protection:
+                        self.guardian_findings.append(function.name)
+                        info = [function, " lacks standard slippage protection parameters\n"]
+                        results.append(self.generate_result(info))
+        return results
+
+class SC061Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-spot-price-oracle'
+    HELP = 'Spot Price Oracle Manipulation (SC-061)'
+
+    def _detect(self):
+        results = []
+        spot_keywords = ["getreserves", "reserves(", "getamountsout", "getamountsin"]
+        safe_keywords = ["twap", "chainlink", "oracle", "consult"]
+        
+        for contract in self.contracts:
+            for function in contract.functions:
+                has_spot = False
+                has_safe = False
+                
+                for node in function.nodes:
+                    expr = str(node.expression).lower() if node.expression else ""
+                    if any(k in expr for k in spot_keywords):
+                        has_spot = True
+                    if any(k in expr for k in safe_keywords):
+                        has_safe = True
+                
+                if has_spot and not has_safe:
+                    self.guardian_findings.append(function.name)
+                    info = [function, " uses AMM spot price reserves without TWAP/Oracle\n"]
+                    results.append(self.generate_result(info))
+        return results
+
+class SC100Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-single-eoa-admin'
+    HELP = 'Single-EOA Admin / No Multisig (SC-100)'
+
+    def _detect(self):
+        results = []
+        admin_keywords = ["owner", "admin"]
+        safe_keywords = ["multisig", "safe", "governor", "timelock"]
+        
+        for contract in self.contracts:
+            # Check state variables
+            for var in contract.state_variables:
+                vname = var.name.lower()
+                is_admin = any(kw in vname for kw in admin_keywords)
+                if is_admin:
+                    is_safe = any(kw in vname for kw in safe_keywords)
+                    if not is_safe:
+                        self.guardian_findings.append(var.name)
+                        info = [var, " is a single-EOA admin without multisig/timelock\n"]
+                        results.append(self.generate_result(info))
+                        
+            # Check inherited contracts
+            for inherited in contract.inheritance:
+                iname = inherited.name.lower()
+                is_admin = any(kw in iname for kw in ["ownable", "accesscontrol"])
+                if is_admin:
+                    is_safe = any(kw in iname for kw in safe_keywords)
+                    if not is_safe:
+                        self.guardian_findings.append(inherited.name)
+                        info = [inherited, " inherits single-admin pattern without multisig/timelock\n"]
+                        results.append(self.generate_result(info))
+                        
+        return results
+
+class SC103Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-admin-mint'
+    HELP = 'Admin Can Directly Mint Tokens (SC-103)'
+
+    def _detect(self):
+        results = []
+        admin_modifiers = ["onlyowner", "onlyadmin"]
+        safe_modifiers = ["onlytimelock", "onlyminter", "onlygovernance"]
+        
+        for contract in self.contracts:
+            for function in contract.functions:
+                if function.visibility not in ["external", "public"]:
+                    continue
+                
+                fname = function.name.lower()
+                is_mint = "mint" in fname or "issue" in fname
+                
+                if not is_mint:
+                    for call in function.internal_calls:
+                        cname = getattr(call, "function_name", "") or getattr(getattr(call, "function", None), "name", "")
+                        if cname and "mint" in cname.lower():
+                            is_mint = True
+                            break
+                            
+                if is_mint:
+                    has_admin_mod = False
+                    has_safe_mod = False
+                    for mod in function.modifiers:
+                        mname = mod.name.lower()
+                        if any(k in mname for k in admin_modifiers):
+                            has_admin_mod = True
+                        if any(k in mname for k in safe_modifiers):
+                            has_safe_mod = True
+                            
+                    if has_admin_mod and not has_safe_mod:
+                        self.guardian_findings.append(function.name)
+                        info = [function, " allows direct minting by single admin (e.g. onlyOwner)\n"]
+                        results.append(self.generate_result(info))
+        return results
+
+class SC104Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-instant-role'
+    HELP = 'Instant Role Grant (SC-104)'
+
+    def _detect(self):
+        results = []
+        role_funcs = ["_grantrole", "_setuprole", "_setroleadmin"]
+        safe_keywords = ["delay", "propose", "timelock"]
+        
+        for contract in self.contracts:
+            for function in contract.functions:
+                if function.visibility not in ["external", "public"]:
+                    continue
+                
+                grants_role = False
+                for call in function.internal_calls:
+                    cname = getattr(call, "function_name", "") or getattr(getattr(call, "function", None), "name", "")
+                    if cname and cname.lower() in role_funcs:
+                        grants_role = True
+                        break
+                            
+                if grants_role:
+                    # Check for delay/timelock in modifiers or source code
+                    is_safe = False
+                    for mod in function.modifiers:
+                        if any(k in mod.name.lower() for k in safe_keywords):
+                            is_safe = True
+                            
+                    try:
+                        source_code = function.source_mapping.content.lower()
+                        if any(k in source_code for k in safe_keywords):
+                            is_safe = True
+                    except Exception:
+                        pass
+                        
+                    if not is_safe:
+                        self.guardian_findings.append(function.name)
+                        info = [function, " grants role instantly without delay/timelock\n"]
+                        results.append(self.generate_result(info))
+        return results
+
+class SC106Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-collateral-freshness'
+    HELP = 'No Collateral Freshness Check (SC-106)'
+
+    def _detect(self):
+        results = []
+        vuln_keywords = ["depositcollateral", "borrow", "addcollateral", "supplycollateral"]
+        safe_keywords = ["totalsupply", "liquidity", "oracle", "pricecheck", "whitelist", "approved"]
+        
+        for contract in self.contracts:
+            for function in contract.functions:
+                if function.visibility not in ["external", "public"]:
+                    continue
+                
+                fname = function.name.lower()
+                is_vuln_func = False
+                if any(k in fname for k in vuln_keywords) or ("collateral" in fname and any(k in fname for k in ["deposit", "supply", "add"])):
+                    is_vuln_func = True
+                    
+                if is_vuln_func:
+                    is_safe = False
+                    try:
+                        source_code = function.source_mapping.content.lower()
+                        if any(k in source_code for k in safe_keywords):
+                            is_safe = True
+                    except Exception:
+                        pass
+                        
+                    # Also check modifiers just in case
+                    for mod in function.modifiers:
+                        if any(k in mod.name.lower() for k in safe_keywords):
+                            is_safe = True
+                            
+                    if not is_safe:
+                        self.guardian_findings.append(function.name)
+                        info = [function, " lacks collateral freshness/supply checks\n"]
+                        results.append(self.generate_result(info))
+        return results
+
+class SC107Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-role-monitor'
+    HELP = 'Missing Role-Change Event Monitoring (SC-107)'
+
+    def _detect(self):
+        results = []
+        safe_keywords = ["forta", "defender", "monitor", "adminchanged"]
+        
+        for contract in self.contracts:
+            is_access_control = False
+            for inherited in contract.inheritance:
+                iname = inherited.name.lower()
+                if "accesscontrol" in iname or "ownable" in iname:
+                    is_access_control = True
+                    break
+                    
+            # Check variables in case it's not inherited directly
+            if not is_access_control:
+                for var in contract.state_variables:
+                    vname = var.name.lower()
+                    if "owner" in vname or "admin" in vname:
+                        is_access_control = True
+                        break
+                        
+            if is_access_control:
+                is_safe = False
+                try:
+                    source_code = contract.source_mapping.content.lower()
+                    if any(k in source_code for k in safe_keywords):
+                        is_safe = True
+                except Exception:
+                    pass
+                    
+                if not is_safe:
+                    # Ignore the base contracts themselves if they are just empty definitions in the test file
+                    if contract.name.lower() in ["accesscontrol", "ownable"]:
+                        continue
+                    self.guardian_findings.append(contract.name)
+                    info = [contract, " uses AccessControl/Ownable without monitoring (Forta/Defender)\n"]
+                    results.append(self.generate_result(info))
+        return results
+
+class SC110Detector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-bridge-replay'
+    HELP = 'Cross-Chain Bridge Replay (SC-110)'
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions_and_modifiers:
+                uses_recover = False
+                
+                # 1. Check for ecrecover or ECDSA.recover in source code
+                try:
+                    src = function.source_mapping.content.lower()
+                    if "ecrecover" in src or "ecdsa.recover" in src:
+                        uses_recover = True
+                except Exception:
+                    # Fallback to checking expressions
+                    for node in function.nodes:
+                        if node.expression:
+                            expr_str = str(node.expression).lower()
+                            if "ecrecover" in expr_str or "recover" in expr_str:
+                                uses_recover = True
+                                break
+                                
+                if uses_recover:
+                    is_safe = False
+                    
+                    # 2. Check if chainid or domain_separator is used in the function
+                    # Check Solidity variables read (e.g. block.chainid)
+                    for node in function.nodes:
+                        if node.solidity_variables_read:
+                            for var in node.solidity_variables_read:
+                                if "chainid" in var.name.lower():
+                                    is_safe = True
+                        if node.state_variables_read:
+                            for var in node.state_variables_read:
+                                if "domain_separator" in var.name.lower():
+                                    is_safe = True
+                                    
+                    # Check source code text as well
+                    try:
+                        src = function.source_mapping.content.lower()
+                        if "chainid" in src or "domain_separator" in src:
+                            is_safe = True
+                    except Exception:
+                        pass
+                        
+                    if not is_safe:
+                        self.guardian_findings.append(function.name)
+                        info = [function, " calls ecrecover/ECDSA.recover without chainId or DOMAIN_SEPARATOR validation\n"]
+                        results.append(self.generate_result(info))
+        return results
+
+
 class DelegatecallDetector(GuardianAbstractDetector):
     ARGUMENT = 'guardian-delegatecall'
     HELP = 'Delegatecall Misuse (SC-041)'
@@ -632,6 +1008,16 @@ CUSTOM_DETECTORS = [
     NoTimelockDetector,
     OracleCentralizationDetector,
     ReentrancyDetector,
+    SC002Detector,
+    SC010Detector,
+    SC011Detector,
+    SC061Detector,
+    SC100Detector,
+    SC103Detector,
+    SC104Detector,
+    SC106Detector,
+    SC107Detector,
+    SC110Detector,
     DelegatecallDetector,
     IntegerOverflowDetector,
     TxOriginDetector,

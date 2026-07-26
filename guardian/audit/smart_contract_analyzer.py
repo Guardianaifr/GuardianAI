@@ -407,7 +407,7 @@ VULN_RULES: List[VulnRule] = [
             "with at least 30-minute averaging window."
         ),
         patterns=[
-            (r"\.getAmountsOut\(|\.getAmountsIn\(", 0),
+            (r"\.getAmountsOut\(|\.getAmountsIn\(|\.getReserves\(|\.reserves\(", 0),
             (r"token0\.balanceOf.*token1\.balanceOf", re.DOTALL),
             (r"reserve0.*reserve1.*price", re.DOTALL | re.IGNORECASE),
         ],
@@ -1505,7 +1505,8 @@ class SmartContractAnalyzer:
             is_slither_targeted = rule.id in [
                 "SC-001", "SC-031", "SC-041", "SC-060", "SC-119", "SC-102", "SC-111", "SC-116",
                 "SC-020", "SC-114", "SC-030", "SC-042", "SC-050", "SC-105", "SC-101", "SC-122",
-                "SC-113", "SC-112"
+                "SC-113", "SC-112", "SC-002", "SC-010", "SC-011", "SC-061", "SC-100", "SC-103",
+                "SC-104", "SC-106", "SC-107", "SC-110"
             ]
 
             if slither_findings is not None and is_slither_targeted:

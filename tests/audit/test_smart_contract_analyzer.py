@@ -4,27 +4,22 @@ import pytest
 from guardian.audit.smart_contract_analyzer import SmartContractAnalyzer
 
 
-UNTESTED_24_RULES = [
+UNTESTED_19_RULES = [
     "SC-021",
     "SC-032",
-    "SC-040",
-    "SC-070",
     "SC-115",
     "SC-117",
     "SC-118",
-    "SC-120",
     "SC-121",
     "SC-123",
     "SC-124",
     "SC-080",
     "SC-081",
     "VY-001",
-    "VY-002",
     "VY-003",
     "VY-004",
     "VY-005",
     "SC-130",
-    "SC-131",
     "SC-132",
     "SC-133",
     "SC-134",
@@ -134,7 +129,7 @@ contract Token {{
 def get_fixture_files():
     if not os.path.exists(FIXTURES_DIR):
         return []
-    return sorted([f for f in os.listdir(FIXTURES_DIR) if f.endswith(".sol") and not any(f.startswith(r) for r in UNTESTED_24_RULES)])
+    return sorted([f for f in os.listdir(FIXTURES_DIR) if f.endswith(".sol") and not any(f.startswith(r) for r in UNTESTED_19_RULES)])
 
 
 @pytest.mark.parametrize("filename", get_fixture_files())

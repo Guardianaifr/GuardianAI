@@ -955,8 +955,8 @@ VULN_RULES: List[VulnRule] = [
             "reverted -- it may simply have no code."
         ),
         patterns=[
-            # .call or .staticcall without extcodesize/isContract/code.length/Address guard
-            (r"\.(?:call|staticcall)\s*[({](?!.*(?:extcodesize|isContract|code\.length|Address\.functionCall))", re.DOTALL),
+            # Handled by PhantomCallDetector via Slither path (SC-130 in is_slither_targeted)
+            (r"PLACEHOLDER_NEVER_MATCHES_SC130", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -1052,8 +1052,10 @@ VULN_RULES: List[VulnRule] = [
             # Assembly tstore/tload
             (r"\btstore\s*\(", 0),
             (r"\btload\s*\(", 0),
-            # Solidity transient storage keyword
-            (r"\btransient\s+(uint|int|bytes|address|bool|mapping)", 0),
+            # Solidity transient storage keyword — catches both:
+            #   transient uint lock;   (keyword before type)
+            #   uint transient lock;   (keyword after type, actual Solidity syntax)
+            (r"\btransient\b", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -1075,9 +1077,8 @@ VULN_RULES: List[VulnRule] = [
         ),
         patterns=[
             # abstract contract inheriting from ANY interface (not just I[A-Z] naming convention)
+            # Only the first pattern: removing stub-pattern which falsely flags interface bodies in safe files
             (r"abstract\s+contract\s+\w+\s+is\s+\w+", 0),
-            # Function without body in non-interface contract (ends with ; instead of {})
-            (r"function\s+\w+\s*\([^)]*\)\s+(?:external|public)(?:\s+(?:view|pure|virtual|override|payable|returns\s*\([^)]*\)))*\s*;", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -1509,7 +1510,8 @@ class SmartContractAnalyzer:
                 "SC-001", "SC-031", "SC-041", "SC-060", "SC-119", "SC-102", "SC-111", "SC-116",
                 "SC-020", "SC-114", "SC-030", "SC-042", "SC-050", "SC-105", "SC-101", "SC-122",
                 "SC-113", "SC-112", "SC-002", "SC-010", "SC-011", "SC-061", "SC-100", "SC-103",
-                "SC-104", "SC-106", "SC-107", "SC-110", "SC-021", "SC-032", "SC-115", "SC-117", "SC-118", "SC-121", "SC-123", "SC-124"
+                "SC-104", "SC-106", "SC-107", "SC-110", "SC-021", "SC-032", "SC-115", "SC-117", "SC-118",
+                "SC-121", "SC-123", "SC-124", "SC-130", "SC-132", "SC-133"
             ]
             
             is_vyper_ast_targeted = rule.id in [

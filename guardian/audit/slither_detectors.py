@@ -1369,6 +1369,93 @@ class MissingEventDetector(GuardianAbstractDetector):
                     results.append(self.generate_result(info))
         return results
 
+class NonConstantStateDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-non-constant-state'
+    HELP = 'Non-Constant / Non-Immutable State Variable (SC-132)'
+    IMPACT = DetectorClassification.LOW
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/non-constant-state"
+    WIKI_TITLE = "Non-Constant State Variable"
+    WIKI_DESCRIPTION = "State variable assigned at declaration or only in constructor should be constant/immutable."
+    WIKI_EXPLOIT_SCENARIO = "Storage reads cost 2100+ gas when a constant inline would cost near-zero."
+    WIKI_RECOMMENDATION = "Use 'constant' for declaration-time assignments, 'immutable' for constructor-only assignments."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            if contract.is_interface or contract.is_abstract:
+                continue
+            for sv in contract.state_variables:
+                if sv.is_constant or sv.is_immutable:
+                    continue
+                # Skip non-value types (mappings, arrays, structs)
+                type_str = str(sv.type)
+                if any(t in type_str for t in ['mapping', '[]', 'struct']):
+                    continue
+                # Case 1: Variable has an inline initializer (assigned at declaration)
+                has_init = sv.initialized
+                # Case 2: Variable is only written in constructors (should be immutable)
+                writing_funcs = [
+                    f for f in contract.functions
+                    if sv in f.state_variables_written
+                ]
+                only_in_constructor = (
+                    bool(writing_funcs) and all(f.is_constructor for f in writing_funcs)
+                )
+                if has_init or only_in_constructor:
+                    label = "constant" if has_init else "immutable"
+                    self.guardian_findings.append(sv.name)
+                    info = [sv, f" should be declared {label} (SC-132)\n"]
+                    results.append(self.generate_result(info))
+        return results
+
+class PhantomCallDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-phantom-call'
+    HELP = 'Phantom Function Call to Unchecked Address (SC-130)'
+    IMPACT = DetectorClassification.HIGH
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/phantom-call"
+    WIKI_TITLE = "Phantom Function Call"
+    WIKI_DESCRIPTION = "Low-level .call() or assembly call without code-existence guard silently succeeds on EOAs."
+    WIKI_EXPLOIT_SCENARIO = "A call to a self-destructed contract returns success=true with empty data."
+    WIKI_RECOMMENDATION = "Add require(target.code.length > 0) or use OZ Address.functionCall()."
+
+    # Patterns indicating a code-existence check in the function source
+    _CODE_CHECK = re.compile(
+        r'(?:code\.length|extcodesize|isContract|Address\.functionCall)',
+        re.IGNORECASE
+    )
+    # Assembly call opcode (evasion: assembly { call(...) })
+    _ASM_CALL = re.compile(r'\bassembly\b.*?\bcall\s*\(', re.DOTALL)
+
+    def _detect(self):
+        from slither.slithir.operations import LowLevelCall
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions:
+                source_code = function.source_mapping.content if function.source_mapping else ""
+                # Check for code-existence guard anywhere in the function
+                has_code_check = bool(self._CODE_CHECK.search(source_code))
+                if has_code_check:
+                    continue
+                flagged = False
+                # Check for Slither-detected LowLevelCall IR
+                for node in function.nodes:
+                    for ir in node.irs:
+                        if isinstance(ir, LowLevelCall):
+                            flagged = True
+                            break
+                    if flagged:
+                        break
+                # Also check for assembly-level call opcode (evasion pattern)
+                if not flagged and self._ASM_CALL.search(source_code):
+                    flagged = True
+                if flagged:
+                    self.guardian_findings.append(function.name)
+                    info = [function, " performs low-level call without code-existence check\n"]
+                    results.append(self.generate_result(info))
+        return results
+
 class RewardRoundingDetector(GuardianAbstractDetector):
     ARGUMENT = 'guardian-reward-rounding'
     HELP = 'Reward Distribution Rounding (SC-124)'
@@ -1519,7 +1606,56 @@ CUSTOM_DETECTORS = [
     DefaultVisibilityDetector,
     DonationAttackDetector,
     MissingEventDetector,
+    NonConstantStateDetector,
+    PhantomCallDetector,
     RewardRoundingDetector,
     PermitPhishingDetector,
     MissingZeroAddressDetector
 ]
+
+
+class MagicNumberDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-magic-number'
+    HELP = 'Undocumented Magic Number (SC-133)'
+    IMPACT = DetectorClassification.INFORMATIONAL
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/magic-number"
+    WIKI_TITLE = "Undocumented Magic Number"
+    WIKI_DESCRIPTION = "Large hex literals (16+ hex chars) without a preceding NatSpec comment."
+    WIKI_EXPLOIT_SCENARIO = "Fork engineers copy the constant without understanding its mathematical meaning."
+    WIKI_RECOMMENDATION = "Add a /// @notice or // comment explaining the derivation of large hex constants."
+
+    # Large hex literal: 0x followed by 16 or more hex chars
+    _HEX_LARGE = re.compile(r'0x[0-9a-fA-F]{16,}')
+    # Large decimal literal: 15+ digit number (> 1e14 = larger than any address but common threshold)
+    _DEC_LARGE = re.compile(r'\b\d{15,}\b')
+    # NatSpec indicators
+    _NATSPEC = re.compile(r'///|/\*\*|\*\s*@notice|\*\s*@dev')
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            source = contract.source_mapping.content if contract.source_mapping else ""
+            lines = source.splitlines()
+            for i, line in enumerate(lines):
+                # Check for large hex literal on this line
+                has_large_hex = bool(self._HEX_LARGE.search(line))
+                # Check for large decimal literal on this line
+                has_large_dec = bool(self._DEC_LARGE.search(line))
+                if not (has_large_hex or has_large_dec):
+                    continue
+                # Check if the PREVIOUS line(s) contain NatSpec
+                prev_lines = lines[max(0, i-2):i]
+                has_natspec = any(self._NATSPEC.search(p) for p in prev_lines)
+                # Also allow inline comment on same line (// derivation)
+                has_inline_comment = '//' in line and line.index('//') < line.index('0x') if has_large_hex and '0x' in line and '//' in line else False
+                if not has_natspec and not has_inline_comment:
+                    self.guardian_findings.append(contract.name)
+                    info = [contract, f" contains undocumented large literal: {line.strip()}\n"]
+                    results.append(self.generate_result(info))
+                    break  # one finding per contract
+        return results
+
+
+# Register after definition so CUSTOM_DETECTORS sees MagicNumberDetector
+CUSTOM_DETECTORS.append(MagicNumberDetector)

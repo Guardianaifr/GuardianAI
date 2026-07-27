@@ -49,11 +49,6 @@ UNTESTED_19_RULES = [
     "VY-003",
     "VY-004",
     "VY-005",
-    "SC-130",
-    "SC-132",
-    "SC-133",
-    "SC-134",
-    "SC-135"
 ]
 
 FIXTURES_DIR = os.path.abspath(

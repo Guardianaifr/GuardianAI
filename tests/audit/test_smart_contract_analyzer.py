@@ -3,6 +3,46 @@ import re
 import pytest
 from guardian.audit.smart_contract_analyzer import SmartContractAnalyzer
 
+# ---------------------------------------------------------------------------
+# COVERAGE INSTRUMENTATION WARNING — READ BEFORE RUNNING WITH pytest-cov
+# ---------------------------------------------------------------------------
+# This suite was developed and verified using `pytest --no-cov` (or
+# `pytest tests/audit/test_smart_contract_analyzer.py --no-cov`).
+#
+# A pytest-cov / Slither interaction was discovered during SC-118 remediation
+# (Batch B, 2026-07-27):
+#
+#   When pytest runs with coverage instrumentation active, Slither's
+#   subprocess-based compilation pipeline can be disrupted. Slither silently
+#   fails to compile the target file and the SmartContractAnalyzer falls back
+#   to its regex-based detection path — WITHOUT raising any exception or
+#   emitting any warning. Individual tests may still pass (if the regex also
+#   catches the pattern), but detection strength is silently weaker than the
+#   structural/IR-based custom detectors provide.
+#
+#   Concrete example: SC-118_evasion_novel.sol (function `_assignAdmin`)
+#   - Passes via `verify_spot_check.py` (standalone Slither):    DETECTED ✓
+#   - Passes via `pytest --no-cov`:                               DETECTED ✓
+#   - Fails via `pytest` (with --cov):                            MISSED   ✗
+#     (Slither fell back to regex; regex does not know `_assignAdmin`)
+#
+# IMPLICATION FOR CI / FUTURE RUNS:
+#   If this suite is run under coverage instrumentation (e.g. as part of a
+#   `pytest --cov` umbrella run), some structural detector tests may silently
+#   pass via regex fallback rather than exercising the real Slither IR path.
+#   The suite will report green, but the actual detector being exercised is
+#   weaker than intended. This does NOT mean the production detector is broken
+#   — only that the test harness cannot reliably verify structural detection
+#   under coverage instrumentation.
+#
+# RECOMMENDATION:
+#   Run this file standalone with --no-cov when verifying detector behaviour:
+#     pytest tests/audit/test_smart_contract_analyzer.py --no-cov -v
+#   Use the full `pytest tests/` run (with coverage) only for regression
+#   gating, not for confirming structural-detector correctness.
+# ---------------------------------------------------------------------------
+
+
 
 UNTESTED_19_RULES = [
     "SC-121",

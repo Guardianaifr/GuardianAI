@@ -9,7 +9,6 @@ FIXTURES_DIR = os.path.abspath(
 )
 
 UNTESTED_19_RULES = [
-    "SC-117",
     "SC-118",
     "SC-121",
     "SC-123",

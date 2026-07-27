@@ -1510,7 +1510,7 @@ class SmartContractAnalyzer:
                 "SC-001", "SC-031", "SC-041", "SC-060", "SC-119", "SC-102", "SC-111", "SC-116",
                 "SC-020", "SC-114", "SC-030", "SC-042", "SC-050", "SC-105", "SC-101", "SC-122",
                 "SC-113", "SC-112", "SC-002", "SC-010", "SC-011", "SC-061", "SC-100", "SC-103",
-                "SC-104", "SC-106", "SC-107", "SC-110", "SC-021", "SC-032", "SC-115"
+                "SC-104", "SC-106", "SC-107", "SC-110", "SC-021", "SC-032", "SC-115", "SC-117"
             ]
             
             is_vyper_ast_targeted = rule.id in [

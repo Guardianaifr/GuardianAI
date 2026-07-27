@@ -1107,6 +1107,39 @@ class DefaultVisibilityDetector(GuardianAbstractDetector):
                     info = [function, " has implicit default visibility\n"]
                     results.append(self.generate_result(info))
         return results
+class DonationAttackDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-donation-attack'
+    HELP = 'Donation Attack / Vault Inflation (SC-117)'
+    IMPACT = DetectorClassification.HIGH
+    CONFIDENCE = DetectorClassification.MEDIUM
+    WIKI = "https://example.com/donation-attack"
+    WIKI_TITLE = "Donation Attack"
+    WIKI_DESCRIPTION = "Vault share minting may be manipulable by pre-deposit donation/inflation patterns."
+    WIKI_EXPLOIT_SCENARIO = "An attacker sends tokens directly to the vault to inflate the exchange rate."
+    WIKI_RECOMMENDATION = "Use ERC-4626 anti-inflation controls and minimum share mint thresholds."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            has_vault_calc = False
+            has_donation = False
+            vuln_funcs = []
+            
+            for function in contract.functions_and_modifiers:
+                name_lower = function.name.lower()
+                if any(x in name_lower for x in ['totalassets', 'converttoshares', 'previewdeposit']):
+                    has_vault_calc = True
+                    vuln_funcs.append(function)
+                if any(x in name_lower for x in ['donate', 'skim', 'first_depositor', 'firstdepositor']):
+                    has_donation = True
+                    vuln_funcs.append(function)
+            
+            if has_vault_calc and has_donation:
+                self.guardian_findings.append(contract.name)
+                # Just report the first matching function as the locus
+                info = [vuln_funcs[0], " implements vault logic and donation vector which allows vault inflation\\n"]
+                results.append(self.generate_result(info))
+        return results
 
 CUSTOM_DETECTORS = [
     AccessControlDetector,
@@ -1139,5 +1172,6 @@ CUSTOM_DETECTORS = [
     StorageCollisionDetector,
     MissingDeadlineDetector,
     UncheckedArithmeticDetector,
-    DefaultVisibilityDetector
+    DefaultVisibilityDetector,
+    DonationAttackDetector
 ]

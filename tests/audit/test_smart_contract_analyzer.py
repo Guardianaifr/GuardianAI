@@ -45,7 +45,6 @@ from guardian.audit.smart_contract_analyzer import SmartContractAnalyzer
 
 
 UNTESTED_19_RULES = [
-    "SC-124",
     "VY-001",
     "VY-003",
     "VY-004",

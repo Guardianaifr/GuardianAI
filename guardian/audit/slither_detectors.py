@@ -1380,25 +1380,39 @@ class RewardRoundingDetector(GuardianAbstractDetector):
     WIKI_EXPLOIT_SCENARIO = "Small stakers lose dust on every reward calculation epoch."
     WIKI_RECOMMENDATION = "Multiply by 1e18 or a PRECISION constant before dividing to preserve fixed-point accuracy."
 
-    # Division targets (supply/shares/staked)
-    _DIV_SUPPLY = re.compile(r'/\s*(totalSupply|shares|staked|stakedAmount|totalStaked)\b', re.IGNORECASE)
-    # Scaling indicators — if present in the same line, it's safe
-    _SCALING = re.compile(r'\*\s*(1e18|1E18|10\*\*18|PRECISION|WAD|SCALE|FixedPoint|RAY)\b', re.IGNORECASE)
+    # Scaling indicators — if present in function source, it is safe (scaled before dividing)
+    _SCALING = re.compile(
+        r'\*\s*(1[eE]\d+|10\*\*\d+|PRECISION|WAD|SCALE|FixedPoint|RAY)\b',
+        re.IGNORECASE
+    )
 
     def _detect(self):
+        from slither.slithir.operations import Binary, BinaryType
         results = []
         for contract in self.contracts:
             for function in contract.functions:
-                if function.view or function.pure:
-                    continue
                 source_code = function.source_mapping.content if function.source_mapping else ""
-                for line in source_code.splitlines():
-                    # Line must contain an unscaled division by a supply/shares variable
-                    if self._DIV_SUPPLY.search(line) and not self._SCALING.search(line):
-                        self.guardian_findings.append(function.name)
-                        info = [function, " performs unscaled reward division by supply/shares\n"]
-                        results.append(self.generate_result(info))
-                        break  # one finding per function is enough
+                # If the function source contains any scaling multiplier it is safe
+                if self._SCALING.search(source_code):
+                    continue
+                # Look for IR-level division where the divisor is a state variable
+                for node in function.nodes:
+                    for ir in node.irs:
+                        if not isinstance(ir, Binary):
+                            continue
+                        if ir.type != BinaryType.DIVISION:
+                            continue
+                        # Divisor must be a state variable (not a constant or local)
+                        divisor = ir.variable_right
+                        is_state = any(sv.name == getattr(divisor, 'name', '') for sv in contract.state_variables)
+                        if is_state:
+                            self.guardian_findings.append(function.name)
+                            info = [node, " divides by state variable without scaling\n"]
+                            results.append(self.generate_result(info))
+                            break
+                    else:
+                        continue
+                    break  # one finding per function
         return results
 
 class PermitPhishingDetector(GuardianAbstractDetector):
@@ -1505,6 +1519,7 @@ CUSTOM_DETECTORS = [
     DefaultVisibilityDetector,
     DonationAttackDetector,
     MissingEventDetector,
+    RewardRoundingDetector,
     PermitPhishingDetector,
     MissingZeroAddressDetector
 ]

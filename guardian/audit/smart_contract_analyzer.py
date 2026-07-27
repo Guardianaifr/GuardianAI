@@ -955,10 +955,8 @@ VULN_RULES: List[VulnRule] = [
             "reverted -- it may simply have no code."
         ),
         patterns=[
-            # .call{ or .staticcall( without extcodesize or isContract check nearby
-            (r"\.(?:call|staticcall)\s*[({](?!.*extcodesize)(?!.*isContract)", re.DOTALL),
-            # Direct low-level call without Address library wrapping
-            (r"(?:address\s*\(.*?\))\.call\s*\(", 0),
+            # .call or .staticcall without extcodesize/isContract/code.length/Address guard
+            (r"\.(?:call|staticcall)\s*[({](?!.*(?:extcodesize|isContract|code\.length|Address\.functionCall))", re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -1002,8 +1000,8 @@ VULN_RULES: List[VulnRule] = [
             "This saves ~2,000 gas per read and reduces contract storage footprint."
         ),
         patterns=[
-            # Public/internal state assigned at declaration without constant/immutable
-            (r"(?:uint|int|bytes32|address|bool)\d*\s+(?:public\s+|internal\s+|private\s+)?(?!constant\b)(?!immutable\b)\w+\s*=\s*(?:0x[0-9a-fA-F]+|\d+|true|false|address\(0\))", 0),
+            # Handled by NonConstantStateDetector via Slither path (SC-132 in is_slither_targeted)
+            (r"PLACEHOLDER_NEVER_MATCHES_SC132", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -1026,8 +1024,9 @@ VULN_RULES: List[VulnRule] = [
             "This makes audits faster and reduces fork errors."
         ),
         patterns=[
-            # Hex literal with 16+ hex digits (128+ bits)
-            (r"0x[0-9a-fA-F]{16,}", 0),
+            # Hex literal with 16+ hex digits that is NOT preceded by a NatSpec comment
+            # Matches the hex only when the preceding line has no /// or /** comment
+            (r"(?<!//[^\n]*)(?<!\*[^\n]*)0x[0-9a-fA-F]{16,}", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -1075,8 +1074,8 @@ VULN_RULES: List[VulnRule] = [
             "false for bool) rather than leaving functions unimplemented."
         ),
         patterns=[
-            # abstract contract inheriting from an interface
-            (r"abstract\s+contract\s+\w+\s+is\s+\w*I[A-Z]\w*", 0),
+            # abstract contract inheriting from ANY interface (not just I[A-Z] naming convention)
+            (r"abstract\s+contract\s+\w+\s+is\s+\w+", 0),
             # Function without body in non-interface contract (ends with ; instead of {})
             (r"function\s+\w+\s*\([^)]*\)\s+(?:external|public)(?:\s+(?:view|pure|virtual|override|payable|returns\s*\([^)]*\)))*\s*;", 0),
         ],

@@ -1141,6 +1141,37 @@ class DonationAttackDetector(GuardianAbstractDetector):
                 results.append(self.generate_result(info))
         return results
 
+class MissingZeroAddressDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-missing-zero'
+    HELP = 'Missing Zero-Address Check (SC-118)'
+    IMPACT = DetectorClassification.MEDIUM
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/missing-zero"
+    WIKI_TITLE = "Missing Zero-Address Check"
+    WIKI_DESCRIPTION = "Sensitive address assignments may not reject `address(0)`."
+    WIKI_EXPLOIT_SCENARIO = "An admin mistakenly transfers ownership to the zero address, permanently locking the contract."
+    WIKI_RECOMMENDATION = "Add explicit `require(target != address(0))` checks."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions_and_modifiers:
+                # Only check state-changing functions
+                if function.is_constructor or function.view or function.pure:
+                    continue
+                
+                name_lower = function.name.lower()
+                is_sensitive = any(x in name_lower for x in ['transferownership', 'setowner', 'changeowner', 'updateowner', 'setadmin', 'mint'])
+                
+                if is_sensitive:
+                    source_code = function.source_mapping.content if function.source_mapping else ""
+                    # If it has a sensitive name but no check against address(0) or 0x0
+                    if "address(0)" not in source_code and "0x0" not in source_code.replace(" ", ""):
+                        self.guardian_findings.append(contract.name)
+                        info = [function, " lacks a zero-address check for sensitive assignment\\n"]
+                        results.append(self.generate_result(info))
+        return results
+
 CUSTOM_DETECTORS = [
     AccessControlDetector,
     UnprotectedInitializeDetector,
@@ -1173,5 +1204,6 @@ CUSTOM_DETECTORS = [
     MissingDeadlineDetector,
     UncheckedArithmeticDetector,
     DefaultVisibilityDetector,
-    DonationAttackDetector
+    DonationAttackDetector,
+    MissingZeroAddressDetector
 ]

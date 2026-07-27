@@ -26,6 +26,7 @@ from enum import Enum
 
 from guardian.audit.token_contract_analyzer import TokenContractAnalyzer
 from guardian.audit.slither_engine import run_slither_analysis
+from guardian.audit.vyper_engine import run_vyper_ast_analysis
 
 
 
@@ -284,7 +285,7 @@ VULN_RULES: List[VulnRule] = [
         description="Functions without explicit visibility default to public in older Solidity.",
         remediation="Always declare explicit visibility: public, external, internal, or private.",
         patterns=[
-            (r"function\s+\w+\s*\([^)]*\)\s*(?!public|external|internal|private)\s*\{", 0),
+            (r"function\s+\w+\s*\([^)]*\)(?![^{]*(?:public|external|internal|private))[^{]*\{", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -716,8 +717,7 @@ VULN_RULES: List[VulnRule] = [
         description="Swap call appears to omit or bypass transaction deadline checks.",
         remediation="Include strict `deadline` validation on all AMM swap interactions.",
         patterns=[
-            (r"swapExact\w*For\w*\s*\([^)]*\)", re.DOTALL),
-            (r"deadline\s*=\s*0|deadline\s*==\s*0", re.IGNORECASE),
+            (r"swap\w*For\w*\s*\([^)]*,\s*(?:0|block\.timestamp)\s*\)", re.DOTALL),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -852,7 +852,7 @@ VULN_RULES: List[VulnRule] = [
         description="Vyper `raw_call` without checking return data.",
         remediation="Capture and validate the return value of `raw_call()`.",
         patterns=[
-            (r"raw_call\(", 0),
+            (r"^\s*raw_call\s*\(", re.MULTILINE),
         ],
         language=ContractLanguage.VYPER,
     ),
@@ -1490,8 +1490,12 @@ class SmartContractAnalyzer:
         safe_count = 0
 
         slither_findings = None
+        vyper_ast_findings = None
+        
         if lang == ContractLanguage.SOLIDITY:
             slither_findings = run_slither_analysis(source)
+        elif lang == ContractLanguage.VYPER:
+            vyper_ast_findings = run_vyper_ast_analysis(source)
 
         for rule in VULN_RULES:
             # Skip rules for the wrong language
@@ -1506,13 +1510,21 @@ class SmartContractAnalyzer:
                 "SC-001", "SC-031", "SC-041", "SC-060", "SC-119", "SC-102", "SC-111", "SC-116",
                 "SC-020", "SC-114", "SC-030", "SC-042", "SC-050", "SC-105", "SC-101", "SC-122",
                 "SC-113", "SC-112", "SC-002", "SC-010", "SC-011", "SC-061", "SC-100", "SC-103",
-                "SC-104", "SC-106", "SC-107", "SC-110"
+                "SC-104", "SC-106", "SC-107", "SC-110", "SC-021", "SC-032", "SC-115"
+            ]
+            
+            is_vyper_ast_targeted = rule.id in [
+                "SC-080", "SC-081"
             ]
 
             if slither_findings is not None and is_slither_targeted:
                 if slither_findings.get(rule.id):
                     matched = True
                     matched_snippets = slither_findings[rule.id]
+            elif vyper_ast_findings is not None and is_vyper_ast_targeted:
+                if vyper_ast_findings.get(rule.id):
+                    matched = True
+                    matched_snippets = vyper_ast_findings[rule.id]
             else:
                 for pattern, flags in rule.patterns:
                     try:

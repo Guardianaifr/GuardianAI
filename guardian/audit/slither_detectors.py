@@ -997,6 +997,117 @@ class StorageCollisionDetector(GuardianAbstractDetector):
                 results.append(self.generate_result(info))
         return results
 
+
+class MissingDeadlineDetector(GuardianAbstractDetector):
+    ARGUMENT = "guardian-missing-deadline"
+    HELP = "Missing or hardcoded deadline in swap operations"
+    IMPACT = DetectorClassification.HIGH
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/missing-deadline"
+    WIKI_TITLE = "Missing Deadline"
+    WIKI_DESCRIPTION = "AMM swaps must have a validated deadline parameter to prevent delayed execution attacks."
+    WIKI_EXPLOIT_SCENARIO = "Miners can hold the transaction and execute it when the price is favorable to them, resulting in a loss for the user."
+    WIKI_RECOMMENDATION = "Pass a reasonable deadline, such as block.timestamp + N."
+
+    def _detect(self):
+        results = []
+        for contract in self.compilation_unit.contracts_derived:
+            for function in contract.functions_declared:
+                if function.is_constructor:
+                    continue
+                for node in function.nodes:
+                    for ir in node.irs:
+                        from slither.slithir.operations import HighLevelCall
+                        from slither.slithir.variables import Constant
+                        if isinstance(ir, HighLevelCall):
+                            func_name = ""
+                            if hasattr(ir, 'function') and ir.function:
+                                func_name = ir.function.name
+                            elif hasattr(ir, 'function_name'):
+                                if isinstance(ir.function_name, str):
+                                    func_name = ir.function_name
+                                elif hasattr(ir.function_name, 'value'):
+                                    func_name = str(ir.function_name.value)
+                            
+                            if 'swap' in func_name.lower():
+                                if ir.arguments:
+                                    last_arg = ir.arguments[-1]
+                                    is_vuln = False
+                                    if isinstance(last_arg, Constant):
+                                        if str(last_arg.value) == '0':
+                                            is_vuln = True
+                                    elif hasattr(last_arg, 'name') and 'timestamp' in str(last_arg.name).lower():
+                                        is_vuln = True
+                                    
+                                    if is_vuln:
+                                        self.guardian_findings.append(func_name)
+                                        info = [node, " uses hardcoded 0 or timestamp as deadline in swap\n"]
+                                        res = self.generate_result(info)
+                                        results.append(res)
+        return results
+
+class UncheckedArithmeticDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-unchecked-arithmetic'
+    HELP = 'Unchecked Arithmetic Block (SC-021)'
+    IMPACT = DetectorClassification.MEDIUM
+    CONFIDENCE = DetectorClassification.MEDIUM
+    WIKI = "https://example.com/unchecked-math"
+    WIKI_TITLE = "Unchecked Math"
+    WIKI_DESCRIPTION = "Use of unchecked blocks bypasses Solidity overflow protection."
+    WIKI_EXPLOIT_SCENARIO = "Attackers can overflow/underflow variables."
+    WIKI_RECOMMENDATION = "Remove unnecessary unchecked blocks, or add explicit bounds checks."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions_and_modifiers:
+                is_vuln = False
+                source = function.source_mapping.content if function.source_mapping else ''
+                if 'unchecked' in source:
+                    is_vuln = True
+                
+                if not is_vuln:
+                    for node in function.nodes:
+                        if getattr(node, 'type', None).__class__.__name__ == 'NodeType':
+                            if node.type.name == 'ASSEMBLY':
+                                node_source = node.source_mapping.content if node.source_mapping else ''
+                                import re
+                                if re.search(r'\b(add|sub|mul|div)\b', node_source):
+                                    is_vuln = True
+                                    break
+                
+                if is_vuln:
+                    self.guardian_findings.append(function.name)
+                    info = [function, " uses unchecked arithmetic block or assembly math\n"]
+                    results.append(self.generate_result(info))
+        return results
+
+class DefaultVisibilityDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-default-visibility'
+    HELP = 'Default Function Visibility (SC-032)'
+    IMPACT = DetectorClassification.HIGH
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/default-visibility"
+    WIKI_TITLE = "Default Visibility"
+    WIKI_DESCRIPTION = "Functions without explicit visibility default to public in older Solidity."
+    WIKI_EXPLOIT_SCENARIO = "An internal function defaults to public."
+    WIKI_RECOMMENDATION = "Always declare explicit visibility."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions_and_modifiers:
+                if function.is_constructor or function.is_fallback or function.is_receive:
+                    continue
+                source = function.source_mapping.content if function.source_mapping else ''
+                # Hybrid check: use regex on the source mapping of the function
+                import re
+                if re.search(r'function\s+\w+\s*\([^)]*\)(?![^{]*(?:public|external|internal|private))[^{]*\{', source):
+                    self.guardian_findings.append(function.name)
+                    info = [function, " has implicit default visibility\n"]
+                    results.append(self.generate_result(info))
+        return results
+
 CUSTOM_DETECTORS = [
     AccessControlDetector,
     UnprotectedInitializeDetector,
@@ -1025,5 +1136,8 @@ CUSTOM_DETECTORS = [
     TimestampDetector,
     UnverifiedProxyDetector,
     ReadOnlyReentrancyDetector,
-    StorageCollisionDetector
+    StorageCollisionDetector,
+    MissingDeadlineDetector,
+    UncheckedArithmeticDetector,
+    DefaultVisibilityDetector
 ]

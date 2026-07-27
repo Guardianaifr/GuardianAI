@@ -57,7 +57,10 @@ CUSTOM_MAP = {
     "guardian-instant-role": "SC-104",
     "guardian-collateral-freshness": "SC-106",
     "guardian-role-monitor": "SC-107",
-    "guardian-bridge-replay": "SC-110"
+    "guardian-bridge-replay": "SC-110",
+    "guardian-unchecked-arithmetic": "SC-021",
+    "guardian-default-visibility": "SC-032",
+    "guardian-missing-deadline": "SC-115"
 }
 
 def run_slither_analysis(source_code: str) -> Dict[str, List[str]]:

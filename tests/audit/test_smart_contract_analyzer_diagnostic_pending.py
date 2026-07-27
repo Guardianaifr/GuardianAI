@@ -9,16 +9,11 @@ FIXTURES_DIR = os.path.abspath(
 )
 
 UNTESTED_19_RULES = [
-    "SC-021",
-    "SC-032",
-    "SC-115",
     "SC-117",
     "SC-118",
     "SC-121",
     "SC-123",
     "SC-124",
-    "SC-080",
-    "SC-081",
     "VY-001",
     "VY-003",
     "VY-004",
@@ -44,8 +39,8 @@ def get_untested_fixtures():
 @pytest.mark.xfail(reason="diagnostic only, not yet fixed — see SmartContractAnalyzer_gap_and_fix_spec.md")
 @pytest.mark.parametrize("filename", get_untested_fixtures())
 def test_smart_contract_analyzer_diagnostic_pending(filename):
-    match = re.search(r'(SC-\d{3}|VY-\d{3})', filename)
-    assert match, f"Filename {filename} does not contain rule ID"
+    match = re.search(r"((?:VY|SC)-\d{3})", filename)
+    assert match, f"Filename {filename} does not contain rule ID (VY-XXX or SC-XXX)"
     rule_id = match.group(1)
 
     filepath = os.path.join(FIXTURES_DIR, filename)

@@ -5,16 +5,11 @@ from guardian.audit.smart_contract_analyzer import SmartContractAnalyzer
 
 
 UNTESTED_19_RULES = [
-    "SC-021",
-    "SC-032",
-    "SC-115",
     "SC-117",
     "SC-118",
     "SC-121",
     "SC-123",
     "SC-124",
-    "SC-080",
-    "SC-081",
     "VY-001",
     "VY-003",
     "VY-004",
@@ -145,6 +140,44 @@ def test_smart_contract_analyzer_fixture(filename):
     full_contract = build_wrapper(snippet)
     analyzer = SmartContractAnalyzer(
         source_code=full_contract,
+        contract_name="TestWrapper",
+        chain="ethereum",
+    )
+    result = analyzer.analyze()
+
+    found = any(v["rule_id"] == rule_id for v in result.vulnerabilities)
+    is_vuln_or_evasion = "vuln" in filename or "evasion" in filename
+    is_safe = "safe" in filename
+
+    if is_vuln_or_evasion:
+        assert found, (
+            f"[{rule_id}] Expected vulnerability in {filename}, but none was"
+            " detected"
+        )
+    elif is_safe:
+        assert not found, (
+            f"[{rule_id}] Unexpected false positive in safe fixture {filename}"
+        )
+
+
+def get_vyper_fixture_files():
+    if not os.path.exists(FIXTURES_DIR):
+        return []
+    return sorted([f for f in os.listdir(FIXTURES_DIR) if f.endswith(".vy") and not any(f.startswith(r) for r in UNTESTED_19_RULES)])
+
+
+@pytest.mark.parametrize("filename", get_vyper_fixture_files())
+def test_vyper_analyzer_fixture(filename):
+    match = re.search(r"((?:VY|SC)-\d{3})", filename)
+    assert match, f"Filename {filename} does not contain rule ID (VY-XXX or SC-XXX)"
+    rule_id = match.group(1)
+
+    filepath = os.path.join(FIXTURES_DIR, filename)
+    with open(filepath, "r", encoding="utf-8") as f:
+        snippet = f.read()
+
+    analyzer = SmartContractAnalyzer(
+        source_code=snippet,
         contract_name="TestWrapper",
         chain="ethereum",
     )

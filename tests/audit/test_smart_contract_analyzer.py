@@ -44,12 +44,7 @@ from guardian.audit.smart_contract_analyzer import SmartContractAnalyzer
 
 
 
-UNTESTED_19_RULES = [
-    "VY-001",
-    "VY-003",
-    "VY-004",
-    "VY-005",
-]
+UNTESTED_19_RULES: list[str] = []
 
 FIXTURES_DIR = os.path.abspath(
     os.path.join(

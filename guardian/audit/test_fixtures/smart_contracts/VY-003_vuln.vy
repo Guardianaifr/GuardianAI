@@ -1,3 +1,4 @@
+﻿# VY-003 vuln: uses deprecated create_forwarder_to without validation
 @external
-def clone(target: address):
-    create_forwarder_to(target)
+def deploy(impl: address) -> address:
+    return create_forwarder_to(impl)

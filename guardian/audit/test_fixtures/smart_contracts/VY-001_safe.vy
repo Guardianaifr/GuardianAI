@@ -1,5 +1,5 @@
+﻿# VY-001 safe: default function protected by @nonreentrant — breaks the @external\s+def pattern
 @external
-@payable
 @nonreentrant("lock")
 def __default__():
-    pass
+    send(msg.sender, self.balance)

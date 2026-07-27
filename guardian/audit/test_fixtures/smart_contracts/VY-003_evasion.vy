@@ -1,3 +1,4 @@
+﻿# VY-003 evasion: uses create_copy_of (same proxy risk, different function name)
 @external
-def deploy_proxy(target: address):
-    create_from_blueprint(target)
+def deploy(impl: address) -> address:
+    return create_copy_of(impl)

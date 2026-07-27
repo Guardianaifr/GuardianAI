@@ -901,7 +901,7 @@ VULN_RULES: List[VulnRule] = [
         description="create_forwarder_to creates minimal proxy but the target can be changed if not immutable.",
         remediation="Ensure the target address is constant/immutable. Validate the deployment in tests.",
         patterns=[
-            (r"create_forwarder_to\(", 0),
+            (r"(?:create_forwarder_to|create_copy_of)\(", 0),
         ],
         language=ContractLanguage.VYPER,
     ),
@@ -913,7 +913,7 @@ VULN_RULES: List[VulnRule] = [
         description="Vyper shift() can overflow in versions < 0.3.8. Ensure version is >= 0.3.8.",
         remediation="Upgrade to Vyper >= 0.3.8 and add bounds checks around shift operations.",
         patterns=[
-            (r"shift\(", 0),
+            (r"(?:unsafe_)?shift\(", 0),
         ],
         language=ContractLanguage.VYPER,
     ),

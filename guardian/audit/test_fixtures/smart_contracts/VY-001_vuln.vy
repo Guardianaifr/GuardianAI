@@ -1,4 +1,4 @@
+﻿# VY-001 vuln: external default function without reentrancy guard
 @external
-@payable
 def __default__():
-    pass
+    send(msg.sender, self.balance)

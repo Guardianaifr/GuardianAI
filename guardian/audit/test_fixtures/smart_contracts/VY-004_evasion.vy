@@ -1,3 +1,4 @@
+﻿# VY-004 evasion: uses unsafe_shift (prefixed variant; same overflow risk)
 @external
-def do_shift(val: uint256) -> uint256:
-    return val << 2
+def compute(x: uint256, n: int128) -> uint256:
+    return unsafe_shift(x, n)

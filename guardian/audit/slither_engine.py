@@ -63,7 +63,8 @@ CUSTOM_MAP = {
     "guardian-missing-deadline": "SC-115",
     "guardian-donation-attack": "SC-117",
     "guardian-missing-zero": "SC-118",
-    "guardian-missing-event": "SC-121"
+    "guardian-missing-event": "SC-121",
+    "guardian-permit-phishing": "SC-123"
 }
 
 def run_slither_analysis(source_code: str) -> Dict[str, List[str]]:

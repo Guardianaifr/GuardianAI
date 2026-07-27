@@ -1369,6 +1369,73 @@ class MissingEventDetector(GuardianAbstractDetector):
                     results.append(self.generate_result(info))
         return results
 
+class RewardRoundingDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-reward-rounding'
+    HELP = 'Reward Distribution Rounding (SC-124)'
+    IMPACT = DetectorClassification.MEDIUM
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/reward-rounding"
+    WIKI_TITLE = "Reward Rounding"
+    WIKI_DESCRIPTION = "Integer division in reward accounting without scaling causes systematic dust loss."
+    WIKI_EXPLOIT_SCENARIO = "Small stakers lose dust on every reward calculation epoch."
+    WIKI_RECOMMENDATION = "Multiply by 1e18 or a PRECISION constant before dividing to preserve fixed-point accuracy."
+
+    # Division targets (supply/shares/staked)
+    _DIV_SUPPLY = re.compile(r'/\s*(totalSupply|shares|staked|stakedAmount|totalStaked)\b', re.IGNORECASE)
+    # Scaling indicators — if present in the same line, it's safe
+    _SCALING = re.compile(r'\*\s*(1e18|1E18|10\*\*18|PRECISION|WAD|SCALE|FixedPoint|RAY)\b', re.IGNORECASE)
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions:
+                if function.view or function.pure:
+                    continue
+                source_code = function.source_mapping.content if function.source_mapping else ""
+                for line in source_code.splitlines():
+                    # Line must contain an unscaled division by a supply/shares variable
+                    if self._DIV_SUPPLY.search(line) and not self._SCALING.search(line):
+                        self.guardian_findings.append(function.name)
+                        info = [function, " performs unscaled reward division by supply/shares\n"]
+                        results.append(self.generate_result(info))
+                        break  # one finding per function is enough
+        return results
+
+class PermitPhishingDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-permit-phishing'
+    HELP = 'Permit Phishing Vector (SC-123)'
+    IMPACT = DetectorClassification.HIGH
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/permit-phishing"
+    WIKI_TITLE = "Permit Phishing"
+    WIKI_DESCRIPTION = "Permit-style functions without domain separation allow cross-protocol signature replay."
+    WIKI_EXPLOIT_SCENARIO = "Attacker replays a valid permit signature on a different contract."
+    WIKI_RECOMMENDATION = "Validate DOMAIN_SEPARATOR and EIP-712 encoding in all permit-style functions."
+
+    # Signature: v/r/s params indicate an off-chain signature flow
+    _VRS_PARAMS = re.compile(r'\bv\b.*\br\b.*\bs\b', re.DOTALL)
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions:
+                source_code = function.source_mapping.content if function.source_mapping else ""
+                # Identify permit-style functions: 'permit' in name OR v/r/s params present
+                name_lower = function.name.lower()
+                has_vrs = self._VRS_PARAMS.search(source_code[:source_code.find('{')]) if '{' in source_code else False
+                is_permit_like = 'permit' in name_lower or has_vrs
+                if not is_permit_like:
+                    continue
+                # Safe if it validates DOMAIN_SEPARATOR or EIP712 inside the body
+                body = source_code[source_code.find('{'):] if '{' in source_code else source_code
+                has_domain_check = ('DOMAIN_SEPARATOR' in body or 'EIP712' in body or
+                                    'domainSeparator' in body or '_hashTypedDataV4' in body)
+                if not has_domain_check:
+                    self.guardian_findings.append(contract.name)
+                    info = [function, " permit-style function lacks DOMAIN_SEPARATOR/EIP-712 validation\n"]
+                    results.append(self.generate_result(info))
+        return results
+
 class MissingZeroAddressDetector(GuardianAbstractDetector):
     ARGUMENT = 'guardian-missing-zero'
     HELP = 'Missing Zero-Address Check (SC-118)'
@@ -1438,5 +1505,6 @@ CUSTOM_DETECTORS = [
     DefaultVisibilityDetector,
     DonationAttackDetector,
     MissingEventDetector,
+    PermitPhishingDetector,
     MissingZeroAddressDetector
 ]

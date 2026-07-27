@@ -1,10 +1,10 @@
 # Smart Contract Static Analyzer — Gap Documentation & Fix Spec
 
 **Severity: CRITICAL (29 classes)**
-**Remaining scope: 29 of 52 declared rules (23 FALSE-SIGNAL + 6 SHALLOW)**
+**Remaining scope: 0 of 52 declared rules — ALL RESOLVED**
 **Scope: `guardian/audit/smart_contract_analyzer.py` / `guardian/audit/slither_detectors.py`**
-**Date raised: 2026-07-19 — Date of fix + verification: 2026-07-23 (for first 18) / 2026-07-25 (5 additional genuine)**
-**Fix commit: `f9bc2a4695b4bc8a4cec4fa3f00582a2fd23b66b`**
+**Date raised: 2026-07-19 — Date of full closure: 2026-07-27**
+**Final commit: `265813c5` (VY batch, Batch C complete) — preceded by `5cf91d58`, `3abe63c5`, `dc7f953e`, `ab63505a`**
 
 ---
 
@@ -175,11 +175,44 @@ classes.
 
 ---
 
+
+---
+
 ## Status
 
-**18 of 52 rules: FIXED, verified (92/92 fixture pass rate), committed
-(`f9bc2a4695b4bc8a4cec4fa3f00582a2fd23b66b`), and covered by permanent pytest
-regression tests.**
+**52 of 52 rules: FIXED, verified, and committed. CLOSED.**
 
-**34 of 52 rules: still untested.** Do not assume safe or broken without the same
-empirical methodology used here. This is the remaining open scope of this finding.
+### Final verification (2026-07-27)
+
+- **194 fixture tests passing** (`tests/audit/test_smart_contract_analyzer.py`, `--no-cov`), 0 regressions.
+- **`UNTESTED_19_RULES = []`** — empty list, no rule bypasses the fixture suite.
+- **Full project suite** run at closure (see item 4 in final sign-off): all project-wide tests
+  passing with 0 failures.
+
+### Batch breakdown
+
+| Batch | Rules | Approach |
+|---|---|---|
+| **Pre-existing (23 rules)** | SC-001, SC-020, SC-030, SC-031, SC-041, SC-042, SC-050, SC-060, SC-101, SC-102, SC-105, SC-111, SC-112, SC-113, SC-114, SC-116, SC-119, SC-122, + 5 confirmed-genuine | Slither AST/CFG custom detectors |
+| **Batch A (10 rules)** | SC-002, SC-010, SC-011, SC-061, SC-100, SC-103, SC-104, SC-106, SC-107, SC-110 | Slither IR pattern detectors |
+| **Batch B (7 rules)** | SC-021, SC-032, SC-080, SC-081, SC-115, SC-117, SC-118 | Slither IR + Vyper AST hybrid |
+| **Batch C (12 rules)** | SC-121, SC-123, SC-124, SC-130, SC-132, SC-133, SC-134, SC-135, VY-001, VY-003, VY-004, VY-005 | Slither IR detectors + pattern fixes |
+
+### Fixture corrections logged during implementation
+
+The original 34-rule diagnostic pass was broadly correct about the false-signal problem
+but contained 3 mislabeled fixtures, caught during novel-evasion probing:
+
+| Rule | Original fixture | Actual error | Correction |
+|---|---|---|---|
+| SC-032 | Evasion used `payable` which IS a real semantic difference | Mislabeled — payable evasion was checking a different thing | Replaced with same-function rename evasion |
+| SC-080 | Evasion used `send()` (a different, self-checking Vyper primitive) | Mislabeled — `send()` is not a `raw_call` evasion | Replaced with `raw_call` with different argument structure |
+| SC-134 | Evasion used `sstore` (standard persistent storage) | Mislabeled — `sstore` is not EIP-1153 transient storage | Replaced with Solidity `transient` keyword (`uint transient lock`) |
+
+### pytest-cov / Slither instrumentation note
+
+Documented in `tests/audit/test_smart_contract_analyzer.py` header: coverage instrumentation
+can silently cause Slither's subprocess compilation to fall back to regex-only detection,
+disabling structural checks without any test failure. All structural detector verification
+in this project was done with `--no-cov`. CI runs relying on coverage-instrumented output
+for this suite may silently use weaker detection than tests would suggest.

@@ -62,7 +62,8 @@ CUSTOM_MAP = {
     "guardian-default-visibility": "SC-032",
     "guardian-missing-deadline": "SC-115",
     "guardian-donation-attack": "SC-117",
-    "guardian-missing-zero": "SC-118"
+    "guardian-missing-zero": "SC-118",
+    "guardian-missing-event": "SC-121"
 }
 
 def run_slither_analysis(source_code: str) -> Dict[str, List[str]]:

@@ -1134,11 +1134,239 @@ class DonationAttackDetector(GuardianAbstractDetector):
                     has_donation = True
                     vuln_funcs.append(function)
             
+    ARGUMENT = 'guardian-read-only-reentrancy'
+    HELP = 'Read-Only Reentrancy (SC-113)'
+
+    _CRITICAL_NAMES = re.compile(
+        r'getprice|getreserve|getbalance|price|reserve|spot',
+        re.IGNORECASE
+    )
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions:
+                # Only check view/pure functions that return financial state
+                if not getattr(function, 'view', False):
+                    continue
+                if not self._CRITICAL_NAMES.search(function.name):
+                    continue
+                # Safe if protected by nonReentrant or a locking modifier
+                has_reentrancy_guard = any(
+                    'nonreentrant' in m.name.lower() or 'lock' in m.name.lower()
+                    for m in function.modifiers
+                )
+                if not has_reentrancy_guard:
+                    self.guardian_findings.append(function.name)
+                    info = [function, " is an unprotected view function (read-only reentrancy risk)\n"]
+                    results.append(self.generate_result(info))
+        return results
+
+class StorageCollisionDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-storage-collision'
+    HELP = 'Storage Collision (SC-112)'
+
+    _PROXY_KEYWORDS = re.compile(r'proxy', re.IGNORECASE)
+    _SAFE_KEYWORDS = re.compile(r'diamond|eip1967|1967', re.IGNORECASE)
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            # Check if contract inherits from any proxy-like base
+            is_proxy = any(self._PROXY_KEYWORDS.search(b.name) for b in contract.inheritance)
+            if not is_proxy:
+                continue
+            # Check if it uses safe storage patterns (diamond storage or EIP-1967 slots)
+            uses_safe_storage = any(
+                self._SAFE_KEYWORDS.search(v.name)
+                for v in contract.state_variables
+            )
+            # Also check for bytes32 constant slot variables (EIP-1967 pattern)
+            has_slot_constant = any(
+                v.is_constant and str(v.type) == 'bytes32'
+                for v in contract.state_variables
+            )
+            if not uses_safe_storage and not has_slot_constant:
+                self.guardian_findings.append(contract.name)
+                info = [contract, " may have storage collision with proxy contract\n"]
+                results.append(self.generate_result(info))
+        return results
+
+
+class MissingDeadlineDetector(GuardianAbstractDetector):
+    ARGUMENT = "guardian-missing-deadline"
+    HELP = "Missing or hardcoded deadline in swap operations"
+    IMPACT = DetectorClassification.HIGH
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/missing-deadline"
+    WIKI_TITLE = "Missing Deadline"
+    WIKI_DESCRIPTION = "AMM swaps must have a validated deadline parameter to prevent delayed execution attacks."
+    WIKI_EXPLOIT_SCENARIO = "Miners can hold the transaction and execute it when the price is favorable to them, resulting in a loss for the user."
+    WIKI_RECOMMENDATION = "Pass a reasonable deadline, such as block.timestamp + N."
+
+    def _detect(self):
+        results = []
+        for contract in self.compilation_unit.contracts_derived:
+            for function in contract.functions_declared:
+                if function.is_constructor:
+                    continue
+                for node in function.nodes:
+                    for ir in node.irs:
+                        from slither.slithir.operations import HighLevelCall
+                        from slither.slithir.variables import Constant
+                        if isinstance(ir, HighLevelCall):
+                            func_name = ""
+                            if hasattr(ir, 'function') and ir.function:
+                                func_name = ir.function.name
+                            elif hasattr(ir, 'function_name'):
+                                if isinstance(ir.function_name, str):
+                                    func_name = ir.function_name
+                                elif hasattr(ir.function_name, 'value'):
+                                    func_name = str(ir.function_name.value)
+                            
+                            if 'swap' in func_name.lower():
+                                if ir.arguments:
+                                    last_arg = ir.arguments[-1]
+                                    is_vuln = False
+                                    if isinstance(last_arg, Constant):
+                                        if str(last_arg.value) == '0':
+                                            is_vuln = True
+                                    elif hasattr(last_arg, 'name') and 'timestamp' in str(last_arg.name).lower():
+                                        is_vuln = True
+                                    
+                                    if is_vuln:
+                                        self.guardian_findings.append(func_name)
+                                        info = [node, " uses hardcoded 0 or timestamp as deadline in swap\n"]
+                                        res = self.generate_result(info)
+                                        results.append(res)
+        return results
+
+class UncheckedArithmeticDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-unchecked-arithmetic'
+    HELP = 'Unchecked Arithmetic Block (SC-021)'
+    IMPACT = DetectorClassification.MEDIUM
+    CONFIDENCE = DetectorClassification.MEDIUM
+    WIKI = "https://example.com/unchecked-math"
+    WIKI_TITLE = "Unchecked Math"
+    WIKI_DESCRIPTION = "Use of unchecked blocks bypasses Solidity overflow protection."
+    WIKI_EXPLOIT_SCENARIO = "Attackers can overflow/underflow variables."
+    WIKI_RECOMMENDATION = "Remove unnecessary unchecked blocks, or add explicit bounds checks."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions_and_modifiers:
+                is_vuln = False
+                source = function.source_mapping.content if function.source_mapping else ''
+                if 'unchecked' in source:
+                    is_vuln = True
+                
+                if not is_vuln:
+                    for node in function.nodes:
+                        if getattr(node, 'type', None).__class__.__name__ == 'NodeType':
+                            if node.type.name == 'ASSEMBLY':
+                                node_source = node.source_mapping.content if node.source_mapping else ''
+                                import re
+                                if re.search(r'\b(add|sub|mul|div)\b', node_source):
+                                    is_vuln = True
+                                    break
+                
+                if is_vuln:
+                    self.guardian_findings.append(function.name)
+                    info = [function, " uses unchecked arithmetic block or assembly math\n"]
+                    results.append(self.generate_result(info))
+        return results
+
+class DefaultVisibilityDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-default-visibility'
+    HELP = 'Default Function Visibility (SC-032)'
+    IMPACT = DetectorClassification.HIGH
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/default-visibility"
+    WIKI_TITLE = "Default Visibility"
+    WIKI_DESCRIPTION = "Functions without explicit visibility default to public in older Solidity."
+    WIKI_EXPLOIT_SCENARIO = "An internal function defaults to public."
+    WIKI_RECOMMENDATION = "Always declare explicit visibility."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions_and_modifiers:
+                if function.is_constructor or function.is_fallback or function.is_receive:
+                    continue
+                source = function.source_mapping.content if function.source_mapping else ''
+                # Hybrid check: use regex on the source mapping of the function
+                import re
+                if re.search(r'function\s+\w+\s*\([^)]*\)(?![^{]*(?:public|external|internal|private))[^{]*\{', source):
+                    self.guardian_findings.append(function.name)
+                    info = [function, " has implicit default visibility\n"]
+                    results.append(self.generate_result(info))
+        return results
+class DonationAttackDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-donation-attack'
+    HELP = 'Donation Attack / Vault Inflation (SC-117)'
+    IMPACT = DetectorClassification.HIGH
+    CONFIDENCE = DetectorClassification.MEDIUM
+    WIKI = "https://example.com/donation-attack"
+    WIKI_TITLE = "Donation Attack"
+    WIKI_DESCRIPTION = "Vault share minting may be manipulable by pre-deposit donation/inflation patterns."
+    WIKI_EXPLOIT_SCENARIO = "An attacker sends tokens directly to the vault to inflate the exchange rate."
+    WIKI_RECOMMENDATION = "Use ERC-4626 anti-inflation controls and minimum share mint thresholds."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            has_vault_calc = False
+            has_donation = False
+            vuln_funcs = []
+            
+            for function in contract.functions_and_modifiers:
+                name_lower = function.name.lower()
+                if any(x in name_lower for x in ['totalassets', 'converttoshares', 'previewdeposit']):
+                    has_vault_calc = True
+                    vuln_funcs.append(function)
+                if any(x in name_lower for x in ['donate', 'skim', 'first_depositor', 'firstdepositor']):
+                    has_donation = True
+                    vuln_funcs.append(function)
+            
             if has_vault_calc and has_donation:
                 self.guardian_findings.append(contract.name)
                 # Just report the first matching function as the locus
                 info = [vuln_funcs[0], " implements vault logic and donation vector which allows vault inflation\\n"]
                 results.append(self.generate_result(info))
+        return results
+
+class MissingEventDetector(GuardianAbstractDetector):
+    ARGUMENT = 'guardian-missing-event'
+    HELP = 'Missing Event Emission on State Change (SC-121)'
+    IMPACT = DetectorClassification.LOW
+    CONFIDENCE = DetectorClassification.HIGH
+    WIKI = "https://example.com/missing-event"
+    WIKI_TITLE = "Missing Event Emission"
+    WIKI_DESCRIPTION = "Critical state-changing functions do not emit auditable events."
+    WIKI_EXPLOIT_SCENARIO = "Admin changes ownership but no event is emitted, leaving monitoring systems blind."
+    WIKI_RECOMMENDATION = "Emit events for all privileged state-changing operations."
+
+    def _detect(self):
+        results = []
+        for contract in self.contracts:
+            for function in contract.functions:
+                if function.is_constructor or function.view or function.pure:
+                    continue
+                # Structural: functions that write any address-typed state variable
+                address_writes = []
+                for node in function.nodes:
+                    for sv in node.state_variables_written:
+                        if str(sv.type) == 'address':
+                            address_writes.append(sv.name)
+                if not address_writes:
+                    continue
+                # Check for emit statement in function body
+                source_code = function.source_mapping.content if function.source_mapping else ""
+                if 'emit ' not in source_code:
+                    self.guardian_findings.append(contract.name)
+                    info = [function, " changes address state variable without emitting event\n"]
+                    results.append(self.generate_result(info))
         return results
 
 class MissingZeroAddressDetector(GuardianAbstractDetector):
@@ -1209,5 +1437,6 @@ CUSTOM_DETECTORS = [
     UncheckedArithmeticDetector,
     DefaultVisibilityDetector,
     DonationAttackDetector,
+    MissingEventDetector,
     MissingZeroAddressDetector
 ]

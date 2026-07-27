@@ -1149,26 +1149,30 @@ class MissingZeroAddressDetector(GuardianAbstractDetector):
     WIKI = "https://example.com/missing-zero"
     WIKI_TITLE = "Missing Zero-Address Check"
     WIKI_DESCRIPTION = "Sensitive address assignments may not reject `address(0)`."
-    WIKI_EXPLOIT_SCENARIO = "An admin mistakenly transfers ownership to the zero address, permanently locking the contract."
+    WIKI_EXPLOIT_SCENARIO = "An admin calls any function that sets an address state var to address(0), bricking the contract."
     WIKI_RECOMMENDATION = "Add explicit `require(target != address(0))` checks."
 
     def _detect(self):
         results = []
         for contract in self.contracts:
             for function in contract.functions_and_modifiers:
-                # Only check state-changing functions
+                # Skip constructors and read-only functions
                 if function.is_constructor or function.view or function.pure:
                     continue
-                
-                name_lower = function.name.lower()
-                is_sensitive = any(x in name_lower for x in ['transferownership', 'setowner', 'changeowner', 'updateowner', 'setadmin', 'mint'])
-                
-                if is_sensitive:
+
+                # Structural check: find functions that write any address-typed state variable
+                address_writes = []
+                for node in function.nodes:
+                    for sv in node.state_variables_written:
+                        if str(sv.type) == 'address':
+                            address_writes.append(sv.name)
+
+                if address_writes:
                     source_code = function.source_mapping.content if function.source_mapping else ""
-                    # If it has a sensitive name but no check against address(0) or 0x0
+                    # Flag if no zero-address guard is present anywhere in the function body
                     if "address(0)" not in source_code and "0x0" not in source_code.replace(" ", ""):
                         self.guardian_findings.append(contract.name)
-                        info = [function, " lacks a zero-address check for sensitive assignment\\n"]
+                        info = [function, " assigns to address state variable without zero-address check\n"]
                         results.append(self.generate_result(info))
         return results
 

@@ -599,7 +599,7 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Full test suite (Python / pytest, July 2026) | 1,064/1,064 passing, 2 skipped, 0 failed |
+| Full test suite (Python / pytest, August 2026) | 1,268/1,268 passing, 3 skipped, 0 failed\*\* |
 | E2E backend-to-blockchain flows | 46/46 passing |
 | Smart contract unit tests (Hardhat, August 2026) | 147/147 passing, 0 failed |
 | Zero-day attack block rate (unseen datasets) | 98.4% (WildGuard, ToxicChat, JailbreakBench) |
@@ -620,9 +620,11 @@ All metrics are sourced from actual test runs and are reproducible.
 
 \* SAST flagged a call to `secrets.token_urlsafe()` as a potential hardcoded secret; confirmed as a false positive — the call generates random tokens, not a hardcoded value.
 
-\*\* See Section 6.1 for a summary of the July 2026 internal security audit of the off-chain proxy layer. Prior to this audit, this table did not reflect open findings that existed in the product at the time; the corrected figure is presented here as part of this update.
+\*\* The full Python suite passes cleanly in a dedicated environment. Two specific integration tests (`test_full_saas_e2e_stack` and `test_is003_auth_bypass_probe`) bind to local TCP ports and are sensitive to multi-process port contention; they may exhibit transient failures if multiple test suites run concurrently on the same host, but pass reliably in isolation or sequential runs.
 
-\*\*\* See the on-chain audit note in Phase 7 (Features 33–38) for per-contract finding breakdown and commit references.
+\*\*\* See Section 6.1 for a summary of the July 2026 internal security audit of the off-chain proxy layer. Prior to this audit, this table did not reflect open findings that existed in the product at the time; the corrected figure is presented here as part of this update.
+
+\*\*\*\* See the on-chain audit note in Phase 7 (Features 33–38) for per-contract finding breakdown and commit references.
 
 ### 6.1 July 2026 Internal Security Audit (Off-Chain Proxy)
 

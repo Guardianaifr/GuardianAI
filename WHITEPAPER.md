@@ -576,7 +576,7 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Full test suite (Python / pytest, July 2026) | 1,064/1,064 passing, 2 skipped, 0 failed |
+| Full test suite (Python / pytest, August 2026) | 1,268/1,268 passing, 3 skipped, 0 failed\*\* |
 | E2E backend-to-blockchain flows | 46/46 passing |
 | Smart contract unit tests (Hardhat, August 2026) | 147/147 passing |
 | Zero-day attack block rate (unseen datasets) | 98.4% (WildGuard, ToxicChat, JailbreakBench) |

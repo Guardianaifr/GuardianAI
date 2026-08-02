@@ -64,7 +64,7 @@ docker-compose up -d
 
 ## 📊 Validation Snapshot
 
-- **Python Test Suite:** `1,064+` passing (including all 46/46 E2E checks) — see whitepaper Section 6 for full breakdown.
+- **Python Test Suite:** `1,268` passing (including all 46/46 E2E checks) — see whitepaper Section 6 for full breakdown.
 - **Smart Contracts (Hardhat):** `147/147` passing across 7 contract suites (up from 56 pre-audit; +91 tests added during the August 2026 security audit).
 - **On-Chain Security Audit (August 2026):** All 6 contracts audited. 1 HIGH and 4 MEDIUM findings identified and remediated. All LOW/INFO items either fixed or explicitly documented as accepted. Slither clean (naming-convention style warnings only).
 - **Security Validation:** Integrated demo/test flows block 100% of adversarial probes in chaos conditions.

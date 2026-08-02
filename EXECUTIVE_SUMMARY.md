@@ -31,7 +31,7 @@ GuardianAI now operates as a comprehensive **Dual-Layer AI Security Control Plan
 
 - **Zero-Day Attack Blocking:** **98.4%** across unseen datasets (WildGuard, ToxicChat, JailbreakBench).
 - **Standard Benchmark Blocking:** **100%** on strict/balanced curated subsets.
-- **Smart Contract Security:** 56/56 Unit tests passing; 46/46 Backend-to-Blockchain E2E verification flows passing flawlessly.
+- **Smart Contract Security:** 147/147 Unit tests passing (expanded in August 2026 audit); 46/46 Backend-to-Blockchain E2E verification flows passing flawlessly.
 - **Rate Limiter Concurrency:** Handled 10,000+ requests across 10 threads in <200ms.
 - **Advanced De-obfuscation Resilience:** 100% block rate against Braille steganography, Base64, Hex, ROT13, Pig Latin, Homoglyphs.
 

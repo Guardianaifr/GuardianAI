@@ -439,9 +439,11 @@ Beyond the input-level RAG guard, this includes: agentic policy controls (`agent
 
 ---
 
-**Feature 32 — Multi-Chain Smart Contract Static Analyzer (AST Hybrid Engine)**
+**Feature 32 — Multi-Chain Smart Contract Static Analyzer**
 
-A hybrid static analysis engine for Solidity and Vyper smart contracts. Combines Slither AST/CFG structural analysis with custom semantic detectors to identify **52 distinct vulnerability classes** across Solidity and Vyper. High-severity rules utilize Slither-based AST validation to eliminate false positives on safe primitives (e.g., verifying actual access control modifiers rather than just keywords). Provides compliance mappings to SOC-2 and ISO 27001.
+A static analysis engine for Solidity and Vyper smart contracts. Detects **52 verified vulnerability classes** with compliance mappings to SOC-2 and ISO 27001.\*
+
+*\* See Phase 6.1 for important caveats regarding the current accuracy and compliance applicability of this analyzer.*
 
 Supported vulnerability classes (selected):
 

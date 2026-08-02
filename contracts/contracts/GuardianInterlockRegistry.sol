@@ -9,17 +9,37 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @title GuardianInterlockRegistry
  * @notice Stores cross-agent interlock proofs on-chain, enabling mutual verification
  *         of interaction history between autonomous AI agents.
+ *
+ * @dev    IR-2 fix: Added soft-revoke mechanism (revokeInterlock) so that a bad
+ *         registration — e.g. one produced by a compromised owner key with fabricated
+ *         agent/proof data — can be corrected without deleting the historical record.
+ *
+ *         Design rationale: Interlock proofs are intentionally append-only (the
+ *         InterlockRegistered event is permanent on-chain, providing non-repudiation).
+ *         However, permanence of the *event log* is distinct from permanence of
+ *         *current validity* — the same distinction made by GuardianInsuranceLedger's
+ *         revokeCertificate(). A revoked record remains inspectable via getInterlock()
+ *         but verifyInterlock() reverts InterlockAlreadyRevoked, so downstream
+ *         protocols querying proof validity get the correct answer.
+ *
+ *         revokeInterlock() is whenNotPaused: revocation during an active pause/
+ *         incident-response window is dangerous — a compromised owner key could use
+ *         revocation as a cover-up tool to erase evidence of fabricated interlocks
+ *         before the pause can be lifted. Requiring the contract to be unpaused to
+ *         revoke ensures the emergency-stop and the corrective-action paths remain
+ *         independent. (This matches InsuranceLedger's revokeCertificate() precedent.)
  */
 contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
 
     // ── Types ────────────────────────────────────────────────────────────
 
     struct InterlockProof {
-        bytes32 agentA;      // keccak256(agentA_id)
-        bytes32 agentB;      // keccak256(agentB_id)
+        bytes32 agentA;       // keccak256(agentA_id)
+        bytes32 agentB;       // keccak256(agentB_id)
         bytes32 proofHash;
         uint256 nonce;
         uint256 registeredAt;
+        bool    revoked;      // true after revokeInterlock(); record preserved for history
     }
 
     // ── State ────────────────────────────────────────────────────────────
@@ -40,12 +60,20 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 nonce
     );
 
+    /// @notice Emitted when an owner revokes a previously registered interlock.
+    ///         The record is preserved in storage and inspectable via getInterlock();
+    ///         only verifyInterlock() treats a revoked record as invalid.
+    event InterlockRevoked(bytes32 indexed interlockId);
+
     // ── Errors ───────────────────────────────────────────────────────────
 
     error InterlockAlreadyExists(bytes32 interlockId);
     error InvalidAgentHash();
     error InvalidProofHash();
     error InterlockNotFound(bytes32 interlockId);
+    /// @notice Thrown by verifyInterlock() and revokeInterlock() when the record
+    ///         has already been revoked.
+    error InterlockAlreadyRevoked(bytes32 interlockId);
 
     // ── Constructor ──────────────────────────────────────────────────────
 
@@ -74,11 +102,12 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
         if (registry[interlockId].registeredAt != 0) revert InterlockAlreadyExists(interlockId);
 
         registry[interlockId] = InterlockProof({
-            agentA: _agentA,
-            agentB: _agentB,
-            proofHash: _proofHash,
-            nonce: _nonce,
-            registeredAt: block.timestamp
+            agentA:       _agentA,
+            agentB:       _agentB,
+            proofHash:    _proofHash,
+            nonce:        _nonce,
+            registeredAt: block.timestamp,
+            revoked:      false
         });
 
         interlockIds.push(interlockId);
@@ -86,16 +115,41 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
         emit InterlockRegistered(interlockId, _agentA, _agentB, _proofHash, _nonce);
     }
 
+    // ── Write Functions (admin) ──────────────────────────────────────────
+
+    /**
+     * @notice Revoke a previously registered interlock proof.
+     * @param _interlockId The ID of the interlock to revoke.
+     *
+     * @dev    The record is marked revoked in storage but NOT deleted.
+     *         getInterlock() continues to return the full record including
+     *         revoked = true, preserving the tamper-evident audit trail.
+     *         verifyInterlock() reverts InterlockAlreadyRevoked for revoked records.
+     *
+     *         whenNotPaused: prevents a compromised owner key from using revocation
+     *         as a cover-up tool during an active incident (see contract NatSpec).
+     */
+    function revokeInterlock(bytes32 _interlockId) external onlyOwner whenNotPaused {
+        InterlockProof storage proof = registry[_interlockId];
+        if (proof.registeredAt == 0) revert InterlockNotFound(_interlockId);
+        if (proof.revoked) revert InterlockAlreadyRevoked(_interlockId);
+        proof.revoked = true;
+        emit InterlockRevoked(_interlockId);
+    }
+
     // ── Read Functions ───────────────────────────────────────────────────
 
     /**
-     * @notice Verify and return the proof hash for a registered interlock.
-     * @param _interlockId The ID of the interlock
-     * @return proofHash The stored proof hash
+     * @notice Verify and return the proof hash for a registered, non-revoked interlock.
+     * @param _interlockId The ID of the interlock.
+     * @return proofHash   The stored proof hash.
+     * @dev    Reverts InterlockAlreadyRevoked if the record has been revoked.
+     *         Use getInterlock() to inspect revoked records.
      */
     function verifyInterlock(bytes32 _interlockId) external view returns (bytes32 proofHash) {
         InterlockProof memory proof = registry[_interlockId];
         if (proof.registeredAt == 0) revert InterlockNotFound(_interlockId);
+        if (proof.revoked) revert InterlockAlreadyRevoked(_interlockId);
         return proof.proofHash;
     }
 

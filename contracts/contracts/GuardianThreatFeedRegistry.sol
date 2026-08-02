@@ -2,17 +2,25 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title GuardianThreatFeedRegistry
  * @notice Immutable on-chain registry of known malicious addresses (e.g. exploiters,
  *         phishers, honeypots). Supports both EVM addresses and non-EVM string addresses.
+ *
+ * @dev    Access control: all write functions are restricted to onlyOwner, consistent
+ *         with the other 4 GuardianAI on-chain contracts (CortexAnchor, InsuranceLedger,
+ *         InterlockRegistry, RiskAttestation). The previous AccessControl / FEED_WRITER_ROLE
+ *         pattern was removed because:
+ *           1. The role was only ever granted to the deployer EOA (same as the Ownable owner).
+ *           2. No production code, test, or deployment script ever granted it to a second address.
+ *           3. transferOwnership() does not transfer AccessControl roles, so the deployer EOA
+ *              retained unilateral write access even after ownership was transferred to the
+ *              GuardianTimelock — a gap not covered by onchain_safety.py's owner() guard.
+ *         If a genuine multi-writer use case arises, use a V2 deployment with an explicit design.
  */
-contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
-
-    bytes32 public constant FEED_WRITER_ROLE = keccak256("FEED_WRITER_ROLE");
+contract GuardianThreatFeedRegistry is Ownable2Step, Pausable {
 
     // ── State ────────────────────────────────────────────────────────────
 
@@ -38,10 +46,7 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
 
     // ── Constructor ──────────────────────────────────────────────────────
 
-    constructor() Ownable(msg.sender) {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(FEED_WRITER_ROLE, msg.sender);
-    }
+    constructor() Ownable(msg.sender) {}
 
     // ── Write Functions ──────────────────────────────────────────────────
 
@@ -50,7 +55,7 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
      */
     function addAddress(address _malicious, string calldata _reason)
         external
-        onlyRole(FEED_WRITER_ROLE)
+        onlyOwner
         whenNotPaused
     {
         require(_malicious != address(0), "Invalid address");
@@ -70,13 +75,13 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
      */
     function removeAddress(address _malicious)
         external
-        onlyRole(FEED_WRITER_ROLE)
+        onlyOwner
         whenNotPaused
     {
         require(evmRegistry[_malicious].isMalicious, "Address not in registry");
         evmRegistry[_malicious].isMalicious = false;
         evmRegistry[_malicious].reason = "";
-        
+
         // Remove from list (swap and pop)
         for (uint256 i = 0; i < evmAddresses.length; i++) {
             if (evmAddresses[i] == _malicious) {
@@ -93,7 +98,7 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
      */
     function addStringAddress(string calldata _malicious, string calldata _reason)
         external
-        onlyRole(FEED_WRITER_ROLE)
+        onlyOwner
         whenNotPaused
     {
         require(bytes(_malicious).length > 0, "Empty string address");
@@ -117,7 +122,7 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
     function addAddressesBatch(
         address[] calldata _addresses,
         string[] calldata _reasons
-    ) external onlyRole(FEED_WRITER_ROLE) whenNotPaused {
+    ) external onlyOwner whenNotPaused {
         require(_addresses.length == _reasons.length, "Length mismatch");
         require(_addresses.length <= 50, "Batch too large");
 
@@ -144,7 +149,7 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
     function addStringAddressesBatch(
         string[] calldata _addresses,
         string[] calldata _reasons
-    ) external onlyRole(FEED_WRITER_ROLE) whenNotPaused {
+    ) external onlyOwner whenNotPaused {
         require(_addresses.length == _reasons.length, "Length mismatch");
         require(_addresses.length <= 50, "Batch too large");
 
@@ -167,7 +172,7 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
      */
     function removeStringAddress(string calldata _malicious)
         external
-        onlyRole(FEED_WRITER_ROLE)
+        onlyOwner
         whenNotPaused
     {
         require(stringRegistry[_malicious].isMalicious, "Address not in registry");
@@ -220,14 +225,4 @@ contract GuardianThreatFeedRegistry is Ownable2Step, AccessControl, Pausable {
 
     function pause() external onlyOwner { _pause(); }
     function unpause() external onlyOwner { _unpause(); }
-
-    // Override required by Solidity for multiple inheritance
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(AccessControl)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
-    }
 }

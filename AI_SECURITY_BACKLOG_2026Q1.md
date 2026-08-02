@@ -237,14 +237,76 @@ Status update:
   - `tests/backend/test_tenant_isolation_backend.py`
   - `tests/security/test_differential_privacy.py`
 
-13. Financial Logic / Web3 Security Gaps (Known Gaps) - `planned`
-- GuardianAI has no real guardrail logic for yield/APY validation, trading signal source verification, governance vote weight validation, or slippage bounds.
-- These are currently only defended in the test mock (`mock_target_hardened.py`), not the actual product.
-- Must implement real product guardrails for these vectors (FL_002, FL_003, FL_005, FL_008) to safely deploy in live DeFi environments.
+13. Financial Logic / Web3 Security Gaps - `partial` (2 closed, 2 blocked-on-prerequisite)
+- FL_002 (Yield/APY): **CLOSED** — real external validation via DefiLlama API with TTL caching implemented in `guardian/audit/remediation/crypto_guard.py`. Fails closed on API timeout.
+- FL_003 (Trading Signals): **CLOSED** — real source verification requiring Pyth/Chainlink ECDSA signature block; prompts that merely mention an exchange name without a verifiable signature are blocked.
+- FL_005 (Governance): **BLOCKED** — requires session-wallet auth prerequisite (caller's on-chain address must be verifiably bound to the session) before `getVotes()` lookup is meaningful. Permanently blocked until that prerequisite is built. Does NOT silently fail open — the current implementation rejects all governance vote-cast instructions because the governance ledger is empty (fails closed by design after the fix; the prior failure was failing closed by accident).
+- FL_008 (Slippage): **BLOCKED** — requires a 1inch API key for production DEX liquidity depth queries. The intent gate and normalization logic is implemented; the live enforcement path is gated on the API credential. Fails closed (rejects the slippage-modification instruction) when the DEX aggregator is unavailable.
+- See `FL_pillar_gap_and_fix_spec (1).md` for full spec, structural decisions, and open TTL-cache timing question.
 
-14. Agentic Security Fail-Open State (Known Gap) - `planned`
-- The `agentic_security` parent module currently defaults to `enabled: False` (a fail-open state), completely bypassing its sub-controls.
-- Permanent accepted risk: The current architecture cannot safely default to enabled because `require_agent_id` unconditionally blocks any request without an `X-Guardian-Agent-Id` header. In mixed agentic/non-agentic environments, this would break all standard human traffic if naively enabled.
-- Open design options for a real fix (not decisions):
-  1. Auto-detect agentic vs. human traffic and only enforce agentic controls conditionally.
-  2. Default `require_agent_id` to `False` so non-agentic traffic passes by default.
+14. Agentic Security Fail-Open State - `accepted-risk` (documented, no code change planned)
+- The `agentic_security` parent module currently defaults to `enabled: False`, completely bypassing its sub-controls (`rag_security`, `agentic_controls`).
+- **Sub-controls (rag_security, agentic_controls) fail-open defaults:** CLOSED — `rag_security` and `agentic_controls` sub-controls were each independently fixed to fail closed by default (i.e., if `agentic_security` parent is enabled, the sub-controls no longer silently pass through).
+- **Parent `agentic_security` flag:** INTENTIONALLY ACCEPTED as opt-in. The current architecture cannot safely default to enabled because `require_agent_id` unconditionally blocks any request without an `X-Guardian-Agent-Id` header. In mixed agentic/non-agentic environments, enabling this would break all standard human traffic.
+- **Design prerequisite for a real fix:** Auto-detect agentic vs. human traffic and only enforce agentic controls conditionally — OR default `require_agent_id` to `False` so non-agentic traffic passes by default. This is a design decision deferred to a future session.
+- **Current risk posture:** Any deployment that does NOT enable `agentic_security: true` in config.yaml gets no agentic security enforcement. This is documented and explicitly accepted, not silently present.
+
+---
+
+## On-Chain Contract Audit (August 2026)
+
+15. On-Chain Smart Contract Security Audit (6 contracts) - `completed`
+
+All six on-chain EVM contracts (Features 33–38) underwent their first dedicated security audit in August 2026.
+
+**Findings and resolution:**
+
+| ID | Contract | Severity | Finding | Status | Commit |
+|---|---|---|---|---|---|
+| TF-1 | ThreatFeedRegistry | HIGH | AccessControl/role bypass — deployer EOA retains write access post-ownership-transfer | FIXED | `2a08fcda` |
+| TF-2 | ThreatFeedRegistry | MEDIUM | O(n) linear scan in removeAddress/removeStringAddress | FIXED | `55c3cd31` |
+| TF-3 | ThreatFeedRegistry | MEDIUM | No hard cap on evmAddresses/stringAddresses array cumulative size | FIXED | `55c3cd31` |
+| TF-4 | ThreatFeedRegistry | LOW | pause/unpause onlyOwner while writes were onlyRole — asymmetric access | RESOLVED BY TF-1 | `2a08fcda` |
+| RA-1 | RiskAttestation | MEDIUM | Missing Pausable (only contract of 5 with no emergency stop) | FIXED | `b41674fd` |
+| RA-2 | RiskAttestation | LOW | No ReentrancyGuard on attest() | ACKNOWLEDGED / NOT FIXED — attest() has no external calls; vector does not exist | — |
+| RA-3 | RiskAttestation | MEDIUM | No grade allowlist — arbitrary string accepted | FIXED | `b41674fd` |
+| RA-4 | RiskAttestation | LOW | Silent attestation overwrite — no event distinction | FIXED | `b41674fd` |
+| IR-2 | InterlockRegistry | LOW | No revoke/update mechanism — bad registration is permanent | FIXED (soft-revoke) | `40df11cc` |
+| IL-1 | InsuranceLedger | LOW | Misleading error: CertificateNotFound used for zero _certId input guard | FIXED | `75056309` |
+| IL-2 | InsuranceLedger | LOW | Check ordering: cap check before input validation allows info leak via error type | FIXED | `75056309` |
+| IL-3 | InsuranceLedger | INFO | certificateIds unbounded array, no pagination for off-chain readers | FIXED | `75056309` |
+| CA-1 | CortexAnchor | INFO | getAgentCommitments() O(n) unbounded read | DOCUMENTED (no code change — caller-borne view cost, zero on-chain callers) | `75056309` |
+| CA-2 | CortexAnchor | INFO | verifyInclusion() O(n) proof array | DOCUMENTED (no code change — pure function, zero on-chain callers) | `75056309` |
+| naming-conv | All 5 contracts | INFO | Slither naming-convention: underscore-prefix params | ACKNOWLEDGED / NOT FIXED — consistent style, ABI-breaking to rename, zero security impact | — |
+| PassportSBT | PassportSBT | (hardening) | ReentrancyGuard belt-and-suspenders on mint() | ADDED | `f0a08160` |
+
+**Hardhat suite:** 147/147 passing (was 97/97 pre-audit), 50 net new tests, 0 regressions.
+
+---
+
+## Features Not Yet Audited (as of August 2026)
+
+The following whitepaper-claimed features have NOT yet been through a dedicated security audit. This list is maintained explicitly so they are not forgotten or assumed audited by association with the work above.
+
+| Feature | Whitepaper Claim | Audit Status |
+|---|---|---|
+| F-01: Embedding Firewall (semantic similarity) | "Catches semantically equivalent attacks" | Not audited |
+| F-02: Multi-modal MIME guard | "OCR/audio injection detection" | Not audited |
+| F-03: RAG injection guard | "Chunk-level trust scoring" | Partially audited (core guard reviewed; trust-scoring/cross-source not) |
+| F-04: Tool-Call Policy Engine | Allow/deny enforcement | Not audited |
+| F-05: PII Redaction | Regex + NER redaction | Not audited |
+| F-06: Cost Abuse Detection | Slow-drain multi-session models | Not audited |
+| F-07: Memory Poisoning Guard | Session memory quarantine | Not audited |
+| F-08: Output Assurance | JSON enforcement, citation grounding | Not audited |
+| F-09: Output Watermarking | HMAC signature on response body | Not audited |
+| F-10: Differential Privacy Engine | Laplace-noise analytics | Not audited |
+| F-11: Supply Chain / Model Provenance | Artifact hash verification | Not audited |
+| F-12: Hallucination / GAIA alignment | Output grounding enforcement | Not audited |
+| F-13: Red/Purple Brain Agent | Autonomous rule generation | Not audited |
+| F-14: SIEM Integration | Async retry/dead-letter queue | Not audited |
+| F-15: False-Positive Feedback Loop | Tenant sensitivity tuning | Not audited |
+| F-16: Public Benchmark Alignment | HarmBench/AdvBench/GAIA scoring | Not audited |
+| F-17: Tenant Isolation (backend) | Cross-tenant data boundaries | Not audited |
+| F-18: SSH Tunnel / Generic Auth Proxy | Remote access security | Not audited |
+| F-19: Adversarial Self-Correction | Red-team-driven rule updates | Not audited |
+| F-20: Custom NER Models | Fine-tuned entity recognition | Not audited |

@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title GuardianPassportSBT
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
  *
  *         ERC-5192 compliance: emits Locked(tokenId) on mint, locked() returns true.
  */
-contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable {
+contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard {
 
     // ── Types ────────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable {
         bytes32 _agentHash,
         uint256 _score,
         string calldata _metadataURI
-    ) external onlyOwner whenNotPaused returns (uint256 tokenId) {
+    ) external onlyOwner whenNotPaused nonReentrant returns (uint256 tokenId) {
         // ── Checks ───────────────────────────────────────────────────────
         if (agentToken[_agentHash] != 0) {
             revert AgentAlreadyHasPassport(_agentHash);

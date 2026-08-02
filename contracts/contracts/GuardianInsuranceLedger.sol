@@ -59,6 +59,8 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
     error CertificateLimitReached();
     /// @notice _riskLevel must be exactly "LOW", "MEDIUM", or "HIGH" (case-sensitive, uppercase).
     error InvalidRiskLevel(string riskLevel);
+    /// @notice _certId parameter was zero bytes32 (IL-1: distinguished from a genuine lookup-miss).
+    error InvalidCertId();
 
     // ── Constructor ──────────────────────────────────────────────────────
 
@@ -68,6 +70,10 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Issue a new insurance certificate for an agent.
+     *
+     * @dev    Check ordering (IL-2): structural input validation first, then
+     *         business-logic checks (cap, duplicate). This ensures a caller
+     *         cannot distinguish cap-reached from invalid-input via error type.
      */
     function issueCertificate(
         bytes32 _certId,
@@ -77,25 +83,28 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
         bytes32 _certHash,
         string calldata _riskLevel
     ) external onlyOwner whenNotPaused nonReentrant {
+        // ── 1. Structural input validation (fast, no state reads) ────────
+        if (_certId == bytes32(0))   revert InvalidCertId();
+        if (_agentHash == bytes32(0)) revert InvalidAgentHash();
+        if (_certHash == bytes32(0)) revert InvalidCertHash();
+        if (_periodEnd < _periodStart) revert InvalidPeriod();
         require(bytes(_riskLevel).length <= 32, "Risk level too long");
         if (!_validRiskLevel(_riskLevel)) revert InvalidRiskLevel(_riskLevel);
+
+        // ── 2. Business-logic / state-dependent checks ───────────────────
         if (certificateIds.length >= MAX_CERTIFICATES) {
             revert CertificateLimitReached();
         }
-        if (_certId == bytes32(0)) revert CertificateNotFound(_certId);
-        if (_agentHash == bytes32(0)) revert InvalidAgentHash();
-        if (_periodEnd < _periodStart) revert InvalidPeriod();
-        if (_certHash == bytes32(0)) revert InvalidCertHash();
         if (certificates[_certId].issuedAt != 0) revert CertificateAlreadyExists(_certId);
 
         certificates[_certId] = Certificate({
-            agentHash: _agentHash,
+            agentHash:   _agentHash,
             periodStart: _periodStart,
-            periodEnd: _periodEnd,
-            certHash: _certHash,
-            riskLevel: _riskLevel,
-            issuedAt: block.timestamp,
-            revoked: false
+            periodEnd:   _periodEnd,
+            certHash:    _certHash,
+            riskLevel:   _riskLevel,
+            issuedAt:    block.timestamp,
+            revoked:     false
         });
 
         certificateIds.push(_certId);
@@ -132,6 +141,33 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
      */
     function getCertificateCount() external view returns (uint256) {
         return certificateIds.length;
+    }
+
+    /**
+     * @notice Paginated read of certificateIds for off-chain enumeration (IL-3).
+     * @param offset Zero-based start index into the certificateIds array.
+     * @param limit  Maximum number of IDs to return. Capped internally at 1000.
+     * @return page  Slice of certificate IDs beginning at `offset`.
+     *
+     * @dev  The public certificateIds array auto-getter provides index-by-index
+     *       access; this function returns a contiguous slice to avoid forcing
+     *       off-chain clients to make O(n) individual calls as the registry grows.
+     *       Gas cost is caller-borne (view function).
+     */
+    function getCertificateIdsPage(uint256 offset, uint256 limit)
+        external
+        view
+        returns (bytes32[] memory page)
+    {
+        uint256 total = certificateIds.length;
+        if (offset >= total) return page; // empty slice
+        uint256 cap = limit > 1000 ? 1000 : limit;
+        uint256 end = offset + cap;
+        if (end > total) end = total;
+        page = new bytes32[](end - offset);
+        for (uint256 i = 0; i < page.length; i++) {
+            page[i] = certificateIds[offset + i];
+        }
     }
 
     // ── Admin Functions ──────────────────────────────────────────────────

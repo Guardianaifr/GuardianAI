@@ -142,6 +142,12 @@ contract GuardianCortexAnchor is Ownable2Step, Pausable, ReentrancyGuard {
      * @dev Uses sha256 precompile (address 0x02) to match the Python
      *      Merkle tree implementation. Pairs are sorted before hashing
      *      to ensure deterministic ordering.
+     *
+     * @dev CA-2: Gas cost scales linearly with _proof.length (O(n) sha256
+     *      hashes). This is caller-borne — verifyInclusion() is pure and
+     *      is not called by any other on-chain contract, so no third party
+     *      can grief other callers by inflating proof size. Off-chain RPC
+     *      clients should be aware of this for very deep trees.
      */
     function verifyInclusion(
         bytes32 _leaf,
@@ -172,6 +178,14 @@ contract GuardianCortexAnchor is Ownable2Step, Pausable, ReentrancyGuard {
      * @notice Get commitment indices for an agent.
      * @param _agentHash keccak256 hash of the agent ID
      * @return indices Array of commitment indices
+     *
+     * @dev CA-1: Returns the full agentCommitments[_agentHash] array in one
+     *      call. Gas cost scales with the number of commitments made by the
+     *      agent (O(n) memory copy). This is caller-borne — getAgentCommitments()
+     *      is a view function not called by any other on-chain contract, so no
+     *      third party can grief other callers by inflating an agent's array.
+     *      Off-chain callers querying very active agents should be aware of
+     *      the RPC response size. A paginated variant can be added if needed.
      */
     function getAgentCommitments(bytes32 _agentHash)
         external view returns (uint256[] memory indices)

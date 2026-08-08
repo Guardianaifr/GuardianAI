@@ -310,3 +310,158 @@ The following whitepaper-claimed features have NOT yet been through a dedicated 
 | F-18: SSH Tunnel / Generic Auth Proxy | Remote access security | Not audited |
 | F-19: Adversarial Self-Correction | Red-team-driven rule updates | Not audited |
 | F-20: Custom NER Models | Fine-tuned entity recognition | Not audited |
+
+---
+
+## Phase 4 Audit Findings — August 2026
+
+Items identified during the Phase 4 whitepaper-vs-code audit (Features 18–26). Each entry records current implementation status, open gaps, and deferred work items.
+
+---
+
+### F18 — Red-Team Automated Probe Loop ✅ DONE
+
+**Audit finding (August 2026):** Whitepaper claimed probes "fire against the live AI" and measure real model behavior. Code only called `input_filter.check_prompt(payload)` — zero LLM contact.
+
+**Whitepaper corrected and updated (August 2026):** F18 description in `WHITEPAPER.md` and `WHITEPAPER_PUBLIC.md` rewritten to accurately describe the 3-stage pipeline.
+
+**Implementation: `FEAT-RED-LLM` — DONE (August 2026)**
+
+The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with a genuine 3-stage pipeline:
+
+| Stage | What happens | API cost |
+|-------|-------------|----------|
+| **1 — Input filter fast-path** | `input_filter.check_prompt(payload)` — if blocked, discard immediately | Zero |
+| **2 — Real upstream LLM call** | HTTP POST to configurable `red_probe_target_url` (separate from production) | One call per filter-bypassing probe |
+| **3 — Response classification** | 16-pattern keyword refusal detector classifies LLM response | Zero additional calls |
+
+**Outcome taxonomy:**
+
+| Outcome | Meaning | Severity | Triggers auto-patch? |
+|---------|---------|----------|---------------------|
+| `filter_blocked` | Filter caught it (no finding emitted) | — | No |
+| `full_bypass` | Filter passed + LLM complied | high | **Yes** |
+| `filter_bypass_model_refused` | Filter passed + LLM refused | medium | No |
+| `filter_bypass_only` | No target configured; filter gap only | medium | No |
+
+**Design decision — separate `red_probe_target_url`:** Production upstream is excluded from the probe loop to avoid sharing rate limits, API cost, or conversation context with real user traffic. Default: no target configured → Stage 2 skipped (safe, zero-cost, partial findings only).
+
+**Config keys** (`brain:` YAML section): `red_probe_interval_seconds` (default: 1800), `red_probe_target_url`, `red_probe_upstream_key`, `red_probe_timeout` (default: 15s).
+
+**Error handling:** Any upstream failure (timeout, 5xx, connection error) is caught and logged; brain background thread never crashes on a failed probe call.
+
+**Orchestrator integration:** `orchestrator.run_once()` passes only `OUTCOME_FULL_BYPASS` findings to purple-heal — partial findings are informational and never trigger auto-patch.
+
+**Tests:** `tests/brain/test_red_probe_llm.py` — 21 tests, all passing. Key tests:
+- `test_blocked_probe_calls_llm_zero_times` — call-count assert: filter-blocked probes never reach `_call_llm`
+- `test_selective_filter_only_calls_llm_for_allowed_probes` — LLM called exactly 1× for 1 allowed probe out of 2
+- All 4 outcome paths covered; error resilience under timeout/5xx/connection error/filter exception
+
+**Files:** `guardian/brain/red_probe.py` (rewrite), `guardian/brain/orchestrator.py` (config wiring + outcome filter), `tests/brain/test_red_probe_llm.py` (new), `tests/brain/test_orchestrator.py` (3 tests updated to mock `run_probe_cycle`)
+
+**Commits:** `c229325d` (FEAT-RED-LLM rewrite), `09aec84e` (orchestrator test fix)
+
+---
+
+### F25 — Multi-Tenant Isolation `in_progress`
+
+**Audit finding:** Whitepaper claimed "Hard isolation of data, session state, and rate limit buckets per tenant." Code delivers in-process key-prefix namespacing within shared Python in-memory dicts — logical isolation, not hard isolation.
+
+**Completed (August 2026):**
+- Whitepaper corrected in `WHITEPAPER.md`, `WHITEPAPER_PUBLIC.md`, `WHITEPAPER Update.md` — "hard isolation" language removed, accurate description + Phase 4 audit note added.
+- Concurrent cross-tenant test suite added: `tests/security/test_tenant_isolation_concurrent.py` — 12 tests, all green.
+
+**Test suite interpretation — IMPORTANT:**
+> **12/12 tests green does NOT mean F25 is fully remediated.**
+> `test_random_session_ids_grow_events_dict_without_bound` passes **by confirming the OOM gap still exists** — its assertion is `len(_events) == N` (unbounded growth proven empirically), not `<= MAX` (bounded growth). This test is explicitly designed as a **gap-documentation test**: it will flip to a bounded assertion (`assert final_size <= _MAX_SESSIONS`) once the per-tenant-lock + eviction hardening below is implemented. Until that implementation lands, a green test result on this case means the gap is empirically proven and tracked, not closed.
+
+**Open gaps (confirmed, empirically proven):**
+
+| Gap | Risk | Evidence |
+|-----|------|----------|
+| Unbounded `_events` dict growth via random session-ID enumeration | HIGH — OOM DoS | `test_random_session_ids_grow_events_dict_without_bound` PASSES at `== 10,000` |
+| Global `threading.Lock()` serialises ALL tenants' cost tracking | MEDIUM — lock contention under concurrent multi-tenant load | `test_concurrent_random_sessions_no_lock_deadlock` passes but uses single global lock |
+| Quarantine/session-risk state is node-local only | HIGH — multi-node deployments fracture rate-limit enforcement | Architectural — no test can prove cross-node consistency without Redis |
+
+**Deferred implementation items:**
+
+1. **`FEAT-TENANT-INMEM-HARDEN` (P1 — implement next):** Per-tenant `threading.Lock()` instances (replace single global lock) + `_MAX_SESSIONS` cap with oldest-entry eviction on `_events`. Closes OOM and contention risks. Zero new infra dependency. Acceptance criterion: `test_random_session_ids_grow_events_dict_without_bound` assertion updated to `<= _MAX_SESSIONS` and still green.
+
+2. **`FEAT-TENANT-REDIS` (P2 — future):** Migrate `CostAbuseDetector._events` and `_quarantined_until` to Redis with per-tenant key prefix (`guardian:tenant:<id>:sess:<sid>`) and TTL-based expiry. Closes multi-node fracture risk. Pre-conditions: `redis` added to `requirements.txt`; `GUARDIAN_TENANT_REDIS_URL` env var documented in `.env.example`, `docker-compose.yml`, and deployment docs; fail-closed behaviour defined (mirror pattern from `backend/main.py` `GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN`).
+
+**Files:**
+- `guardian/security/cost_abuse.py` (primary implementation target for both items)
+- `guardian/security/tenant_isolation.py` (no mutable runtime state — no Redis migration needed)
+- `guardian/security/tenant_sensitivity.py` (static config lookup — no changes needed)
+- `tests/security/test_tenant_isolation_concurrent.py` (update OOM assertion when INMEM-HARDEN lands)
+
+---
+
+### F19 — Blue-Team Adaptive Session Hardening `in_progress`
+
+**Audit finding:** Whitepaper claimed "automatically tightens rate limits" and "reduces output permissions." Neither was implemented. `BlueAdaptAgent` was wired (risk scoring → strict mode → honeypot → revoke) but four advanced classes were dead.
+
+**Whitepaper corrected (August 2026):** False rate-limit and output-permission claims removed from all 3 docs.
+
+**Per-class decisions:**
+
+| Class | What it does | Quality | Wire or Defer | Reasoning |
+|-------|-------------|---------|---------------|-----------|
+| `SessionVelocityTracker` | Sliding-window RPS anomaly per session; `record()` returns bool | Production-ready: sliding window with prune, configurable max_rps | **✅ DONE — `FEAT-BLUE-ADVANCED` (August 2026)** | Wired in `observe_prompt()`: adds +1 risk delta when velocity is anomalous. |
+| `AdaptiveCooldown` | Exponential backoff per session (base × multiplier^violations, capped) | Production-ready: violation count, FIFO cooldown_until, reset() | **✅ DONE — `FEAT-BLUE-ADVANCED` (August 2026)** | Wired in `get_action()` → returns `"cooldown"`; interceptor returns HTTP 429 + `Retry-After` header. |
+| `GeoAnomalyDetector` | Distinct geo labels per hour; returns bool if > max_hops | Production-ready: 1h sliding window, distinct-set logic | **Defer — `FEAT-BLUE-GEO`** | Requires a geo-label input that the current request path does not provide (no IP→geo resolver). |
+| `BehavioralFingerprint` | User-agent / lang / tz_offset drift detection across a session | Functional but limited: first-time always returns True (no binding), only 3 signals, no TTL/eviction | **Defer — `FEAT-BLUE-FINGER`** | Requires the request path to extract and pass user-agent, lang, and tz_offset consistently. |
+
+**Implementation status:**
+
+1. **✅ `FEAT-BLUE-ADVANCED` — DONE (August 2026):** `SessionVelocityTracker` wired into `observe_prompt()` (velocity anomaly → +1 risk delta); `AdaptiveCooldown` wired into `get_action()` (returns `"cooldown"` when active) and `interceptor.py` (HTTP 429 + `Retry-After` at both pre- and post-analysis gates). Config keys `blue_velocity_window_sec`, `blue_velocity_max_rps`, `blue_cooldown_base_seconds`, `blue_cooldown_max_seconds`, `blue_cooldown_multiplier` all wired. Tests: `tests/brain/test_blue_adapt_advanced.py`.
+2. **`FEAT-BLUE-GEO` (P3):** Add IP→geo resolution (e.g. MaxMind GeoLite2) and wire `GeoAnomalyDetector`. Pre-condition: geo database license and loading strategy decided.
+3. **`FEAT-BLUE-FINGER` (P3):** Extract `User-Agent` / `Accept-Language` / timezone from request headers and wire `BehavioralFingerprint.check()` in `observe_prompt`. Pre-condition: interceptor header-extraction refactor.
+
+**Files:** `guardian/brain/blue_adapt.py`, `guardian/brain/orchestrator.py`, `guardian/runtime/interceptor.py`
+
+---
+
+### F22 — Session Revoke Enforcement & External IdP/JWT Integration `in_progress`
+
+**Audit finding:** Whitepaper claimed "hash-based tracking" (dead: `TokenBlacklist`) and "system-wide" lockout (overstated: proxy-side is single-node, IdP-side is webhook-dependent). Core revocation flow IS wired: `BlueAdaptAgent.mark_revoked()` → `IdpRevocationClient.revoke()` via `CyberBrain.enforce_revocation()` in `orchestrator.py` lines 206–216.
+
+**Whitepaper corrected (August 2026):** "hash-based tracking" and "system-wide" claims replaced with accurate scope description + single-node constraint note (mirroring F25 language).
+
+**Per-class decisions:**
+
+| Class | What it does | Quality | Wire or Defer | Reasoning |
+|-------|-------------|---------|---------------|-----------|
+| `TokenBlacklist` | Bounded FIFO dict: `token_hash → revoked_at`; `_MAX = 10,000`; FIFO eviction via sorted() | Production-ready: bounded, evicts, O(n log n) eviction (acceptable at 10k) | **Defer** — `FEAT-IDP-BLACKLIST` | **Same single-node gap as F25.** A JWT blacklist is only meaningful if it is checked on every request before forwarding. Wiring it in-memory has the same cross-node fracture problem as F25's `_quarantined_until` dict: a token revoked on node A is not blocked on node B. Wire only alongside `FEAT-TENANT-REDIS` (or a dedicated `GUARDIAN_REVOKE_REDIS_URL`) to share the blacklist across nodes. Until then, the wired `revoked_sessions` set in `BlueAdaptAgent` already provides session-level revocation locally. |
+| `SessionBindingVerifier` | Binds JTI to session_id + client_ip at first presentation; `verify()` returns (bool, reason) | Production-ready: clean API, IP mismatch detection | **Defer** — `FEAT-IDP-BINDING` | Requires that Bearer tokens are parsed and their JTI extracted on every inbound request (not currently done at the interceptor level). `bind_session_identity()` in orchestrator already stores raw tokens — extend that to extract JTI and call `bind()`. Medium-scope change. |
+| `MultiIdpFederation` | Priority-ordered fan-out to multiple `IdpRevocationClient` instances | Production-ready: clean registry, priority sort (minor bug: `sort(key=lambda n: priority)` uses the same `priority` value for all, not per-entry — sorts stably but not by individual priority) | **Defer** — `FEAT-IDP-MULTI` | `CyberBrain` currently only instantiates one `IdpRevocationClient`. `MultiIdpFederation` is additive: replace `self.idp_revocation = IdpRevocationClient(revoke_cfg)` with a federation. Config change required (list of IdP configs vs. single). Fix priority sort bug when wiring. |
+
+**Note on TokenBlacklist vs F25:** These are architecturally the same problem. Both want cross-node in-memory revocation state. The correct sequence is: F25 `FEAT-TENANT-REDIS` first (shared Redis for tenant state) → then extend the same Redis connection for `FEAT-IDP-BLACKLIST` (separate key namespace `guardian:revoke:jwt:<hash>`). Do not wire `TokenBlacklist` in-memory as a standalone step — it would create a false sense of security at scale.
+
+**Files:** `guardian/security/idp_revocation.py`, `guardian/brain/orchestrator.py`
+
+---
+
+### F23 — Honeypot/Deception Controls `in_progress`
+
+**Audit finding:** Whitepaper claimed "wastes attacker reconnaissance time" (needs `AdaptiveDelaySimulator`, dead) and "passive collection of TTPs" (needs `AttackerProfiler` + `HoneypotAnalytics`, dead). Core honeypot IS wired: `HoneypotManager.build_response()` called from interceptor. Template rotation, per-session throttling, and nonce generation are active.
+
+**Whitepaper corrected (August 2026):** Both false claims removed; active capabilities and unwired advanced classes accurately described.
+
+**Per-class decisions:**
+
+| Class | What it does | Quality | Wire or Defer | Reasoning |
+|-------|-------------|---------|---------------|-----------|
+| `AttackerProfiler` | Collects prompts (capped at 50), IPs (set), user-agents (set), interaction count per session | Production-ready: rolling prompt buffer, set dedup, TTL-free (needs pruning) | **✅ DONE — `FEAT-HONEY-PROFILE` (August 2026)** | Wired in `_build_honeypot_response()`: `record_interaction(session_id, prompt, client_ip, user_agent)` called on every honeypot engagement. Exposed via admin endpoint `GET /api/admin/honeypot/profiles`. |
+| `HoneypotAnalytics` | Aggregate `total`, `per_session`, `per_path` interaction counters | Production-ready: simple counters, `top_sessions()` / `top_paths()` for dashboarding | **✅ DONE — `FEAT-HONEY-PROFILE` (August 2026)** | Wired in `_build_honeypot_response()`: `analytics.record(session_id, path)` called on every honeypot engagement. Exposed via admin endpoint `GET /api/admin/honeypot/analytics`. |
+| `AdaptiveDelaySimulator` | Escalating delay per session: `base_ms × factor^count`, capped at `max_ms` | Production-ready: clean exponential, per-session counter | **Defer — `FEAT-HONEY-DELAY`** | `asyncio.sleep()` / `time.sleep()` in the synchronous Flask request path would block the WSGI thread. Needs either (a) async WSGI migration (major scope) or (b) the response to include a `Retry-After` header. Defer until async migration or header-based approach is scoped. |
+| `CanaryTokenManager` | Generates `GUAR-CANARY-<sha256[:16]>` tokens; `check_triggered(text)` scans for presence | Production-ready: deterministic generation, trigger tracking, count APIs | **Defer — `FEAT-HONEY-CANARY`** | Requires injecting canary tokens into honeypot response bodies AND checking model responses for token leakage in the output validator. Meaningful scope — the response template must be made token-aware. |
+| `DecoyCredentialRotator` | Rotating fake credentials with realistic prefixes (`sk-fake`, `AKIA-FAKE`, `ghp_fake`, `xoxb-fake`) + session-scoped suffix | Functional: deterministic, prefix rotation. Issue: uses `md5` for suffix generation (not security-critical here — these are fake credentials — but worth noting) | **Defer — `FEAT-HONEY-CANARY`** | Same scope as `CanaryTokenManager` — both require response-body injection. Group with canary item. **Replace `md5` with `sha256[:20]` when wiring** (`guardrails/honeypot.py` L202: `hashlib.md5(…)` → `hashlib.sha256(…)`). |
+
+**Implementation status:**
+
+1. **✅ `FEAT-HONEY-PROFILE` — DONE (August 2026):** `AttackerProfiler.record_interaction()` and `HoneypotAnalytics.record()` wired inside `_build_honeypot_response()` in `interceptor.py`. Admin endpoints `GET /api/admin/honeypot/profiles` and `GET /api/admin/honeypot/analytics` registered and protected by admin-token auth. Tests: `tests/unit/test_honeypot_profile.py`.
+2. **`FEAT-HONEY-DELAY` (P3):** Scope async WSGI migration or header-based delay signaling before wiring `AdaptiveDelaySimulator`.
+3. **`FEAT-HONEY-CANARY` (P3):** Wire `CanaryTokenManager` + `DecoyCredentialRotator` with token-aware response template injection and output-validator canary detection. **Must replace `md5` with `sha256[:20]` in `DecoyCredentialRotator.next_credential()` (`guardrails/honeypot.py` L202) when wiring.**
+
+**Files:** `guardian/guardrails/honeypot.py`, `guardian/runtime/interceptor.py`

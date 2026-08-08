@@ -7,6 +7,9 @@ from pathlib import Path
 import threading
 import time
 from typing import Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 from brain.blue_adapt import BlueAdaptAgent
 from brain.cyberops_intel import CyberOpsIntel
@@ -30,6 +33,12 @@ class CyberBrain:
         profile_ttl_seconds = int(brain_cfg.get("blue_profile_ttl_seconds", 3600))
         max_sessions = int(brain_cfg.get("blue_max_sessions", 5000))
         cleanup_interval_seconds = int(brain_cfg.get("blue_cleanup_interval_seconds", 60))
+        # FEAT-BLUE-ADVANCED: velocity + cooldown config
+        velocity_window_sec = float(brain_cfg.get("blue_velocity_window_sec", 10.0))
+        velocity_max_rps = float(brain_cfg.get("blue_velocity_max_rps", 5.0))
+        cooldown_base_seconds = float(brain_cfg.get("blue_cooldown_base_seconds", 5.0))
+        cooldown_max_seconds = float(brain_cfg.get("blue_cooldown_max_seconds", 300.0))
+        cooldown_multiplier = float(brain_cfg.get("blue_cooldown_multiplier", 2.0))
         self.external_revoke_enabled = bool((brain_cfg.get("external_jwt_revocation") or {}).get("enabled", False))
         revoke_cfg = brain_cfg.get("external_jwt_revocation") or {}
 
@@ -41,13 +50,23 @@ class CyberBrain:
         purple_approval_file = purple_gov_cfg.get("approval_file", "config/purple_patch_approval.yaml")
         purple_evidence_file = purple_gov_cfg.get("evidence_file", "artifacts/evidence/purple_patch_governance.jsonl")
         purple_staging_file = purple_gov_cfg.get("staging_file", "config/purple_patch_staging.yaml")
+        # FEAT-RED-LLM: separate red-team LLM target (never the production upstream)
+        red_probe_target_url = str(brain_cfg.get("red_probe_target_url", "") or "")
+        red_probe_upstream_key = str(brain_cfg.get("red_probe_upstream_key", "") or "")
+        red_probe_timeout = float(brain_cfg.get("red_probe_timeout", 15.0))
 
         self.input_filter = input_filter
         self.ai_firewall = ai_firewall
         self.threat_feed = threat_feed   # ThreatFeed instance for brain auto-patch
         self.jailbreak_vectors_file = self._resolve(base_dir, jailbreak_vectors_file)
         self.intel = CyberOpsIntel(self._resolve(base_dir, intel_file))
-        self.red = RedProbeAgent(self._resolve(base_dir, vectors_file), intel=self.intel)
+        self.red = RedProbeAgent(
+            self._resolve(base_dir, vectors_file),
+            intel=self.intel,
+            target_url=red_probe_target_url,
+            upstream_key=red_probe_upstream_key,
+            upstream_timeout=red_probe_timeout,
+        )
         self.blue = BlueAdaptAgent(
             escalation_threshold=escalation_threshold,
             strict_score_threshold=strict_score_threshold,
@@ -56,6 +75,12 @@ class CyberBrain:
             profile_ttl_seconds=profile_ttl_seconds,
             max_sessions=max_sessions,
             cleanup_interval_seconds=cleanup_interval_seconds,
+            # FEAT-BLUE-ADVANCED
+            velocity_window_sec=velocity_window_sec,
+            velocity_max_rps=velocity_max_rps,
+            cooldown_base_seconds=cooldown_base_seconds,
+            cooldown_max_seconds=cooldown_max_seconds,
+            cooldown_multiplier=cooldown_multiplier,
         )
         self.purple = PurpleHealAgent(self._resolve(base_dir, heal_store))
         self.idp_revocation = IdpRevocationClient(revoke_cfg)
@@ -101,11 +126,22 @@ class CyberBrain:
             self._stop.wait(self.interval)
 
     def run_once(self):
+        from brain.red_probe import OUTCOME_FULL_BYPASS
         findings = self.red.run_probe_cycle(self.input_filter)
-        self.last_probe_findings = [asdict(f) for f in findings]
-        if self.auto_heal and findings:
-            patterns = self.purple.build_hotfix_patterns(findings)
-            allowed, decision = self.purple_governance.evaluate(patterns, findings)
+        self.last_probe_findings = [{
+            "payload": f.payload,
+            "severity": f.severity,
+            "reason": f.reason,
+            "outcome": f.outcome,
+            "model_response": f.model_response[:200] if f.model_response else "",
+            "filter_allowed": f.filter_allowed,
+        } for f in findings]
+        # Only full_bypass findings indicate a real end-to-end gap worth auto-patching.
+        # filter_bypass_model_refused and filter_bypass_only are informational only.
+        heal_findings = [f for f in findings if f.outcome == OUTCOME_FULL_BYPASS]
+        if self.auto_heal and heal_findings:
+            patterns = self.purple.build_hotfix_patterns(heal_findings)
+            allowed, decision = self.purple_governance.evaluate(patterns, heal_findings)
             # Only apply patterns that passed the regression safety gate
             clean_patterns = self.purple_governance.get_clean_patterns(decision)
             applied_count = 0
@@ -116,7 +152,7 @@ class CyberBrain:
                 self.last_applied_patterns = clean_patterns if applied_count else []
                 if self.auto_patch_firewall:
                     firewall_patched_count = self.purple.patch_firewall_vectors(
-                        findings,
+                        heal_findings,
                         self.jailbreak_vectors_file,
                         self.ai_firewall,
                     )
@@ -143,6 +179,38 @@ class CyberBrain:
         else:
             self.last_applied_patterns = []
 
+        # ── Hardening cycle checks ────────────────────────────────────────────
+        # check_grounded_response and check_excessive_agency run on every probe
+        # cycle. They inspect the probe findings themselves (not live user traffic)
+        # as a canary: the probe response text and action strings are the closest
+        # approximation to "model output under adversarial conditions" we have in
+        # the brain loop.  scan_training_data_for_poisoning is offline-only (no
+        # live training-data path exists in the current runtime).
+        try:
+            from security.hardening_checks import (
+                check_excessive_agency,
+                check_grounded_response,
+            )
+
+            _hardening_findings = []
+            for _finding in self.last_probe_findings:
+                # Each probe finding has a "payload" field which we use as the vector
+                # and a "reason" field. We pass payload to the checks.
+                _payload = _finding.get("payload", "") or ""
+                if _payload:
+                    _hardening_findings.extend(
+                        check_grounded_response(_payload, [], min_support_ratio=0.2)
+                    )
+                    _hardening_findings.extend(
+                        check_excessive_agency(_payload, confirmed=False)
+                    )
+            for _hf in _hardening_findings:
+                logger.warning(
+                    f"[HardeningCycle] {_hf.category}/{_hf.location}: {_hf.detail}"
+                )
+        except Exception as _hc_err:
+            logger.debug(f"[HardeningCycle] Check skipped: {_hc_err}")
+
     def observe_prompt(self, session_id: str, prompt: str, blocked: bool):
         was_revoked = self.blue.is_revoked(session_id)
         score = self.intel.score_prompt(prompt)
@@ -167,6 +235,10 @@ class CyberBrain:
 
     def session_action(self, session_id: str) -> str:
         return self.blue.get_action(session_id)
+
+    def get_cooldown_seconds(self, session_id: str) -> int:
+        """Return Retry-After seconds for a session currently in cooldown."""
+        return self.blue.get_cooldown_seconds_remaining(session_id)
 
     def enforce_revocation(self, session_id: str, reason: str = "adaptive_security"):
         if not self.blue.is_revoked(session_id):

@@ -224,7 +224,7 @@ Flagged process names include: `nc`, `netcat`, `curl` (when spawned unexpectedly
 
 - **Why:** If an AI agent's tool-calling privileges are exploited to spawn a reverse shell, the process becomes visible before it can exfiltrate data. This provides host-level detection when the application layer is bypassed.
 - **What it is in code:** `monitor.py` — uses `psutil` for process enumeration. Lightweight (~5–10ms per check).
-- **Honest scope:** Detects malicious processes by name. Does not perform binary hash comparison against a threat database.
+- **Honest scope:** Detects malicious processes using name-based blocking, command-line regex matching (e.g., reverse shell patterns), and SHA-256 binary hash blocking. Performs active process termination (terminate() then kill()) when a threat is detected.
 
 ---
 
@@ -233,7 +233,7 @@ Flagged process names include: `nc`, `netcat`, `curl` (when spawned unexpectedly
 Enforces allow-listed paths for file system access by the guardian process.
 
 - **Why:** Principle of least privilege for the AI runtime environment. Limits blast radius if the agent is compromised.
-- **What it is in code:** `filesystem_sandbox.py`.
+- **What it is in code:** `filesystem_sandbox.py` — actively intercepts file-system-touching tool calls in `interceptor.py`, enforcing directory allowlists and blocking path traversal attempts (`../`) before file reads/writes can occur.
 
 ---
 
@@ -264,38 +264,52 @@ Token-protected ingest endpoints for the proxy and authenticated backend APIs. C
 
 ---
 
-**Feature 14 — Governance Gate (Enforce/Audit)**
+**Feature 14-A — Config-Change Governance Gate (Enforce/Audit)**
 
-Any configuration change that adjusts security policy must pass a governance approval workflow. Changes without proper approval tokens are rejected.
+Any configuration change that adjusts security policy must pass a governance approval workflow. Changes without a valid, cryptographically verified approval token are rejected before the proxy starts.
 
 - **Why:** Prevents rogue administrators or compromised credentials from silently disabling security controls.
-- **What it is in code:** `security/approval_guard.py`, `security/policy_governance.py`, `security/purple_governance.py`.
+- **What it is in code:** `security/policy_governance.py` — wired as a hard startup gate in `main.py`. If governance rejects the config, startup exits immediately (`sys.exit(1)`).
+- **Implementation depth:** Ed25519-signed approval tickets (approver + ticket ID + config SHA-256 hash); SQLite ticket registry with configurable TTL (default 90 days) and replay-attack prevention (same ticket cannot be reused for a different config hash); multi-approver quorum validation; change-window enforcement (no deploys outside approved UTC hours); config drift detection against a versioned baseline; policy file version pinning.
+
+---
+
+**Feature 14-B — ERC-20 Approval Scam Detection**
+
+Detects social engineering attacks that attempt to trick AI agents or users into authorizing unlimited ERC-20 token approvals to malicious drainer contracts — a leading cause of DeFi wallet theft.
+
+- **Why:** Approval phishing is the dominant method for draining crypto wallets. A prompt reading `approve(0xDrainer, type(uint256).max)` is textually innocuous but financially catastrophic if executed. GuardianAI intercepts these in real time.
+- **What it is in code:** `security/approval_guard.py` — wired directly into the live request path via `TrustExploitationGuard` in `interceptor.py`. Every inbound prompt is evaluated.
+- **Detects:** Unlimited approval patterns (`type(uint256).max`, `MAX_UINT256`); known drainer contract addresses (configurable list); `permit()` calls missing a deadline field; social engineering phrases ("approve contract to continue", "infinite approval", "revoke and re-approve").
 
 ---
 
 **Feature 15 — Hardening Validation Checks**
 
-Background continuous checks that detect: dataset poisoning attempts, tamper events, groundedness failures, and loss-of-agency indicators in AI outputs.
+Startup integrity validation and brain-cycle checks that detect: dataset poisoning attempts, model artifact tampering, groundedness failures, and loss-of-agency indicators in AI outputs.
 
-- **What it is in code:** `security/hardening_checks.py`.
+- **Why:** Model provenance and runtime behavioral integrity must be continuously verified — not just tested once at CI time.
+- **What it is in code:** `security/hardening_checks.py` — wired at two points: (1) model provenance verification runs at startup in `main.py`, immediately after the governance gate; (2) groundedness and excessive-agency checks run on each brain orchestrator cycle in `brain/orchestrator.py`.
+- **Checks:** `verify_model_provenance()` — SHA-256 hash verification of model artifact files against a manifest at startup; `check_grounded_response()` — context-term support ratio check ensuring AI outputs are grounded in provided context, run per brain cycle; `check_excessive_agency()` — blocks high-risk agentic actions (`rm -rf`, `DROP TABLE`, `shutdown`, encoded PowerShell) unless explicitly confirmed, run per brain cycle; `scan_training_data_for_poisoning()` — offline CLI tool scanning fine-tuning datasets for known jailbreak injection patterns (no live training-data path in the current runtime).
 
 ---
 
 **Feature 16 — Compliance Evidence Export**
 
-Produces machine-readable compliance bundles (JSON) documenting the security posture, test results, and governance audit trails.
+Produces machine-readable compliance bundles (JSON) documenting security posture, git commit, platform, config integrity hash, governance mode, and validation script results. Available on-demand via an admin-authenticated HTTP endpoint or via the standalone CLI tool.
 
-- **Why:** Automates the evidence collection burden for regulatory audits.
-- **What it is in code:** `security/evidence_export.py`.
+- **Why:** Automates the evidence collection burden for regulatory audits. The signed bundle provides a single, tamper-evident snapshot of system state at a point in time.
+- **What it is in code:** `security/evidence_export.py` — wired into the live proxy via `GET /api/compliance/evidence` (requires `Authorization: Bearer <admin_token>`). Also callable offline as `tools/export_compliance_evidence.py`.
+- **Note:** The runtime also maintains separate per-event audit logs (purple governance decisions in JSONL, trust exploitation review queue in JSONL). These per-event streams are distinct from the compliance bundle and are not consolidated into it in the current release.
 
 ---
 
 **Feature 17 — HMAC Tamper-Evident Evidence Signing**
 
-Cryptographically signs audit logs and evidence bundles using HMAC-SHA256.
+Cryptographically signs compliance evidence bundles using HMAC-SHA256 with a canonical JSON payload (sorted keys, no whitespace — ensuring byte-level determinism). Verification uses `hmac.compare_digest` to prevent timing-oracle attacks.
 
-- **Why:** Proves that audit logs were not modified after the fact — essential for legal defensibility and incident forensics.
-- **What it is in code:** `security/evidence_export.py` with HMAC signing; configurable for cloud KMS integration.
+- **Why:** Proves that compliance bundles were not modified after the fact — essential for legal defensibility and incident forensics.
+- **What it is in code:** `security/evidence_export.py` — `sign_evidence_payload()` / `verify_evidence_file()`. The signing key is resolved via production-grade precedence: (1) `GUARDIAN_EVIDENCE_SIGNING_KEY` env var; (2) cloud KMS — AWS Secrets Manager, Azure Key Vault, or GCP Secret Manager, selected via `GUARDIAN_EVIDENCE_KEY_PROVIDER`; (3) key file path (`GUARDIAN_EVIDENCE_SIGNING_KEY_FILE`); (4) latest `*.key` / `*.txt` in `GUARDIAN_EVIDENCE_SIGNING_KEY_DIR`. All cloud integrations are optional-import and fail safely if the SDK is not installed.
 
 ---
 
@@ -305,28 +319,43 @@ Cryptographically signs audit logs and evidence bundles using HMAC-SHA256.
 
 **Feature 18 — Red-Team Automated Probe Loop**
 
-Continuously generates and fires adversarial probe requests against the live AI using known jailbreak patterns from a curated attack corpus.
+Runs a background probe cycle at a configurable interval (default: 30 minutes). Each cycle generates up to 20 adversarial payloads from a curated static corpus plus CyberOps-intel-keyed dynamic probes (jailbreak templates, base64-obfuscated variants). Every payload goes through a **three-stage pipeline**:
 
-- **Why:** Proactively discovers model regressions or new alignment weaknesses before attackers do.
-- **What it is in code:** `brain/red_probe.py`.
+1. **Input filter fast-path (Stage 1):** `input_filter.check_prompt(payload)` — if the filter already blocks the payload, the probe is discarded at zero API cost. This is the expected result for known-bad patterns.
+2. **Real upstream LLM call (Stage 2):** If the filter passes the payload, it is forwarded via HTTP POST to the configured `red_probe_target_url` (a **separate, dedicated red-team endpoint** — never the production upstream, to avoid sharing rate limits, API cost, or context with real user traffic). If no target is configured, the probe records a `filter_bypass_only` partial finding and continues.
+3. **Response classification (Stage 3):** The LLM's actual response is inspected by a keyword-based refusal detector (16 compiled patterns covering all major refusal phrasings). This determines the **outcome**:
+   - `full_bypass` — filter allowed it AND the LLM complied with the malicious instruction. **Only these findings trigger the Purple auto-patch pipeline.**
+   - `filter_bypass_model_refused` — filter allowed it but the LLM refused. Filter gap confirmed; model safety held. Logged as severity=medium, informational only.
+   - `filter_bypass_only` — no LLM target configured; filter gap recorded without LLM evidence.
+
+All upstream errors (timeout, 5xx, connection refused, rate limit) are caught and logged; the probe loop never crashes the background brain thread on a failed call.
+
+- **Config keys** (`brain:` section): `red_probe_interval_seconds` (default: 1800), `red_probe_target_url` (required for LLM testing), `red_probe_upstream_key` (API key for the red-team target), `red_probe_timeout` (default: 15s), `probe_vectors_file`.
+- **What it is in code:** `brain/red_probe.py`, `brain/orchestrator.py`.
 
 ---
 
 **Feature 19 — Blue-Team Adaptive Session Hardening**
 
-Tracks session risk scores in real time. When a session's score exceeds a threshold, the Blue Team automatically tightens rate limits, reduces output permissions, or revokes the session entirely.
+Tracks session risk scores in real time. When a session's cumulative risk score exceeds a configurable threshold, the Blue Team recommends `strict` security mode for that session, routes it to the honeypot response pipeline, or revokes it entirely. Risk points are accumulated per blocked request and amplified by the CyberOps intelligence score of each prompt. Sessions that generate blocked requests too rapidly accumulate an adaptive cooldown that rate-limits them with HTTP 429 + `Retry-After`.
 
-- **Why:** Applies friction proportionally — minimal friction for safe users, maximum friction for suspicious ones.
-- **What it is in code:** `brain/blue_adapt.py`.
+- **What is wired and active:**
+  - Session risk accumulation (`observe_prompt`) and mode recommendation (`recommend_mode` → `strict` / `balanced`), honeypot routing, and session revocation — all wired in `brain/orchestrator.py` (`CyberBrain`) and the live request path (`interceptor.py`).
+  - `SessionVelocityTracker` — **wired (FEAT-BLUE-ADVANCED, August 2026).** Detects burst-rate anomalies within a configurable sliding window. Anomalous velocity adds +1 risk point per request in `observe_prompt()`.
+  - `AdaptiveCooldown` — **wired (FEAT-BLUE-ADVANCED, August 2026).** Records a violation on every blocked request. When the session is cooling down, `get_action()` returns `"cooldown"` and the interceptor responds HTTP 429 with a `Retry-After` header (exponential backoff: base × 2 ^ violations, capped at max). This implements the "automatically tightens rate limits" capability.
+- **What is NOT yet wired (advanced capabilities present in code, not integrated):** `GeoAnomalyDetector` (impossible-travel detection — deferred: no IP→geo resolver in the request path), `BehavioralFingerprint` (user-agent / timezone drift — deferred: requires header-extraction refactor). See backlog items `FEAT-BLUE-GEO` and `FEAT-BLUE-FINGER`.
+- **What it is in code:** `brain/blue_adapt.py`, `brain/orchestrator.py`, `runtime/interceptor.py`.
+
 
 ---
 
-**Feature 20 — Purple-Team Auto-Patch & Firewall Hot Reload**
+**Feature 20 — Purple-Team Auto-Patch, Governance Gate & Firewall Hot Reload**
 
-When the Red Team identifies a successful attack pattern not blocked by current rules, the Purple Team generates a new defensive signature and patches the firewall in memory — **without a restart**.
+When the Red Team identifies a successful attack pattern not blocked by current rules, the Purple Team generates a new defensive signature and patches the firewall in memory — **without a restart**. All auto-generated patches pass through a governance and regression-safety gate before being applied.
 
-- **Why:** Zero-downtime patching is essential for mission-critical deployments. The window between vulnerability discovery and mitigation is eliminated.
-- **What it is in code:** `brain/purple_heal.py` + hot-reload integration in the proxy.
+- **Why:** Zero-downtime patching is essential for mission-critical deployments. The window between vulnerability discovery and mitigation is eliminated. The governance gate prevents an adversary from weaponizing the auto-patch mechanism itself ("firewall poisoning" DoS).
+- **What it is in code:** `brain/purple_heal.py` + `security/purple_governance.py` + hot-reload integration in the proxy (`brain/orchestrator.py`).
+- **Governance and safety depth:** All auto-generated hotfix patterns pass through `PurplePatchGovernance` before being applied: (1) configurable enforce/audit mode — in enforce mode, patches require an approval YAML file (approver + ticket) before going live; (2) **regression false-positive gate** — every proposed pattern is tested against a bank of 30 known-benign prompts, and any pattern that would block a benign prompt is automatically quarantined rather than applied; (3) **staging quarantine** — rejected patterns are persisted to a staging YAML file with the specific safe prompts they would have incorrectly blocked, for admin review and sign-off; (4) evidence emission — each patch cycle writes a signed JSONL audit record (allow/block decision, pattern counts, applied counts).
 
 ---
 
@@ -340,19 +369,28 @@ Aggregates threat signals across all modules into a unified session and tenant i
 
 **Feature 22 — Session Revoke Enforcement & External IdP/JWT Integration**
 
-Instantly terminates high-risk or compromised sessions. Integrates with external Identity Providers (Okta, Auth0, Azure AD patterns) by parsing JWT claims (`sub`, `jti`) and checking against provider-specific revocation contract patterns.
+Instantly terminates high-risk or compromised sessions within the Guardian proxy. When the Blue Team crosses the revocation threshold, the session is added to an in-memory revoked-sessions set and all subsequent requests from that session are rejected with HTTP 403. If an external IdP is configured, Guardian simultaneously fires a provider-specific revocation webhook (Okta, Auth0, Azure AD, or generic) carrying the session ID, token hash (SHA-256 of the raw JWT), and parsed JWT claims (`sub`, `jti`).
 
-- **Why:** Ensures a compromised user is locked out system-wide, not just at the AI proxy level.
-- **What it is in code:** `security/idp_revocation.py` — provider-agnostic JWT revocation contract with hash-based tracking.
+- **Why:** A high-risk session should be terminated immediately. The IdP webhook extends that termination to the identity layer, preventing token reuse outside the Guardian proxy.
+- **Scope and limitations:** Proxy-side revocation is enforced immediately and is single-node (a revoked session on node A is not revoked on node B in a horizontally scaled deployment — same architectural constraint as F25). IdP-side revocation is only as effective as the IdP's ability to honor the webhook; Guardian cannot guarantee the IdP acts on the notification synchronously.
+- **What is NOT yet wired (advanced capabilities present in code, not integrated):** `TokenBlacklist` (bounded FIFO in-memory hash blacklist for revoked JWTs), `SessionBindingVerifier` (JTI-to-session binding verification to detect token replay), `MultiIdpFederation` (fan-out revocation to multiple registered IdPs). These three classes exist in `security/idp_revocation.py` and are not instantiated or called anywhere in the runtime. `TokenBlacklist` shares the same single-node architectural constraint as F25's in-memory state; its wiring is tracked as `FEAT-IDP-BLACKLIST` in the backlog.
+- **Correction — Phase 4 (August 2026):** A previous version of this description stated "hash-based tracking" (requires `TokenBlacklist`, not yet wired) and "system-wide" lockout (accurate only when the IdP honors the webhook; proxy-side is single-node only). These claims have been corrected above.
+- **What it is in code:** `security/idp_revocation.py`, `brain/orchestrator.py`.
 
 ---
 
 **Feature 23 — Honeypot/Deception Controls**
 
-Returns controlled, plausible-but-false responses to sessions exhibiting highly suspicious patterns.
+Returns controlled, plausible-but-false responses to sessions exhibiting highly suspicious patterns. The `HoneypotManager` rotates through configurable response templates, enforces per-session rate limits (max responses per window, minimum interval between responses), and embeds a per-response nonce for traceability. The Blue Team (`BlueAdaptAgent`) decides which sessions receive honeypot responses based on their threat score.
 
-- **Why:** Wastes attacker reconnaissance time and allows passive collection of their TTPs (Tactics, Techniques, and Procedures).
-- **What it is in code:** `guardrails/honeypot.py`.
+- **Why:** Occupies attacker attention with false data, buying time for detection and revocation without alerting the attacker that they have been identified. Passive collection of attacker TTPs (tactics, techniques, and procedures) aids forensic analysis.
+- **What is wired and active:**
+  - `HoneypotManager.build_response()` — called from `interceptor.py` (`_build_honeypot_response()`), triggered when `brain.session_action()` returns `"honeypot"`. Template rotation, per-session throttling, and nonce generation are active.
+  - `AttackerProfiler` — **wired (FEAT-HONEY-PROFILE, August 2026).** Records prompt, source IP, and user-agent for each honeypot engagement (prompt buffer capped at 50 per session). Exposed via admin endpoint `GET /api/admin/honeypot/profiles`.
+  - `HoneypotAnalytics` — **wired (FEAT-HONEY-PROFILE, August 2026).** Tracks aggregate interaction counts by session and path. Exposed via admin endpoint `GET /api/admin/honeypot/analytics`.
+- **What is NOT yet wired (advanced capabilities present in code, not integrated):** `AdaptiveDelaySimulator` (escalating response delays — deferred: requires async WSGI or header-based approach), `CanaryTokenManager` (unique canary tokens in honeypot responses — deferred: requires response-body injection and output-validator canary detection), `DecoyCredentialRotator` (rotating fake credentials — deferred: co-scoped with canary item). See backlog items `FEAT-HONEY-DELAY` and `FEAT-HONEY-CANARY`.
+- **What it is in code:** `guardrails/honeypot.py`, `brain/orchestrator.py`, `runtime/interceptor.py`.
+
 
 ---
 
@@ -367,9 +405,13 @@ Defines allow/deny/confirm rules for every external tool the AI agent can invoke
 
 **Feature 25 — Multi-Tenant Isolation**
 
-Hard isolation of data, session state, and rate limit buckets per tenant. Cost-abuse metering and quarantine controls per tenant.
+Logical, in-process isolation of session state, cost-abuse counters, and quarantine buckets per tenant. Tenant identities are resolved from a configurable request header (`X-Guardian-Tenant`) and applied as a key-namespace prefix (`tenant:<id>:<session_id>`) throughout the runtime. Per-tenant evidence directories are written to separate filesystem paths. Tenant-specific security modes (strict / balanced / lenient) and cost-abuse thresholds are independently configurable.
 
+- **Isolation model:** In-process key namespacing within shared Python in-memory dictionaries, protected by per-subsystem `threading.Lock()` instances. This is **logical isolation** within a single proxy process — not OS-level process separation or container-level hard isolation.
+- **Single-instance scope:** Session risk scores, cost-abuse event windows, and quarantine flags are stored in process memory. In a horizontally scaled multi-node deployment, these counters are **not shared across instances** — a session quarantined on node A is not quarantined on node B. Operators requiring cross-node consistency should front the proxy behind a shared state store (e.g., Redis).
 - **What it is in code:** `security/tenant_isolation.py`, `security/cost_abuse.py`, `security/tenant_sensitivity.py`.
+
+> **Audit correction — Phase 4 (August 2026):** This feature was previously described as "Hard isolation of data, session state, and rate limit buckets per tenant." A Phase 4 code audit found this wording to be inaccurate: the implementation uses shared in-memory dictionaries with key-prefix namespacing, which constitutes logical in-process isolation rather than hard isolation. The description above reflects the actual implementation. The "hard isolation" claim has been removed.
 
 ---
 

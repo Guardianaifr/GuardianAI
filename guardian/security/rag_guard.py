@@ -35,7 +35,9 @@ class RAGSecurityGuard:
             re.compile(str(p), re.IGNORECASE) for p in (cfg.get("untrusted_source_patterns", []) or [])
         ]
         self._inj_re = re.compile(
-            r"(?i)(ignore\s+all\s+previous\s+instructions|system\s+override|bypass\s+safety|reveal\s+secrets|drop\s+the\s+database)"
+            r"(?i)(?:\b(ignore|disregard|forget|bypass|reveal|drop)\s+(?:all\s+)?(?:previous\s+|prior\s+|above\s+|earlier\s+|the\s+|your\s+|everything\s+(?:above\s+)?)?(instructions|context|directives|rules|safety|secrets|database)\b|"
+            r"\b(ignore|disregard|forget)\s+(?:all\s+)?(?:previous|prior|everything\s+above)\b|"
+            r"\b(?:system\s+)?override(?:\s+(?:your\s+)?(?:instructions|context|directives|rules|safety))?\b)"
         )
         self._emb_re = re.compile(r"(?i)(embedding|vector)\s*[:=]\s*\[[^\]]{200,}\]")
 

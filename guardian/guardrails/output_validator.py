@@ -6,6 +6,7 @@ and redaction capabilities to prevent data leaks in AI agent responses. It uses 
 regex patterns and Microsoft Presidio (when available) for robust PII identification.
 """
 import re
+import unicodedata
 import os
 import yaml
 from utils.logger import setup_logger
@@ -29,6 +30,30 @@ except Exception as e:
     PRESIDIO_AVAILABLE = False
 
 class OutputValidator:
+    # Patterns checked in this order: more-specific patterns MUST precede
+    # greedier ones (e.g. ssn_pattern before phone_number) so the first
+    # match wins with the correct entity classification.
+    _SPECIFICITY_ORDER = [
+        "openai_api_key",
+        "aws_access_key",
+        "aws_secret_key",
+        "ssh_private_key",
+        "jwt_token",
+        "stripe_key",
+        "slack_webhook",
+        "generic_secret",
+        "ssn_pattern",      # XXX-XX-XXXX — must precede phone_number
+        "credit_card",      # 13-19 digit sequences — must precede phone_number
+        "ipv4_address",     # X.X.X.X — must precede phone_number
+        "email_address",
+        "phone_number",     # Greediest PII pattern — MUST come last
+    ]
+
+    @staticmethod
+    def _normalize_content(content: str) -> str:
+        """NFKC-normalize to defeat fullwidth / homoglyph Unicode evasion."""
+        return unicodedata.normalize('NFKC', content)
+
     def __init__(self):
         self.sensitive_patterns = {}
         self.custom_entities = []
@@ -85,11 +110,21 @@ class OutputValidator:
             except Exception as e:
                 logger.error(f"Failed to load pii_patterns.yaml: {e}")
 
+        # Reorder patterns by specificity so more-specific patterns fire first
+        ordered = {}
+        for key in self._SPECIFICITY_ORDER:
+            if key in self.sensitive_patterns:
+                ordered[key] = self.sensitive_patterns.pop(key)
+        ordered.update(self.sensitive_patterns)  # append any remaining
+        self.sensitive_patterns = ordered
+
     def validate_output(self, content: str) -> bool:
         """
         Scans output for sensitive data using Regex + Presidio NER.
         """
-        # 0. Normalization (Strip common obfuscation)
+        # 0a. NFKC Unicode normalization (defeats fullwidth / homoglyph evasion)
+        content = self._normalize_content(content)
+        # 0b. Separator stripping for API-key obfuscation detection
         normalized = content.replace(" ", "").replace("-", "").replace("_", "")
         
         # 1a. Security Exploit Check (XSS, SQLi, Shell, SSTI, SSRF)
@@ -165,6 +200,8 @@ class OutputValidator:
         Redacts sensitive data using Presidio + Regex fallbacks.
         Returns (sanitized_content, detected_entities).
         """
+        # NFKC Unicode normalization (defeats fullwidth / homoglyph evasion)
+        content = self._normalize_content(content)
         sanitized = content
         detected_entities = []
         
@@ -251,6 +288,7 @@ class OutputValidator:
         "generic_secret": "CRITICAL",
         "credit_card": "HIGH",
         "ssn_pattern": "HIGH",
+        "ipv4_address": "MEDIUM",
         "email_address": "MEDIUM",
         "phone_number": "MEDIUM",
         "medical_id": "HIGH",
@@ -277,6 +315,8 @@ class OutputValidator:
         }
         """
         findings = []
+        # NFKC Unicode normalization (defeats fullwidth / homoglyph evasion)
+        content = self._normalize_content(content)
         normalized = content.replace(" ", "").replace("-", "").replace("_", "")
 
         # 1. Exploit patterns

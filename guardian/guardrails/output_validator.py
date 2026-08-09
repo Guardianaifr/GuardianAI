@@ -130,7 +130,7 @@ class OutputValidator:
         # 1a. Security Exploit Check (XSS, SQLi, Shell, SSTI, SSRF)
         exploit_patterns = [
             # ── XSS ────────────────────────────────────────────────────────
-            r"<script[^>]*>.*?</script>",          # classic script tag
+            r"<\s*s\s*c\s*r\s*i\s*p\s*t[^>]*>.*?</\s*s\s*c\s*r\s*i\s*p\s*t\s*>",  # classic script tag (whitespace tolerant)
             r"javascript:[a-zA-Z]",                # javascript: URI
             r"<[a-zA-Z]+[^>]+on\w+\s*=\s*['\"]?",  # event handlers (onerror, onload, onclick, etc.)
             r"<(img|svg|iframe|embed|object|video|audio|source|body|input|details|marquee|isindex)[^>]+(?:src|href|action|data|background)\s*=\s*['\"]?(?:javascript|data:|vbscript)",  # tag-based XSS
@@ -151,12 +151,18 @@ class OutputValidator:
             r"powershell\s+-(enc|exec|command|ep)\b", # PowerShell encoded/exec
             r"python\s+-c\s+['\"]import\s+(?:os|subprocess|socket)", # Python exec
             r"\b(?:chmod|chown)\s+[0-7]{3,4}\s+",  # chmod file
+            r"\$\([^)]+\)",                        # command substitution $()
+            r"`\s*(?:rm|nc|curl|wget|bash|sh|zsh|python|perl|ruby|whoami|id)\b[^`]*`", # backtick execution
+            r"\|\s*(?:nc|curl|wget|bash|sh|zsh|python|perl|ruby)\b", # Pipe chained commands
             # ── SSTI / Template Injection ──────────────────────────────
             r"\{\{.*?(?:__class__|__mro__|__subclasses__|config|lipsum).*?\}\}",  # Jinja2 SSTI
             # ── Path Traversal ─────────────────────────────────────────
             r"(?:\.\.[\\/]){2,}",                  # ../../ traversal
             # ── LDAP Injection ─────────────────────────────────────────
             r"[()&|!]\s*\(\s*[a-zA-Z]+=\*\)",     # LDAP wildcard
+            # ── Exfiltration ─────────────────────────────────────────
+            r"https?://[^>\"\s]+\?(?:d|data|secret|token|key|cookie|session)=[^>\"\s]+", # URL exfil
+            r"!\[[^\]]*\]\(\s*https?://[^)]+\?(?:d|data|secret|token|key|cookie|session)=[^)]+\)", # Markdown image exfil
         ]
         for exp in exploit_patterns:
             if re.search(exp, content, re.IGNORECASE | re.DOTALL):
@@ -321,7 +327,7 @@ class OutputValidator:
 
         # 1. Exploit patterns
         exploit_labels = [
-            ("xss", r"<script[^>]*>.*?</script>"),
+            ("xss", r"<\s*s\s*c\s*r\s*i\s*p\s*t[^>]*>.*?</\s*s\s*c\s*r\s*i\s*p\s*t\s*>"),
             ("xss", r"javascript:[a-zA-Z]"),
             ("xss", r"<[a-zA-Z]+[^>]+on\w+\s*=\s*['\"]?"),
             ("xss", r"<(img|svg|iframe|embed|object|video|audio|source|body|input|details|marquee|isindex)[^>]+(?:src|href|action|data|background)\s*=\s*['\"]?(?:javascript|data:|vbscript)"),
@@ -337,9 +343,14 @@ class OutputValidator:
             ("shell", r"\bcurl\s+.{0,80}https?://"),
             ("shell", r"powershell\s+-(enc|exec|command|ep)\b"),
             ("shell", r"python\s+-c\s+['\"]import\s+(?:os|subprocess|socket)"),
+            ("shell", r"\$\([^)]+\)"),
+            ("shell", r"`\s*(?:rm|nc|curl|wget|bash|sh|zsh|python|perl|ruby|whoami|id)\b[^`]*`"),
+            ("shell", r"\|\s*(?:nc|curl|wget|bash|sh|zsh|python|perl|ruby)\b"),
             ("ssti", r"\{\{.*?(?:__class__|__mro__|__subclasses__|config|lipsum).*?\}\}"),
             ("path_traversal", r"(?:\.\.[\\/]){2,}"),
             ("ldap_injection", r"[()&|!]\s*\(\s*[a-zA-Z]+=\*\)"),
+            ("exfiltration", r"https?://[^>\"\s]+\?(?:d|data|secret|token|key|cookie|session)=[^>\"\s]+"),
+            ("exfiltration", r"!\[[^\]]*\]\(\s*https?://[^)]+\?(?:d|data|secret|token|key|cookie|session)=[^)]+\)"),
         ]
         for label, pattern in exploit_labels:
             m = re.search(pattern, content, re.IGNORECASE | re.DOTALL)

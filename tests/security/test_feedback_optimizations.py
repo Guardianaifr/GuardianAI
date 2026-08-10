@@ -26,6 +26,8 @@ def test_upstream_health_caching():
         "proxy": {"listen_port": 8081, "target_url": "http://localhost:18789"},
         "trust_exploitation": {"enabled": False},
         "rate_limiting": {"requests_per_minute": 60},
+        # Required by Finding #7 fail-closed guard (eb180c04)
+        "security_policies": {"admin_token": "test-admin-token-a1b2c3d4e5f6"},
     }
     import importlib
     import guardian.runtime.interceptor as interceptor
@@ -239,6 +241,8 @@ def test_siem_telemetry_routing():
         "guardian_id": "guard-123",
         "proxy": {"listen_port": 8081, "target_url": "http://localhost:18789"},
         "trust_exploitation": {"enabled": False},
+        # Required by Finding #7 fail-closed guard (eb180c04)
+        "security_policies": {"admin_token": "test-admin-token-a1b2c3d4e5f6"},
         "siem": {
             "enabled": True,
             "transport": "file",

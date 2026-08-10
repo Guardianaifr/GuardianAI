@@ -143,6 +143,7 @@ def test_advanced_guardrail_e2e_stack(tmp_path: Path):
             "default_tenant_id": "default",
             "enforce_tenant_scope_on_session": True,
         },
+        "hardening": {"bypass_provenance_in_dev": True},
     }
     config_path = tmp_path / "e2e_advanced_config.yaml"
     config_path.write_text(yaml.safe_dump(config), encoding="utf-8")

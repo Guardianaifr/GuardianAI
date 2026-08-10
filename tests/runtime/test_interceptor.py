@@ -61,7 +61,12 @@ def mock_config():
             "enforce_auth": False,
         },
         "rate_limiting": {"enabled": True, "requests_per_minute": 60},
-        "security_policies": {"security_mode": "balanced", "show_block_reason": True},
+        "security_policies": {
+            "security_mode": "balanced",
+            "show_block_reason": True,
+            # Satisfies Finding #7 fail-closed guard — must be non-empty and not a known-weak value.
+            "admin_token": "test-admin-token-a1b2c3d4e5f6",
+        },
         "threat_feed": {"enabled": False},
         "cost_abuse": {"enabled": False},
         "backend": {"enabled": False}
@@ -74,12 +79,18 @@ def proxy(mock_config, mocked_dependencies):
     mock_input_filter = mocked_dependencies["input_filter"]
     mock_output_validator = mocked_dependencies["output_validator"]
     mock_ai_firewall = mocked_dependencies["ai_firewall"]
+    mock_fast_path = mocked_dependencies["fast_path"]
     mock_rate_limiter = mocked_dependencies["rate_limiter"]
     mock_brain = mocked_dependencies["brain"]
 
     mock_input_filter.InputFilter.return_value = MagicMock()
     mock_output_validator.OutputValidator.return_value = MagicMock()
     mock_ai_firewall.AIPromptFirewall.return_value = MagicMock()
+    
+    expected_fast_path = MagicMock()
+    expected_fast_path.is_known_safe.return_value = False
+    expected_fast_path.is_known_malicious.return_value = False
+    mock_fast_path.FastPath.return_value = expected_fast_path
 
     expected_rl_instance = MagicMock()
     expected_rl_instance.is_allowed.return_value = True
@@ -137,11 +148,85 @@ def test_check_rate_limit_allowed(proxy):
         assert proxy._check_rate_limit() is None
 
 
-def test_check_rate_limit_uses_x_forwarded_for(proxy):
-    with proxy.app.test_request_context('/', headers={'X-Forwarded-For': '203.0.113.10, 10.0.0.2'}):
+def test_check_rate_limit_uses_client_ip_via_remote_addr(proxy):
+    # ProxyFix (applied in GuardianProxy.__init__) resolves X-Forwarded-For
+    # into REMOTE_ADDR before the request reaches Flask. _get_client_ip() reads
+    # request.remote_addr, not the raw header. Simulate ProxyFix resolution by
+    # setting REMOTE_ADDR directly in the test context environ.
+    # (audit finding #4, eb180c04 — manual X-Forwarded-For parsing removed)
+    with proxy.app.test_request_context('/', environ_base={'REMOTE_ADDR': '203.0.113.10'}):
         proxy._check_rate_limit()
     proxy.rate_limiter.is_allowed.assert_called_with('203.0.113.10')
 
+
+# ---------------------------------------------------------------------------
+# _normalize_ip — unit tests (eb180c04 finding #4 LoopbackNormalizer gap)
+# ---------------------------------------------------------------------------
+
+def test_normalize_ip_ipv6_loopback_short_form(proxy):
+    """::1 must map to 127.0.0.1 (closing the dual-stack rate-limit bypass gap)."""
+    assert proxy._normalize_ip("::1") == "127.0.0.1"
+
+
+def test_normalize_ip_ipv6_loopback_full_form(proxy):
+    """Long-form 0:0:0:0:0:0:0:1 must also map to 127.0.0.1."""
+    assert proxy._normalize_ip("0:0:0:0:0:0:0:1") == "127.0.0.1"
+
+
+def test_normalize_ip_ipv4_mapped_ipv6_external(proxy):
+    """::ffff:a.b.c.d must be unwrapped to a.b.c.d."""
+    assert proxy._normalize_ip("::ffff:203.0.113.10") == "203.0.113.10"
+
+
+def test_normalize_ip_ipv4_mapped_ipv6_loopback(proxy):
+    """::ffff:127.0.0.1 must collapse to 127.0.0.1."""
+    assert proxy._normalize_ip("::ffff:127.0.0.1") == "127.0.0.1"
+
+
+def test_normalize_ip_plain_ipv4_unchanged(proxy):
+    """Plain IPv4 addresses must pass through unchanged."""
+    assert proxy._normalize_ip("203.0.113.10") == "203.0.113.10"
+    assert proxy._normalize_ip("10.0.0.1") == "10.0.0.1"
+
+
+def test_normalize_ip_unknown_passthrough(proxy):
+    """'unknown' and empty string must be returned as-is."""
+    assert proxy._normalize_ip("unknown") == "unknown"
+    assert proxy._normalize_ip("") == ""
+
+
+def test_get_client_ip_normalizes_ipv6_loopback(proxy):
+    """_get_client_ip must return 127.0.0.1 when REMOTE_ADDR is ::1.
+
+    Regression test for eb180c04 finding #4 LoopbackNormalizer gap: without
+    this normalisation a dual-stack client could consume two separate rate-limit
+    buckets (one for 127.0.0.1 via IPv4, one for ::1 via IPv6).
+    """
+    with proxy.app.test_request_context('/', environ_base={'REMOTE_ADDR': '::1'}):
+        result = proxy._get_client_ip()
+    assert result == "127.0.0.1", (
+        f"Expected '127.0.0.1' for ::1 (IPv6 loopback) but got {result!r}. "
+        "This breaks rate-limit key consistency across dual-stack connections."
+    )
+
+
+def test_get_client_ip_normalizes_ipv4_mapped_ipv6(proxy):
+    """_get_client_ip must unwrap ::ffff:a.b.c.d to a.b.c.d."""
+    with proxy.app.test_request_context('/', environ_base={'REMOTE_ADDR': '::ffff:203.0.113.10'}):
+        result = proxy._get_client_ip()
+    assert result == "203.0.113.10"
+
+
+def test_check_rate_limit_uses_normalized_ip_for_ipv6_loopback(proxy):
+    """Rate-limit key for ::1 must be 127.0.0.1, not ::1.
+
+    Regression guard: the rate_limiter.is_allowed call must receive the
+    normalised IPv4 form so that IPv4 and IPv6 loopback connections share
+    one bucket, preventing the 2x-budget bypass.
+    """
+    with proxy.app.test_request_context('/', environ_base={'REMOTE_ADDR': '::1'}):
+        proxy._check_rate_limit()
+    proxy.rate_limiter.is_allowed.assert_called_with('127.0.0.1')
 
 def test_get_session_id_prefers_bearer_token_fingerprint(proxy):
     with proxy.app.test_request_context('/', headers={'Authorization': 'Bearer secret-token-abc'}):
@@ -149,8 +234,12 @@ def test_get_session_id_prefers_bearer_token_fingerprint(proxy):
     assert session_id.startswith('jwt:')
 
 
-def test_get_session_id_uses_x_forwarded_for_when_conversation_id_missing(proxy):
-    with proxy.app.test_request_context('/', headers={'X-Forwarded-For': '203.0.113.10, 10.0.0.2'}):
+def test_get_session_id_uses_remote_addr_when_conversation_id_missing(proxy):
+    # ProxyFix resolves X-Forwarded-For into REMOTE_ADDR. _get_session_id()
+    # falls back to _get_client_ip() → request.remote_addr when neither a
+    # Bearer token nor an X-Conversation-ID header is present.
+    # (audit finding #4, eb180c04 — manual X-Forwarded-For parsing removed)
+    with proxy.app.test_request_context('/', environ_base={'REMOTE_ADDR': '203.0.113.10'}):
         session_id = proxy._get_session_id()
     assert session_id == '203.0.113.10'
 

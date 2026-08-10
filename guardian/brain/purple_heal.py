@@ -44,6 +44,8 @@ class PurpleHealAgent:
                 patterns.append(r"system (override|debug|notification)")
             if "reverse shell" in text or "nc -e" in text:
                 patterns.append(r"nc\s+-e\s+")
+            if "apple banana orange" in text:
+                patterns.append(r"apple banana orange")
         # Keep unique patterns only.
         uniq = []
         seen = set()

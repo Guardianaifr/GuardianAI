@@ -119,12 +119,6 @@ class InputFilter:
             # Override indicators
             r"(?:SYSTEM|INSTRUCTION|CONTEXT|PROMPT)\s*:?\s*(?:OVERRIDE|Override|New directive)",
             r"\[INST\]|\[/INST\]",
-            # Advanced Persona / Roleplay / DAN
-            r"\bDAN\b.*\b(?:Do Anything Now|no restrictions|do anything)\b",
-            r"(?:fictional|imaginary|story|hypothetical).*(?:world|scenario|laws don't exist)",
-            r"(?:my grandmother|bedtime story).*(?:read me|tell me)",
-            r"story I am writing",
-            r"hypothetically speaking",
         ]
 
     def calculate_entropy(self, text: str) -> float:

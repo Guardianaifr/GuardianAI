@@ -48,6 +48,7 @@ import signal
 import time
 import io
 import os
+from pathlib import Path
 
 # Force UTF-8 for Windows console to support emojis
 if sys.platform.startswith('win') and 'pytest' not in sys.modules:
@@ -144,7 +145,48 @@ def main():
     except Exception as e:
         logger.error(f"Governance evaluation failed: {e}")
         sys.exit(1)
-        
+
+    # ── Hardening Gate: model provenance (startup) ────────────────────────────
+    # Verifies SHA-256 hashes of model artifacts against a manifest file.
+    # Config key: hardening.model_manifest_path
+    # Fail-closed: If a manifest path is configured, it must exist and hashes must match.
+    try:
+        from security.hardening_checks import load_model_manifest, verify_model_provenance
+        _hardening_cfg = config.get("hardening") or {}
+        _manifest_rel = _hardening_cfg.get("model_manifest_path", "")
+
+        if not _manifest_rel:
+            logger.info("[HardeningProvenance] No model_manifest_path configured. Skipping provenance check (Standard Mode).")
+        else:
+            _manifest_path = Path(config_base_dir) / _manifest_rel if not Path(_manifest_rel).is_absolute() else Path(_manifest_rel)
+            if not _manifest_path.exists():
+                logger.error(f"[HardeningProvenance] FATAL: Manifest configured but not found at {_manifest_path}. Startup aborted.")
+                sys.exit(1)
+            else:
+                _manifest = load_model_manifest(_manifest_path)
+                _provenance_findings: list = []
+                for _rel, _expected_hash in _manifest.items():
+                    _artifact = Path(config_base_dir) / _rel if not Path(_rel).is_absolute() else Path(_rel)
+                    _provenance_findings.extend(verify_model_provenance(_artifact, _expected_hash))
+                
+                _critical_findings = [f for f in _provenance_findings if f.severity in {"critical", "high"}]
+                for _pf in _provenance_findings:
+                    if _pf.severity in {"critical", "high"}:
+                        logger.error(f"[HardeningProvenance] {_pf.category}/{_pf.location}: {_pf.detail}")
+                    else:
+                        logger.warning(f"[HardeningProvenance] {_pf.category}/{_pf.location}: {_pf.detail}")
+                
+                if _critical_findings:
+                    logger.error(f"[HardeningProvenance] FATAL: {len(_critical_findings)} critical finding(s) detected. Startup aborted.")
+                    sys.exit(1)
+                else:
+                    logger.info("[HardeningProvenance] All model artifacts verified OK.")
+    except SystemExit:
+        raise
+    except Exception as e:
+        logger.error(f"[HardeningProvenance] FATAL: Provenance check encountered an error: {e}")
+        sys.exit(1)
+
     logger.info(f"Loaded configuration for {config.get('app_name')} v{config.get('version')} (ID: {config.get('guardian_id')})")
     
     # Initialize Skill Scanner
@@ -187,12 +229,24 @@ def main():
         except Exception as e:
             logger.error(f"Failed to start NetworkMonitor: {e}")
 
+    # Initialize Filesystem Sandbox
+    fs_sandbox = None
+    if config.get('filesystem_sandbox'):
+        try:
+            from runtime.filesystem_sandbox import FilesystemSandbox
+            fs_sandbox = FilesystemSandbox(config)
+            logger.info("Filesystem Sandbox initialized.")
+        except Exception as e:
+            logger.error(f"Failed to initialize FilesystemSandbox: {e}")
+
     # Initialize and run Interceptor Proxy
     proxy = None
     if config.get('proxy', {}).get('enabled'):
         try:
             from runtime.interceptor import GuardianProxy
             proxy = GuardianProxy(config)
+            if fs_sandbox:
+                proxy.filesystem_sandbox = fs_sandbox
             proxy.start()
         except Exception as e:
             logger.error(f"Failed to start GuardianProxy: {e}")
@@ -207,6 +261,8 @@ def main():
     print(f"  ✓ Guardian ID:   {config.get('guardian_id')}")
     print("  ✓ Skill Scanner: Active")
     print("  ✓ Runtime Force: Active")
+    if config.get('filesystem_sandbox'):
+        print("  ✓ FS Sandboxing: Active")
     print(f"  ✓ Proxy Shield:  Active (Port {config.get('proxy', {}).get('listen_port')})")
     if config.get('backend', {}).get('enabled'):
         print(f"  ✓ SaaS Backend:  Connected ({config.get('backend', {}).get('url')[:30]}...)")

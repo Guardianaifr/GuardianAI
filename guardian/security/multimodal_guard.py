@@ -14,6 +14,11 @@ class MultimodalDecision:
 
 
 class MultimodalSecurityGuard:
+    """
+    Validates image and audio inputs for hidden steganography or malicious content.
+    NOTE: This component requires pre-extracted text from an upstream adapter (e.g. OCR or Whisper) 
+    to evaluate the content. It does not natively parse binary audio or image files on its own.
+    """
     def __init__(self, config: Dict[str, Any] | None):
         cfg = config or {}
         self.enabled = bool(cfg.get("enabled", False))

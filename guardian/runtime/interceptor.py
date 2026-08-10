@@ -19,7 +19,7 @@ from guardrails.rate_limiter import RateLimiter
 from guardrails.threat_feed import ThreatFeed
 from guardrails.base64_detector import Base64Detector
 from guardrails.tool_policy import ToolPolicyEngine
-from guardrails.honeypot import HoneypotManager
+from guardrails.honeypot import HoneypotManager, AttackerProfiler, HoneypotAnalytics
 from brain.orchestrator import CyberBrain
 from security.cost_abuse import CostAbuseDetector
 from security.tenant_isolation import TenantIsolationManager
@@ -75,6 +75,12 @@ class GuardianProxy:
         self.target_url = proxy_config.get('target_url', "http://localhost:18789")
         
         self.app = Flask(__name__)
+        # ProxyFix: trust exactly `trusted_proxy_hops` upstream proxy hops.
+        # Prevents X-Forwarded-For spoofing for rate-limit bypass / audit falsification.
+        # (audit finding #4, eb180c04)
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        _hops = int(config.get("proxy", {}).get("trusted_proxy_hops", 1))
+        self.app.wsgi_app = ProxyFix(self.app.wsgi_app, x_for=_hops, x_proto=_hops, x_host=_hops)
         self.input_filter = InputFilter()
         self.output_validator = OutputValidator()
         self.ai_firewall = AIPromptFirewall()
@@ -82,6 +88,11 @@ class GuardianProxy:
         self.base64_detector = Base64Detector()
         self.tool_policy = ToolPolicyEngine(config.get("tool_policy", {}))
         self.honeypot = HoneypotManager(config.get("honeypot", {}))
+        # FEAT-HONEY-PROFILE: TTP profiling and analytics for honeypot sessions
+        self.attacker_profiler = AttackerProfiler()
+        self.honeypot_analytics = HoneypotAnalytics()
+        self.filesystem_sandbox = None
+
         
         # Rate Limiting
         rl_config = config.get('rate_limiting', {})
@@ -141,8 +152,16 @@ class GuardianProxy:
         self._last_health_check_time = 0.0
         self._last_health_check_status = 200
 
-        # Admin token for authenticated endpoints
-        self.admin_token = config.get("security_policies", {}).get("admin_token", "***REDACTED***")
+        # Admin token for authenticated endpoints — fail-closed: refuse to start if absent or weak.
+        # (audit finding #7, eb180c04)
+        _admin_token = config.get("security_policies", {}).get("admin_token", "")
+        _KNOWN_WEAK = {"***REDACTED***", "admin", "secret", "password", ""}
+        if not _admin_token or _admin_token in _KNOWN_WEAK:
+            raise ValueError(
+                "SECURITY: security_policies.admin_token is absent or set to a known-weak value. "
+                "Set a strong random token (e.g. secrets.token_hex(32)) before starting GuardianProxy."
+            )
+        self.admin_token = _admin_token
 
         # SIEM Integration
         siem_cfg = config.get("siem", {})
@@ -173,6 +192,11 @@ class GuardianProxy:
         self.app.add_url_rule('/api/threat-feed/test', view_func=self.threat_feed_test, methods=['POST'])
         self.app.add_url_rule('/api/threat-feed/export', view_func=self.threat_feed_export, methods=['GET'])
         self.app.add_url_rule('/api/threat-feed/metrics', view_func=self.threat_feed_metrics, methods=['GET'])
+        # Compliance evidence export (admin-only)
+        self.app.add_url_rule('/api/compliance/evidence', view_func=self.compliance_evidence, methods=['GET'])
+        # Honeypot TTP profile admin endpoints (admin-only)
+        self.app.add_url_rule('/api/admin/honeypot/profiles', view_func=self.honeypot_profiles, methods=['GET'])
+        self.app.add_url_rule('/api/admin/honeypot/analytics', view_func=self.honeypot_analytics_view, methods=['GET'])
         
 
         self.app.add_url_rule('/', defaults={'path': ''}, view_func=self.proxy, methods=['GET', 'POST', 'PUT', 'DELETE'])
@@ -238,6 +262,104 @@ class GuardianProxy:
                 mimetype="application/json",
             )
         return None
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Compliance Evidence Admin Endpoint
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def compliance_evidence(self):
+        """GET /api/compliance/evidence — Build and return a signed compliance bundle.
+
+        Admin-only (requires Authorization: Bearer <admin_token>).  Calls
+        build_evidence_bundle() from security/evidence_export.py and returns
+        the HMAC-signed JSON payload.
+
+        Note: This endpoint produces an on-demand snapshot of system state.
+        The separate per-event JSONL audit logs (purple governance decisions,
+        trust exploitation review queue) are distinct streams and are NOT
+        consolidated into this bundle.
+        """
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        try:
+            from security.evidence_export import build_evidence_bundle, sign_evidence_payload, resolve_signing_key_material
+            import sys
+            import dataclasses
+            from pathlib import Path
+            bundle = build_evidence_bundle(root=Path(self.config.get("base_dir", ".")), python_exe=sys.executable)
+            bundle_dict = dataclasses.asdict(bundle)
+            
+            key, key_id = resolve_signing_key_material()
+            if not key:
+                logger.error("[ComplianceEvidence] No signing key available for evidence export.")
+                return Response(json.dumps({"error": "No signing key configured"}), status=500, mimetype="application/json")
+                
+            sig = sign_evidence_payload(bundle_dict, key)
+            payload = {
+                "payload": bundle_dict,
+                "signature": sig,
+                "key_id": key_id
+            }
+            
+            return Response(
+                json.dumps(payload, default=str),
+                status=200,
+                mimetype="application/json",
+            )
+        except Exception as e:
+            logger.error(f"[ComplianceEvidence] Failed to build evidence bundle: {e}")
+            return Response(
+                json.dumps({"error": "Failed to generate evidence bundle", "detail": str(e)}),
+                status=500,
+                mimetype="application/json",
+            )
+
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Honeypot TTP Admin Endpoints (FEAT-HONEY-PROFILE)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def honeypot_profiles(self):
+        """GET /api/admin/honeypot/profiles — Return collected attacker TTP profiles.
+
+        Admin-only (requires Authorization: Bearer <admin_token>). Returns all
+        honeypot-session profiles harvested by AttackerProfiler, including prompts
+        (capped at 50 per session), IPs, user-agents, and interaction counts.
+        """
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        sessions = self.attacker_profiler.get_all_sessions()
+        profiles = {sid: self.attacker_profiler.get_profile(sid) for sid in sessions}
+        return Response(
+            json.dumps({
+                "total_sessions": self.attacker_profiler.count(),
+                "profiles": profiles,
+            }, default=str),
+            status=200,
+            mimetype="application/json",
+        )
+
+    def honeypot_analytics_view(self):
+        """GET /api/admin/honeypot/analytics — Return aggregate honeypot interaction metrics.
+
+        Admin-only (requires Authorization: Bearer <admin_token>). Returns total
+        interaction count, top attacking sessions, and top targeted paths.
+        """
+        auth_err = self._check_admin_auth()
+        if auth_err:
+            return auth_err
+        return Response(
+            json.dumps({
+                "total_interactions": self.honeypot_analytics.total,
+                "top_sessions": self.honeypot_analytics.top_sessions(n=20),
+                "top_paths": self.honeypot_analytics.top_paths(n=20),
+            }),
+            status=200,
+            mimetype="application/json",
+        )
+
 
     def threat_feed_status(self):
         """GET /api/threat-feed/status — Returns full feed status and metrics."""
@@ -386,8 +508,13 @@ class GuardianProxy:
 
     def threat_feed_metrics(self):
         """GET /api/threat-feed/metrics — Prometheus text exposition format."""
-        # Metrics endpoint is read-only and safe — no admin auth required
-        # (Prometheus scraper typically doesn't send Bearer tokens)
+        # Auth required by default (audit finding #6, eb180c04).
+        # Set proxy.metrics_public: true to allow unauthenticated Prometheus scraping
+        # ONLY if this endpoint is not reachable externally (e.g. behind a scrape-network firewall).
+        if not self.config.get("proxy", {}).get("metrics_public", False):
+            auth_err = self._check_admin_auth()
+            if auth_err:
+                return auth_err
         metrics = self.threat_feed.prometheus_metrics()
         return Response(metrics, status=200, mimetype="text/plain; version=0.0.4; charset=utf-8")
 
@@ -434,7 +561,9 @@ class GuardianProxy:
         Internal method to run the Flask development server.
         """
         try:
-            host = os.environ.get("GUARDIAN_PROXY_HOST", "0.0.0.0").strip() or "0.0.0.0"
+            # Default to loopback — operators must explicitly set GUARDIAN_PROXY_HOST=0.0.0.0
+            # to bind on all interfaces. (audit finding #3, eb180c04)
+            host = os.environ.get("GUARDIAN_PROXY_HOST", "127.0.0.1").strip() or "127.0.0.1"
             logger.info(f"Proxy application starting on {host}:{self.port}...")
             # DEBUG ROUTE — admin-only (requires Authorization: Bearer <admin_token>).
             # See debug_info() docstring for why this must be gated.
@@ -497,14 +626,48 @@ class GuardianProxy:
         
         return None
 
+    @staticmethod
+    def _normalize_ip(addr: str) -> str:
+        """Normalize IPv6 loopback and IPv4-mapped IPv6 addresses to IPv4.
+
+        Handles the two cases identified in audit finding #4 (eb180c04):
+          * ::1 / 0:0:0:0:0:0:0:1  (IPv6 loopback)  -> 127.0.0.1
+          * ::ffff:a.b.c.d          (RFC 4291 mapped)  -> a.b.c.d
+
+        All other addresses are returned unchanged.  No external library is
+        required; re is already imported at module level.
+        """
+        if not addr or addr in ("unknown", ""):
+            return addr
+        # IPv6 loopback — short and full forms
+        if addr in ("::1", "0:0:0:0:0:0:0:1"):
+            return "127.0.0.1"
+        # IPv4-mapped IPv6: ::ffff:a.b.c.d
+        m = re.match(
+            r"^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$",
+            addr,
+            re.IGNORECASE,
+        )
+        if m:
+            return m.group(1)
+        return addr
+
     def _get_client_ip(self) -> str:
-        """Resolve client IP with proxy-aware fallback to REMOTE_ADDR."""
-        forwarded = request.headers.get("X-Forwarded-For", "")
-        if forwarded:
-            first_hop = forwarded.split(",")[0].strip()
-            if first_hop:
-                return first_hop
-        return request.remote_addr or "unknown"
+        """Return client IP as resolved by ProxyFix WSGI middleware, normalised to IPv4.
+
+        ProxyFix (applied in __init__) rewrites request.remote_addr to the
+        correctly-trusted client address, honouring only the configured number
+        of upstream proxy hops. Manual X-Forwarded-For parsing is removed to
+        prevent header-injection spoofing (audit finding #4, eb180c04).
+
+        The result is then passed through _normalize_ip so that IPv6 loopback
+        (::1) and IPv4-mapped IPv6 (::ffff:x.x.x.x) are canonicalised to their
+        IPv4 equivalents.  This closes the residual LoopbackNormalizer gap noted
+        in eb180c04: without this step a dual-stack client could reach two
+        separate rate-limit buckets (127.0.0.1 and ::1) and receive twice the
+        allowed request budget.
+        """
+        return self._normalize_ip(request.remote_addr or "unknown")
 
     def _get_session_id(self) -> str:
         bearer_value = self._get_bearer_token()
@@ -532,27 +695,51 @@ class GuardianProxy:
     
     def _extract_prompt(self, data: Dict) -> Optional[str]:
         """Extract prompt from request data (supports multiple formats).
-        
+
+        Handles:
+        - Top-level 'prompt' / 'input' / 'content' fields
+        - OpenAI messages array with plain string content
+        - OpenAI / Anthropic multi-modal content-part arrays:
+          [{"type": "text", "text": "..."}]  (vision / tool-use format)
+
+        Previously only scanned the top-level string value of messages[].content,
+        allowing injection payloads inside content-part lists to bypass all
+        input filters. Fixed by audit finding #1 (eb180c04).
+
         Args:
             data: Request JSON data
-            
+
         Returns:
-            Extracted prompt string or None
+            Extracted and concatenated prompt string, or None
         """
         if not data:
             return None
-        
-        # Try direct prompt fields
+
+        # Try direct top-level prompt fields
         prompt = data.get('prompt') or data.get('input') or data.get('content')
-        
-        # Try OpenAI messages format
+
+        # Try OpenAI / Anthropic messages array
         if not prompt and 'messages' in data:
             messages = data.get('messages', [])
+            parts: List[str] = []
             for msg in reversed(messages):
-                if msg.get('role') == 'user':
-                    prompt = msg.get('content', '')
+                if msg.get('role') != 'user':
+                    continue
+                content = msg.get('content', '')
+                if isinstance(content, str):
+                    parts.append(content)
+                elif isinstance(content, list):
+                    # Multi-modal content-part format (vision / tool-use):
+                    # [{"type": "text", "text": "..."}, {"type": "image_url", ...}]
+                    for part in content:
+                        if isinstance(part, dict) and part.get('type') == 'text':
+                            text = part.get('text', '')
+                            if isinstance(text, str) and text:
+                                parts.append(text)
+                if parts:
                     break
-        
+            prompt = ' '.join(parts) if parts else None
+
         return prompt if isinstance(prompt, str) else None
 
     @staticmethod
@@ -913,6 +1100,23 @@ class GuardianProxy:
             raise ValueError(f"Output watermark blocked: {decision.reason}")
         return content
 
+    def _log_blocked_prompt(self, event_type: str, severity: str, prompt_preview: str, details: Dict[str, Any]) -> None:
+        """Write a structured blocked-prompt record to the local logger.
+
+        Provides a synchronous, local audit trail independent of the async
+        backend/SIEM path. Blocked prompts are always recorded here even if
+        the backend is unreachable. Called automatically from _report_event
+        for HIGH/CRITICAL severity events that carry a prompt_preview field.
+        (audit finding #8, eb180c04)
+        """
+        logger.warning(
+            "BLOCKED_PROMPT event_type=%s severity=%s preview=%r details=%s",
+            event_type,
+            severity,
+            prompt_preview[:80],
+            json.dumps({k: v for k, v in details.items() if k != "prompt_preview"}, default=str),
+        )
+
     def _report_event(self, event_type: str, severity: str, details: Dict[str, Any], tenant_id: Optional[str] = None):
         if not tenant_id:
             tenant_id = self.tenant_isolation.default_tenant_id
@@ -929,6 +1133,10 @@ class GuardianProxy:
             "details": details,
             "timestamp": time.time()
         }
+        # Synchronous local structured log for high-severity blocked prompts.
+        # Runs before async backend/SIEM dispatch to guarantee local record. (finding #8, eb180c04)
+        if severity.upper() in {"CRITICAL", "HIGH"} and "prompt_preview" in details:
+            self._log_blocked_prompt(event_type, severity, details.get("prompt_preview", ""), details)
         if getattr(self, "siem_config", None) and self.siem_config.enabled:
             from backend.siem import build_alert_document
             alert_doc = build_alert_document(
@@ -992,7 +1200,23 @@ class GuardianProxy:
         # Non-blocking background report
         threading.Thread(target=send_report, daemon=True).start()
 
-    def _build_honeypot_response(self, session_id: str, path: str) -> Response:
+    def _build_honeypot_response(
+        self, session_id: str, path: str, prompt: str = "",
+    ) -> Response:
+        # FEAT-HONEY-PROFILE: record attacker TTP intelligence before building response
+        client_ip = ""
+        user_agent = ""
+        try:
+            from flask import request as _req
+            client_ip = _req.remote_addr or ""
+            user_agent = _req.headers.get("User-Agent", "")
+        except Exception:
+            pass
+        if prompt or client_ip or user_agent:
+            self.attacker_profiler.record_interaction(
+                session_id, prompt, client_ip=client_ip, user_agent=user_agent
+            )
+        self.honeypot_analytics.record(session_id, path)
         body = self.honeypot.build_response(session_id, path)
         if body is None:
             return Response("Forbidden: Session limited by deception controls.", status=403)
@@ -1021,6 +1245,108 @@ class GuardianProxy:
             if self.tool_policy.enforcement_mode == "audit":
                 return None
             return Response("Forbidden: Tool call blocked by Guardian tool policy.", status=403)
+        return None
+
+
+
+
+    # -- Filesystem Sandbox Enforcement ----------------------------------------
+    # Operation-intent inference order:
+    #   1. Explicit mode/operation/access arg in the tool-call arguments.
+    #   2. Function-name heuristic: write-like names -> write; read-like -> read.
+    #   3. Unknown intent -> default to "write" (stricter: false-block a benign
+    #      read is far safer than false-pass on a malicious write).
+    # The old double-check pattern (block only if BOTH read AND write deny) is
+    # removed -- it silently passed write attempts on read-only-configured paths.
+    _WRITE_NAME_TOKENS = frozenset({
+        'write', 'create', 'append', 'delete', 'remove', 'move', 'copy',
+        'rename', 'mkdir', 'rmdir', 'truncate', 'save', 'store', 'put',
+        'upload', 'overwrite', 'patch', 'update',
+    })
+    _READ_NAME_TOKENS = frozenset({
+        'read', 'get', 'fetch', 'list', 'stat', 'open', 'download', 'view',
+        'show', 'cat', 'head', 'tail', 'grep', 'search', 'find', 'ls',
+    })
+
+    @staticmethod
+    def _infer_operation(fn_name, args):
+        # Infer "read" or "write" from explicit args first, then function name.
+        for key in ('mode', 'operation', 'access', 'action', 'method'):
+            val = args.get(key, '')
+            if isinstance(val, str):
+                val_lower = val.lower()
+                if any(t in val_lower for t in GuardianProxy._WRITE_NAME_TOKENS):
+                    return 'write'
+                if any(t in val_lower for t in GuardianProxy._READ_NAME_TOKENS):
+                    return 'read'
+        name_lower = (fn_name or '').lower()
+        for token in GuardianProxy._WRITE_NAME_TOKENS:
+            if token in name_lower:
+                return 'write'
+        for token in GuardianProxy._READ_NAME_TOKENS:
+            if token in name_lower:
+                return 'read'
+        return 'write'  # unknown -> conservative default
+
+    def _enforce_filesystem_sandbox(self, data, path):
+        # Block tool calls accessing paths outside the configured sandbox.
+        # Infers read vs write intent; unknown defaults to write (stricter).
+        if not hasattr(self, 'filesystem_sandbox') or self.filesystem_sandbox is None:
+            return None
+        if not isinstance(data, dict):
+            return None
+
+        _PATH_KEYS = ('path', 'file', 'filepath', 'filename',
+                      'dir', 'directory', 'target')
+        candidates = []  # list of (file_path, operation)
+
+        def _extract(fn_name, raw_args):
+            if isinstance(raw_args, str):
+                try:
+                    import json as _json
+                    raw_args = _json.loads(raw_args)
+                except Exception:
+                    return
+            if not isinstance(raw_args, dict):
+                return
+            operation = GuardianProxy._infer_operation(fn_name, raw_args)
+            for key in _PATH_KEYS:
+                val = raw_args.get(key)
+                if isinstance(val, str) and val:
+                    candidates.append((val, operation))
+
+        # tool_calls array (OpenAI / Anthropic messages format).
+        for msg in data.get('messages', []):
+            if not isinstance(msg, dict):
+                continue
+            for call in msg.get('tool_calls', []):
+                if not isinstance(call, dict):
+                    continue
+                fn = call.get('function')
+                if isinstance(fn, dict):
+                    _extract(fn.get('name', ''), fn.get('arguments'))
+
+        # Legacy function_call field.
+        fc = data.get('function_call')
+        if isinstance(fc, dict):
+            _extract(fc.get('name', ''), fc.get('arguments'))
+
+        # Evaluate each (path, operation) pair against the sandbox.
+        for file_path, operation in candidates:
+            allowed, reason = self.filesystem_sandbox.check_access(file_path, operation)
+            if not allowed:
+                self._report_event('sandbox_block', 'HIGH', {
+                    'path': path,
+                    'file_path': file_path,
+                    'operation': operation,
+                    'reason': reason,
+                })
+                from flask import Response as _Resp
+                return _Resp(
+                    'Forbidden: Filesystem Sandbox blocked {} access to {}. Reason: {}'.format(
+                        operation, file_path, reason),
+                    status=403,
+                )
         return None
 
     def _enforce_agentic_controls(
@@ -1311,6 +1637,9 @@ class GuardianProxy:
             tool_policy_resp = self._enforce_tool_policy(data, path)
             if tool_policy_resp is not None:
                 return tool_policy_resp
+            fs_sandbox_resp = self._enforce_filesystem_sandbox(data, path)
+            if fs_sandbox_resp is not None:
+                return fs_sandbox_resp
         else:
             tenant_id, tenant_resp = self._resolve_tenant()
             if tenant_resp is not None:
@@ -1368,13 +1697,26 @@ class GuardianProxy:
                     "path": path,
                 })
                 return Response("Forbidden: Session revoked by adaptive security controls.", status=403)
+            # FEAT-BLUE-ADVANCED: cooldown → 429 with Retry-After
+            if pre_action == "cooldown":
+                retry_after = self.brain.get_cooldown_seconds(session_id)
+                self._report_event("session_cooldown", "MEDIUM", {
+                    "session_id": session_id,
+                    "retry_after_seconds": retry_after,
+                    "path": path,
+                })
+                return Response(
+                    "Too Many Requests: Session rate-limited by adaptive security controls.",
+                    status=429,
+                    headers={"Retry-After": str(max(1, retry_after))},
+                )
             if pre_action == "honeypot":
                 self._report_event("honeypot_engaged", "MEDIUM", {
                     "session_id": session_id,
                     "reason": "Blue Team adaptive honeypot threshold exceeded.",
                     "path": path,
                 })
-                resp = self._build_honeypot_response(session_id, path)
+                resp = self._build_honeypot_response(session_id, path, prompt=prompt)
                 if resp.status_code == 403:
                     self._report_event("honeypot_rate_limited", "MEDIUM", {
                         "session_id": session_id,
@@ -1446,7 +1788,17 @@ class GuardianProxy:
                     self.brain.analyze_request(session_id, prompt, blocked=True)
                     return tf_resp
                 
-                # 5. Fast-Path Allowlist (Known Safe - Optimization)
+                # 5a. Fast-Path Blocklist (Known Malicious - High Speed Regex)
+                if self.fast_path.is_known_malicious(prompt):
+                    self.brain.analyze_request(session_id, prompt, blocked=True)
+                    self._report_event("fast_path_block", "HIGH", {
+                        "session_id": session_id,
+                        "reason": "Prompt matched known malicious regex patterns.",
+                        "path": path,
+                    })
+                    return Response("Forbidden: fast_path_keyword", status=403)
+
+                # 5b. Fast-Path Allowlist (Known Safe - Optimization)
                 if self.fast_path.is_known_safe(prompt):
                     path_taken = "fast_path_allowlist"
                 
@@ -1455,9 +1807,12 @@ class GuardianProxy:
                     path_taken = "ai_firewall"
                     if self._is_feedback_allowlisted(tenant_id, prompt, "injection_ai"):
                         af_resp = None
-                    elif self._should_defer_to_output_redaction(prompt):
-                        af_resp = None
                     else:
+                        # NOTE: _should_defer_to_output_redaction() bypass REMOVED.
+                        # Prompts matching leak/credential patterns are highest-risk inputs —
+                        # they must face MORE scrutiny, not less. Output redaction still runs
+                        # downstream via validate_output as an additional layer.
+                        # (audit finding #5, eb180c04)
                         af_resp = self._check_ai_firewall(prompt, mode, start_time, timings, show_reason)
                     if af_resp:
                         self.brain.analyze_request(session_id, prompt, blocked=True)
@@ -1472,13 +1827,26 @@ class GuardianProxy:
                         "path": path,
                     })
                     return Response("Forbidden: Session revoked by adaptive security controls.", status=403)
+                # FEAT-BLUE-ADVANCED: cooldown → 429 in post-analysis gate
+                if action == "cooldown":
+                    retry_after = self.brain.get_cooldown_seconds(session_id)
+                    self._report_event("session_cooldown", "MEDIUM", {
+                        "session_id": session_id,
+                        "retry_after_seconds": retry_after,
+                        "path": path,
+                    })
+                    return Response(
+                        "Too Many Requests: Session rate-limited by adaptive security controls.",
+                        status=429,
+                        headers={"Retry-After": str(max(1, retry_after))},
+                    )
                 if action == "honeypot":
                     self._report_event("honeypot_engaged", "MEDIUM", {
                         "session_id": session_id,
                         "reason": "Blue Team adaptive honeypot threshold exceeded.",
                         "path": path,
                     })
-                    resp = self._build_honeypot_response(session_id, path)
+                    resp = self._build_honeypot_response(session_id, path, prompt=prompt)
                     if resp.status_code == 403:
                         self._report_event("honeypot_rate_limited", "MEDIUM", {
                             "session_id": session_id,
@@ -1611,6 +1979,12 @@ class GuardianProxy:
 
 if __name__ == "__main__":
     # Minimal config for standalone testing
+    _debug_admin_token = os.environ.get("GUARDIAN_ADMIN_TOKEN", "")
+    if not _debug_admin_token:
+        raise SystemExit(
+            "ERROR: Set GUARDIAN_ADMIN_TOKEN env var before running interceptor.py directly.\n"
+            "  Example: $env:GUARDIAN_ADMIN_TOKEN = (python -c \"import secrets; print(secrets.token_hex(32))\")"
+        )
     test_config = {
         "guardian_id": "test-guardian",
         "proxy": {
@@ -1624,7 +1998,8 @@ if __name__ == "__main__":
         "security_policies": {
             "security_mode": "balanced",
             "validate_output": True, # Required for PII Check
-            "leak_prevention_strategy": "redact"
+            "leak_prevention_strategy": "redact",
+            "admin_token": _debug_admin_token,  # sourced from env — audit finding #7
         },
         "backend": {
             "enabled": True,

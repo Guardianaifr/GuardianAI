@@ -116,3 +116,11 @@ patterns:
   - "(?i)(answer|respond|reply).{0,30}(following|this|new).{0,30}(question|task|instruction).{0,50}(instead|only|now|first)"
   - "(?i)(\\[ignore\\]|\\[override\\]|\\[new task\\]|\\[admin\\]|\\[system\\]|\\[priority\\])"
   - "(?i)STOP[.!]\\s{0,5}[A-Z].{5,60}(new task|new instruction|override|ignore previous)"
+
+  # --- ADVANCED PERSONA / ROLEPLAY / DAN (migrated from input_filter) ---
+  - "(?i)\\bDAN\\b.*\\b(?:Do Anything Now|no restrictions|do anything)\\b"
+  - "(?i)(?:fictional|imaginary|story|hypothetical).*(?:world|scenario|laws don't exist)"
+  - "(?i)(?:my grandmother|bedtime story).*(?:read me|tell me)"
+  - "(?i)story I am writing"
+  - "(?i)hypothetically speaking"
+  - "(?i)^(act|play|assume)(?:ing|s)?\\s+(?:the\\s+)?(?:role\\s+of\\s+)?(?:a|an|as)\\s+([a-z\\s]+)"

@@ -283,8 +283,8 @@ class EncodingDetector:
         if morse_chars < 6 or morse_chars / max(len(normalized), 1) < 0.3:
             return None
 
-        # Split on word separators (/, |, or 3+ spaces)
-        words = re.split(r"\s*/\s*|\s*\|\s*|\s{3,}", normalized.strip())
+        # Split on word separators (/, |, or 2+ spaces)
+        words = re.split(r"\s*/\s*|\s*\|\s*|\s{2,}", normalized.strip())
         decoded_words = []
 
         for word in words:
@@ -423,6 +423,15 @@ class EncodingDetector:
             except Exception:
                 pass
 
+        # Pattern 5: Contiguous hex sequence (e.g. "49676e6f...")
+        if re.match(r"^(?:[0-9a-fA-F]{2}){3,}$", clean_text):
+            try:
+                parts = [clean_text[i:i+2] for i in range(0, len(clean_text), 2)]
+                decoded = bytes(int(h, 16) for h in parts).decode("utf-8", errors="replace")
+                results.append(decoded)
+            except Exception:
+                pass
+
         if results:
             return " | ".join(results)
         return None
@@ -461,7 +470,7 @@ class EncodingDetector:
         if len(braille_chars) < 3:
             return None
 
-        decoded = "".join(_BRAILLE_TO_CHAR.get(ch, ch) for ch in text if ch in _BRAILLE_TO_CHAR or ch == " ")
+        decoded = "".join(_BRAILLE_TO_CHAR.get(ch, ch) for ch in text)
         return decoded.strip() if len(decoded.strip()) >= 3 else None
 
     def _decode_nato(self, text: str) -> Optional[str]:

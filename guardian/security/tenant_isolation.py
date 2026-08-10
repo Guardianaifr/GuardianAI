@@ -22,7 +22,20 @@ class TenantIsolationManager:
         self.allowed_pattern = re.compile(pattern)
         evidence_dir = str(cfg.get("tenant_evidence_dir", "artifacts/evidence/tenants"))
         self.evidence_dir = self._resolve(base_dir, evidence_dir)
-        self._lock = threading.Lock()
+        self.max_tenant_locks = int(cfg.get("max_tenant_locks", 1000))
+        self._tenant_locks: dict[str, threading.Lock] = {}
+        self._meta_lock = threading.Lock()
+        self._overflow_lock = threading.Lock()
+
+    def _get_tenant_lock(self, tenant_id: str) -> threading.Lock:
+        with self._meta_lock:
+            if tenant_id in self._tenant_locks:
+                return self._tenant_locks[tenant_id]
+            if len(self._tenant_locks) < self.max_tenant_locks:
+                lock = threading.Lock()
+                self._tenant_locks[tenant_id] = lock
+                return lock
+            return self._overflow_lock
 
     def _resolve(self, base_dir: Path, maybe_relative: str | None) -> Path:
         path = Path(maybe_relative or "artifacts/evidence/tenants")
@@ -79,6 +92,7 @@ class TenantIsolationManager:
             "details": details or {},
         }
         line = json.dumps(record, separators=(",", ":"), ensure_ascii=True)
-        with self._lock:
+        lock = self._get_tenant_lock(tenant_id)
+        with lock:
             with path.open("a", encoding="utf-8") as fp:
                 fp.write(line + "\n")

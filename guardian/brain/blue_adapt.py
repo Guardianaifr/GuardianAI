@@ -27,6 +27,12 @@ class BlueAdaptAgent:
         profile_ttl_seconds: int = 3600,
         max_sessions: int = 5000,
         cleanup_interval_seconds: int = 60,
+        # FEAT-BLUE-ADVANCED: velocity and cooldown params
+        velocity_window_sec: float = 10.0,
+        velocity_max_rps: float = 5.0,
+        cooldown_base_seconds: float = 5.0,
+        cooldown_max_seconds: float = 300.0,
+        cooldown_multiplier: float = 2.0,
     ):
         self.escalation_threshold = escalation_threshold
         self.session_risk = defaultdict(int)
@@ -39,6 +45,16 @@ class BlueAdaptAgent:
         self.max_sessions = max(100, int(max_sessions))
         self.cleanup_interval_seconds = max(5, int(cleanup_interval_seconds))
         self._last_cleanup_ts = 0.0
+        # FEAT-BLUE-ADVANCED: velocity tracker and adaptive cooldown
+        self._velocity = SessionVelocityTracker(
+            window_sec=velocity_window_sec,
+            max_rps=velocity_max_rps,
+        )
+        self._cooldown = AdaptiveCooldown(
+            base_seconds=cooldown_base_seconds,
+            max_seconds=cooldown_max_seconds,
+            multiplier=cooldown_multiplier,
+        )
 
     def _risk_to_threat_score(self, risk_points: int) -> float:
         # Normalized risk score in [0,1].
@@ -54,6 +70,11 @@ class BlueAdaptAgent:
         risk_delta = max(0, int(intel_score))
         if blocked:
             risk_delta += 2
+            # FEAT-BLUE-ADVANCED: record a cooldown violation on every blocked request
+            self._cooldown.record_violation(session_id, now=now)
+        # FEAT-BLUE-ADVANCED: bump risk score when session velocity is anomalous
+        if self._velocity.record(session_id, ts=now):
+            risk_delta += 1
         self.session_risk[session_id] += risk_delta
         profile = self.profiles[session_id]
         if profile.first_seen_ts == 0.0:
@@ -113,9 +134,19 @@ class BlueAdaptAgent:
             return "revoke"
         if self.should_honeypot_session(session_id):
             return "honeypot"
+        # FEAT-BLUE-ADVANCED: cooldown (rate-limit) takes precedence over strict mode
+        if self._cooldown.is_cooling_down(session_id):
+            return "cooldown"
         if self.recommend_mode(session_id, default_mode="balanced") == "strict":
             return "strict"
         return "allow"
+
+    def get_cooldown_seconds_remaining(self, session_id: str, now: float | None = None) -> int:
+        """Return whole seconds remaining in the current cooldown window, or 0."""
+        now = now if now is not None else time.time()
+        sid = self._session_key(session_id)
+        remaining = self._cooldown._cooldown_until.get(sid, 0.0) - now
+        return max(0, int(remaining))
 
     def _maybe_cleanup(self, now: float | None = None):
         now = now if now is not None else time.time()

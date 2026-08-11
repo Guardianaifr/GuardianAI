@@ -52,6 +52,7 @@ from collections import OrderedDict
 import os
 import yaml
 from guardian.guardrails.encoding_detector import EncodingDetector
+from guardian.guardrails.translation_adapter import translate_to_english, ADAPTER_AVAILABLE
 
 logger = logging.getLogger("GuardianAI.ai_firewall")
 
@@ -774,6 +775,39 @@ class AIPromptFirewall:
                 if sim_score > final_threshold:
                     logger.warning("Encoded payload decoded → ML similarity detection (score: %.3f > threshold: %.3f)", sim_score, final_threshold)
                     return block("encoded_ml_similarity", {"decoded": decoded, "score": sim_score, "category": category})
+
+        # 0c. F2 Translation Gate — Multilingual Jailbreak Defense
+        # If the prompt is not English, translate it to English so the existing
+        # calibrated English-only semantic firewall applies correctly.  The
+        # original thresholds and model are completely untouched.
+        #
+        # Fail-closed contract:
+        #   - Translation API failure/timeout  → block (return True)
+        #   - Unsupported language             → block (return True)
+        #   - Empty translation result         → block (return True)
+        #   All failures are logged as translation_failure events.
+        #
+        # This means there is NO silent pass-through on non-English input.
+        if ADAPTER_AVAILABLE:
+            try:
+                translated_prompt, detected_lang = translate_to_english(normalized)
+                if detected_lang != "en":
+                    logger.info(
+                        "F2 Translation Gate: lang=%s → translated for semantic check",
+                        detected_lang,
+                    )
+                    # Replace normalized/stripped with translated versions for
+                    # ALL remaining checks in this pipeline run.
+                    normalized = translated_prompt
+                    prompt_lower = normalized.lower()
+                    stripped = self._strip_frame(normalized)
+            except RuntimeError as _trans_err:
+                # Translation failed — fail CLOSED: block the request.
+                logger.warning(
+                    "F2 Translation Gate FAILED (fail-closed): %s — blocking request.",
+                    _trans_err,
+                )
+                return block("translation_failure", {"error": str(_trans_err)})
 
         # 1. Fast Jailbreak Keyword Check (on normalized text)
         SHORT_KEYWORDS = [

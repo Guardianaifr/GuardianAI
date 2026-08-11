@@ -39,6 +39,20 @@ packaging==26.0
 phonenumbers==9.0.25
 pluggy==1.6.0
 preshed==3.0.12
+# PYTHON 3.14 INCOMPATIBILITY (presidio + spacy + pydantic v1):
+#   presidio_analyzer and presidio_anonymizer are listed here as declared dependencies
+#   but CANNOT be imported on Python 3.14. The failure chain is:
+#     presidio_analyzer -> spacy -> spacy.schemas -> pydantic.v1
+#     -> ConfigError: unable to infer type for attribute "REGEX"
+#   The except-Exception guard in output_validator.py catches this and falls back to
+#   basic regex PII detection, logging a WARNING. This is a KNOWN DEGRADED STATE.
+#   Resolution options (in order of preference):
+#     1. Wait for presidio >= 2.2.4 or spacy >= 3.8 to ship pydantic v2-native support.
+#     2. Replace with a maintained Python-3.14-compatible PII library
+#        (e.g. scrubadub>=2.0 or a regex-only PII scanner).
+#     3. Downgrade the project runtime to Python 3.12 (supported by spacy 3.7.x).
+#   Do NOT remove these lines — their presence ensures CI pip-compile catches the
+#   version and makes the dependency explicit even while it is non-functional.
 presidio_analyzer==2.2.361
 presidio_anonymizer==2.2.361
 psutil==7.2.2
@@ -80,4 +94,14 @@ web3==7.16.0
 eth-account==0.13.7
 Werkzeug==3.1.6
 wheel==0.46.3
-sentence-transformers==5.6.0
+# sentence-transformers: required for the embedding-based semantic firewall
+# (guardian/guardrails/ai_firewall.py). Without this, AI_FIREWALL_AVAILABLE=False
+# and all ML-based detection silently degrades to keyword matching.
+# Pinned to last tested version; update only after running test_ai_firewall.py.
+sentence-transformers==5.2.2
+# deep-translator: required for F2 multilingual translation adapter
+# (guardian/guardrails/translation_adapter.py). Wraps Google Translate's free
+# public endpoint via plain HTTPS (no API key, uses `requests` which is already
+# pinned above). Translates non-English prompts to English before the semantic
+# firewall check so the existing all-MiniLM-L6-v2 thresholds remain valid.
+deep-translator==1.11.4

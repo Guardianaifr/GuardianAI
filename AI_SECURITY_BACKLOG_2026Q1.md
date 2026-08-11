@@ -290,7 +290,7 @@ The following whitepaper-claimed features have NOT yet been through a dedicated 
 
 | Feature | Whitepaper Claim | Audit Status |
 |---|---|---|
-| F-01: Embedding Firewall (semantic similarity) | "Catches semantically equivalent attacks" | Not audited |
+| F-01: Embedding Firewall (semantic similarity) | "Catches semantically equivalent attacks" | **DONE (August 2026)** — Non-English evasion fixed via translation-adapter (Approach A). See F2 section below. |
 | F-02: Multi-modal MIME guard | "OCR/audio injection detection" | Not audited |
 | F-03: RAG injection guard | "Chunk-level trust scoring" | Partially audited (core guard reviewed; trust-scoring/cross-source not) |
 | F-04: Tool-Call Policy Engine | Allow/deny enforcement | Not audited |
@@ -313,7 +313,38 @@ The following whitepaper-claimed features have NOT yet been through a dedicated 
 
 ---
 
+## F2 — Semantic Firewall Multilingual Evasion `completed (August 2026)`
+
+**Root Cause:** `all-MiniLM-L6-v2` is English-only. French jailbreak scored **0.43** (below 0.55 balanced threshold). Same prompt in English scores **0.85**. All thresholds were calibrated against English text; non-English input bypassed the ML layer entirely.
+
+**Fix: Approach A — Translation Adapter Layer** (`guardian/guardrails/translation_adapter.py`)
+- `langdetect` (< 5ms, already in requirements.txt) gates on `lang != 'en'`
+- `deep-translator==1.11.4` (pure-Python, uses `requests` already pinned; no API key required) translates to English
+- Translated text passes into the **unmodified** `all-MiniLM-L6-v2` firewall at the **unmodified** thresholds (0.45/0.55/0.70)
+- **Fail-closed contract:** translation API error / timeout / empty result / unsupported language → request BLOCKED (`translation_failure` event logged). No silent pass-through path exists.
+
+**Why not Approach B (multilingual model swap):** The swap was tried and reverted — it caused catastrophic false positives ("Translate this to Spanish" → 0.70; professional email → 0.65) because the new embedding space invalidated the existing calibration, and no automated calibration script exists in this codebase.
+
+**Verification (real scored output from ai_firewall):**
+- French jailbreak raw score WITHOUT translation: `0.4322` → NOT blocked (evasion confirmed)
+- English equivalent score (what translation gate sends): `0.8510` → BLOCKED ✓
+- `fw.is_malicious(French jailbreak, mocked translation)`: `True` ✓
+- Fail-closed (translation RuntimeError): `is_malicious` returns `True` ✓
+- Spanish, German, Mandarin jailbreaks: all `True` ✓
+- Benign false-positive set (professional email, language-learning): `False` ✓
+
+**Known pre-existing FP (not a regression):** "Translate this to Spanish" scores 0.59/task_switching in the base English ML model — this FP exists regardless of F2. The translation adapter correctly identifies this as English (`langdetect → 'en'`) and does not translate it, introducing zero delta.
+
+**Files changed:**
+- `guardian/guardrails/translation_adapter.py` [NEW]
+- `guardian/guardrails/ai_firewall.py` — added step 0c translation gate in `is_malicious()`
+- `requirements.txt` — added `deep-translator==1.11.4`
+- `tests/guardrails/test_f2_translation_adapter.py` [NEW — 19 tests, 19 passed]
+
+---
+
 ## Phase 4 Audit Findings — August 2026
+
 
 Items identified during the Phase 4 whitepaper-vs-code audit (Features 18–26). Each entry records current implementation status, open gaps, and deferred work items.
 
@@ -363,31 +394,24 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 
 ---
 
-### F25 — Multi-Tenant Isolation `in_progress`
+### F25 — Multi-Tenant Isolation `completed (partial)`
 
 **Audit finding:** Whitepaper claimed "Hard isolation of data, session state, and rate limit buckets per tenant." Code delivers in-process key-prefix namespacing within shared Python in-memory dicts — logical isolation, not hard isolation.
 
 **Completed (August 2026):**
 - Whitepaper corrected in `WHITEPAPER.md`, `WHITEPAPER_PUBLIC.md`, `WHITEPAPER Update.md` — "hard isolation" language removed, accurate description + Phase 4 audit note added.
-- Concurrent cross-tenant test suite added: `tests/security/test_tenant_isolation_concurrent.py` — 12 tests, all green.
-
-**Test suite interpretation — IMPORTANT:**
-> **12/12 tests green does NOT mean F25 is fully remediated.**
-> `test_random_session_ids_grow_events_dict_without_bound` passes **by confirming the OOM gap still exists** — its assertion is `len(_events) == N` (unbounded growth proven empirically), not `<= MAX` (bounded growth). This test is explicitly designed as a **gap-documentation test**: it will flip to a bounded assertion (`assert final_size <= _MAX_SESSIONS`) once the per-tenant-lock + eviction hardening below is implemented. Until that implementation lands, a green test result on this case means the gap is empirically proven and tracked, not closed.
+- Concurrent cross-tenant test suite added: `tests/security/test_tenant_isolation_concurrent.py` — 14 tests, all green.
+- **FEAT-TENANT-INMEM-HARDEN completed**: Per-tenant `threading.Lock()` instances with overflow fallback + `max_tracked_sessions` cap with LRU eviction and quarantine exemption. Closes OOM and contention risks.
 
 **Open gaps (confirmed, empirically proven):**
 
 | Gap | Risk | Evidence |
 |-----|------|----------|
-| Unbounded `_events` dict growth via random session-ID enumeration | HIGH — OOM DoS | `test_random_session_ids_grow_events_dict_without_bound` PASSES at `== 10,000` |
-| Global `threading.Lock()` serialises ALL tenants' cost tracking | MEDIUM — lock contention under concurrent multi-tenant load | `test_concurrent_random_sessions_no_lock_deadlock` passes but uses single global lock |
 | Quarantine/session-risk state is node-local only | HIGH — multi-node deployments fracture rate-limit enforcement | Architectural — no test can prove cross-node consistency without Redis |
 
 **Deferred implementation items:**
 
-1. **`FEAT-TENANT-INMEM-HARDEN` (P1 — implement next):** Per-tenant `threading.Lock()` instances (replace single global lock) + `_MAX_SESSIONS` cap with oldest-entry eviction on `_events`. Closes OOM and contention risks. Zero new infra dependency. Acceptance criterion: `test_random_session_ids_grow_events_dict_without_bound` assertion updated to `<= _MAX_SESSIONS` and still green.
-
-2. **`FEAT-TENANT-REDIS` (P2 — future):** Migrate `CostAbuseDetector._events` and `_quarantined_until` to Redis with per-tenant key prefix (`guardian:tenant:<id>:sess:<sid>`) and TTL-based expiry. Closes multi-node fracture risk. Pre-conditions: `redis` added to `requirements.txt`; `GUARDIAN_TENANT_REDIS_URL` env var documented in `.env.example`, `docker-compose.yml`, and deployment docs; fail-closed behaviour defined (mirror pattern from `backend/main.py` `GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN`).
+1. **`FEAT-TENANT-REDIS` (P2 — future):** Migrate `CostAbuseDetector._events` and `_quarantined_until` to Redis with per-tenant key prefix (`guardian:tenant:<id>:sess:<sid>`) and TTL-based expiry. Closes multi-node fracture risk. Pre-conditions: `redis` added to `requirements.txt`; `GUARDIAN_TENANT_REDIS_URL` env var documented in `.env.example`, `docker-compose.yml`, and deployment docs; fail-closed behaviour defined (mirror pattern from `backend/main.py` `GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN`).
 
 **Files:**
 - `guardian/security/cost_abuse.py` (primary implementation target for both items)

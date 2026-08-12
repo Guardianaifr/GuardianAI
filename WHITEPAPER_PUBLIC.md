@@ -408,7 +408,7 @@ Logical, in-process isolation of session state, cost-abuse counters, and quarant
 
 Continuous load testing under simulated infrastructure failure conditions (upstream LLM down, backend down) with SLO verdict reporting.
 
-Verified results: 67.78 rps (safe load), 223.20 rps block rate (attack load), 100% block rate under adversarial concurrent load.
+Verified results: 95.68 rps (safe load), 494.01 rps block throughput (attack load), 100% block rate under adversarial concurrent load, 41.88 ms p95 attack latency. Source: `artifacts/performance/perf_chaos_report.json` (2026-08-08).
 
 - **What it is in code:** `artifacts/performance/perf_chaos_report.json`.
 
@@ -431,7 +431,7 @@ Enforces structured response contracts — validates that AI outputs conform to 
 
 Normalizes internal detection metrics against public adversarial AI benchmarks (HarmBench, AdvBench, GAIA). Enforces minimum score gates in CI.
 
-Validated results: HarmBench 97.0%, AdvBench 94.0%, GAIA 86.0%, composite 93.6%.
+Corrected results (August 2026): HarmBench 72.5% strict / 57.8% balanced, AdvBench 99.0% strict / 95.4% balanced, security-gate Tier 1+2 97.1% strict / 90.6% balanced across 3,211 real unseen prompts. Source: `artifacts/evidence/definitive_benchmark_v4.json` (2026-08-08). Prior claims (HarmBench 97%, AdvBench 94%, GAIA 86%, composite 93.6%) traced to a synthetic test fixture; see Section 6.2.
 
 - **What it is in code:** `security/public_benchmark.py`.
 

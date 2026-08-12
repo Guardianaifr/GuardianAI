@@ -305,7 +305,7 @@ The following whitepaper-claimed features have NOT yet been through a dedicated 
 | F-13: Red/Purple Brain Agent | Autonomous rule generation | Not audited |
 | F-14: SIEM Integration | Async retry/dead-letter queue | Not audited |
 | F-15: False-Positive Feedback Loop | Tenant sensitivity tuning | Not audited |
-| F-16: Public Benchmark Alignment | HarmBench/AdvBench/GAIA scoring | Not audited |
+| F-16: Public Benchmark Alignment | HarmBench/AdvBench/GAIA scoring | **Corrected (August 2026)** — see F28 section below |
 | F-17: Tenant Isolation (backend) | Cross-tenant data boundaries | Not audited |
 | F-18: SSH Tunnel / Generic Auth Proxy | Remote access security | Not audited |
 | F-19: Adversarial Self-Correction | Red-team-driven rule updates | Not audited |
@@ -489,3 +489,44 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 3. **`FEAT-HONEY-CANARY` (P3):** Wire `CanaryTokenManager` + `DecoyCredentialRotator` with token-aware response template injection and output-validator canary detection. **Must replace `md5` with `sha256[:20]` in `DecoyCredentialRotator.next_credential()` (`guardrails/honeypot.py` L202) when wiring.**
 
 **Files:** `guardian/guardrails/honeypot.py`, `guardian/runtime/interceptor.py`
+
+---
+
+### F28 — Section 6 Whitepaper Benchmark Correction `completed (August 2026)`
+
+**Finding:** A Phase 5 audit (August 2026) confirmed that all Section 6 benchmark numbers in WHITEPAPER.md, WHITEPAPER_PUBLIC.md, and `WHITEPAPER Update.md` traced to a synthetic test fixture (`tests/data/public_benchmark_sample.json`, April 2026) with no real dataset evaluation behind it. The `public_benchmark.py` module is dead code with no runtime caller. The discrepancy was already known internally (acknowledged in `FEATURE_BENCHMARK_ANALYSIS.md` section 7e) but never propagated to the public-facing whitepaper.
+
+**Numbers replaced — old vs. new:**
+
+| Metric | Old (fabricated) | New (real source) | Source file |
+|---|---|---|---|
+| HarmBench block rate | 97.0% | 72.5% strict / 57.8% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
+| AdvBench block rate | 94.0% | 99.0% strict / 95.4% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
+| Security-gate Tier 1+2 | (not in table) | 97.1% strict / 90.6% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
+| Grand total 8 datasets | (not in table) | 76.2% strict / 58.2% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
+| GAIA alignment | 86.0% | *removed — no real source* | (none found in repo) |
+| Composite benchmark | 93.6% | *removed — derived from fabricated inputs* | (none found in repo) |
+| Zero-day block rate | 98.4% | *removed — no source file found* | (none found in repo) |
+| Throughput (safe load) | 67.78 rps | **95.68 rps** | `perf_chaos_report.json` (2026-08-08) |
+| Block throughput | 223.20 rps | **494.01 rps** | `perf_chaos_report.json` (2026-08-08) |
+| Attack latency p95 | 96.44 ms | **41.88 ms** | `perf_chaos_report.json` (2026-08-08) |
+
+**Files changed:**
+- `WHITEPAPER.md` — Section 6 table + added Section 6.2 correction note
+- `WHITEPAPER_PUBLIC.md` — Section 6 table + added Section 6.2 correction note
+- `WHITEPAPER Update.md` — Section 6 table + added Section 6.2 correction note
+
+---
+
+### FEAT-BENCH-AUTORUN — Automated Benchmark Regeneration Process `open (P2, follow-up only — do not implement now)`
+
+**Problem:** The Section 6 benchmark numbers silently became stale because there is no automated process that regenerates them on each release. `public_benchmark.py` is dead code (no runtime caller, no CI gate). The only live benchmark runner is `tools/run_definitive_benchmark_v4.py`, which is a standalone script with no CI integration and no output written back to the whitepaper.
+
+**Scope of follow-up work (not to be done in this sprint):**
+1. Wire `tools/run_definitive_benchmark_v4.py` into CI as a scheduled job (e.g., weekly or per release tag).
+2. After each run, auto-update `artifacts/evidence/definitive_benchmark_v4.json` and re-generate the whitepaper's Section 6 table from that file (script-driven, not manual).
+3. Wire `public_benchmark.py` adapters to the real dataset outputs so the benchmark gate runs against actual data, not the synthetic fixture.
+4. Add GAIA dataset integration to the definitive benchmark runner so GAIA can be re-added to the whitepaper with a real number.
+5. Document the benchmark methodology (strict/balanced threshold mapping, dataset sources, zero-contamination guarantee) in a dedicated `docs/benchmark_methodology.md`.
+
+**Priority:** P2 — not a security regression, but a process/integrity gap that must be closed before the next public release cycle.

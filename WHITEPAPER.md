@@ -631,21 +631,28 @@ All metrics are sourced from actual test runs and are reproducible.
 | Full test suite (Python / pytest, August 2026) | 1,268/1,268 passing, 3 skipped, 0 failed\*\* |
 | E2E backend-to-blockchain flows | 46/46 passing |
 | Smart contract unit tests (Hardhat, August 2026) | 147/147 passing |
-| Zero-day attack block rate (unseen datasets) | 98.4% (WildGuard, ToxicChat, JailbreakBench) |
-| Standard benchmark block rate | 100% (strict curated subsets) |
-| False positive rate | 0.0% |
-| HarmBench alignment | 97.0% |
-| AdvBench alignment | 94.0% |
-| GAIA alignment | 86.0% |
-| Composite benchmark | 93.6% |
-| Throughput (safe load, concurrency 20) | 67.78 rps |
-| Block throughput (attack load, concurrency 20) | 223.20 rps, 100% block rate |
-| Attack latency p95 | 96.44 ms |
+| Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, 2026-08-08)†† | **97.1%** |
+| Security-gate block rate — Tier 1+2 (balanced mode, 2026-08-08)†† | **90.6%** |
+| HarmBench Official block rate (400 prompts, strict mode, 2026-08-08)†† | 72.5% (290/400) |
+| HarmBench Official block rate (400 prompts, balanced mode, 2026-08-08)†† | 57.8% (231/400) |
+| AdvBench block rate (520 prompts, strict mode, 2026-08-08)†† | **99.0%** (515/520) |
+| AdvBench block rate (520 prompts, balanced mode, 2026-08-08)†† | **95.4%** (496/520) |
+| Grand total across 8 datasets (3,211 prompts, strict mode, 2026-08-08)†† | 76.2% (2,448/3,211) |
+| Grand total across 8 datasets (3,211 prompts, balanced mode, 2026-08-08)†† | 58.2% (1,869/3,211) |
+| GAIA alignment | *not re-verified — no current real run; prior figure (86.0%) traced to synthetic fixture only* |
+| Zero-day block rate (98.4% WildGuard/ToxicChat/JailbreakBench) | *not re-verified — no source file found; figure removed pending real re-run* |
+| Standard benchmark block rate (strict curated 25-prompt holdout, 2026-08-08) | **100%** (25/25) |
+| False positive rate (curated safe set, strict mode) | 0.0% |
+| Throughput (safe load, concurrency 20, 2026-08-08 perf_chaos_report.json) | **95.68 rps** |
+| Block throughput (attack load, concurrency 20, 2026-08-08 perf_chaos_report.json) | **494.01 rps**, 100% block rate |
+| Attack latency p95 (2026-08-08 perf_chaos_report.json) | **41.88 ms** |
 | SAST findings | 1 flagged, confirmed false positive (documented)\* |
 | IaC findings | 0 |
 | Internal security audit — critical/high findings | 4 identified and remediated (July 2026)\*\* |
 
 \* SAST flagged a call to `secrets.token_urlsafe()` as a potential hardcoded secret; confirmed as a false positive — the call generates random tokens, not a hardcoded value.
+
+†† Source: `artifacts/evidence/definitive_benchmark_v4.json` (run date: 2026-08-08). 3,211 prompts from 8 independent public datasets with zero training contamination. Strict mode = AI Firewall threshold 0.45 (default). Balanced mode = threshold 0.55. HarmBench includes copyright and political-opinion prompts that are out-of-scope for a security firewall; the lower absolute rate on that dataset reflects intentional category coverage, not a security regression. See Section 6.2 for the full benchmark correction note.
 
 \*\* See Section 6.1 for a summary of the July 2026 internal security audit. Prior to this audit, this table did not reflect open findings that existed in the product at the time; the corrected figure is presented here as part of this update.
 
@@ -656,6 +663,18 @@ GuardianAI's off-chain proxy layer underwent a targeted internal security audit 
 This audit covered the off-chain AI Gateway (Layer 1: proxy, guardrails, and financial-logic validation). It did not include a review of the on-chain smart contract layer (Layer 2) described in Sections 3 and 4; those components are covered separately under the smart contract unit test suite referenced above.
 
 GuardianAI maintains this as an ongoing process: findings are tracked to resolution and verified empirically, and this table is updated to reflect the current state rather than a point-in-time snapshot.
+
+### 6.2 August 2026 Benchmark Correction (Phase 5 Audit)
+
+A Phase 5 internal audit conducted in August 2026 identified that the benchmark figures previously listed in the Section 6 table (HarmBench 97.0%, AdvBench 94.0%, GAIA 86.0%, composite 93.6%, zero-day block rate 98.4%) traced to a synthetic test fixture (`tests/data/public_benchmark_sample.json`, dated April 2026) that was constructed to validate the benchmark gate logic — not to report real detection performance against actual prompt datasets.
+
+Specifically:
+- The `public_benchmark_report.json` (April 2026) that generated those numbers used 500 synthetic HarmBench-labelled prompts and 300 synthetic AdvBench-labelled prompts drawn from the test fixture, not from the real dataset releases.
+- The `definitive_benchmark_v4.json` (August 2026) used the actual HarmBench Official (400 prompts, centerforaisafety), AdvBench (520 prompts, llm-attacks), JBB PAIR+GCG (152 prompts), MaliciousInstruct (100), DAN Jailbreaks (200), ToxicChat (200), BeaverTails-Eval (700), and Do-Not-Answer (939) datasets — 3,211 prompts total with zero contamination.
+- GAIA alignment (86.0%) and the 98.4% zero-day block rate had no corresponding results file anywhere in the repository and have been removed pending a real re-run.
+- Throughput figures (67.78 / 223.20 rps) were from an April 2026 performance run; the current `perf_chaos_report.json` (August 2026) shows 95.68 rps safe load and 494.01 rps attack block throughput with 41.88 ms p95 attack latency.
+
+The corrected figures now in the table above are drawn directly from these August 2026 sources. The `FEATURE_BENCHMARK_ANALYSIS.md` document already contained an internal acknowledgment of the HarmBench discrepancy ("72.8%, honest real-data result") that was not propagated to the whitepaper; this correction closes that gap.
 
 ---
 

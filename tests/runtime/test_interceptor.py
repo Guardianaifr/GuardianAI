@@ -342,9 +342,19 @@ def test_proxy_records_brain_observation_on_keyword_block(proxy):
     ids=["malformed_json", "nonstandard_json_schema"],
 )
 def test_proxy_scans_raw_body_when_structured_prompt_is_unavailable(proxy, body):
-    """Malformed and non-standard JSON must not skip the input guardrails."""
+    """Malformed and non-standard JSON must not skip the input guardrails.
+
+    Note: _check_language_allowlist is stubbed to None here because langdetect
+    may detect a raw JSON body (especially one with non-English-looking
+    fragments like '{{{broken}}}') as non-English, which would fire a 403
+    from the language filter before check_prompt is reached.  The language
+    filter is tested separately; this test is focused on the raw-body
+    fallback reaching the keyword/pattern filter.
+    """
     proxy.config["proxy"]["enforce_auth"] = False
     proxy.input_filter.check_prompt.return_value = False
+    # Stub language allowlist so langdetect on raw JSON doesn't pre-empt the check
+    proxy._check_language_allowlist = lambda *a, **kw: None
 
     with proxy.app.test_request_context(
         "/v1/chat/completions",

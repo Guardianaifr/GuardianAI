@@ -418,12 +418,13 @@ Verified results: 95.68 rps (safe load), 494.01 rps block throughput (attack loa
 
 ---
 
-**Feature 27 — Hallucination-Risk Output Assurance**
+**Feature 27 — Output Structural Assurance**
 
-Enforces structured response contracts — validates that AI outputs conform to expected JSON schemas, contain required citation fields, or include minimum confidence annotations.
+Enforces structured response contracts — validates that AI outputs conform to expected JSON schemas, contain required citation fields, or include minimum confidence annotations. Detects and blocks adversarial fake-abstain attempts where a jailbroken model sets `"abstain": true` alongside harmful content.
 
-- **Why:** Unstructured or unsourced AI outputs in financial, healthcare, or legal contexts carry significant liability and compliance risk.
+- **Why:** Unstructured or unsourced AI outputs in financial, healthcare, or legal contexts carry significant liability and compliance risk. The fake-abstain vector allows prompt-injected tool responses to bypass content checks via a self-reported boolean flag.
 - **What it is in code:** `security/output_assurance.py`.
+- **August 2026 fix:** `_is_abstain_payload()` now validates abstain claims against answer content — `abstain: true` is only honoured when the answer is empty/near-empty or matches genuine refusal-language patterns (Phase 5 audit fix).
 
 ---
 

@@ -41,6 +41,29 @@ class OutputAssuranceGuard:
         self._high_stakes_text_re = re.compile(
             r"(?i)\b(medical|diagnosis|treatment|prescription|legal|lawsuit|contract|financial|investment|tax|loan|insurance)\b"
         )
+        # Refusal/declination language patterns used to validate abstain claims.
+        # A broader set than the original 5 markers — covers all natural-language forms
+        # a well-behaved model uses to decline answering in high-stakes domains.
+        self._REFUSAL_RE = re.compile(
+            r"(?i)\b("
+            r"i cannot|i can'?t|i am unable|i'm unable|i am not able|i'm not able"
+            r"|cannot (provide|assist|help|answer|give|offer|share|advise|recommend|support|disclose)"
+            r"|unable to (provide|assist|help|answer|give|offer|share|advise|recommend|support|determine|verify|confirm)"
+            r"|not (able|in a position) to (provide|assist|help|answer|give|offer|advise|recommend|support)"
+            r"|i (don'?t|do not) (have|know|possess) (enough|sufficient|reliable|the)"
+            r"|insufficient (evidence|information|data|sources|context)"
+            r"|not enough (reliable|sufficient|credible|current)"
+            r"|beyond (my|the) (capabilities|scope|knowledge|training)"
+            r"|outside (my|the) (capabilities|scope|expertise|knowledge)"
+            r"|i (must|should|need to) (decline|refuse|abstain|withhold)"
+            r"|i (am declining|am refusing|decline to|refuse to)"
+            r"|i'?m not (going to|able to|in a position to)"
+            r"|i would (not|advise against|recommend against)"
+            r"|this (is|falls) (outside|beyond)"
+            r"|ethically (i cannot|i can'?t|unable)"
+            r")",
+            re.IGNORECASE,
+        )
 
     def evaluate(self, parsed_json: Optional[Dict[str, Any]]) -> OutputAssuranceDecision:
         if not self.enabled:
@@ -167,22 +190,47 @@ class OutputAssuranceGuard:
         return None
 
     def _is_abstain_payload(self, parsed_json: Dict[str, Any]) -> bool:
-        if parsed_json.get(self.abstain_field) is True:
-            return True
-        reason = parsed_json.get(self.abstain_reason_field)
-        if isinstance(reason, str) and reason.strip():
-            return True
-        answer = parsed_json.get("answer") or parsed_json.get("content") or parsed_json.get("response")
-        if not isinstance(answer, str):
-            return False
-        text = answer.lower()
-        return any(
-            marker in text
-            for marker in (
-                "i cannot verify",
-                "i can't verify",
-                "insufficient evidence",
-                "not enough reliable information",
-                "unable to determine",
-            )
+        """Return True only when the payload represents a *genuine* abstention.
+
+        A genuine abstention requires that the answer content is consistent with
+        refusing/declining — either:
+          (a) the answer field is empty or near-empty (< 20 printable chars), OR
+          (b) the answer text matches recognised refusal-language patterns.
+
+        The ``abstain`` boolean flag and ``abstain_reason`` string are treated as
+        *hints*, not as authoritative truth.  They are checked first to avoid
+        spending regex time on payloads that clearly never intended to abstain,
+        but a positive flag/reason ALONE is not sufficient — the answer content
+        is always validated when the flag is present.
+
+        This prevents the EVASION_FAKE_ABSTAIN attack where a jailbroken model
+        (or adversarially crafted tool response) sets ``abstain=True`` alongside
+        a clearly harmful answer in order to bypass the
+        ``high_stakes_confidence_citation_conflict`` check.
+        """
+        flag_set = parsed_json.get(self.abstain_field) is True
+        reason_set = isinstance(parsed_json.get(self.abstain_reason_field), str) and bool(
+            str(parsed_json.get(self.abstain_reason_field)).strip()
         )
+
+        answer = (
+            parsed_json.get("answer")
+            or parsed_json.get("content")
+            or parsed_json.get("response")
+        )
+
+        # No flag, no reason hint — fall back purely to answer-text refusal detection.
+        if not flag_set and not reason_set:
+            if not isinstance(answer, str):
+                return False
+            return bool(self._REFUSAL_RE.search(answer))
+
+        # Flag or reason is set — still must validate the answer content.
+        # If the answer is absent or trivially short, that is consistent with abstention.
+        if not isinstance(answer, str) or len(answer.strip()) < 20:
+            return True
+
+        # Answer has substantive length — require it to actually sound like a refusal.
+        # If the answer contains non-refusal content, the abstain claim is REJECTED
+        # and the high-stakes check will proceed (and likely block).
+        return bool(self._REFUSAL_RE.search(answer))

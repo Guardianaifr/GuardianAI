@@ -344,17 +344,17 @@ def test_proxy_records_brain_observation_on_keyword_block(proxy):
 def test_proxy_scans_raw_body_when_structured_prompt_is_unavailable(proxy, body):
     """Malformed and non-standard JSON must not skip the input guardrails.
 
-    Note: _check_language_allowlist is stubbed to None here because langdetect
-    may detect a raw JSON body (especially one with non-English-looking
-    fragments like '{{{broken}}}') as non-English, which would fire a 403
-    from the language filter before check_prompt is reached.  The language
-    filter is tested separately; this test is focused on the raw-body
-    fallback reaching the keyword/pattern filter.
+    Both cases fall into the raw-body fallback (JSON parse fails or prompt
+    cannot be extracted via _extract_prompt).  The proxy must pass the raw
+    body string to check_prompt() rather than silently dropping it.
+
+    Regression guard for the architectural fix that gates _check_language_allowlist
+    on prompt_is_raw_body=False: language detection on raw JSON syntax characters
+    is unreliable (langdetect misclassifies them as non-English) and must not
+    fire before the keyword/regex guardrail (check_prompt) runs.
     """
     proxy.config["proxy"]["enforce_auth"] = False
     proxy.input_filter.check_prompt.return_value = False
-    # Stub language allowlist so langdetect on raw JSON doesn't pre-empt the check
-    proxy._check_language_allowlist = lambda *a, **kw: None
 
     with proxy.app.test_request_context(
         "/v1/chat/completions",

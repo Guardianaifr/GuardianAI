@@ -1595,6 +1595,7 @@ class GuardianProxy:
         # 2. Inspect input
         data = None
         prompt = None
+        prompt_is_raw_body = False  # True when prompt came from raw fallback (JSON parse failed)
         raw_len = 0
         tenant_id = self.tenant_isolation.default_tenant_id
         
@@ -1660,6 +1661,10 @@ class GuardianProxy:
                     return Response("Bad Request: Uninspectable or empty body", status=400)
             else:
                 return Response("Bad Request: Uninspectable or empty body", status=400)
+            # Mark that this prompt was not extracted from structured JSON — language
+            # detection on raw body bytes is unreliable (langdetect misclassifies JSON
+            # syntax characters) and must not block before check_prompt() runs.
+            prompt_is_raw_body = True
 
         # DEBUG INFO UPDATE
         self._update_debug_info({
@@ -1724,10 +1729,14 @@ class GuardianProxy:
                     })
                 return resp
             # 0.2 Check Language Allowlist after higher-priority adaptive controls.
-            lang_resp = self._check_language_allowlist(prompt, session_id, path)
-            if lang_resp is not None:
-                self.brain.analyze_request(session_id, prompt, blocked=True)
-                return lang_resp
+            # Skip for raw-body prompts: langdetect on JSON syntax or malformed bytes
+            # is unreliable and produces false-positive 403s before check_prompt() runs.
+            # Raw prompts are fully inspected by keyword/regex filters below.
+            if not prompt_is_raw_body:
+                lang_resp = self._check_language_allowlist(prompt, session_id, path)
+                if lang_resp is not None:
+                    self.brain.analyze_request(session_id, prompt, blocked=True)
+                    return lang_resp
             # 0.3 Trust Exploitation Guard (OWASP ASI09)
             te_resp = self._check_trust_exploitation(prompt, session_id, path, tenant_id, timings)
             if te_resp is not None:

@@ -1485,6 +1485,17 @@ class GuardianProxy:
             return None
         if self.fast_path.is_known_safe(prompt):
             return None
+        # Language detection is only meaningful for word-separated natural
+        # language. langdetect misclassifies JSON-syntax blobs and single
+        # tokens (garbage-in, garbage-out), producing false-positive 403s for
+        # the wrong reason before check_prompt() runs. The language allowlist
+        # is a policy control, not a security boundary — text that cannot be
+        # reliably classified is skipped here and still fully scanned by the
+        # keyword/regex/ML guardrails below.
+        letter_tokens = [t for t in prompt.split() if any(c.isalpha() for c in t)]
+        natural_ratio = sum(c.isalpha() or c.isspace() for c in prompt) / max(len(prompt), 1)
+        if len(letter_tokens) < 2 or natural_ratio < 0.7:
+            return None
         try:
             from langdetect import detect
             lang = detect(prompt)
@@ -1620,7 +1631,11 @@ class GuardianProxy:
         except Exception as e:
             logger.error(f"DEBUG: content parsing error: {e}")
 
-        if data:
+        if isinstance(data, dict) and data:
+            # Structured controls require an object body. Valid-but-non-dict
+            # JSON (string/array/number) previously crashed here with
+            # AttributeError and must instead fall through to the raw-body
+            # fallback below, where the full guardrail chain scans them.
             tenant_id, tenant_resp = self._resolve_tenant(data)
             if tenant_resp is not None:
                 return tenant_resp

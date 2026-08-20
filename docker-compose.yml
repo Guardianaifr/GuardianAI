@@ -14,6 +14,9 @@ services:
       - GUARDIAN_ADMIN_USER=${GUARDIAN_ADMIN_USER:-admin}
       - GUARDIAN_ADMIN_PASS=${GUARDIAN_ADMIN_PASS:?GUARDIAN_ADMIN_PASS must be set}
       
+      # Database Persistence
+      - GUARDIAN_DB_PATH=${GUARDIAN_DB_PATH:-/app/data/guardian.db}
+      
       # Routing
       - TARGET_URL=${TARGET_URL:-http://host.docker.internal:8080}
       - GUARDIAN_PROXY_HOST=${GUARDIAN_PROXY_HOST:-0.0.0.0}

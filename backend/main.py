@@ -337,7 +337,7 @@ app.add_middleware(
 )
 app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=1048576)
 
-DB_PATH = "guardian.db"
+DB_PATH = os.getenv("GUARDIAN_DB_PATH", os.getenv("DB_PATH", "guardian.db"))
 PROXY_EVENT_TYPES = (
     "allowed_request",
     "injection",
@@ -898,6 +898,9 @@ def _write_siem_alert(event: "SecurityEvent") -> None:
     router.enqueue(alert)
 
 def init_db():
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")

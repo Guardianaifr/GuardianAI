@@ -72,7 +72,7 @@ if [ "$1" = "one-click" ]; then\n\
     echo "   - Target LLM: $TARGET_URL"\n\
     echo "   - Proxy Port: $GUARDIAN_PROXY_PORT"\n\
     echo "   - SaaS Dashboard: $GUARDIAN_BACKEND_PORT"\n\
-    exec python guardianctl.py one-click --target-url "$TARGET_URL" --proxy-port "$GUARDIAN_PROXY_PORT" --backend-port "$GUARDIAN_BACKEND_PORT" --allow-risky-ports\n\
+    exec python guardianctl.py one-click --target-url "$TARGET_URL" --proxy-port "$GUARDIAN_PROXY_PORT" --backend-port "$GUARDIAN_BACKEND_PORT" \n\
 else\n\
     echo "🚀 Executing custom command: $@"\n\
     exec "$@"\n\
@@ -81,6 +81,10 @@ fi\n\
 
 # Switch to the non-root user
 USER guardian
+
+# Add Healthcheck to verify proxy is responding
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://127.0.0.1:8081/health || exit 1
 
 # Set entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

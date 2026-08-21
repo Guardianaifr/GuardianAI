@@ -54,18 +54,27 @@ export interface GuardianRiskAttestationInterface extends Interface {
       | "attest"
       | "attestations"
       | "getAttestation"
+      | "isValidGrade"
       | "owner"
+      | "pause"
+      | "paused"
       | "pendingOwner"
       | "renounceOwnership"
+      | "setValidGrade"
       | "totalAttestations"
       | "transferOwnership"
+      | "unpause"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "AttestationUpdated"
       | "OwnershipTransferStarted"
       | "OwnershipTransferred"
+      | "Paused"
       | "RiskAttested"
+      | "Unpaused"
+      | "ValidGradeSet"
   ): EventFragment;
 
   encodeFunctionData(
@@ -84,7 +93,13 @@ export interface GuardianRiskAttestationInterface extends Interface {
     functionFragment: "getAttestation",
     values: [AddressLike, string]
   ): string;
+  encodeFunctionData(
+    functionFragment: "isValidGrade",
+    values: [string]
+  ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
+  encodeFunctionData(functionFragment: "pause", values?: undefined): string;
+  encodeFunctionData(functionFragment: "paused", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "pendingOwner",
     values?: undefined
@@ -94,6 +109,10 @@ export interface GuardianRiskAttestationInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "setValidGrade",
+    values: [string, boolean]
+  ): string;
+  encodeFunctionData(
     functionFragment: "totalAttestations",
     values?: undefined
   ): string;
@@ -101,6 +120,7 @@ export interface GuardianRiskAttestationInterface extends Interface {
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
+  encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
 
   decodeFunctionResult(
     functionFragment: "acceptOwnership",
@@ -115,13 +135,23 @@ export interface GuardianRiskAttestationInterface extends Interface {
     functionFragment: "getAttestation",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "isValidGrade",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "pause", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "paused", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "pendingOwner",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setValidGrade",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -132,6 +162,35 @@ export interface GuardianRiskAttestationInterface extends Interface {
     functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
+}
+
+export namespace AttestationUpdatedEvent {
+  export type InputTuple = [
+    contractAddress: AddressLike,
+    chain: string,
+    score: BigNumberish,
+    grade: string,
+    signalsHash: BytesLike
+  ];
+  export type OutputTuple = [
+    contractAddress: string,
+    chain: string,
+    score: bigint,
+    grade: string,
+    signalsHash: string
+  ];
+  export interface OutputObject {
+    contractAddress: string;
+    chain: string;
+    score: bigint;
+    grade: string;
+    signalsHash: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace OwnershipTransferStartedEvent {
@@ -160,6 +219,18 @@ export namespace OwnershipTransferredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace PausedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace RiskAttestedEvent {
   export type InputTuple = [
     contractAddress: AddressLike,
@@ -181,6 +252,31 @@ export namespace RiskAttestedEvent {
     score: bigint;
     grade: string;
     signalsHash: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace UnpausedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ValidGradeSetEvent {
+  export type InputTuple = [grade: string, allowed: boolean];
+  export type OutputTuple = [grade: string, allowed: boolean];
+  export interface OutputObject {
+    grade: string;
+    allowed: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -265,11 +361,23 @@ export interface GuardianRiskAttestation extends BaseContract {
     "view"
   >;
 
+  isValidGrade: TypedContractMethod<[grade: string], [boolean], "view">;
+
   owner: TypedContractMethod<[], [string], "view">;
+
+  pause: TypedContractMethod<[], [void], "nonpayable">;
+
+  paused: TypedContractMethod<[], [boolean], "view">;
 
   pendingOwner: TypedContractMethod<[], [string], "view">;
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  setValidGrade: TypedContractMethod<
+    [grade: string, allowed: boolean],
+    [void],
+    "nonpayable"
+  >;
 
   totalAttestations: TypedContractMethod<[], [bigint], "view">;
 
@@ -278,6 +386,8 @@ export interface GuardianRiskAttestation extends BaseContract {
     [void],
     "nonpayable"
   >;
+
+  unpause: TypedContractMethod<[], [void], "nonpayable">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -322,8 +432,17 @@ export interface GuardianRiskAttestation extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "isValidGrade"
+  ): TypedContractMethod<[grade: string], [boolean], "view">;
+  getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "pause"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "paused"
+  ): TypedContractMethod<[], [boolean], "view">;
   getFunction(
     nameOrSignature: "pendingOwner"
   ): TypedContractMethod<[], [string], "view">;
@@ -331,12 +450,29 @@ export interface GuardianRiskAttestation extends BaseContract {
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "setValidGrade"
+  ): TypedContractMethod<
+    [grade: string, allowed: boolean],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "totalAttestations"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "unpause"
+  ): TypedContractMethod<[], [void], "nonpayable">;
 
+  getEvent(
+    key: "AttestationUpdated"
+  ): TypedContractEvent<
+    AttestationUpdatedEvent.InputTuple,
+    AttestationUpdatedEvent.OutputTuple,
+    AttestationUpdatedEvent.OutputObject
+  >;
   getEvent(
     key: "OwnershipTransferStarted"
   ): TypedContractEvent<
@@ -352,14 +488,46 @@ export interface GuardianRiskAttestation extends BaseContract {
     OwnershipTransferredEvent.OutputObject
   >;
   getEvent(
+    key: "Paused"
+  ): TypedContractEvent<
+    PausedEvent.InputTuple,
+    PausedEvent.OutputTuple,
+    PausedEvent.OutputObject
+  >;
+  getEvent(
     key: "RiskAttested"
   ): TypedContractEvent<
     RiskAttestedEvent.InputTuple,
     RiskAttestedEvent.OutputTuple,
     RiskAttestedEvent.OutputObject
   >;
+  getEvent(
+    key: "Unpaused"
+  ): TypedContractEvent<
+    UnpausedEvent.InputTuple,
+    UnpausedEvent.OutputTuple,
+    UnpausedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ValidGradeSet"
+  ): TypedContractEvent<
+    ValidGradeSetEvent.InputTuple,
+    ValidGradeSetEvent.OutputTuple,
+    ValidGradeSetEvent.OutputObject
+  >;
 
   filters: {
+    "AttestationUpdated(address,string,uint16,string,bytes32)": TypedContractEvent<
+      AttestationUpdatedEvent.InputTuple,
+      AttestationUpdatedEvent.OutputTuple,
+      AttestationUpdatedEvent.OutputObject
+    >;
+    AttestationUpdated: TypedContractEvent<
+      AttestationUpdatedEvent.InputTuple,
+      AttestationUpdatedEvent.OutputTuple,
+      AttestationUpdatedEvent.OutputObject
+    >;
+
     "OwnershipTransferStarted(address,address)": TypedContractEvent<
       OwnershipTransferStartedEvent.InputTuple,
       OwnershipTransferStartedEvent.OutputTuple,
@@ -382,6 +550,17 @@ export interface GuardianRiskAttestation extends BaseContract {
       OwnershipTransferredEvent.OutputObject
     >;
 
+    "Paused(address)": TypedContractEvent<
+      PausedEvent.InputTuple,
+      PausedEvent.OutputTuple,
+      PausedEvent.OutputObject
+    >;
+    Paused: TypedContractEvent<
+      PausedEvent.InputTuple,
+      PausedEvent.OutputTuple,
+      PausedEvent.OutputObject
+    >;
+
     "RiskAttested(address,string,uint16,string,bytes32)": TypedContractEvent<
       RiskAttestedEvent.InputTuple,
       RiskAttestedEvent.OutputTuple,
@@ -391,6 +570,28 @@ export interface GuardianRiskAttestation extends BaseContract {
       RiskAttestedEvent.InputTuple,
       RiskAttestedEvent.OutputTuple,
       RiskAttestedEvent.OutputObject
+    >;
+
+    "Unpaused(address)": TypedContractEvent<
+      UnpausedEvent.InputTuple,
+      UnpausedEvent.OutputTuple,
+      UnpausedEvent.OutputObject
+    >;
+    Unpaused: TypedContractEvent<
+      UnpausedEvent.InputTuple,
+      UnpausedEvent.OutputTuple,
+      UnpausedEvent.OutputObject
+    >;
+
+    "ValidGradeSet(string,bool)": TypedContractEvent<
+      ValidGradeSetEvent.InputTuple,
+      ValidGradeSetEvent.OutputTuple,
+      ValidGradeSetEvent.OutputObject
+    >;
+    ValidGradeSet: TypedContractEvent<
+      ValidGradeSetEvent.InputTuple,
+      ValidGradeSetEvent.OutputTuple,
+      ValidGradeSetEvent.OutputObject
     >;
   };
 }

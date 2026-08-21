@@ -30,6 +30,7 @@ export declare namespace GuardianInterlockRegistry {
     proofHash: BytesLike;
     nonce: BigNumberish;
     registeredAt: BigNumberish;
+    revoked: boolean;
   };
 
   export type InterlockProofStructOutput = [
@@ -37,13 +38,15 @@ export declare namespace GuardianInterlockRegistry {
     agentB: string,
     proofHash: string,
     nonce: bigint,
-    registeredAt: bigint
+    registeredAt: bigint,
+    revoked: boolean
   ] & {
     agentA: string;
     agentB: string;
     proofHash: string;
     nonce: bigint;
     registeredAt: bigint;
+    revoked: boolean;
   };
 }
 
@@ -61,6 +64,7 @@ export interface GuardianInterlockRegistryInterface extends Interface {
       | "registerInterlock"
       | "registry"
       | "renounceOwnership"
+      | "revokeInterlock"
       | "transferOwnership"
       | "unpause"
       | "verifyInterlock"
@@ -69,6 +73,7 @@ export interface GuardianInterlockRegistryInterface extends Interface {
   getEvent(
     nameOrSignatureOrTopic:
       | "InterlockRegistered"
+      | "InterlockRevoked"
       | "OwnershipTransferStarted"
       | "OwnershipTransferred"
       | "Paused"
@@ -106,6 +111,10 @@ export interface GuardianInterlockRegistryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "renounceOwnership",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "revokeInterlock",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
@@ -150,6 +159,10 @@ export interface GuardianInterlockRegistryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "revokeInterlock",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
@@ -181,6 +194,18 @@ export namespace InterlockRegisteredEvent {
     agentB: string;
     proofHash: string;
     nonce: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace InterlockRevokedEvent {
+  export type InputTuple = [interlockId: BytesLike];
+  export type OutputTuple = [interlockId: string];
+  export interface OutputObject {
+    interlockId: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -315,18 +340,25 @@ export interface GuardianInterlockRegistry extends BaseContract {
   registry: TypedContractMethod<
     [arg0: BytesLike],
     [
-      [string, string, string, bigint, bigint] & {
+      [string, string, string, bigint, bigint, boolean] & {
         agentA: string;
         agentB: string;
         proofHash: string;
         nonce: bigint;
         registeredAt: bigint;
+        revoked: boolean;
       }
     ],
     "view"
   >;
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  revokeInterlock: TypedContractMethod<
+    [_interlockId: BytesLike],
+    [void],
+    "nonpayable"
+  >;
 
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
@@ -391,12 +423,13 @@ export interface GuardianInterlockRegistry extends BaseContract {
   ): TypedContractMethod<
     [arg0: BytesLike],
     [
-      [string, string, string, bigint, bigint] & {
+      [string, string, string, bigint, bigint, boolean] & {
         agentA: string;
         agentB: string;
         proofHash: string;
         nonce: bigint;
         registeredAt: bigint;
+        revoked: boolean;
       }
     ],
     "view"
@@ -404,6 +437,9 @@ export interface GuardianInterlockRegistry extends BaseContract {
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "revokeInterlock"
+  ): TypedContractMethod<[_interlockId: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
@@ -420,6 +456,13 @@ export interface GuardianInterlockRegistry extends BaseContract {
     InterlockRegisteredEvent.InputTuple,
     InterlockRegisteredEvent.OutputTuple,
     InterlockRegisteredEvent.OutputObject
+  >;
+  getEvent(
+    key: "InterlockRevoked"
+  ): TypedContractEvent<
+    InterlockRevokedEvent.InputTuple,
+    InterlockRevokedEvent.OutputTuple,
+    InterlockRevokedEvent.OutputObject
   >;
   getEvent(
     key: "OwnershipTransferStarted"
@@ -460,6 +503,17 @@ export interface GuardianInterlockRegistry extends BaseContract {
       InterlockRegisteredEvent.InputTuple,
       InterlockRegisteredEvent.OutputTuple,
       InterlockRegisteredEvent.OutputObject
+    >;
+
+    "InterlockRevoked(bytes32)": TypedContractEvent<
+      InterlockRevokedEvent.InputTuple,
+      InterlockRevokedEvent.OutputTuple,
+      InterlockRevokedEvent.OutputObject
+    >;
+    InterlockRevoked: TypedContractEvent<
+      InterlockRevokedEvent.InputTuple,
+      InterlockRevokedEvent.OutputTuple,
+      InterlockRevokedEvent.OutputObject
     >;
 
     "OwnershipTransferStarted(address,address)": TypedContractEvent<

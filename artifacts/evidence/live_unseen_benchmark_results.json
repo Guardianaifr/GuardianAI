@@ -1,0 +1,140 @@
+{
+  "timestamp": "2026-08-20 12:22:40Z",
+  "summary": {
+    "total_attack_prompts": 1066,
+    "total_blocked_strict": 946,
+    "overall_attack_block_rate_strict_pct": 88.74,
+    "total_blocked_balanced": 853,
+    "overall_attack_block_rate_balanced_pct": 80.02,
+    "total_safe_prompts": 233,
+    "total_false_positives_strict": 68,
+    "overall_false_positive_rate_strict_pct": 29.18,
+    "total_false_positives_balanced": 15,
+    "overall_false_positive_rate_balanced_pct": 6.44,
+    "layer_breakdown_strict": {
+      "fast_path_regex": 0,
+      "semantic_firewall": 0,
+      "encoding_deobfuscator": 945,
+      "system_prompt_guard": 1,
+      "none": 120
+    }
+  },
+  "attack_breakdown": {
+    "HF_Prompt_Injections": {
+      "total": 15,
+      "blocked_strict": 13,
+      "rate_strict_pct": 86.67,
+      "blocked_balanced": 7,
+      "rate_balanced_pct": 46.67,
+      "layers_strict": {
+        "fast_path_regex": 0,
+        "semantic_firewall": 0,
+        "encoding_deobfuscator": 13,
+        "system_prompt_guard": 0,
+        "none": 2
+      }
+    },
+    "HF_ChatGPT_Jailbreaks": {
+      "total": 79,
+      "blocked_strict": 78,
+      "rate_strict_pct": 98.73,
+      "blocked_balanced": 73,
+      "rate_balanced_pct": 92.41,
+      "layers_strict": {
+        "fast_path_regex": 0,
+        "semantic_firewall": 0,
+        "encoding_deobfuscator": 77,
+        "system_prompt_guard": 1,
+        "none": 1
+      }
+    },
+    "HF_Jailbreak_Classification": {
+      "total": 52,
+      "blocked_strict": 48,
+      "rate_strict_pct": 92.31,
+      "blocked_balanced": 45,
+      "rate_balanced_pct": 86.54,
+      "layers_strict": {
+        "fast_path_regex": 0,
+        "semantic_firewall": 0,
+        "encoding_deobfuscator": 48,
+        "system_prompt_guard": 0,
+        "none": 4
+      }
+    },
+    "GitHub_AdvBench_Harmful": {
+      "total": 520,
+      "blocked_strict": 515,
+      "rate_strict_pct": 99.04,
+      "blocked_balanced": 496,
+      "rate_balanced_pct": 95.38,
+      "layers_strict": {
+        "fast_path_regex": 0,
+        "semantic_firewall": 0,
+        "encoding_deobfuscator": 515,
+        "system_prompt_guard": 0,
+        "none": 5
+      }
+    },
+    "GitHub_HarmBench_Official": {
+      "total": 400,
+      "blocked_strict": 292,
+      "rate_strict_pct": 73.0,
+      "blocked_balanced": 232,
+      "rate_balanced_pct": 58.0,
+      "layers_strict": {
+        "fast_path_regex": 0,
+        "semantic_firewall": 0,
+        "encoding_deobfuscator": 292,
+        "system_prompt_guard": 0,
+        "none": 108
+      }
+    }
+  },
+  "safe_breakdown": {
+    "HF_Safe_Prompts_PI": {
+      "total": 85,
+      "false_positives_strict": 18,
+      "fpr_strict_pct": 21.18,
+      "false_positives_balanced": 3,
+      "fpr_balanced_pct": 3.53
+    },
+    "HF_Jailbreak_Classification_Benign": {
+      "total": 48,
+      "false_positives_strict": 15,
+      "fpr_strict_pct": 31.25,
+      "false_positives_balanced": 5,
+      "fpr_balanced_pct": 10.42
+    },
+    "HF_Alpaca_Benign": {
+      "total": 100,
+      "false_positives_strict": 35,
+      "fpr_strict_pct": 35.0,
+      "false_positives_balanced": 7,
+      "fpr_balanced_pct": 7.0
+    }
+  },
+  "performance": {
+    "attack_load": {
+      "count": 500,
+      "concurrency": 20,
+      "total_time_sec": 4762.19,
+      "throughput_rps": 0.1,
+      "latency_p50_ms": 626.68,
+      "latency_p90_ms": 316255.55,
+      "latency_p95_ms": 2002849.78,
+      "latency_p99_ms": 2420660.25
+    },
+    "safe_load": {
+      "count": 233,
+      "concurrency": 20,
+      "total_time_sec": 28.1,
+      "throughput_rps": 8.29,
+      "latency_p50_ms": 2187.83,
+      "latency_p90_ms": 4034.13,
+      "latency_p95_ms": 4723.14,
+      "latency_p99_ms": 5513.79
+    }
+  },
+  "samples_evaluated": 0
+}

@@ -1,0 +1,235 @@
+name: "Benchmark Autorun"
+
+# FEAT-BENCH-AUTORUN
+# Fetches real public adversarial datasets, evaluates GuardianAI detection,
+# writes dated + latest JSON artifacts, and opens a PR for human review
+# before any numbers reach the main branch.
+#
+# Safeguard design:
+#   Every run opens a PR (never commits directly to main/protected branches).
+#   The PR description includes a regression check table comparing new results
+#   against the previous run. A human must review and merge.
+#   Rationale: the whole Phase 5 arc was about catching numbers that shipped
+#   without review. An automated pipeline that could silently regress those
+#   same numbers is exactly the failure mode we are closing.
+#
+# Triggers:
+#   - workflow_dispatch: manual run at any time (with optional dry-run input)
+#   - schedule: weekly, Sunday 02:00 UTC (low-traffic window)
+#
+# Q1 answer (revised): Opens a PR, not a direct commit to main.
+# Q2 answer: GAIA excluded -- no fetcher; adapt_gaia() remains unused.
+# Q3 answer: run_public_benchmark_alignment.py now defaults to latest_benchmark.json.
+#
+# FIRST-RUN NOTICE (compensating control):
+# workflow_dispatch has not been triggered in a live GitHub Actions environment
+# during development -- local tooling cannot authenticate to GitHub Actions.
+# Before relying on the weekly schedule unattended, the first real trigger of
+# this workflow MUST be run manually via workflow_dispatch and monitored
+# end-to-end to confirm:
+#   1. All 8 dataset fetches complete (no persistent 429 rate-limits in CI)
+#   2. The regression gate evaluates correctly against the previous artifact
+#   3. The PR is created with the correct description and diff
+#   4. The whitepaper anchors are updated correctly and no blank values appear
+# Only after a successful observed first run should the weekly cron be trusted.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (skip HTTP fetches, use existing artifact for smoke-test)"
+        type: boolean
+        default: false
+
+  schedule:
+    - cron: "0 2 * * 0"
+
+jobs:
+  benchmark:
+    name: "Run Benchmark & Open PR"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    permissions:
+      contents: write        # to push the results branch
+      pull-requests: write   # to open the PR
+
+    steps:
+      # -----------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # full history needed so we can read the previous run file
+
+      # -----------------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # -----------------------------------------------------------------------
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install sentence-transformers==5.2.2 scikit-learn || \
+            echo "WARNING: sentence-transformers unavailable -- keyword-only mode"
+
+      # -----------------------------------------------------------------------
+      - name: Capture previous results (for regression comparison)
+        id: previous
+        run: |
+          # Read the last-known grand-total strict rate from latest_benchmark.json
+          # so we can compare in the PR description. Fails safe: if file doesn't
+          # exist yet (first ever run), previous_rate is set to 0.
+          if [ -f "artifacts/evidence/latest_benchmark.json" ]; then
+            PREV=$(python - <<'EOF'
+          import json, sys
+          try:
+              d = json.load(open("artifacts/evidence/latest_benchmark.json"))
+              raw = d.get("raw", d)  # support legacy flat schema
+              t = raw.get("total_strict", {})
+              print(round(t.get("blocked",0)/max(t.get("total",1),1)*100, 1))
+          except Exception as e:
+              print("0.0")
+          EOF
+          )
+            echo "previous_rate=$PREV" >> "$GITHUB_OUTPUT"
+          else
+            echo "previous_rate=0.0" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -----------------------------------------------------------------------
+      - name: Run benchmark
+        id: benchmark
+        env:
+          CUDA_VISIBLE_DEVICES: ""
+          # Pass GITHUB_TOKEN for authenticated raw.githubusercontent.com fetches.
+          # Unauthenticated: ~60 req/hr per IP. Authenticated: 5,000 req/hr.
+          # The benchmark script fetches AdvBench, MaliciousInstruct, DAN jailbreaks
+          # from raw.githubusercontent.com -- without auth, these hit rate limits.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "DRY-RUN mode"
+            python tools/run_definitive_benchmark_v4.py --dry-run
+          else
+            echo "LIVE run -- fetching real datasets"
+            python tools/run_definitive_benchmark_v4.py
+          fi
+
+          # Capture new grand-total strict rate for the PR description
+          NEW=$(python - <<'EOF'
+          import json
+          d = json.load(open("artifacts/evidence/latest_benchmark.json"))
+          raw = d.get("raw", d)
+          t = raw.get("total_strict", {})
+          print(round(t.get("blocked",0)/max(t.get("total",1),1)*100, 1))
+          EOF
+          )
+          echo "new_rate=$NEW" >> "$GITHUB_OUTPUT"
+          echo "run_date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      - name: Regression gate (fail if new rate drops > 5pp)
+        # This is an automated guard -- it does NOT replace human review.
+        # It prevents a catastrophically bad run (e.g. all datasets 404'd,
+        # firewall errored) from even opening a PR.
+        run: |
+          python - <<'EOF'
+          import sys
+          prev = float("${{ steps.previous.outputs.previous_rate }}")
+          new  = float("${{ steps.benchmark.outputs.new_rate }}")
+          if prev == 0.0:
+              print("First run -- no regression baseline. Proceeding.")
+              sys.exit(0)
+          drop = prev - new
+          print(f"Previous grand-total strict: {prev}%")
+          print(f"New      grand-total strict: {new}%")
+          print(f"Delta: {-drop:+.1f}pp")
+          if drop > 5.0:
+              print(f"BLOCKED: {drop:.1f}pp regression exceeds 5pp automated gate.")
+              print("Fix the regression or override by running workflow_dispatch manually with dry_run=false.")
+              sys.exit(1)
+          print("Regression gate: PASSED")
+          EOF
+
+      # -----------------------------------------------------------------------
+      - name: Update whitepapers
+        run: |
+          python tools/update_whitepaper_from_benchmark.py
+
+      # -----------------------------------------------------------------------
+      - name: Push results branch and open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          RUN_DATE="${{ steps.benchmark.outputs.run_date }}"
+          BRANCH="bench/autorun-${RUN_DATE}-${{ github.run_id }}"
+
+          git checkout -b "$BRANCH"
+
+          git add \
+            artifacts/evidence/latest_benchmark.json \
+            "artifacts/evidence/definitive_benchmark_*.json" \
+            WHITEPAPER.md \
+            WHITEPAPER_PUBLIC.md
+
+          if git diff --cached --quiet; then
+            echo "No changes -- results identical to previous run. No PR needed."
+            exit 0
+          fi
+
+          git commit -m "chore: benchmark results ${RUN_DATE} (auto-generated, pending review)"
+
+          git push origin "$BRANCH"
+
+          PREV="${{ steps.previous.outputs.previous_rate }}"
+          NEW="${{ steps.benchmark.outputs.new_rate }}"
+          DELTA=$(python -c "print(f'{float(\"$NEW\")-float(\"$PREV\"):+.1f}pp')" 2>/dev/null || echo "N/A")
+
+          gh pr create \
+            --base "${{ github.ref_name }}" \
+            --head "$BRANCH" \
+            --title "chore: benchmark auto-update ${RUN_DATE}" \
+            --body "## Automated Benchmark Results -- ${RUN_DATE}
+
+          **This PR requires human review before merge.**
+
+          The automated regression gate (>5pp drop) passed, but a human must
+          confirm the numbers are reasonable before they update the public whitepaper.
+
+          | Metric | Previous | New | Delta |
+          |--------|----------|-----|-------|
+          | Grand total strict rate | ${PREV}% | ${NEW}% | ${DELTA} |
+
+          ### Files changed
+          - \`artifacts/evidence/latest_benchmark.json\`
+          - \`artifacts/evidence/definitive_benchmark_${RUN_DATE}.json\`
+          - \`WHITEPAPER.md\` (Section 6 table + Feature 28 + footnote)
+          - \`WHITEPAPER_PUBLIC.md\` (same anchors)
+
+          ### Review checklist
+          - [ ] Numbers are plausible (not wildly different from previous run)
+          - [ ] All 8 datasets loaded successfully (check run logs)
+          - [ ] Whitepaper anchor replacements look correct (diff review)
+          - [ ] Section 6 correction notes still intact (not overwritten)
+
+          _Triggered by: \`${{ github.event_name }}\` / run \`${{ github.run_id }}\`_"
+
+          echo "PR opened against ${{ github.ref_name }} from $BRANCH"
+
+      # -----------------------------------------------------------------------
+      - name: Upload artifacts (always, even on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.run_id }}
+          path: |
+            artifacts/evidence/latest_benchmark.json
+            artifacts/evidence/definitive_benchmark_*.json
+          retention-days: 90

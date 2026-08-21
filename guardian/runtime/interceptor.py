@@ -235,7 +235,17 @@ class GuardianProxy:
             return None
 
     def health_check(self):
-        return {"status": "ok", "component": "guardian_proxy"}
+        from guardian.guardrails.output_validator import PRESIDIO_AVAILABLE, DEGRADED_PII
+        status = "ok"
+        warnings = []
+        if not PRESIDIO_AVAILABLE:
+            warnings.append(f"PII detection degraded to regex-only: {DEGRADED_PII}")
+        
+        return {
+            "status": "degraded" if warnings else "ok",
+            "component": "guardian_proxy",
+            "warnings": warnings
+        }
 
     def reload_model(self):
         """Endpoint to hot-reload the AI model and jailbreak vectors."""
@@ -526,6 +536,10 @@ class GuardianProxy:
         self.last_debug_info = info
 
     def debug_info(self):
+        # P2-16: Feature-flag off in production
+        if os.getenv("GUARDIAN_ENV") != "development":
+            return Response("Forbidden: Debug route disabled in production.", status=403)
+
         """Admin-only debug endpoint.
 
         SECURITY: requires admin Bearer token (same gate as /api/reload-model and
@@ -1682,6 +1696,17 @@ class GuardianProxy:
             prompt_is_raw_body = True
 
         # DEBUG INFO UPDATE
+        # P2-16: Redact sensitive headers before storing in memory
+        safe_headers = dict(request.headers)
+        for sensitive_key in ['Authorization', 'X-Guardian-Token', 'x-api-key']:
+            for header_key in list(safe_headers.keys()):
+                if header_key.lower() == sensitive_key.lower():
+                    val = safe_headers[header_key]
+                    if val.lower().startswith('bearer '):
+                        safe_headers[header_key] = val[:10] + '***' + val[-4:]
+                    else:
+                        safe_headers[header_key] = '***REDACTED***'
+
         self._update_debug_info({
             "path": path,
             "tenant_id": tenant_id,
@@ -1690,8 +1715,8 @@ class GuardianProxy:
             "raw_len": raw_len,
             "data_parsed": bool(data),
             "data_keys": list(data.keys()) if isinstance(data, dict) else str(type(data)),
-            "prompt_extracted": prompt,
-            "headers": dict(request.headers)
+            "prompt_extracted": prompt[:100] + '...[REDACTED]' if prompt and len(prompt) > 100 else prompt,
+            "headers": safe_headers
         })
 
         if prompt:
@@ -1767,7 +1792,7 @@ class GuardianProxy:
             mode, show_reason = self._resolve_security_mode_for_tenant(tenant_id, mode, show_reason)
             
             if request.headers.get("X-Guardian-Role") == "admin":
-                if admin_token and request_token == admin_token:
+                if admin_token and secrets.compare_digest(request_token or "", admin_token):
                     logger.warning(f"âš ï¸  ADMIN BYPASS: Authorized request (Token Match) from {request.remote_addr}.")
                     path_taken = "admin_allowlist"
                     # Audit Log Event (Immutable Record)
@@ -1778,7 +1803,7 @@ class GuardianProxy:
                         "prompt_preview": prompt[:50]
                     })
                 else:
-                    logger.warning(f"ADMIN FAIL: Invalid or missing token from {request.remote_addr}. ConfigToken={admin_token}, ReqToken={request_token}")
+                    logger.warning(f"ADMIN FAIL: Invalid or missing token from {request.remote_addr}. ConfigTokenHash={hashlib.sha256(str(admin_token).encode()).hexdigest()[:8] if admin_token else 'None'}, ReqTokenHash={hashlib.sha256(str(request_token).encode()).hexdigest()[:8] if request_token else 'None'}")
                     # Fall through to normal checks (don't block, just treat as untrusted)
             
             if path_taken != "admin_allowlist":
@@ -1886,7 +1911,11 @@ class GuardianProxy:
         logger.info(f"DEBUG: Forwarding to {target}")
         
         # Prepare headers
-        fwd_headers = {key: value for (key, value) in request.headers if key != 'Host'}
+        # Strip Host, X-Guardian-Token (internal auth), and any other Guardian-specific headers
+        fwd_headers = {
+            key: value for (key, value) in request.headers 
+            if key.lower() not in ('host', 'x-guardian-token')
+        }
         
         # SECURITY FEATURE: Upstream Key Injection
         upstream_key = self.config.get('proxy', {}).get('upstream_key')
@@ -1896,17 +1925,43 @@ class GuardianProxy:
                 fwd_headers['x-api-key'] = upstream_key
 
         try:
+            is_stream = data and data.get("stream") is True
             resp = requests.request(
                 method=request.method,
                 url=target,
                 headers=fwd_headers,
                 data=request.get_data(),
-                cookies=request.cookies,
+                # Cookies are stripped. Upstream LLM APIs (OpenAI, Anthropic) do not use cookies.
+                # Forwarding them poses a risk of leaking unrelated client session credentials.
+                cookies=None,
                 allow_redirects=False,
                 timeout=30,  # Prevent indefinite hangs (Increased for stability)
+                stream=is_stream,
                 proxies={"http": None, "https": None} # Bypass system proxies
             )
             
+            if is_stream:
+                def generate():
+                    window = ""
+                    # 500-byte margin to prevent prefix leaks of long sensitive patterns (P2-2 trade-off)
+                    margin = 2048
+                    for chunk in resp.iter_content(chunk_size=1, decode_unicode=True):
+                        if chunk:
+                            window += chunk
+                            if self.config.get('security_policies', {}).get('validate_output'):
+                                _, detected = self.output_validator.sanitize_output(window)
+                                if detected:
+                                    yield 'data: {"error": "Forbidden: Potential data leak blocked by GuardianAI."}\n\n'
+                                    return
+                            if len(window) > margin:
+                                yield window[:-margin]
+                                window = window[-margin:]
+                    if window:
+                        yield window
+                
+                from flask import stream_with_context
+                return Response(stream_with_context(generate()), content_type=resp.headers.get('content-type', 'text/event-stream'))
+
             # Inspect output if enabled
             raw_content = resp.content.decode('utf-8', errors='ignore')
             content = raw_content

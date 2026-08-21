@@ -1,0 +1,168 @@
+{
+  "timestamp": "2026-08-20 17:24:35Z",
+  "source": "https://github.com/JailbreakBench/artifacts",
+  "total_attack_prompts": 1637,
+  "total_benign_prompts": 100,
+  "by_algorithm": {
+    "PAIR": {
+      "total": 237,
+      "blocked_strict": 232,
+      "blocked_balanced": 212,
+      "rate_strict_pct": 97.89,
+      "rate_balanced_pct": 89.45
+    },
+    "GCG_Transfer": {
+      "total": 200,
+      "blocked_strict": 200,
+      "blocked_balanced": 184,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 92.0
+    },
+    "GCG_Whitebox": {
+      "total": 200,
+      "blocked_strict": 200,
+      "blocked_balanced": 180,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 90.0
+    },
+    "JBC_Manual": {
+      "total": 400,
+      "blocked_strict": 400,
+      "blocked_balanced": 400,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 100.0
+    },
+    "Random_Search": {
+      "total": 400,
+      "blocked_strict": 400,
+      "blocked_balanced": 355,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 88.75
+    },
+    "DSN": {
+      "total": 200,
+      "blocked_strict": 200,
+      "blocked_balanced": 181,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 90.5
+    }
+  },
+  "by_model": {
+    "GPT-4": {
+      "total": 364,
+      "blocked_strict": 362,
+      "blocked_balanced": 335,
+      "rate_strict_pct": 99.45,
+      "rate_balanced_pct": 92.03
+    },
+    "GPT-3.5": {
+      "total": 387,
+      "blocked_strict": 386,
+      "blocked_balanced": 364,
+      "rate_strict_pct": 99.74,
+      "rate_balanced_pct": 94.06
+    },
+    "Llama-2-7B": {
+      "total": 404,
+      "blocked_strict": 404,
+      "blocked_balanced": 369,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 91.34
+    },
+    "Vicuna-13B": {
+      "total": 482,
+      "blocked_strict": 480,
+      "blocked_balanced": 444,
+      "rate_strict_pct": 99.59,
+      "rate_balanced_pct": 92.12
+    }
+  },
+  "by_category": {
+    "Harassment/Discrimination": {
+      "total": 171,
+      "blocked_strict": 171,
+      "blocked_balanced": 169,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 98.83
+    },
+    "Malware/Hacking": {
+      "total": 165,
+      "blocked_strict": 165,
+      "blocked_balanced": 165,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 100.0
+    },
+    "Physical harm": {
+      "total": 161,
+      "blocked_strict": 161,
+      "blocked_balanced": 161,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 100.0
+    },
+    "Economic harm": {
+      "total": 163,
+      "blocked_strict": 160,
+      "blocked_balanced": 132,
+      "rate_strict_pct": 98.16,
+      "rate_balanced_pct": 80.98
+    },
+    "Fraud/Deception": {
+      "total": 164,
+      "blocked_strict": 164,
+      "blocked_balanced": 163,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 99.39
+    },
+    "Disinformation": {
+      "total": 160,
+      "blocked_strict": 159,
+      "blocked_balanced": 150,
+      "rate_strict_pct": 99.38,
+      "rate_balanced_pct": 93.75
+    },
+    "Sexual/Adult content": {
+      "total": 164,
+      "blocked_strict": 164,
+      "blocked_balanced": 163,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 99.39
+    },
+    "Privacy": {
+      "total": 163,
+      "blocked_strict": 163,
+      "blocked_balanced": 162,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 99.39
+    },
+    "Expert advice": {
+      "total": 158,
+      "blocked_strict": 157,
+      "blocked_balanced": 85,
+      "rate_strict_pct": 99.37,
+      "rate_balanced_pct": 53.8
+    },
+    "Government decision-making": {
+      "total": 168,
+      "blocked_strict": 168,
+      "blocked_balanced": 162,
+      "rate_strict_pct": 100.0,
+      "rate_balanced_pct": 96.43
+    }
+  },
+  "layer_breakdown_strict": {
+    "semantic_firewall": 1193,
+    "fast_path_regex": 439,
+    "none": 5
+  },
+  "total_blocked_strict": 1632,
+  "total_blocked_balanced": 1512,
+  "overall_attack_block_rate_strict_pct": 99.69,
+  "overall_attack_block_rate_balanced_pct": 92.36,
+  "benign_eval": {
+    "total": 100,
+    "false_positives_strict": 89,
+    "fpr_strict_pct": 89.0,
+    "false_positives_balanced": 79,
+    "fpr_balanced_pct": 79.0
+  }
+}

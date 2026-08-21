@@ -31,7 +31,7 @@ scanner:
   - subprocess
   skills_directory: ./skills
 security_policies:
-  admin_token: ***REDACTED***
+  admin_token: "mock-admin-token-1234567890abcdef"
   block_prompt_injection: true
   leak_prevention_strategy: redact
   security_mode: balanced

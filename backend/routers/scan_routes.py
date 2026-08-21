@@ -234,7 +234,7 @@ def get_scan_history(target_url: str = "", limit: int = 20, principal: Dict[str,
 
 
 @router.get("/api/v1/leaderboard", tags=["Audit Scanner"])
-def get_leaderboard(limit: int = 50):
+def get_leaderboard(limit: int = 50, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     """Public leaderboard of all audited projects, ranked by score."""
     all_scans = []
     seen_targets = set()

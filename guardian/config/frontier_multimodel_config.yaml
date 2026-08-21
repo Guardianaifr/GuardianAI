@@ -1,0 +1,64 @@
+app_name: "GuardianAI [Universal Frontier Multi-Model Shield]"
+version: "3.2.0"
+guardian_id: "shield-universal-frontier"
+
+security_policies:
+  block_prompt_injection: true
+  validate_output: true
+  security_mode: "strict" # 0.45 threshold
+  show_block_reason: true
+  leak_prevention_strategy: "block"
+  admin_token: "change_me_to_secure_multi_token"
+
+scanner:
+  skills_directory: "./skills"
+  blocked_imports: [os, subprocess, sys, shutil]
+  blocked_functions: [eval, exec]
+
+runtime_monitoring:
+  blocked_processes:
+    - nc.exe
+    - ncat.exe
+    - powershell.exe
+    - cmd.exe
+  max_cpu_percent: 95.0
+  max_memory_percent: 90.0
+  check_interval_seconds: 5
+
+proxy:
+  enabled: true
+  listen_port: 8086               # Port for Universal Frontier Shield
+  target_url: "https://openrouter.ai/api" # Multi-model routing target (or direct provider)
+  upstream_key: "change_me_openrouter_or_provider_key"
+  enforce_auth: true
+  proxy_token: ""
+
+supported_models:
+  # Fable Series
+  - "fable/simulation-engine-v2"
+  - "fable/saga-frontier"
+  # GLM Series
+  - "zhipu/glm-4-plus"
+  - "zhipu/glm-4-air"
+  - "zhipu/glm-3.3"
+  # DeepSeek Series
+  - "deepseek/deepseek-r1"
+  - "deepseek/deepseek-v3"
+  # Qwen Series
+  - "qwen/qwen-2.5-72b-instruct"
+  - "qwen/qwen-3-max"
+  # Mistral Series
+  - "mistralai/mistral-large-2411"
+  - "mistralai/pixtral-large-2411"
+
+backend:
+  enabled: true
+  url: "http://127.0.0.1:8001/api/v1/telemetry"
+
+rate_limiting:
+  enabled: true
+  requests_per_minute: 150
+
+threat_feed:
+  enabled: true
+  feed_update_interval_minutes: 60

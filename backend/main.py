@@ -1,6 +1,9 @@
 import sys
 if __name__ == "__main__":
     sys.modules["backend.main"] = sys.modules[__name__]
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
 
 import socket
 import ipaddress
@@ -15,6 +18,8 @@ _original_create_connection = urllib3.util.connection._real_create_connection
 def _safe_create_connection(address, *args, **kwargs):
     host, port = address
     try:
+        allowlist = [ip.strip() for ip in os.getenv("GUARDIAN_SSRF_ALLOWLIST", "").split(",") if ip.strip()]
+
         try:
             ip_obj = ipaddress.ip_address(host)
             is_ip = True
@@ -23,8 +28,7 @@ def _safe_create_connection(address, *args, **kwargs):
             
         if is_ip:
             if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
-                is_test_env = "pytest" in sys.modules or os.getenv("GUARDIAN_ENV") in {"test", "development"}
-                if not is_test_env:
+                if host not in allowlist and "pytest" not in sys.modules:
                     raise socket.error(f"SSRF Protection: Connection to private/local IP {host} blocked.")
             return _original_create_connection(address, *args, **kwargs)
             
@@ -35,22 +39,23 @@ def _safe_create_connection(address, *args, **kwargs):
             try:
                 ip_obj = ipaddress.ip_address(ip)
                 is_private = ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
-                
-                is_test_env = "pytest" in sys.modules or os.getenv("GUARDIAN_ENV") in {"test", "development"}
-                lower_host = host.lower()
-                is_test_host = any(lower_host.endswith(suf) for suf in [".example", ".local", ".test", ".localhost", ".internal", ".invalid"]) or lower_host == "localhost"
-                
-                if is_private and not (is_test_env or is_test_host):
+                # If resolved IP is private, block unless it's explicitly allowlisted
+                if is_private and ip not in allowlist and "pytest" not in sys.modules:
                     continue
                 safe_ips.append(ip)
             except ValueError:
-                pass
+                continue
                 
         if not safe_ips:
-            raise socket.error(f"SSRF Protection: No safe public IP addresses resolved for hostname {host}.")
+            raise socket.error(f"SSRF Protection: All resolved IPs for {host} are private/local and blocked.")
             
-        safe_ip = safe_ips[0]
-        return _original_create_connection((safe_ip, port), *args, **kwargs)
+        # Try safe IPs until one works
+        for safe_ip in safe_ips:
+            try:
+                return _original_create_connection((safe_ip, port), *args, **kwargs)
+            except socket.error:
+                continue
+        raise socket.error(f"SSRF Protection: Could not connect to any safe IP for {host}.")
         
     except socket.gaierror as exc:
         return _original_create_connection(address, *args, **kwargs)
@@ -309,7 +314,12 @@ SERVICE_ID = os.getenv("GUARDIAN_SERVICE_ID", "guardian-proxy").strip() or "guar
 SIEM_ENABLED = os.getenv("GUARDIAN_SIEM_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 SIEM_FORMAT = os.getenv("GUARDIAN_SIEM_FORMAT", "json").strip() or "json"
 SIEM_OUT = os.getenv("GUARDIAN_SIEM_OUT", "artifacts/evidence/siem_alerts.log").strip() or "artifacts/evidence/siem_alerts.log"
-AGENTIC_ATTESTATION_SECRET = os.getenv("GUARDIAN_AGENTIC_ATTESTATION_SECRET", JWT_SECRET).strip() or JWT_SECRET
+_raw_agentic_secret = os.getenv("GUARDIAN_AGENTIC_ATTESTATION_SECRET", "").strip()
+if _raw_agentic_secret:
+    AGENTIC_ATTESTATION_SECRET = _raw_agentic_secret
+else:
+    AGENTIC_ATTESTATION_SECRET = secrets.token_urlsafe(64)
+    logger.warning("GUARDIAN_AGENTIC_ATTESTATION_SECRET not set. Using ephemeral key. NOT suitable for production.")
 DP_ENABLED = os.getenv("GUARDIAN_DP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 DP_EPSILON = float(os.getenv("GUARDIAN_DP_EPSILON", "1.0"))
 DP_SEED = int(os.getenv("GUARDIAN_DP_SEED", "7"))
@@ -320,6 +330,9 @@ if _env_mode == "production":
         logger.warning("Starting in production mode without explicit GUARDIAN_ADMIN_PASS. Ephemeral password used.")
     if not _raw_jwt_secret:
         logger.error("CRITICAL SECURITY ERROR: JWT_SECRET is not set in production mode! Refusing to start.")
+        sys.exit(1)
+    if not _raw_agentic_secret:
+        logger.error("CRITICAL SECURITY ERROR: GUARDIAN_AGENTIC_ATTESTATION_SECRET is not set in production mode! Refusing to start.")
         sys.exit(1)
     if not TELEMETRY_REQUIRE_API_KEY and not BACKEND_TOKEN:
         logger.error("CRITICAL SECURITY ERROR: Telemetry API key enforcement is disabled and no backend token is configured in production mode! Refusing to start.")
@@ -370,9 +383,10 @@ _metrics_latency_samples = 0
 _metrics_status_counts: Dict[int, int] = {}
 _metrics_recent_requests = deque()
 # Local roles for the SaaS Admin Dashboard: admin, auditor, user.
-# Note: This is separate from backend/rbac.py and the auth proxy layer, which
-# define a granular multi-tenant role matrix (admin, analyst, tenant_admin, read_only)
-# for proxy and tenant scoping. Both systems are maintained for dual-layer security.
+# Note: This set represents the single active authorization layer for the backend.
+# The legacy auth proxy layer in backend/auth.py and backend/rbac.py has been stripped
+# of its runtime access gates and now serves purely as cryptographic utilities
+# (password hashing and JWT decode primitives).
 _valid_roles: Set[str] = {"admin", "auditor", "user"}
 _redis_client: Any | None = None
 _redis_script_sha: str | None = None
@@ -1253,21 +1267,16 @@ bearer_security = HTTPBearer(auto_error=False)
 
 def _validate_basic(credentials: HTTPBasicCredentials) -> str:
     user_config = _auth_users.get(credentials.username)
-    if not user_config:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    stored = user_config["password"]
-    # Support both hashed (salt$hash) and plain-text passwords.
-    # Plain-text is used in tests; production uses hash_password() output.
-    if "$" in stored:
-        ok = verify_password(credentials.password, stored)
-    else:
-        import hmac as _hmac
-        ok = _hmac.compare_digest(credentials.password, stored)
-    if not ok:
+    
+    # Anti-enumeration: always verify a hash to equalize timing.
+    # If the user doesn't exist, we verify against a static, genuinely valid dummy hash.
+    # Generated via hash_password("dummy") to ensure valid base64 and checksum.
+    DUMMY_HASH = "$argon2id$v=19$m=65536,t=7,p=4$KUGcP8geNdGLxEzipJtshQ$BiFNhl23xD9jhkM4YXPtzmfc1AR6XL1n6BV4zvcj5Ak"
+    stored = user_config["password"] if user_config else DUMMY_HASH
+    
+    ok = verify_password(credentials.password, stored)
+    
+    if not user_config or not ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -2326,18 +2335,39 @@ def _agentic_secret_stream(length: int) -> bytes:
     return out[:length]
 
 
-def _agentic_encrypt_secret(raw_secret: str) -> str:
-    raw = raw_secret.encode("utf-8")
-    stream = _agentic_secret_stream(len(raw))
-    encrypted = bytes(a ^ b for a, b in zip(raw, stream))
-    return base64.urlsafe_b64encode(encrypted).decode("ascii")
+def _get_aead_key():
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=b"guardian_agentic_v2",
+        info=b"agentic_attestation_key",
+    )
+    return hkdf.derive(AGENTIC_ATTESTATION_SECRET.encode("utf-8"))
 
+def _agentic_encrypt_secret(raw_secret: str) -> str:
+    key = _get_aead_key()
+    aesgcm = AESGCM(key)
+    nonce = os.urandom(12)
+    raw = raw_secret.encode("utf-8")
+    ct = aesgcm.encrypt(nonce, raw, None)
+    return "v2:" + base64.urlsafe_b64encode(nonce + ct).decode("ascii")
 
 def _agentic_decrypt_secret(ciphertext: str) -> str:
-    encrypted = base64.urlsafe_b64decode(ciphertext.encode("ascii"))
-    stream = _agentic_secret_stream(len(encrypted))
-    raw = bytes(a ^ b for a, b in zip(encrypted, stream))
-    return raw.decode("utf-8")
+    if ciphertext.startswith("v2:"):
+        data = base64.urlsafe_b64decode(ciphertext[3:].encode("ascii"))
+        nonce = data[:12]
+        ct = data[12:]
+        key = _get_aead_key()
+        aesgcm = AESGCM(key)
+        try:
+            return aesgcm.decrypt(nonce, ct, None).decode("utf-8")
+        except Exception:
+            raise ValueError("Decryption failed")
+    else:
+        encrypted = base64.urlsafe_b64decode(ciphertext.encode("ascii"))
+        stream = _agentic_secret_stream(len(encrypted))
+        raw = bytes(a ^ b for a, b in zip(encrypted, stream))
+        return raw.decode("utf-8")
 
 
 def _hash_agentic_secret(raw_secret: str) -> str:
@@ -2446,12 +2476,24 @@ def _build_agentic_config_snapshot() -> Dict[str, Any]:
     )
     agent_keys: Dict[str, Dict[str, str]] = {}
     agent_cert_fingerprints: Dict[str, List[str]] = {}
+    needs_migration = []
     for agent_id, key_id, ciphertext, cert_fingerprints_json in cur.fetchall():
         try:
             secret = _agentic_decrypt_secret(ciphertext)
+            if not ciphertext.startswith("v2:"):
+                needs_migration.append((agent_id, key_id, secret))
         except Exception:
             continue
         agent_keys.setdefault(agent_id, {})[key_id] = secret
+        
+    if needs_migration:
+        for agent_id, key_id, secret in needs_migration:
+            new_ct = _agentic_encrypt_secret(secret)
+            cur.execute(
+                "UPDATE agentic_agent_keys SET key_secret_ciphertext = ? WHERE agent_id = ? AND key_id = ?",
+                (new_ct, agent_id, key_id)
+            )
+        conn.commit()
         for fingerprint in _json_list(cert_fingerprints_json):
             normalized = _normalize_cert_fingerprint(fingerprint)
             if normalized:

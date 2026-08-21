@@ -570,7 +570,7 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 **Total test count for F27:** 9/9 PASSED (5 original + 4 new)
 
 **Whitepaper updates (same commit):**
-- Feature 27 renamed from "Hallucination-Risk Output Assurance" → "**Output Structural Assurance**" in all three whitepaper files (the code enforces JSON structure + metadata policy, not hallucination detection)
+- Feature 27 renamed from "Hallucination-Risk Output Assurance" → "**Output Structural Assurance (Opt-In / Disabled by Default)**" in all three whitepaper files (the code enforces JSON structure + metadata policy, not hallucination detection)
 - August 2026 fix note added to all three Feature 27 blurbs
 
 **Files changed:**

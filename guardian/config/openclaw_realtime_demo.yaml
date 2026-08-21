@@ -7,7 +7,7 @@ security_policies:
   security_mode: balanced
   show_block_reason: true
   leak_prevention_strategy: redact
-  admin_token: ***REDACTED***
+  admin_token: "mock-admin-token-1234567890abcdef"
 scanner:
   skills_directory: ./mock_skills
   blocked_imports:

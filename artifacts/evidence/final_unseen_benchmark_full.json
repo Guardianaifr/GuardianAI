@@ -1,0 +1,79 @@
+{
+  "jbb_official_100_behaviors": {
+    "strict": {
+      "blocked": 100,
+      "total": 100,
+      "block_rate_pct": 100.0
+    },
+    "balanced": {
+      "blocked": 93,
+      "total": 100,
+      "block_rate_pct": 93.0
+    },
+    "lenient": {
+      "blocked": 77,
+      "total": 100,
+      "block_rate_pct": 77.0
+    }
+  },
+  "jbb_gcg_white_box_vicuna": {
+    "strict_blocked": 100,
+    "balanced_blocked": 91,
+    "total": 100,
+    "block_rate_pct": 91.0
+  },
+  "jbb_gcg_transfer_gpt_4": {
+    "strict_blocked": 100,
+    "balanced_blocked": 91,
+    "total": 100,
+    "block_rate_pct": 91.0
+  },
+  "jbb_pair_black_box_llama2": {
+    "strict_blocked": 4,
+    "balanced_blocked": 1,
+    "total": 4,
+    "block_rate_pct": 25.0
+  },
+  "jbb_jbc_manual_gpt_4": {
+    "strict_blocked": 100,
+    "balanced_blocked": 100,
+    "total": 100,
+    "block_rate_pct": 100.0
+  },
+  "jbb_random_search": {
+    "strict_blocked": 100,
+    "balanced_blocked": 88,
+    "total": 100,
+    "block_rate_pct": 88.0
+  },
+  "autodan_mutated": {
+    "blocked": 10,
+    "total": 10,
+    "block_rate_pct": 100.0
+  },
+  "wildguard_real_user": {
+    "blocked": 15,
+    "total": 15,
+    "block_rate_pct": 100.0
+  },
+  "jackhhao_harmful": {
+    "blocked": 45,
+    "total": 54,
+    "block_rate_pct": 83.33
+  },
+  "jackhhao_benign_fp": {
+    "false_positives": 7,
+    "total": 46,
+    "fp_rate_pct": 15.22
+  },
+  "deepset_harmful": {
+    "blocked": 9,
+    "total": 15,
+    "block_rate_pct": 60.0
+  },
+  "deepset_benign_fp": {
+    "false_positives": 3,
+    "total": 85,
+    "fp_rate_pct": 3.53
+  }
+}

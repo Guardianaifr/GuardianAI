@@ -62,6 +62,7 @@ export interface GuardianInsuranceLedgerInterface extends Interface {
       | "certificates"
       | "getCertificate"
       | "getCertificateCount"
+      | "getCertificateIdsPage"
       | "issueCertificate"
       | "owner"
       | "pause"
@@ -106,6 +107,10 @@ export interface GuardianInsuranceLedgerInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getCertificateCount",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getCertificateIdsPage",
+    values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "issueCertificate",
@@ -161,6 +166,10 @@ export interface GuardianInsuranceLedgerInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getCertificateCount",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getCertificateIdsPage",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -355,6 +364,12 @@ export interface GuardianInsuranceLedger extends BaseContract {
 
   getCertificateCount: TypedContractMethod<[], [bigint], "view">;
 
+  getCertificateIdsPage: TypedContractMethod<
+    [offset: BigNumberish, limit: BigNumberish],
+    [string[]],
+    "view"
+  >;
+
   issueCertificate: TypedContractMethod<
     [
       _certId: BytesLike,
@@ -432,6 +447,13 @@ export interface GuardianInsuranceLedger extends BaseContract {
   getFunction(
     nameOrSignature: "getCertificateCount"
   ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "getCertificateIdsPage"
+  ): TypedContractMethod<
+    [offset: BigNumberish, limit: BigNumberish],
+    [string[]],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "issueCertificate"
   ): TypedContractMethod<

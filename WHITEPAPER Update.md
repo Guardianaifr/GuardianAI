@@ -414,7 +414,7 @@ Verified results: 95.68 rps (safe load), 494.01 rps block throughput (attack loa
 
 ---
 
-**Feature 27 — Output Structural Assurance**
+**Feature 27 — Output Structural Assurance (Opt-In / Disabled by Default)**
 
 Enforces structured response contracts — validates that AI outputs conform to expected JSON schemas, contain required citation fields, or include minimum confidence annotations. Detects and blocks adversarial fake-abstain attempts where a jailbroken model sets `"abstain": true` alongside harmful content.
 

@@ -1,0 +1,57 @@
+app_name: "GuardianAI [OpenAI Frontier Shield]"
+version: "3.2.0"
+guardian_id: "shield-openai-frontier"
+
+security_policies:
+  block_prompt_injection: true
+  validate_output: true
+  security_mode: "strict"
+  show_block_reason: true
+  leak_prevention_strategy: "block"
+  admin_token: "change_me_to_secure_openai_token"
+
+scanner:
+  skills_directory: "./skills"
+  blocked_imports: [os, subprocess, sys]
+  blocked_functions: [eval, exec]
+
+runtime_monitoring:
+  blocked_processes:
+    - nc.exe
+    - ncat.exe
+    - powershell.exe
+    - cmd.exe
+  max_cpu_percent: 95.0
+  max_memory_percent: 90.0
+  check_interval_seconds: 5
+
+proxy:
+  enabled: true
+  listen_port: 8084               # Port for OpenAI Shield
+  target_url: "https://api.openai.com" # Cloud Target
+  upstream_key: "change_me_openai_api_key" # Injected securely into Authorization: Bearer <key>
+  enforce_auth: true
+  proxy_token: ""
+
+supported_models:
+  - "gpt-5.6-sol"
+  - "gpt-luna"
+  - "gpt-terra"
+  - "o3"
+  - "o3-mini"
+  - "o1"
+  - "o1-preview"
+  - "gpt-4o"
+  - "gpt-4.5-preview"
+
+backend:
+  enabled: true
+  url: "http://127.0.0.1:8001/api/v1/telemetry"
+
+rate_limiting:
+  enabled: true
+  requests_per_minute: 120
+
+threat_feed:
+  enabled: true
+  feed_update_interval_minutes: 60

@@ -26,8 +26,8 @@ import type {
 export interface GuardianThreatFeedRegistryInterface extends Interface {
   getFunction(
     nameOrSignature:
-      | "DEFAULT_ADMIN_ROLE"
-      | "FEED_WRITER_ROLE"
+      | "MAX_EVM_REGISTRY_SIZE"
+      | "MAX_STRING_REGISTRY_SIZE"
       | "acceptOwnership"
       | "addAddress"
       | "addAddressesBatch"
@@ -36,9 +36,6 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
       | "evmAddressCount"
       | "evmAddresses"
       | "evmRegistry"
-      | "getRoleAdmin"
-      | "grantRole"
-      | "hasRole"
       | "isMalicious"
       | "isMaliciousString"
       | "owner"
@@ -48,12 +45,9 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
       | "removeAddress"
       | "removeStringAddress"
       | "renounceOwnership"
-      | "renounceRole"
-      | "revokeRole"
       | "stringAddressCount"
       | "stringAddresses"
       | "stringRegistry"
-      | "supportsInterface"
       | "transferOwnership"
       | "unpause"
   ): FunctionFragment;
@@ -65,20 +59,17 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
       | "OwnershipTransferStarted"
       | "OwnershipTransferred"
       | "Paused"
-      | "RoleAdminChanged"
-      | "RoleGranted"
-      | "RoleRevoked"
       | "StringAddressAdded"
       | "StringAddressRemoved"
       | "Unpaused"
   ): EventFragment;
 
   encodeFunctionData(
-    functionFragment: "DEFAULT_ADMIN_ROLE",
+    functionFragment: "MAX_EVM_REGISTRY_SIZE",
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "FEED_WRITER_ROLE",
+    functionFragment: "MAX_STRING_REGISTRY_SIZE",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -114,18 +105,6 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
     values: [AddressLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "getRoleAdmin",
-    values: [BytesLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "grantRole",
-    values: [BytesLike, AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "hasRole",
-    values: [BytesLike, AddressLike]
-  ): string;
-  encodeFunctionData(
     functionFragment: "isMalicious",
     values: [AddressLike]
   ): string;
@@ -153,14 +132,6 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "renounceRole",
-    values: [BytesLike, AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "revokeRole",
-    values: [BytesLike, AddressLike]
-  ): string;
-  encodeFunctionData(
     functionFragment: "stringAddressCount",
     values?: undefined
   ): string;
@@ -173,21 +144,17 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
     values: [string]
   ): string;
   encodeFunctionData(
-    functionFragment: "supportsInterface",
-    values: [BytesLike]
-  ): string;
-  encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
   encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
 
   decodeFunctionResult(
-    functionFragment: "DEFAULT_ADMIN_ROLE",
+    functionFragment: "MAX_EVM_REGISTRY_SIZE",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "FEED_WRITER_ROLE",
+    functionFragment: "MAX_STRING_REGISTRY_SIZE",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -220,12 +187,6 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getRoleAdmin",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: "grantRole", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "hasRole", data: BytesLike): Result;
-  decodeFunctionResult(
     functionFragment: "isMalicious",
     data: BytesLike
   ): Result;
@@ -253,11 +214,6 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "renounceRole",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
-  decodeFunctionResult(
     functionFragment: "stringAddressCount",
     data: BytesLike
   ): Result;
@@ -267,10 +223,6 @@ export interface GuardianThreatFeedRegistryInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "stringRegistry",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "supportsInterface",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -336,64 +288,6 @@ export namespace PausedEvent {
   export type OutputTuple = [account: string];
   export interface OutputObject {
     account: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace RoleAdminChangedEvent {
-  export type InputTuple = [
-    role: BytesLike,
-    previousAdminRole: BytesLike,
-    newAdminRole: BytesLike
-  ];
-  export type OutputTuple = [
-    role: string,
-    previousAdminRole: string,
-    newAdminRole: string
-  ];
-  export interface OutputObject {
-    role: string;
-    previousAdminRole: string;
-    newAdminRole: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace RoleGrantedEvent {
-  export type InputTuple = [
-    role: BytesLike,
-    account: AddressLike,
-    sender: AddressLike
-  ];
-  export type OutputTuple = [role: string, account: string, sender: string];
-  export interface OutputObject {
-    role: string;
-    account: string;
-    sender: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace RoleRevokedEvent {
-  export type InputTuple = [
-    role: BytesLike,
-    account: AddressLike,
-    sender: AddressLike
-  ];
-  export type OutputTuple = [role: string, account: string, sender: string];
-  export interface OutputObject {
-    role: string;
-    account: string;
-    sender: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -481,9 +375,9 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  DEFAULT_ADMIN_ROLE: TypedContractMethod<[], [string], "view">;
+  MAX_EVM_REGISTRY_SIZE: TypedContractMethod<[], [bigint], "view">;
 
-  FEED_WRITER_ROLE: TypedContractMethod<[], [string], "view">;
+  MAX_STRING_REGISTRY_SIZE: TypedContractMethod<[], [bigint], "view">;
 
   acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
@@ -527,20 +421,6 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     "view"
   >;
 
-  getRoleAdmin: TypedContractMethod<[role: BytesLike], [string], "view">;
-
-  grantRole: TypedContractMethod<
-    [role: BytesLike, account: AddressLike],
-    [void],
-    "nonpayable"
-  >;
-
-  hasRole: TypedContractMethod<
-    [role: BytesLike, account: AddressLike],
-    [boolean],
-    "view"
-  >;
-
   isMalicious: TypedContractMethod<
     [_query: AddressLike],
     [[boolean, string]],
@@ -575,18 +455,6 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
-  renounceRole: TypedContractMethod<
-    [role: BytesLike, callerConfirmation: AddressLike],
-    [void],
-    "nonpayable"
-  >;
-
-  revokeRole: TypedContractMethod<
-    [role: BytesLike, account: AddressLike],
-    [void],
-    "nonpayable"
-  >;
-
   stringAddressCount: TypedContractMethod<[], [bigint], "view">;
 
   stringAddresses: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
@@ -603,12 +471,6 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     "view"
   >;
 
-  supportsInterface: TypedContractMethod<
-    [interfaceId: BytesLike],
-    [boolean],
-    "view"
-  >;
-
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
     [void],
@@ -622,11 +484,11 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
   ): T;
 
   getFunction(
-    nameOrSignature: "DEFAULT_ADMIN_ROLE"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: "MAX_EVM_REGISTRY_SIZE"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
-    nameOrSignature: "FEED_WRITER_ROLE"
-  ): TypedContractMethod<[], [string], "view">;
+    nameOrSignature: "MAX_STRING_REGISTRY_SIZE"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "acceptOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
@@ -678,23 +540,6 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "getRoleAdmin"
-  ): TypedContractMethod<[role: BytesLike], [string], "view">;
-  getFunction(
-    nameOrSignature: "grantRole"
-  ): TypedContractMethod<
-    [role: BytesLike, account: AddressLike],
-    [void],
-    "nonpayable"
-  >;
-  getFunction(
-    nameOrSignature: "hasRole"
-  ): TypedContractMethod<
-    [role: BytesLike, account: AddressLike],
-    [boolean],
-    "view"
-  >;
-  getFunction(
     nameOrSignature: "isMalicious"
   ): TypedContractMethod<[_query: AddressLike], [[boolean, string]], "view">;
   getFunction(
@@ -722,20 +567,6 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "renounceRole"
-  ): TypedContractMethod<
-    [role: BytesLike, callerConfirmation: AddressLike],
-    [void],
-    "nonpayable"
-  >;
-  getFunction(
-    nameOrSignature: "revokeRole"
-  ): TypedContractMethod<
-    [role: BytesLike, account: AddressLike],
-    [void],
-    "nonpayable"
-  >;
-  getFunction(
     nameOrSignature: "stringAddressCount"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
@@ -754,9 +585,6 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     ],
     "view"
   >;
-  getFunction(
-    nameOrSignature: "supportsInterface"
-  ): TypedContractMethod<[interfaceId: BytesLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
@@ -798,27 +626,6 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
     PausedEvent.InputTuple,
     PausedEvent.OutputTuple,
     PausedEvent.OutputObject
-  >;
-  getEvent(
-    key: "RoleAdminChanged"
-  ): TypedContractEvent<
-    RoleAdminChangedEvent.InputTuple,
-    RoleAdminChangedEvent.OutputTuple,
-    RoleAdminChangedEvent.OutputObject
-  >;
-  getEvent(
-    key: "RoleGranted"
-  ): TypedContractEvent<
-    RoleGrantedEvent.InputTuple,
-    RoleGrantedEvent.OutputTuple,
-    RoleGrantedEvent.OutputObject
-  >;
-  getEvent(
-    key: "RoleRevoked"
-  ): TypedContractEvent<
-    RoleRevokedEvent.InputTuple,
-    RoleRevokedEvent.OutputTuple,
-    RoleRevokedEvent.OutputObject
   >;
   getEvent(
     key: "StringAddressAdded"
@@ -896,39 +703,6 @@ export interface GuardianThreatFeedRegistry extends BaseContract {
       PausedEvent.InputTuple,
       PausedEvent.OutputTuple,
       PausedEvent.OutputObject
-    >;
-
-    "RoleAdminChanged(bytes32,bytes32,bytes32)": TypedContractEvent<
-      RoleAdminChangedEvent.InputTuple,
-      RoleAdminChangedEvent.OutputTuple,
-      RoleAdminChangedEvent.OutputObject
-    >;
-    RoleAdminChanged: TypedContractEvent<
-      RoleAdminChangedEvent.InputTuple,
-      RoleAdminChangedEvent.OutputTuple,
-      RoleAdminChangedEvent.OutputObject
-    >;
-
-    "RoleGranted(bytes32,address,address)": TypedContractEvent<
-      RoleGrantedEvent.InputTuple,
-      RoleGrantedEvent.OutputTuple,
-      RoleGrantedEvent.OutputObject
-    >;
-    RoleGranted: TypedContractEvent<
-      RoleGrantedEvent.InputTuple,
-      RoleGrantedEvent.OutputTuple,
-      RoleGrantedEvent.OutputObject
-    >;
-
-    "RoleRevoked(bytes32,address,address)": TypedContractEvent<
-      RoleRevokedEvent.InputTuple,
-      RoleRevokedEvent.OutputTuple,
-      RoleRevokedEvent.OutputObject
-    >;
-    RoleRevoked: TypedContractEvent<
-      RoleRevokedEvent.InputTuple,
-      RoleRevokedEvent.OutputTuple,
-      RoleRevokedEvent.OutputObject
     >;
 
     "StringAddressAdded(string,string)": TypedContractEvent<

@@ -21,9 +21,9 @@ def _setup_revocation_db(tmp_path, monkeypatch):
         backend_main,
         "_auth_users",
         {
-            "admin": {"password": "admin-pass", "role": "admin"},
-            "auditor": {"password": "auditor-pass", "role": "auditor"},
-            "user1": {"password": "user-pass", "role": "user"},
+            "admin": {"password": backend_main.hash_password("admin-pass"), "role": "admin"},
+            "auditor": {"password": backend_main.hash_password("auditor-pass"), "role": "auditor"},
+            "user1": {"password": backend_main.hash_password("user-pass"), "role": "user"},
         },
     )
     backend_main.init_db()

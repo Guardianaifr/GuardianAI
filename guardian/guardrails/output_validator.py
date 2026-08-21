@@ -25,9 +25,11 @@ try:
     from presidio_anonymizer import AnonymizerEngine
     from presidio_anonymizer.entities import OperatorConfig
     PRESIDIO_AVAILABLE = True
+    DEGRADED_PII = None
 except Exception as e:
     logger.warning(f"Microsoft Presidio not found or incompatible in current runtime. Falling back to basic regex. Error: {e}")
     PRESIDIO_AVAILABLE = False
+    DEGRADED_PII = str(e)
 
 class OutputValidator:
     # Patterns checked in this order: more-specific patterns MUST precede

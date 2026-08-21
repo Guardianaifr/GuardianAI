@@ -7,7 +7,7 @@ services:
     container_name: guardian_enterprise_stack
     restart: unless-stopped
     ports:
-      - "8001:8001" # SaaS Dashboard & Telemetry API
+      - "127.0.0.1:8001:8001" # SaaS Dashboard & Telemetry API (local only)
       - "8081:8081" # Universal Security Proxy
     environment:
       # Administrative Credentials

@@ -43,3 +43,9 @@ scratch/
 demo.mp4
 *.png
 *.spec
+
+# Root-level scratch and diagnostic scripts
+/test_*.py
+/_*.py
+/debug_*.py
+/temp*.sol

@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proof — GuardianAI</title>
+  <meta name="description" content="GuardianAI's published evidence: full benchmark tables, latency under attack, test counts, audit status — every figure cited to its dated repository artifact.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <meta property="og:title" content="GuardianAI — proof, with sources">
+  <meta property="og:description" content="Benchmarks, performance, tests, and audit status cited to dated artifacts — including the unflattering numbers.">
+  <meta property="og:type" content="website">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="index.html" aria-label="GuardianAI home">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="14" fill="none" stroke="#3dff7e" stroke-width="4"/><circle cx="32" cy="32" r="6" fill="#3dff7e"/><path d="M2 32h16M46 32h16" stroke="#3dff7e" stroke-width="4" stroke-linecap="round"/></svg>
+        <span class="brand-word">GuardianAI</span>
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="how-it-works.html">How it works</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="proof.html" aria-current="page">Proof</a></li>
+        <li><a class="btn btn-primary btn-sm" href="index.html#demo">Run the demo</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <nav class="spy-rail" aria-label="Section navigation">
+    <a href="#benchmarks">Benchmarks</a>
+    <a href="#performance">Performance</a>
+    <a href="#audits">Audits</a>
+    <a href="#sources">Sources</a>
+  </nav>
+
+  <main id="main">
+
+    <section class="hero" style="padding-bottom:44px;" aria-labelledby="page-title">
+      <div class="hero-grid-bg" aria-hidden="true"></div>
+      <div class="wrap">
+        <span class="eyebrow rise d1">Evidence</span>
+        <h1 id="page-title" class="rise d1" style="font-size:clamp(2.2rem,4.8vw,3.5rem);max-width:860px;">Every number here has<br><span style="color:var(--green)">a source file.</span></h1>
+        <p class="hero-sub rise d2">Figures come from named, dated artifacts — file paths cited below.</p>
+      </div>
+    </section>
+
+    <!-- Benchmarks -->
+    <section id="benchmarks" aria-labelledby="bm-title" style="padding-top:20px;">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Benchmarks · run dated 2026-08-08</span>
+          <h2 class="section-title" id="bm-title">3,211 prompts. 8 public datasets. Full table.</h2>
+          <p class="section-lede">Block rates under two operating modes: strict prioritizes blocking; balanced loosens thresholds to trade recall for fewer false positives.</p>
+        </div>
+        <div class="table-wrap reveal">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Dataset</th>
+                <th scope="col" class="num">Prompts</th>
+                <th scope="col" class="num">Strict block</th>
+                <th scope="col" class="num">Balanced block</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>AdvBench</td><td class="num">520</td><td class="num">99.0%</td><td class="num">95.6%</td></tr>
+              <tr><td>JBB PAIR+GCG</td><td class="num">152</td><td class="num">98.7%</td><td class="num">93.4%</td></tr>
+              <tr><td>MaliciousInstruct</td><td class="num">100</td><td class="num">95.0%</td><td class="num">84.0%</td></tr>
+              <tr><td>DAN Jailbreaks</td><td class="num">200</td><td class="num">94.5%</td><td class="num">79.5%</td></tr>
+              <tr><td>ToxicChat</td><td class="num">200</td><td class="num">85.5%</td><td class="num">67.0%</td></tr>
+              <tr><td>BeaverTails-Eval</td><td class="num">700</td><td class="num">73.1%</td><td class="num">45.1%</td></tr>
+              <tr><td>HarmBench Official</td><td class="num">400</td><td class="num">72.8%</td><td class="num">57.8%</td></tr>
+              <tr><td>Do-Not-Answer</td><td class="num">939</td><td class="num">57.1%</td><td class="num">33.7%</td></tr>
+              <tr class="is-total"><td>All datasets</td><td class="num">3,211</td><td class="num">76.6%</td><td class="num">58.5%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note reveal">Source: <code>artifacts/evidence/definitive_benchmark_v4.json</code>. Weaker rows are published on purpose — broad corpora like Do-Not-Answer include borderline items where conservative blocking would over-censor legitimate traffic.</p>
+
+        <div class="grid-2" style="margin-top:28px;">
+          <article class="card reveal">
+            <span class="card-index">[+]</span>
+            <h3>Security-gate subset</h3>
+            <p>On the four highest-severity jailbreak suites (AdvBench, JBB PAIR+GCG, MaliciousInstruct, DAN), the gate blocked <b style="color:var(--green)">97.6% strict / 90.7% balanced</b> — 949 of 972 and 882 of 972 prompts respectively.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-index">[!]</span>
+            <h3>False positives</h3>
+            <p><b style="color:var(--green)">0.0%</b> on the run's curated safe-prompt set. Curated means small and clean by construction — your traffic will be messier. That's what balanced mode is for.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Performance -->
+    <section class="section-tint" id="performance" aria-labelledby="perf-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Performance &amp; chaos · run dated 2026-08-08</span>
+          <h2 class="section-title" id="perf-title">Fast when safe. Faster when blocking.</h2>
+          <p class="section-lede">Load and chaos scenarios against the gateway. Sample sizes stated because they matter: each scenario drove 120 requests at concurrency 20.</p>
+        </div>
+        <div class="table-wrap reveal">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Scenario</th>
+                <th scope="col" class="num">Throughput</th>
+                <th scope="col" class="num">p50</th>
+                <th scope="col" class="num">p95</th>
+                <th scope="col">Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Safe baseline load</td><td class="num">95.68 req/s</td><td class="num">195.8 ms</td><td class="num">249.0 ms</td><td>120/120 served · HTTP 200</td></tr>
+              <tr><td>Attack burst</td><td class="num">494.01 req/s</td><td class="num">38.5 ms</td><td class="num">41.9 ms</td><td><b style="color:var(--coral)">120/120 blocked</b> · HTTP 403</td></tr>
+              <tr><td>Chaos: backend down</td><td class="num">—</td><td class="num">—</td><td class="num">40.9 ms</td><td>Gateway serves its own response · HTTP 200</td></tr>
+              <tr><td>Chaos: upstream down</td><td class="num">—</td><td class="num">—</td><td class="num">2,054.6 ms</td><td>Clean failure surfaced · HTTP 502</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note reveal">Source: <code>artifacts/performance/perf_chaos_report.json</code>. All five defined SLO checks passed, including attack-block rate above 95% and gateway availability during backend outage.</p>
+      </div>
+    </section>
+
+    <!-- Tests -->
+    <section id="tests" aria-labelledby="test-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Tests · runs dated 2026-08-23</span>
+          <h2 class="section-title" id="test-title">What the suites covered last run.</h2>
+        </div>
+        <div class="table-wrap reveal">
+          <table>
+            <thead>
+              <tr><th scope="col">Suite</th><th scope="col" class="num">Result</th><th scope="col">Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>ERC-8004 identity integration</td><td class="num"><b style="color:var(--green)">42 / 42</b></td><td>Including fail-closed safety gates and transfer handoff</td></tr>
+              <tr><td>Backend package</td><td class="num"><b style="color:var(--green)">136 / 136</b></td><td>Gateway core</td></tr>
+              <tr><td>Passport &amp; security</td><td class="num"><b style="color:var(--green)">50 / 50</b></td><td>Soulbound identity paths</td></tr>
+              <tr><td>Smart contracts (Hardhat)</td><td class="num"><b style="color:var(--green)">191 cases</b> / 9 suites</td><td>In-repo; CI runner pass/fail regeneration pending</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note reveal">Known caveat, kept visible: three order-dependent tests fail only under full-suite ordering and pass individually — documented in <code>OPERATIONS.md</code>. Full-suite regeneration is pending.</p>
+      </div>
+    </section>
+
+    <!-- Audits -->
+    <section class="section-tint" id="audits" aria-labelledby="aud-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Audit status</span>
+          <h2 class="section-title" id="aud-title">What's been reviewed, by whom.</h2>
+        </div>
+        <div class="steps reveal">
+          <div class="step">
+            <span class="step-id">MAR '26<small>EXTERNAL</small></span>
+            <div>
+              <h3>External penetration test — closed</h3>
+              <p>Last external engagement closed 2026-03-18 with zero open critical/high findings; all prior findings resolved. A follow-up external review is scheduled for Q3 2026.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">JUL '26<small>INTERNAL</small></span>
+            <div>
+              <h3>Internal audit — off-chain proxy</h3>
+              <p>Four critical/high issues identified and remediated.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">AUG '26<small>INTERNAL</small></span>
+            <div>
+              <h3>Internal audit — smart contracts</h3>
+              <p>One high and four medium issues identified and remediated. Static analysis (Slither) reports clean apart from naming warnings.</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout warn reveal">
+          <h3>No current third-party audit.</h3>
+          <p>The recent audits above are internal. Until the Q3 2026 external review completes, treat "externally audited" claims about GuardianAI — from us or anyone else — as outdated.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chains -->
+    <section id="chains" aria-labelledby="ch-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Chains &amp; identity</span>
+          <h2 class="section-title" id="ch-title">Deployed where, exactly.</h2>
+        </div>
+        <div class="grid-2">
+          <article class="card reveal">
+            <span class="card-index">[⛓]</span>
+            <h3>Contract suite</h3>
+            <ul class="fact-list">
+              <li><b>Networks:</b> Base Sepolia and Monad testnet</li>
+              <li><b>Anchoring:</b> simulated-by-default; Monad testnet submission available as opt-in</li>
+              <li><b>Mainnet:</b> none — and no mainnet tier is sold anywhere on this site</li>
+            </ul>
+          </article>
+          <article class="card reveal">
+            <span class="card-index">[ID]</span>
+            <h3>Identity</h3>
+            <ul class="fact-list">
+              <li><b>ERC-8004:</b> canonical Trustless Agents registries are mainnet ecosystem infrastructure</li>
+              <li><b>Testnets:</b> registrations use a stand-in registry while testnet support matures</li>
+              <li><b>Insurance:</b> GuardianInsuranceLedger anchors signed evidence certificates only — no payout or slashing automation</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="section-tint" id="privacy" aria-labelledby="pv-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Privacy &amp; compliance</span>
+          <h2 class="section-title" id="pv-title">Disclosures we won't bury.</h2>
+        </div>
+        <div class="grid-2">
+          <article class="card reveal">
+            <span class="card-index">[EU]</span>
+            <h3>EU AI Act posture</h3>
+            <p>An internal compliance assessment (April 2026, backed by 38 automated checks) maps the platform against eight relevant articles. It's an internal assessment — not a certification, designation, or legal opinion.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-index">[⇄]</span>
+            <h3>Third-party transit disclosure</h3>
+            <p>Prompts that aren't in English are normalized through a third-party translation service before filtering, which means that text transits an external provider. If your policy forbids that, restrict the gateway to same-language traffic or deploy the translation step inside your own perimeter.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sources -->
+    <section id="sources" aria-labelledby="src-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Sources</span>
+          <h2 class="section-title" id="src-title">Figure-to-artifact map.</h2>
+        </div>
+        <div class="table-wrap reveal">
+          <table>
+            <thead>
+              <tr><th scope="col">Claims on this site</th><th scope="col">Artifact</th><th scope="col">Dated</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Benchmark block rates, subset &amp; false-positive figures</td><td><code>artifacts/evidence/definitive_benchmark_v4.json</code></td><td>2026-08-08</td></tr>
+              <tr><td>Throughput, latency, chaos outcomes, SLOs</td><td><code>artifacts/performance/perf_chaos_report.json</code></td><td>2026-08-08</td></tr>
+              <tr><td>Python/Hardhat test counts &amp; caveats</td><td><code>README.md</code> validation snapshot</td><td>2026-08-23</td></tr>
+              <tr><td>Audit history &amp; status</td><td><code>artifacts/evidence/security_signoff.md</code>, <code>external_pentest_status.md</code></td><td>Mar / Jul / Aug 2026</td></tr>
+              <tr><td>Anchoring modes &amp; chain disclosures</td><td><code>guardian/cortex/merkle_anchor.py</code>, whitepaper §6–7</td><td>current code</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note reveal">If a number ever appears on this site without a row on this table, treat it as a bug and don't repeat it.</p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-band section-tint" aria-labelledby="cta-title">
+      <div class="wrap" style="padding-top:80px;padding-bottom:88px;">
+        <h2 class="section-title reveal" id="cta-title" style="margin-left:auto;margin-right:auto;">Verified enough? Run it against your own traffic.</h2>
+        <div class="hero-actions reveal">
+          <a class="btn btn-primary" href="index.html#demo">Run the live demo</a>
+          <a class="btn btn-ghost" href="pricing.html">View pricing</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="brand" href="index.html">
+            <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="14" fill="none" stroke="#3dff7e" stroke-width="4"/><circle cx="32" cy="32" r="6" fill="#3dff7e"/><path d="M2 32h16M46 32h16" stroke="#3dff7e" stroke-width="4" stroke-linecap="round"/></svg>
+            <span class="brand-word">GuardianAI</span>
+          </a>
+          <p>Dual-layer security for autonomous agents. Millisecond firewalls off-chain, verifiable trust on-chain. Hosted, and honest about what's simulated.</p>
+          <p class="footer-fine" style="margin-top:14px;">Compliance artifacts are internally generated assessments, not certifications. Non-English prompts are normalized via a third-party translation service before filtering.</p>
+        </div>
+        <div>
+          <h4>Product</h4>
+          <ul>
+            <li><a href="index.html#demo">Live demo</a></li>
+            <li><a href="index.html#platform">Platform overview</a></li>
+            <li><a href="how-it-works.html">How it works</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Transparency</h4>
+          <ul>
+            <li><a href="#benchmarks">Benchmarks</a></li>
+            <li><a href="#audits">Audit status</a></li>
+            <li><a href="#chains">Chains &amp; identity</a></li>
+            <li><a href="#privacy">Privacy notes</a></li>
+            <li><a href="#sources">Sources</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year">2026</span> GuardianAI Contributors · MIT</span>
+        <span>Every figure cites its artifact — #sources above</span>
+      </div>
+    </div>
+    <div class="footer-watermark" aria-hidden="true">GUARDIANAI</div>
+  </footer>
+
+  <script src="js/main.js" defer></script>
+</body>
+</html>

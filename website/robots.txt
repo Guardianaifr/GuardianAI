@@ -1,0 +1,5 @@
+# Placeholder Sitemap host: update to the real domain before deploying.
+User-agent: *
+Allow: /
+
+Sitemap: https://guardianai.example/sitemap.xml

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How it works — GuardianAI</title>
+  <meta name="description" content="Two paths through every request: millisecond screening off-chain — regex fast path, semantic firewall, de-obfuscation, guardrails — and verifiable trust on-chain.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <meta property="og:title" content="How GuardianAI works">
+  <meta property="og:description" content="Security off-chain in milliseconds. Trust on-chain, independently verifiable.">
+  <meta property="og:type" content="website">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="index.html" aria-label="GuardianAI home">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="14" fill="none" stroke="#3dff7e" stroke-width="4"/><circle cx="32" cy="32" r="6" fill="#3dff7e"/><path d="M2 32h16M46 32h16" stroke="#3dff7e" stroke-width="4" stroke-linecap="round"/></svg>
+        <span class="brand-word">GuardianAI</span>
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="how-it-works.html" aria-current="page">How it works</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="proof.html">Proof</a></li>
+        <li><a class="btn btn-primary btn-sm" href="index.html#demo">Run the demo</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <nav class="spy-rail" aria-label="Section navigation">
+    <a href="#request-path">Request path</a>
+    <a href="#trust-path">Trust path</a>
+    <a href="#contracts">Contracts</a>
+    <a href="#integrate">Integrate</a>
+  </nav>
+
+  <main id="main">
+
+    <section class="hero" style="padding-bottom:48px;" aria-labelledby="page-title">
+      <div class="hero-grid-bg" aria-hidden="true"></div>
+      <div class="wrap">
+        <span class="eyebrow rise d1">Architecture</span>
+        <h1 id="page-title" class="rise d1" style="font-size:clamp(2.2rem,4.8vw,3.5rem);max-width:820px;">Two paths through<br>every request.</h1>
+        <p class="hero-sub rise d2">A security path that decides in milliseconds whether traffic is safe — and a trust path that turns an agent's history into evidence nobody can quietly rewrite.</p>
+      </div>
+    </section>
+
+    <!-- Request path -->
+    <section id="request-path" aria-labelledby="rp-title" style="padding-top:24px;">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Off-chain · the request path</span>
+          <h2 class="section-title" id="rp-title">Screened both directions.</h2>
+          <p class="section-lede">Every prompt is inspected before your model sees it. Every response is inspected before your user does.</p>
+        </div>
+        <div class="steps reveal">
+          <div class="step">
+            <span class="step-id">01<small>INTAKE</small></span>
+            <div>
+              <h3>Request intake</h3>
+              <p>The gateway accepts prompts from your app, or from any OpenAI-compatible client pointed at its universal auth proxy (Ollama, vLLM, LocalAI, llama.cpp). Tenants are identified and metered per API tier.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">02<small>FAST PATH</small></span>
+            <div>
+              <h3>Fast-path screen</h3>
+              <p>A regex and heuristic layer sheds obvious injection patterns at zero ML inference cost — high-volume attack traffic never reaches the classifier.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">03<small>SEMANTIC</small></span>
+            <div>
+              <h3>Semantic firewall</h3>
+              <p>An embedding-based classifier judges the subtle cases. Three operating modes trade recall against false positives: strict blocks first, balanced loosens thresholds, permissive flags without blocking.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">04<small>DE-OBFUSCATION</small></span>
+            <div>
+              <h3>De-obfuscation pass</h3>
+              <p>Morse, Braille steganography, Base64, hex, binary, ROT13, homoglyphs — inputs are normalized before classification so payloads can't hide behind an encoding layer.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">05<small>EGRESS</small></span>
+            <div>
+              <h3>Response guardrails</h3>
+              <p>Model output is scanned for PII (redacted before egress), XSS/SQL/shell fragments, and system-prompt leakage, with optional watermarking for downstream tracing. Fail-closed rate limiting bounds everything.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trust path -->
+    <section class="section-tint" id="trust-path" aria-labelledby="tp-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">On-chain · the trust path</span>
+          <h2 class="section-title" id="tp-title">Identity first. Evidence second.</h2>
+          <p class="section-lede">The on-chain suite doesn't secure execution — it makes an agent's identity and track record independently verifiable.</p>
+        </div>
+        <div class="steps reveal">
+          <div class="step">
+            <span class="step-id">06<small>IDENTITY</small></span>
+            <div>
+              <h3>Register identity (ERC-8004)</h3>
+              <p>Your agent is registered in the Trustless Agents ecosystem with a transferable identity token — ownership hands off with the agent, not with us.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">07<small>PASSPORT</small></span>
+            <div>
+              <h3>Mint a soulbound passport (ERC-5192)</h3>
+              <p>A non-transferable passport carries trust tiers (UNVERIFIED → SILVER → GOLD → DIAMOND) and a 0–10000 trust score derived from scan history.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">08<small>ANCHOR</small></span>
+            <div>
+              <h3>Anchor evidence roots</h3>
+              <p>Security events are hashed into a Merkle tree; periodic roots are anchored as tamper-evident timestamps. Anchoring runs simulated-by-default with Monad testnet submission as an opt-in mode — see the note below.</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-id">09<small>CERTIFY</small></span>
+            <div>
+              <h3>Issue insurance evidence certificates</h3>
+              <p>GuardianInsuranceLedger anchors signed certificate packages summarizing an agent's verified history for underwriters. It records evidence — it does not automate payouts or slashing.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout warn reveal">
+          <h3>What's real today — stated plainly.</h3>
+          <p>Merkle anchoring defaults to <b>simulated mode</b>; live submission targets Monad <b>testnet</b>. The canonical ERC-8004 registries are mainnet ecosystem infrastructure — testnet registrations use a stand-in registry. The insurance ledger anchors certificates only; no payout or slashing automation exists. We'd rather lose the hype than the trust this page asks you to place in us.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contracts -->
+    <section id="contracts" aria-labelledby="cs-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">The trust suite</span>
+          <h2 class="section-title" id="cs-title">Nine contracts. Each one job.</h2>
+        </div>
+        <div class="grid-3">
+          <article class="card reveal"><span class="card-index">[01]</span><h3>CortexAnchor</h3><p>Batches security-event hashes into Merkle roots and anchors them as tamper-evident timestamps.</p></article>
+          <article class="card reveal"><span class="card-index">[02]</span><h3>PassportSBT</h3><p>ERC-5192 soulbound agent identity with trust tiers and score.</p></article>
+          <article class="card reveal"><span class="card-index">[03]</span><h3>InterlockRegistry</h3><p>Explicit agent-to-agent authorization — no silent handshakes between machines.</p></article>
+          <article class="card reveal"><span class="card-index">[04]</span><h3>InsuranceLedger</h3><p>Anchors signed insurance evidence certificates for underwriters.</p></article>
+          <article class="card reveal"><span class="card-index">[05]</span><h3>ThreatFeedRegistry</h3><p>Publishes threat intelligence on-chain for cross-organization consumption.</p></article>
+          <article class="card reveal"><span class="card-index">[06]</span><h3>RiskAttestation</h3><p>Records third-party risk attestations against registered agents.</p></article>
+          <article class="card reveal"><span class="card-index">[07]</span><h3>Timelock</h3><p>Administrative changes wait out a public delay before taking effect.</p></article>
+          <article class="card reveal"><span class="card-index">[08]</span><h3>CircuitBreaker</h3><p>A kill switch that can halt the trust suite when something goes wrong.</p></article>
+          <article class="card reveal"><span class="card-index">[09]</span><h3>ProtectedVault</h3><p>Escrow-style custody for value touching the trust suite.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Integrate -->
+    <section class="section-tint" id="integrate" aria-labelledby="int-title">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Integrate</span>
+          <h2 class="section-title" id="int-title">Two calls. That's the integration.</h2>
+          <p class="section-lede">The Python SDK wraps the gateway API with JWT auth, retries, and typed results. A JavaScript SDK mirrors it.</p>
+        </div>
+        <div class="code-card reveal">
+          <div class="code-head"><span>app.py</span><span>python sdk</span></div>
+<pre><code><span class="tok-kw">from</span> guardianai <span class="tok-kw">import</span> GuardianAI
+
+guardian = <span class="tok-fn">GuardianAI</span>(api_url=<span class="tok-str">"https://your-guardianai-host"</span>)
+guardian.<span class="tok-fn">login</span>(<span class="tok-str">"username"</span>, <span class="tok-str">"password"</span>)
+
+<span class="tok-cm"># 1. Screen every prompt before it reaches your model</span>
+check = guardian.<span class="tok-fn">scan_prompt</span>(user_input)
+<span class="tok-kw">if</span> check.blocked:
+    <span class="tok-kw">raise</span> <span class="tok-fn">RuntimeError</span>(<span class="tok-str">f"Blocked by policy: {check.reason}"</span>)
+
+reply = <span class="tok-fn">call_your_llm</span>(user_input)
+
+<span class="tok-cm"># 2. Screen every response before it reaches your user</span>
+out = guardian.<span class="tok-fn">scan_response</span>(reply, system_prompt=SYSTEM_PROMPT)
+<span class="tok-kw">if</span> out.blocked:
+    <span class="tok-kw">raise</span> <span class="tok-fn">RuntimeError</span>(<span class="tok-str">f"Response withheld: {out.reason}"</span>)
+
+<span class="tok-kw">return</span> reply</code></pre>
+        </div>
+        <div class="grid-2" style="margin-top:26px;">
+          <article class="card reveal">
+            <h3>Point your existing stack at it</h3>
+            <p>The universal auth proxy sits in front of Ollama, vLLM, LocalAI, and other OpenAI-compatible endpoints, so unmodified clients get guarded without code changes.</p>
+          </article>
+          <article class="card reveal">
+            <h3>Managed platform</h3>
+            <p>The whole platform runs as a managed cloud service — no setup, no maintenance. Onboarding opens soon. See <a href="pricing.html" style="color:var(--green)">pricing status</a>.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-band" aria-labelledby="cta-title">
+      <div class="wrap" style="padding-top:80px;padding-bottom:88px;">
+        <h2 class="section-title reveal" id="cta-title" style="margin-left:auto;margin-right:auto;">Read the receipts next.</h2>
+        <p class="section-lede reveal" style="margin:0 auto 30px;text-align:center;">Benchmarks, latency under attack, test counts, audit status — each figure cited to its dated artifact.</p>
+        <div class="hero-actions reveal">
+          <a class="btn btn-primary" href="proof.html">Open the proof page</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="brand" href="index.html">
+            <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="14" fill="none" stroke="#3dff7e" stroke-width="4"/><circle cx="32" cy="32" r="6" fill="#3dff7e"/><path d="M2 32h16M46 32h16" stroke="#3dff7e" stroke-width="4" stroke-linecap="round"/></svg>
+            <span class="brand-word">GuardianAI</span>
+          </a>
+          <p>Dual-layer security for autonomous agents. Millisecond firewalls off-chain, verifiable trust on-chain. Hosted, and honest about what's simulated.</p>
+          <p class="footer-fine" style="margin-top:14px;">Compliance artifacts are internally generated assessments, not certifications. Non-English prompts are normalized via a third-party translation service before filtering.</p>
+        </div>
+        <div>
+          <h4>Product</h4>
+          <ul>
+            <li><a href="index.html#demo">Live demo</a></li>
+            <li><a href="index.html#platform">Platform overview</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="#contracts">Contract suite</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Transparency</h4>
+          <ul>
+            <li><a href="proof.html#benchmarks">Benchmarks</a></li>
+            <li><a href="proof.html#audits">Audit status</a></li>
+            <li><a href="proof.html#chains">Chains &amp; identity</a></li>
+            <li><a href="proof.html#privacy">Privacy notes</a></li>
+            <li><a href="proof.html#sources">Sources</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year">2026</span> GuardianAI Contributors · MIT</span>
+        <span>Every figure cites its artifact — proof.html#sources</span>
+      </div>
+    </div>
+    <div class="footer-watermark" aria-hidden="true">GUARDIANAI</div>
+  </footer>
+
+  <script src="js/main.js" defer></script>
+</body>
+</html>

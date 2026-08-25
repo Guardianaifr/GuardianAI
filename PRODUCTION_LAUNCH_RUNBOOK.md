@@ -4,7 +4,6 @@
 
 1. Copy `deploy/production/.env.production.example` to `deploy/production/.env.production`.
 2. Replace all `REPLACE_WITH_*` values with strong random values.
-3. Set `GUARDIAN_LICENSE_KEY` for the target machine before first start.
 
 Fast path (auto-generate + install + launch):
 

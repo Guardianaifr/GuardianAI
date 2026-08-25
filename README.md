@@ -53,21 +53,31 @@ npm install --prefix contracts
 npm run deploy:all:monad --prefix contracts
 ```
 
-### Option D: Docker
+### Option D: Docker / Cloud Hosting
+
+GuardianAI runs as a hosted service. The repo ships a `Dockerfile`
+(Railway builds from it via `railway.json`; any Docker host works):
 
 ```bash
-docker-compose up -d
+docker build -t guardianai .
+docker run -p 8001:8001 -p 8081:8081 --env-file .env guardianai
 ```
-*Endpoints: Proxy (`8081`), Backend API (`8001`), Upstream Target (`8080`).*
+
+Set `GUARDIAN_PROXY_HOST=0.0.0.0`, point `TARGET_URL` at your upstream LLM,
+mount a volume for `guardian.db` and `artifacts/`. See `DEPLOYMENT.md` and
+`PRODUCTION_LAUNCH_RUNBOOK.md`.
 
 ---
 
 ## 📊 Validation Snapshot
 
-- **Python Test Suite:** `1,268` passing (including all 46/46 E2E checks) — see whitepaper Section 6 for full breakdown.
-- **Smart Contracts (Hardhat):** `147/147` passing across 7 contract suites (up from 56 pre-audit; +91 tests added during the August 2026 security audit).
-- **On-Chain Security Audit (August 2026):** All 6 contracts audited. 1 HIGH and 4 MEDIUM findings identified and remediated. All LOW/INFO items either fixed or explicitly documented as accepted. Slither clean (naming-convention style warnings only).
-- **Security Validation:** Integrated demo/test flows block 100% of adversarial probes in chaos conditions.
+Numbers below are sourced from named artifacts or dated test runs — no hand-typed figures.
+
+- **Python test suites (2026-08-23):** ERC-8004 identity 42/42 · backend package 136/136 · passport/security 50/50. Full-suite regeneration pending; 3 known order-dependent tests fail only under full-suite ordering and pass individually (see `OPERATIONS.md`).
+- **Smart contracts (Hardhat):** 191 test cases across 9 suites in-repo; runner pass/fail count pending CI regeneration.
+- **On-chain audit (August 2026):** findings remediated per internal audit record; Slither clean on naming-convention warnings only.
+- **ERC-8004 integration (new, August 2026):** protected agents register on the *canonical* Trustless Agents Identity Registry with register-then-transfer ownership handoff, fail-closed safety gates, and a 42-test offline suite. Disabled by default — see `GUARDIAN_ERC8004_ENABLED` in `.env.example`.
+- **Security validation:** adversarial benchmark results live in whitepaper Section 6, generated from `artifacts/evidence/definitive_benchmark_v4.json`.
 
 ---
 
@@ -82,6 +92,7 @@ docker-compose up -d
 ## 🔒 Security Notes
 - **Do not expose upstream LLM ports directly to the internet.** Expose only the Guardian Proxy.
 - Keep `GUARDIAN_DEPLOYER_PRIVATE_KEY` strictly confidential.
+- **ERC-8004 registrar key:** when identity registration is enabled, use a dedicated `GUARDIAN_ERC8004_REGISTRAR_KEY` (never reuse the deployer key). Non-English prompts are translated via a third-party service before filtering — see whitepaper Feature 2 disclosure if you have data-sovereignty constraints.
 - **Financial Controls (FL_008 — Slippage):** Hard-blocked until a 1inch API key is provisioned in config. Fails closed (rejects the instruction) when unavailable.
 - **Financial Controls (FL_005 — Governance):** Hard-blocked pending a session-wallet auth prerequisite. Fails closed.
 - **Agentic Security:** `agentic_security` defaults to opt-in (`enabled: false`). Enable explicitly in `config.yaml` for agentic deployments. See `AI_SECURITY_BACKLOG_2026Q1.md` item 14 for context.

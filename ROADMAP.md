@@ -1,8 +1,8 @@
 # GuardianAI Roadmap
 
-**Updated**: April 20, 2026  
+**Updated**: August 23, 2026  
 **Vision**: Expand from an LLM firewall into the industry's most complete AI security control plane.  
-**Current**: 32 features shipped · 28 topics complete · 241 tests passing · Production Go  
+**Current**: 39 features shipped · canonical ERC-8004 identity integration live (disabled by default) · Production Go  
 
 ---
 
@@ -10,8 +10,9 @@
 
 - ✅ 32 major security feature groups
 - ✅ 28 roadmap topics delivered
-- ✅ Full OWASP LLM Top 10 (2025) coverage — **10/10** ✅
-- ✅ Public benchmark alignment (HarmBench 97%, AdvBench 94%, GAIA 86%)
+- ✅ Full OWASP LLM Top 10 (2025) coverage — **10/10**
+- ✅ Benchmark alignment on real datasets (3,211 prompts, 8 datasets): AdvBench 99.0% strict, HarmBench 72.8% strict — see whitepaper §6 and `artifacts/evidence/definitive_benchmark_v4.json`
+- ✅ **ERC-8004 Identity Registration (Aug 2026):** canonical Trustless Agents registry integration, register-then-transfer ownership handoff, fail-closed safety gates, 42-test offline suite (whitepaper Feature 39)
 - ✅ SLO verdict: all_passed = true
 
 ---
@@ -148,8 +149,8 @@ Goal: Platform ecosystem with long-term enterprise lock-in and recurring revenue
 26. **MCP Deep Security** 🔵
     - MCP server trust hierarchy, capability allowlists, spoofing detection
 
-27. **Kubernetes Helm + Terraform Deployment** 🟡
-    - Helm chart + Terraform modules for AWS, GCP, Azure
+27. **Managed Multi-Region Hosting** 🟡
+    - Railway/Oracle deploy hardening; optional managed DB beyond SQLite
 
 ---
 
@@ -162,7 +163,7 @@ Goal: Platform ecosystem with long-term enterprise lock-in and recurring revenue
 | OWASP LLM Top 10 | 9/10 | 10/10 |
 | OWASP Agentic Top 10 | 6/10 | 10/10 |
 | EU AI Act Readiness | ~40% | ~95% |
-| Deployment | Docker | Docker + K8s + 3 clouds |
+| Deployment | Docker (Railway-ready) | Hosted multi-region |
 | Revenue | None | Billing live |
 
 ---

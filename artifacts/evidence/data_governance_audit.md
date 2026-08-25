@@ -26,7 +26,7 @@
 | Refresh token rotation | ✅ Old refresh tokens revoked on use |
 | Token revocation list | ✅ SQLite-backed, survives restart |
 | Admin auto-bootstrap | ✅ First admin user created on startup |
-| Password hashing | ✅ SHA-256 + 128-bit random salt |
+| Password hashing | ✅ Argon2id (time_cost=7, memory_cost=64MB, parallelism=4) with legacy SHA-256 migration |
 
 ## EU AI Act Data Requirements
 

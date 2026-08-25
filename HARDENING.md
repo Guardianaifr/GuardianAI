@@ -1,4 +1,4 @@
-﻿# GuardianAI Security Hardening Guide
+# GuardianAI Security Hardening Guide
 
 Follow these practices to secure your GuardianAI deployment against advanced threats.
 
@@ -73,6 +73,32 @@ Follow these practices to secure your GuardianAI deployment against advanced thr
   - `approval.ticket`
   - `approval.config_sha256` (integrity pin of the exact config file)
 - In `enforce` mode, startup is blocked when policy checks fail.
+
+## 7. Authentication & JWT Hardening
+
+- **Password Hashing:** Passwords must be hashed using Argon2id (`time_cost=7, memory_cost=65536, parallelism=4`). In production (`GUARDIAN_ENV=production`), legacy fallback to SHA-256 is strictly refused and triggers a startup halt.
+- **JWT Secret Entropy:** Ensure `GUARDIAN_JWT_SECRET` contains high entropy (minimum 256 bits).
+- **Token Validation:** Token decoder strictly enforces `alg: HS256` before signature parsing, constant-time HMAC comparison, expiration (`exp`), not-before (`nbf`), and expected audience (`aud`).
+- **Revocation & Rotation:** Refresh tokens rotate on every issue; revoked tokens are persisted and checked by unique `jti`.
+
+## 8. Web Security Headers & Payload Controls
+
+- **Security Headers:** All HTTP responses automatically include:
+  - `Content-Security-Policy: default-src 'self'`
+  - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+  - `X-Frame-Options: DENY`
+  - `X-Content-Type-Options: nosniff`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+- **CSRF Protection:** State-changing requests (`POST`, `PUT`, `DELETE`) require a valid `X-CSRF-Token` matching the secure cookie.
+- **Body Limit:** Maximum request body size is capped at 1MB to prevent memory exhaustion / DoS attacks.
+- **Fail-Closed Rate Limiter:** When Redis or rate-limiting infrastructure is degraded, the rate limiter fails closed (HTTP 503) rather than failing open.
+- **WebSocket Auth:** Threat stream WebSocket requires authentication payload within the first 10 seconds and strictly validates admin/auditor roles.
+
+## 9. Smart Contract Safety & Timelocks
+
+- **Timelock Governance:** On-chain contract ownership is transferred to `GuardianTimelock.sol` with a mandatory 24-hour minimum execution delay (`MIN_DELAY = 24 hours`).
+- **Certificate Capping:** `GuardianInsuranceLedger.sol` enforces `MAX_CERTIFICATES = 100,000` with custom error `CertificateLimitReached()` as the first line of execution.
+
 
 
 

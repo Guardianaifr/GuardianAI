@@ -148,12 +148,15 @@ Major implemented feature groups: **38** (32 Off-Chain Security Controls + 6 On-
    - Issues non-transferable NFTs representing the cryptographic identity of an AI Agent or User Session.
 35. GuardianInterlockRegistry (Agent-to-Agent Authorization)
    - Decentralized registry where AI agents request, approve, and verify communication permissions dynamically.
-36. GuardianInsuranceLedger (Automated Liability)
-   - Smart contract that slashes stakes or pays out affected users if an AI violates safety parameters proven via the Cortex Anchor.
+36. GuardianInsuranceLedger (Insurance Certificate Anchoring)
+   - On-chain registry anchoring signed insurance certificates (integrity hash, validity period, risk level). Correction (Aug 2026): the stake/slash/payout behavior described in earlier revisions was never implemented — see whitepaper Feature 36 for the honest scope.
 37. GuardianThreatFeedRegistry (Decentralized Intelligence)
    - On-chain repository where security nodes publish and subscribe to zero-day threat patterns.
 38. GuardianRiskAttestation (Verifiable Trust)
    - Allows trusted auditors or GuardianAI to publish cryptographic attestations about an AI agent's real-time risk score.
+
+39. ERC-8004 Identity Registration (Canonical Trustless Agents, Aug 2026)
+   - Registers protected agents on the canonical ERC-8004 Identity Registry (register-then-transfer ownership), links each agentId to its GuardianPassportSBT, serves the spec registration JSON, and enforces fail-closed safety gates. Disabled by default — see `GUARDIAN_ERC8004_ENABLED` in `.env.example` and whitepaper Feature 39.
 
 ## 7) Roadmap Delivery (What Was Built Beyond Basic Version)
 

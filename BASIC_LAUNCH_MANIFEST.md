@@ -1,4 +1,4 @@
-﻿# Basic Launch Manifest
+# Basic Launch Manifest
 
 This package contains only the files required for a basic public GitHub launch.
 
@@ -8,7 +8,7 @@ This package contains only the files required for a basic public GitHub launch.
 - Test suite: `tests/`
 - Core docs: README/API/DEPLOYMENT/HARDENING/OPERATIONS/TROUBLESHOOTING/SECURITY/ROADMAP
 - Launch scripts: `guardianctl.py`, `start_guardian.*`, `install.*`
-- Container and deps: `Dockerfile`, `docker-compose.yml`, `requirements.txt`
+- Container and deps: `Dockerfile`, `railway.json`, `requirements.txt`
 
 ## Intentionally excluded
 - `agents/` (internal planning/report artifacts)

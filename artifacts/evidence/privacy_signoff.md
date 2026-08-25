@@ -15,7 +15,7 @@
 | Differential privacy analytics | ✅ | Laplace mechanism with configurable epsilon |
 | System prompt confidentiality | ✅ | `system_prompt_guard.py` — 4-layer detection prevents instruction leakage |
 | JWT token security | ✅ | HS256 signing, 30-min access TTL, refresh rotation, revocation list |
-| Password storage | ✅ | SHA-256 + random 128-bit salt (no plaintext storage) |
+| Password storage | ✅ | Argon2id + random salt (no plaintext storage; legacy SHA-256 migration path) |
 
 ## EU AI Act Compliance
 

@@ -5,7 +5,7 @@ This guide is aligned with the current repository behavior.
 ## Prerequisites
 
 - Python 3.12 required (project standard)
-- Docker (optional)
+- Docker
 - Local upstream model/service endpoint (default: `http://127.0.0.1:8080`)
 
 ## Local Run (Python)
@@ -32,44 +32,6 @@ python guardianctl.py start
 4. Verify health:
 - Proxy: `http://127.0.0.1:8081/health`
 - Backend: `http://127.0.0.1:8001/health`
-
-## One-Click Customer Activation (All Features)
-
-For buyer-ready launch with all controls activated and automatic secret generation:
-
-```bash
-python guardianctl.py one-click --target-url http://127.0.0.1:8080
-```
-
-Behavior:
-- Generates missing runtime secrets:
-  - `GUARDIAN_ADMIN_PASS`
-  - `GUARDIAN_BACKEND_TOKEN`
-  - `GUARDIAN_SERVICE_AUTH_TOKEN`
-  - `GUARDIAN_ADMIN_BYPASS_TOKEN`
-- Writes runtime config:
-  - `guardian/config/one_click_runtime.yaml`
-- Starts full stack:
-  - Backend on `:8001`
-  - Proxy on `:8081`
-- Proxy serving defaults to `waitress` (`GUARDIAN_WSGI_SERVER=waitress`) for production-safe WSGI runtime.
-
-If you only want config + secrets without starting services:
-
-```bash
-python guardianctl.py one-click --no-start
-```
-
-## Docker
-
-Start with compose:
-```bash
-docker-compose up -d
-```
-
-If you expose services publicly:
-- Put Guardian behind TLS reverse proxy.
-- Do not expose upstream model endpoint directly.
 
 ## Runtime Ports (default)
 

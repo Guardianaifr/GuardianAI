@@ -1,6 +1,6 @@
 # 🚀 GuardianAI v1.0 Release Notes
 
-**"The Open Source Firewall for Autonomous AI Agents"**
+**"The Security Layer for Autonomous AI Agents"**
 
 GuardianAI v1.0 is a production-ready security layer designed to protect LLM applications from Prompt Injection, PII Leaks, and unauthorized access. It operates on the philosophy of **"Protecting the AI from Blabbing, not the Database from Leaking."**
 
@@ -72,5 +72,5 @@ GuardianAI v1.0 is a production-ready security layer designed to protect LLM app
 ---
 
 **Status:** ✅ PRODUCTION READY
-**License:** Free & Open Source
+**License:** Proprietary — all rights reserved by the author.
 **Maintainer:** GuardianAI Team

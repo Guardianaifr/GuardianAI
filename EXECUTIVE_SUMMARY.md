@@ -31,24 +31,27 @@ GuardianAI now operates as a comprehensive **Dual-Layer AI Security Control Plan
 
 - **Zero-Day Attack Blocking:** **98.4%** across unseen datasets (WildGuard, ToxicChat, JailbreakBench).
 - **Standard Benchmark Blocking:** **100%** on strict/balanced curated subsets.
-- **Smart Contract Security:** 147/147 Unit tests passing (expanded in August 2026 audit); 46/46 Backend-to-Blockchain E2E verification flows passing flawlessly.
+- **Smart Contract & E2E Testing:** 191 Hardhat test cases across 9 suites in-repo; targeted Python suites green on 2026-08-23 (ERC-8004 identity 42/42, backend 136/136, passport/security 50/50). Full-suite and Hardhat runner regeneration pending — see OPERATIONS.
 - **Rate Limiter Concurrency:** Handled 10,000+ requests across 10 threads in <200ms.
 - **Advanced De-obfuscation Resilience:** 100% block rate against Braille steganography, Base64, Hex, ROT13, Pig Latin, Homoglyphs.
 
 ## Current Risks / Gaps
 
-1. **None.** 
-2. No open critical/high findings in external review metadata.
-3. Dependency pinning is strictly enforced in the latest SBOM.
-4. Smart contract deployment flows (Monad/Base) are fully verified via local mock RPC and E2E endpoints.
+Maintained honestly as of **August 23, 2026** (a prior "None" entry here was inaccurate and has been removed):
+
+1. **InsuranceLedger liability gap:** stake/slash/payout described in older revisions was never implemented; the contract anchors insurance certificates only. Automated liability is a design direction consuming ERC-8004 reputation data, not a shipped capability.
+2. **Test hygiene:** 3 tests fail only under full-suite ordering (pass individually); full-suite regeneration pending. Analyzer fixture suite must run `--no-cov` (coverage instrumentation silently degrades Slither to regex).
+3. **Performance evidence scale:** current perf artifact is a 120-request harness from June 2026; enterprise-scale rerun is open backlog.
+4. **Benchmark honesty:** grand-total detection across 8 real datasets is 76.6% strict / 58.5% balanced (`definitive_benchmark_v4.json`); earlier synthetic-fixture figures were retracted in whitepaper §6.2.
+5. **ERC-8004 scope:** identity registration is live but discovery-only; Reputation emission and validator services are roadmap.
 
 ## Executive Decision
 
-- **Recommended status: Absolute Go**
+- **Recommended status: Go for staged rollout**
 
 Meaning:
-- Platform is cleared for full production rollout in both Web2 SaaS and Web3 decentralized environments.
-- All Security, governance, compliance, supply-chain, and Web3 integration gates have been fully satisfied.
+- Production-ready off-chain layer; on-chain layer ships behind explicit configuration flags.
+- Open items above are tracked in `OPERATIONS.md`; security, governance, compliance, supply-chain, and Web3 integration claims are documented against named artifacts rather than asserted.
 
 ## Unique Value Proposition
 GuardianAI is the **first platform** to secure the execution layer of LLMs with sub-millisecond heuristics while cementing the historical and identity layers on the blockchain. We enable secure autonomous AI agents to transact trustlessly in Web3 economies.

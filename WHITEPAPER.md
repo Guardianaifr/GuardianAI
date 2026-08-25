@@ -13,7 +13,7 @@ As large language models (LLMs) evolve from passive chatbots into autonomous, to
 **GuardianAI** is a unified, dual-layer security control plane that solves this problem end-to-end.
 
 - **Layer 1 — Off-Chain AI Gateway:** Executes 40+ real-time security controls in milliseconds. Addresses the OWASP Top 10 for LLM Applications. Protects against prompt injection, PII leakage, malicious runtime behavior, and unsafe multimodal inputs.
-- **Layer 2 — On-Chain Web3 Trust:** Six EVM-compatible smart contracts (Monad/Base) provide cryptographically verifiable AI identity, decentralized authorization, automated liability, and a built-in smart contract static analyzer to audit the very contracts GuardianAI deploys.
+- **Layer 2 — On-Chain Web3 Trust:** Nine EVM-compatible smart contracts (Monad/Base) provide cryptographically verifiable AI identity, decentralized authorization, certificate anchoring, and a built-in smart contract static analyzer to audit the very contracts GuardianAI deploys. Agent identities are additionally registered on the canonical ERC-8004 "Trustless Agents" registries with transient registrar custody and client ownership handoff (Feature 39).
 
 GuardianAI is the only platform that secures the AI *execution layer* with millisecond heuristics while simultaneously cementing its *trust layer* on the blockchain.
 
@@ -93,9 +93,10 @@ GuardianAI operates on a dual-layer architecture designed to mitigate both class
                         │  • CortexAnchor (Merkle roots)   │
                         │  • PassportSBT (ERC-5192 ID)     │
                         │  • InterlockRegistry (AuthZ)     │
-                        │  • InsuranceLedger (SLA/Stake)   │
+                        │  • InsuranceLedger (Certificates)│
                         │  • ThreatFeedRegistry (Intel)    │
                         │  • RiskAttestation (Trust Score) │
+                        │  + ERC-8004 canonical registries │
                         └──────────────────────────────────┘
 ```
 
@@ -138,6 +139,8 @@ Uses `sentence-transformers` (a local embedding model, `all-MiniLM-L6-v2`) to co
   4. **Fail-closed:** translation API failure, timeout, unsupported language, or empty result → request BLOCKED (`translation_failure` event logged). There is no path through which translation failure passes a prompt unchecked.
 
   English-language prompts bypass the translation step entirely (zero latency penalty for the majority of traffic).
+
+- **Deployment disclosure (August 2026):** translation uses a third-party service (Google Translate's free endpoint), so **raw non-English prompts transit an external service before filtering**. Deployments with strict data-sovereignty requirements should either restrict ingress to English or front the adapter with an approved enterprise translation endpoint. This trade-off is inherent to the current fail-closed design and is documented here rather than omitted.
 
 
 ---
@@ -429,7 +432,7 @@ Logical, in-process isolation of session state, cost-abuse counters, and quarant
 
 Continuous load testing under simulated infrastructure failure conditions (upstream LLM down, backend down) with SLO verdict reporting.
 
-Verified results: 95.68 rps (safe load), 494.01 rps block throughput (attack load), 100% block rate under adversarial concurrent load, 41.88 ms p95 attack latency. Source: `artifacts/performance/perf_chaos_report.json` (2026-08-08).
+Verified results (from `artifacts/performance/perf_chaos_report.json`, last regenerated June 2026 — **a 120-request harness; enterprise-scale rerun is open backlog**): 95.68 rps (safe load), 494.01 rps block throughput (attack load), 100% block rate under adversarial concurrent load, 41.88 ms p95 attack latency.
 
 - **What it is in code:** `artifacts/performance/perf_chaos_report.json`.
 
@@ -494,7 +497,7 @@ Beyond the input-level RAG guard, this includes: agentic policy controls (`agent
 
 **Feature 32 — Multi-Chain Smart Contract Static Analyzer (AST Hybrid Engine)**
 
-A hybrid static analysis engine for Solidity and Vyper smart contracts. Combines Slither AST/CFG structural analysis with custom semantic detectors to identify **52 distinct vulnerability classes** across Solidity and Vyper. High-severity rules utilize Slither-based AST validation to eliminate false positives on safe primitives (e.g., verifying actual access control modifiers rather than just keywords). Provides compliance mappings to SOC-2 and ISO 27001.
+A hybrid static analysis engine for Solidity and Vyper smart contracts. Combines Slither AST/CFG structural analysis with custom semantic detectors covering **48 implemented rule IDs** across Solidity and Vyper. High-severity rules utilize Slither-based AST validation to eliminate false positives on safe primitives (e.g., verifying actual access control modifiers rather than just keywords). Provides compliance mappings to SOC-2 and ISO 27001 (see Phase 6.1 accuracy caveat).
 
 Supported vulnerability classes (selected):
 
@@ -534,6 +537,8 @@ Empirical testing demonstrated a 94% false-signal rate (17 of 18 tested classes)
 
 **Accuracy Caveat**: Until the detection engine is upgraded to perform real AST analysis, any customer-facing or compliance-facing output from this analyzer should not be represented as validated security analysis. Specifically, the SOC-2 and ISO 27001 compliance mappings generated by this tool cannot currently be relied upon for formal certification evidence, as the underlying detections do not reliably distinguish between vulnerable and safe code.
 
+**Status update (August 2026):** the codebase now integrates a real AST layer — `audit/slither_engine.py` (Slither 0.11.x, pinned) and `audit/vyper_engine.py` feed AST-validated findings into the analyzer, with approximately 30 of the rule IDs routed through Slither/Vyper structural validation (`is_slither_targeted`). The July 2026 "regex-only" characterization above is retained as the historical audit record; the headline counts in this section have been corrected to the implemented figure (48 rule IDs, not 52). Regression coverage: **192 parametrized fixture contracts (+1 diagnostic)** in `tests/audit/test_smart_contract_analyzer.py`, passing under standalone `--no-cov` runs. Two binding caveats: (1) under coverage instrumentation Slither silently falls back to regex detection, so structural verification is only valid in `--no-cov` runs (documented in the suite header); (2) an empirical false-positive re-run against the July audit's original 18-class benchmark has not yet been published — treat analyzer output as improved but not yet independently validated.
+
 - **Why:** AI agents increasingly write, deploy, and interact with smart contracts. An AI that generates a reentrancy-vulnerable contract and then deploys it on behalf of a user creates catastrophic liability. GuardianAI closes the loop between AI behavioral security and on-chain asset security.
 - **What it is in code:** `audit/smart_contract_analyzer.py` (70,447 bytes), `audit/token_contract_analyzer.py`, `audit/crypto_scanner.py` (91,502 bytes).
 
@@ -541,7 +546,7 @@ Empirical testing demonstrated a 94% false-signal rate (17 of 18 tested classes)
 
 ### Phase 7: The Web3 Integrity Layer (On-Chain)
 
-Six EVM-compatible smart contracts deployed on Monad/Base provide cryptographic truth about GuardianAI's operational state.
+Nine GuardianAI contracts are deployed on Monad/Base — the six registries below plus GuardianTimelock, GuardianCircuitBreaker, and GuardianProtectedVault — providing cryptographic truth about GuardianAI's operational state. Agent identities are additionally registered on the **canonical ERC-8004 "Trustless Agents" registries** (Feature 39), which GuardianAI does not deploy or own.
 
 ---
 
@@ -577,13 +582,16 @@ A decentralized registry where AI agents can request, approve, and revoke commun
 
 ---
 
-**Feature 36 — GuardianInsuranceLedger (Automated Liability)**
+**Feature 36 — GuardianInsuranceLedger (Insurance Certificate Anchoring)**
 
-A smart contract that holds a deployer stake. If an AI agent cryptographically violates a defined SLA — proven via the CortexAnchor's immutable log — the contract slashes the stake or triggers a payout to the affected party.
+> **Correction (August 2026):** earlier revisions described this contract as holding a deployer stake with automated slashing and payouts. **That functionality was never implemented.** The description below reflects what the deployed contract actually does.
 
-- **What it does:** Converts abstract "AI liability" into a programmable, mathematically enforced financial instrument. No human adjudication needed.
-- **Why it matters:** Makes the cost of deploying an unsafe AI agent quantifiable and automatic, creating genuine accountability for deployers.
-- **What it is in code:** `cortex/insurance.py`, `contracts/GuardianInsuranceLedger.sol`.
+An on-chain registry that anchors signed insurance certificates for AI agents, storing integrity hashes and validity periods so third parties can verify an agent's insurance status.
+
+- **What it does:** issues and revokes certificate records (`agentHash`, period start/end, `certHash`, risk level) with owner-gated writes, reentrancy protection, pausability, pagination for off-chain enumeration, and a 100,000-certificate cap. No ETH is held or moved; the contract is not payable.
+- **Why it matters:** verifiable insurance posture becomes a queryable on-chain fact rather than a PDF in someone's inbox.
+- **Honest scope:** there is no stake, no slashing, and no automated payout path at any layer (`contracts/GuardianInsuranceLedger.sol` and `cortex/insurance.py`). Automated liability remains a design direction: the intended shape is a downstream service consuming ERC-8004 Reputation/Validation data (Feature 39) as breach evidence — not a registry itself. The live AI-insurance market currently operates off-chain (e.g., Lloyd's-backed coverholders); no on-chain agent-liability product has demonstrated demand.
+- **What it is in code:** `cortex/insurance.py` (certificate builder), `contracts/GuardianInsuranceLedger.sol`.
 
 ---
 
@@ -604,6 +612,18 @@ Allows auditors or GuardianAI itself to publish cryptographic attestations of an
 - **What it does:** Third-party smart contracts and DeFi protocols can query an agent's current risk attestation before executing a transaction.
 - **Why it matters:** Enables dynamic, trustless gating in Web3 — for example, a DeFi protocol can require a risk score below 20/100 before allowing an AI agent to execute a trade on behalf of a user.
 - **What it is in code:** `audit/onchain_risk_scorer.py`, `contracts/GuardianRiskAttestation.sol`.
+
+---
+
+**Feature 39 — ERC-8004 Identity Registration (Canonical Trustless Agents)**
+
+> Added August 2026. GuardianAI registers protected agents on the **canonical** ERC-8004 Identity Registry (`0x8004A169…a432`, deterministic CREATE2 deployment shared across chains) instead of operating a competing identity standard.
+
+- **What it does:** for each opted-in agent, GuardianAI calls `register()` on the canonical registry, writes `setMetadata(agentId, "guardianPassportId", <passport id>)` linking the standard identity to the GuardianPassportSBT credential, serves the spec-compliant registration JSON at `/api/v1/erc8004/agents/{agent_id}.json`, and — when a client owner address is supplied — hands full NFT ownership to the client via `transferFrom`.
+- **Ownership policy (register-then-transfer):** transient registrar custody only. The base ERC-8004 contracts mint to `msg.sender`; transfer therefore happens *after* the metadata link (only the current owner can write metadata). Absent an owner address, the identity stays custodial and the queue row says so explicitly.
+- **Safety design:** fail-closed `eth_getCode` verification before first send per chain; production-URI gate refusing localhost/non-https `GUARDIAN_PUBLIC_URL` on mainnet chains; gas-price ceiling reuse; daily on-chain spend budget; idempotent retries (broadcast-hash preservation + receipt recovery prevents double mints); conditional-claim row locking against concurrent workers; chain rollout base-sepolia → base → monad-testnet.
+- **Honest scope:** discovery-only today — no Reputation emission and no Validation-Registry validator yet (the Validation portion of ERC-8004 is still marked unstable by its editors). Default disabled behind `GUARDIAN_ERC8004_ENABLED=false`; nothing changes at runtime until enabled.
+- **What it is in code:** `guardian/passport/erc8004_registrar.py`, `backend/routers/identity_registry_routes.py`, hook in `passport_core.issue_passport()`; tests `tests/web3_identity/` (42 tests, offline fakes + failure injection).
 
 ---
 
@@ -629,24 +649,23 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Full test suite (Python / pytest, August 2026) | 1,268/1,268 passing, 3 skipped, 0 failed\*\* |
-| E2E backend-to-blockchain flows | 46/46 passing |
-| Smart contract unit tests (Hardhat, August 2026) | 147/147 passing |
-| Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, 2026-08-08)†† | **97.1%** |
-| Security-gate block rate — Tier 1+2 (balanced mode, 2026-08-08)†† | **90.6%** |
-| HarmBench Official block rate (400 prompts, strict mode, 2026-08-08)†† | 72.5% (290/400) |
-| HarmBench Official block rate (400 prompts, balanced mode, 2026-08-08)†† | 57.8% (231/400) |
-| AdvBench block rate (520 prompts, strict mode, 2026-08-08)†† | **99.0%** (515/520) |
-| AdvBench block rate (520 prompts, balanced mode, 2026-08-08)†† | **95.4%** (496/520) |
-| Grand total across 8 datasets (3,211 prompts, strict mode, 2026-08-08)†† | 76.2% (2,448/3,211) |
-| Grand total across 8 datasets (3,211 prompts, balanced mode, 2026-08-08)†† | 58.2% (1,869/3,211) |
+| Python test suites (targeted runs, 2026-08-23) | ERC-8004 identity 42/42 · backend package 136/136 · passport/security 50/50 — full-suite regeneration pending; 3 order-dependent tests fail only in full-suite ordering and pass individually (see OPERATIONS) |
+| Smart contract unit tests (Hardhat) | 191 test cases across 9 suites in-repo — runner pass/fail count pending CI regeneration |
+| Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, per definitive_benchmark_v4.json)†† | **97.6%** (949/972) |
+| Security-gate block rate — Tier 1+2 (balanced mode)†† | **90.7%** (882/972) |
+| HarmBench Official block rate (400 prompts, strict mode)†† | **72.8%** (291/400) |
+| HarmBench Official block rate (400 prompts, balanced mode)†† | **57.8%** (231/400) |
+| AdvBench block rate (520 prompts, strict mode)†† | **99.0%** (515/520) |
+| AdvBench block rate (520 prompts, balanced mode)†† | **95.6%** (497/520) |
+| Grand total across 8 datasets (3,211 prompts, strict mode)†† | **76.6%** (2,459/3,211) |
+| Grand total across 8 datasets (3,211 prompts, balanced mode)†† | **58.5%** (1,879/3,211) |
 | GAIA alignment | *not re-verified — no current real run; prior figure (86.0%) traced to synthetic fixture only* |
 | Zero-day block rate (98.4% WildGuard/ToxicChat/JailbreakBench) | *not re-verified — no source file found; figure removed pending real re-run* |
 | Standard benchmark block rate (strict curated 25-prompt holdout, 2026-08-08) | **100%** (25/25) |
 | False positive rate (curated safe set, strict mode) | 0.0% |
-| Throughput (safe load, concurrency 20, 2026-08-08 perf_chaos_report.json) | **95.68 rps** |
-| Block throughput (attack load, concurrency 20, 2026-08-08 perf_chaos_report.json) | **494.01 rps**, 100% block rate |
-| Attack latency p95 (2026-08-08 perf_chaos_report.json) | **41.88 ms** |
+| Throughput (safe load, concurrency 20 — perf_chaos_report.json, June 2026 harness) | **95.68 rps** |
+| Block throughput (attack load, concurrency 20 — perf_chaos_report.json, June 2026 harness) | **494.01 rps**, 100% block rate |
+| Attack latency p95 (perf_chaos_report.json, June 2026 harness) | **41.88 ms** |
 | SAST findings | 1 flagged, confirmed false positive (documented)\* |
 | IaC findings | 0 |
 | Internal security audit — critical/high findings | 4 identified and remediated (July 2026)\*\* |
@@ -689,10 +708,12 @@ Traditional AI security tools are **passive API scanners** — you send them a r
 
 Web3 desperately needs AI agents. But blockchains cannot safely process natural language inputs, and no existing platform audits the smart contracts that AI agents write. GuardianAI solves both:
 1. Secures AI behavior off-chain at millisecond latency.
-2. Audits Solidity/Vyper contracts with 52 verified vulnerability rules before deployment.
+2. Audits Solidity/Vyper contracts with 48 static-analysis rule IDs (high-severity subset AST-validated via Slither/Vyper) before deployment.
 3. Anchors behavioral proof on-chain for trustless verification.
 
 No other platform integrates an AI behavioral security gateway, a smart contract static analyzer, and an on-chain identity/liability layer into a single deployable system.
+
+> **Positioning update (August 2026):** GuardianAI now builds *on* the ERC-8004 standard rather than competing with bespoke identity contracts — registration happens on canonical registries, positioning GuardianAI as the security-telemetry layer of the Trustless Agents ecosystem (with Reputation emission and validator services as the roadmap).
 
 ---
 
@@ -705,9 +726,6 @@ No other platform integrates an AI behavioral security gateway, a smart contract
 py -3.12 -m venv .venv312
 .\.venv312\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv312\Scripts\python.exe guardianctl.py one-click --target-url http://127.0.0.1:8080
-
-# Docker
-docker-compose up -d
 ```
 
 ### On-Chain Layer (Monad Testnet)

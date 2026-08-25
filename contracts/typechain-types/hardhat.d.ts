@@ -126,6 +126,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Strings__factory>;
     getContractFactory(
+      name: "IdentityRegistryTestnet",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IdentityRegistryTestnet__factory>;
+    getContractFactory(
       name: "GuardianCircuitBreaker",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.GuardianCircuitBreaker__factory>;
@@ -339,6 +343,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.Strings>;
     getContractAt(
+      name: "IdentityRegistryTestnet",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IdentityRegistryTestnet>;
+    getContractAt(
       name: "GuardianCircuitBreaker",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -542,6 +551,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
     deployContract(
+      name: "IdentityRegistryTestnet",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IdentityRegistryTestnet>;
+    deployContract(
       name: "GuardianCircuitBreaker",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.GuardianCircuitBreaker>;
@@ -754,6 +767,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
+    deployContract(
+      name: "IdentityRegistryTestnet",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IdentityRegistryTestnet>;
     deployContract(
       name: "GuardianCircuitBreaker",
       args: any[],

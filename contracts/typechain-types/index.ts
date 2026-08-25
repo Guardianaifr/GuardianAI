@@ -62,6 +62,8 @@ export type { ReentrancyGuard } from "./@openzeppelin/contracts/utils/Reentrancy
 export { ReentrancyGuard__factory } from "./factories/@openzeppelin/contracts/utils/ReentrancyGuard__factory";
 export type { Strings } from "./@openzeppelin/contracts/utils/Strings";
 export { Strings__factory } from "./factories/@openzeppelin/contracts/utils/Strings__factory";
+export type { IdentityRegistryTestnet } from "./contracts/erc8004/IdentityRegistryTestnet";
+export { IdentityRegistryTestnet__factory } from "./factories/contracts/erc8004/IdentityRegistryTestnet__factory";
 export type { GuardianCircuitBreaker } from "./contracts/GuardianCircuitBreaker";
 export { GuardianCircuitBreaker__factory } from "./factories/contracts/GuardianCircuitBreaker__factory";
 export type { GuardianCortexAnchor } from "./contracts/GuardianCortexAnchor";

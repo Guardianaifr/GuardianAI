@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as maliciousTokenSol from "./MaliciousToken.sol";
+export * as erc8004 from "./erc8004";
 export * as interfaces from "./interfaces";
 export * as mocks from "./mocks";
 export { GuardianCircuitBreaker__factory } from "./GuardianCircuitBreaker__factory";

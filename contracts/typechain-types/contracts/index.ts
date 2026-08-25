@@ -3,6 +3,8 @@
 /* eslint-disable */
 import type * as maliciousTokenSol from "./MaliciousToken.sol";
 export type { maliciousTokenSol };
+import type * as erc8004 from "./erc8004";
+export type { erc8004 };
 import type * as interfaces from "./interfaces";
 export type { interfaces };
 import type * as mocks from "./mocks";

@@ -106,7 +106,10 @@ class TestExtendedSecurity(unittest.TestCase):
     def test_threat_feed_integration(self):
         print("\n[TEST] Threat Feed Integration")
         # 1. Setup Proxy with mocked ThreatFeed
-        config = {"threat_feed": {"enabled": True, "url": "http://mock.feed"}, "security_policies": {}}
+        config = {
+            "threat_feed": {"enabled": True, "url": "http://mock.feed"},
+            "security_policies": {"admin_token": "test-admin-token-1234567890abcdef"},
+        }
         
         # We need to mock ThreatFeed BEFORE GuardianProxy init to stop thread
         # Mock targets must match how they are imported in interceptor.py

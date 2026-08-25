@@ -151,7 +151,8 @@ def test_f20_purple_hot_reload_end_to_end(tmp_path: Path):
 
         # Check what the brain did
         findings = proxy.brain.last_probe_findings
-        assert len(findings) == 2, "Should have evaluated both vectors."
+        # 2 static vectors (1 full_bypass, 1 refused) + 6 dynamic probes bypassing basic filter = 8 total findings
+        assert len(findings) == 8, f"Expected exactly 8 findings (2 static + 6 dynamic), got {len(findings)}"
         
         # Verify outcomes correctly mapped by F18 rewrite
         bypass_finding = next(f for f in findings if f["payload"] == "apple banana orange")
@@ -159,10 +160,12 @@ def test_f20_purple_hot_reload_end_to_end(tmp_path: Path):
         assert bypass_finding["outcome"] == "full_bypass"
         assert refused_finding["outcome"] == "filter_bypass_model_refused"
 
+        full_bypasses = [f for f in findings if f["outcome"] == "full_bypass"]
+        assert len(full_bypasses) == 7, f"Expected 7 full_bypass findings, got {len(full_bypasses)}"
+
         # Check what patterns were applied
         applied = proxy.brain.last_applied_patterns
-        assert len(applied) == 1, "Only the full_bypass pattern should be hot-patched."
-        assert applied[0] == "apple banana orange"
+        assert applied == ["apple banana orange"], f"Expected ['apple banana orange'], got {applied}"
 
         # STEP 7: Send the exact same request again.
         # It should NOW BE BLOCKED (403 Forbidden) by the live proxy, proving hot-reload works!

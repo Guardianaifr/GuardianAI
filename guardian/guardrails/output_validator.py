@@ -242,6 +242,7 @@ class OutputValidator:
                         operators={
                             "PERSON": OperatorConfig("mask", {"chars_to_mask": 10, "masking_char": "*", "from_end": True}),
                             "PHONE_NUMBER": OperatorConfig("replace", {"new_value": "[REDACTED_PHONE_NUMBER]"}),
+                            "EMAIL_ADDRESS": OperatorConfig("replace", {"new_value": "[REDACTED_EMAIL_ADDRESS]"}),
                             "DEFAULT": OperatorConfig("replace", {"new_value": "[REDACTED]"}),
                         }
                     )

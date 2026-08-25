@@ -1,7 +1,17 @@
 import pytest
 import os
 import json
-import redis
+try:
+    import redis
+    from redis import RedisError
+except ImportError:
+    from unittest.mock import MagicMock
+    import sys
+    redis = MagicMock()
+    class RedisError(Exception):
+        pass
+    redis.RedisError = RedisError
+    sys.modules["redis"] = redis
 from unittest.mock import patch, MagicMock, PropertyMock
 from guardian.security.trust_exploitation import TrustExploitationGuard, _REDIS_CONFIGURED, SyncAlreadyInProgressError
 

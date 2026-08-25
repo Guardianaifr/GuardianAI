@@ -34,6 +34,7 @@ def test_upstream_health_caching():
     importlib.reload(interceptor)
     
     proxy = interceptor.GuardianProxy(config)
+    proxy.ai_firewall.is_malicious = MagicMock(return_value=False)
     
     app = Flask("test_guardian")
     with app.test_request_context():

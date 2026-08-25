@@ -19,7 +19,6 @@ def mocked_dependencies(monkeypatch):
     mock_brain = MagicMock()
 
     module_overrides = {
-        "requests": mock_requests,
         "guardrails.input_filter": mock_input_filter,
         "guardrails.output_validator": mock_output_validator,
         "guardrails.ai_firewall": mock_ai_firewall,
@@ -34,6 +33,7 @@ def mocked_dependencies(monkeypatch):
 
     import guardian.runtime.interceptor as interceptor
     importlib.reload(interceptor)
+    monkeypatch.setattr(interceptor, 'requests', mock_requests)
     try:
         yield {
             "GuardianProxy": interceptor.GuardianProxy,
@@ -56,15 +56,12 @@ def mock_config():
         "proxy": {
             "listen_port": 8081,
             "target_url": "http://mock-target",
-            # Authentication behavior is covered separately; these proxy-path
-            # tests exercise guardrail behavior with auth deliberately disabled.
             "enforce_auth": False,
         },
         "rate_limiting": {"enabled": True, "requests_per_minute": 60},
         "security_policies": {
             "security_mode": "balanced",
             "show_block_reason": True,
-            # Satisfies Finding #7 fail-closed guard — must be non-empty and not a known-weak value.
             "admin_token": "test-admin-token-a1b2c3d4e5f6",
         },
         "threat_feed": {"enabled": False},
@@ -74,8 +71,6 @@ def mock_config():
 
 @pytest.fixture
 def proxy(mock_config, mocked_dependencies):
-    # Create the proxy instance
-    # The imports in interceptor.py use our fixture-scoped sys.modules mocks.
     mock_input_filter = mocked_dependencies["input_filter"]
     mock_output_validator = mocked_dependencies["output_validator"]
     mock_ai_firewall = mocked_dependencies["ai_firewall"]
@@ -1016,3 +1011,4 @@ def test_report_event_persists_tenant_scoped_evidence(proxy, mocked_dependencies
     first_line = evidence_file.read_text(encoding="utf-8").strip().splitlines()[0]
     payload = json.loads(first_line)
     assert payload["tenant_id"] == "acme"
+

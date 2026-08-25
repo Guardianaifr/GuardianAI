@@ -330,7 +330,7 @@ scanner:
   - socket
   skills_directory: ./mock_skills
 security_policies:
-  admin_token: "mock-admin-token-1234567890abcdef"
+  admin_token: "***REDACTED***"
   block_prompt_injection: true
   leak_prevention_strategy: redact
   security_mode: balanced
@@ -400,3 +400,4 @@ trust_exploitation:
   min_confidence_score: 0.6
   review_queue_file: artifacts/evidence/review_queue.jsonl
 version: 0.2.0
+

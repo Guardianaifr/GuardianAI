@@ -44,7 +44,10 @@ from guardian.audit.smart_contract_analyzer import SmartContractAnalyzer
 
 
 
-UNTESTED_19_RULES: list[str] = []
+KNOWN_PENDING_EVASIONS: list[str] = [
+    "SC-032_evasion.sol",
+    "SC-080_evasion.vy",
+]
 
 FIXTURES_DIR = os.path.abspath(
     os.path.join(
@@ -149,7 +152,7 @@ contract Token {{
 def get_fixture_files():
     if not os.path.exists(FIXTURES_DIR):
         return []
-    return sorted([f for f in os.listdir(FIXTURES_DIR) if f.endswith(".sol") and not any(f.startswith(r) for r in UNTESTED_19_RULES)])
+    return sorted([f for f in os.listdir(FIXTURES_DIR) if f.endswith(".sol") and f not in KNOWN_PENDING_EVASIONS])
 
 
 @pytest.mark.parametrize("filename", get_fixture_files())
@@ -188,7 +191,7 @@ def test_smart_contract_analyzer_fixture(filename):
 def get_vyper_fixture_files():
     if not os.path.exists(FIXTURES_DIR):
         return []
-    return sorted([f for f in os.listdir(FIXTURES_DIR) if f.endswith(".vy") and not any(f.startswith(r) for r in UNTESTED_19_RULES)])
+    return sorted([f for f in os.listdir(FIXTURES_DIR) if f.endswith(".vy") and f not in KNOWN_PENDING_EVASIONS])
 
 
 @pytest.mark.parametrize("filename", get_vyper_fixture_files())

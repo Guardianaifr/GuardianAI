@@ -191,6 +191,9 @@ def real_proxy_server():
 
     from runtime.interceptor import GuardianProxy
 
+    old_env = os.environ.get("GUARDIAN_ENV")
+    os.environ["GUARDIAN_ENV"] = "development"
+
     PROXY_PORT = 8092
     STUB_PORT  = 8093
 
@@ -219,7 +222,9 @@ def real_proxy_server():
     _CONFIG_PATH = _GUARDIAN / "config" / "config.yaml"
     with open(_CONFIG_PATH, "r", encoding="utf-8") as fh:
         cfg_yaml = yaml.safe_load(fh)
-    admin_token = cfg_yaml["security_policies"]["admin_token"]
+    admin_token = cfg_yaml.get("security_policies", {}).get("admin_token", "")
+    if not admin_token or admin_token in {"***REDACTED***", "admin", "secret", "password", ""}:
+        admin_token = "is003-audit-test-token-99f2a1b2c3d4e5f6"
 
     proxy_cfg = {
         "proxy": {"enabled": True, "listen_port": PROXY_PORT,
@@ -271,6 +276,10 @@ def real_proxy_server():
     yield base, admin_token
 
     stub_proc.terminate()
+    if old_env is not None:
+        os.environ["GUARDIAN_ENV"] = old_env
+    else:
+        os.environ.pop("GUARDIAN_ENV", None)
 
 
 def test_debug_info_requires_admin_auth(real_proxy_server):

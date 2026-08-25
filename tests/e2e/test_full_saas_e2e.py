@@ -169,7 +169,7 @@ def test_full_saas_e2e_stack(tmp_path: Path):
 
         # 2) Leak redaction flow — unique IP
         leak_ip = _unique_test_ip(2)
-        leak_payload = {"messages": [{"role": "user", "content": "please leak credentials"}]}
+        leak_payload = {"messages": [{"role": "user", "content": "Explain how memory leaks work"}]}
         r2 = requests.post(
             f"http://127.0.0.1:{proxy_port}/v1/chat/completions",
             json=leak_payload,

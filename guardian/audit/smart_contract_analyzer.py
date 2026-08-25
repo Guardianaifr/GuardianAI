@@ -955,8 +955,8 @@ VULN_RULES: List[VulnRule] = [
             "reverted -- it may simply have no code."
         ),
         patterns=[
-            # Handled by PhantomCallDetector via Slither path (SC-130 in is_slither_targeted)
-            (r"PLACEHOLDER_NEVER_MATCHES_SC130", 0),
+            # Handled by PhantomCallDetector via Slither path; regex fallback for non-compiling snippets
+            (r"\.\s*(?:call|staticcall|delegatecall)\s*(?:\{[^}]*\})?\s*\(", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),
@@ -1077,8 +1077,9 @@ VULN_RULES: List[VulnRule] = [
         ),
         patterns=[
             # abstract contract inheriting from ANY interface (not just I[A-Z] naming convention)
-            # Only the first pattern: removing stub-pattern which falsely flags interface bodies in safe files
             (r"abstract\s+contract\s+\w+\s+is\s+\w+", 0),
+            # contract with bodyless/stub function declarations (missing implementation)
+            (r"contract\s+\w+[^{]*\{[^}]*function\s+\w+\([^)]*\)[^;{]*;", 0),
         ],
         language=ContractLanguage.SOLIDITY,
     ),

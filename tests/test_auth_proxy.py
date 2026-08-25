@@ -33,18 +33,14 @@ def _wait_http_ok(url: str, timeout_sec: float = 120.0):
     raise AssertionError(f"Service not healthy: {url} ({last_err})")
 
 class _UpstreamHandler(BaseHTTPRequestHandler):
-    valid_token = ""
-    admin_token = ""
+    received_requests = []
 
     def do_POST(self):
         token = self.headers.get("X-Guardian-Token")
-        if not token or token not in [self.valid_token, self.admin_token]:
-            self.send_response(401)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "Unauthorized"}).encode("utf-8"))
-            return
-
+        _UpstreamHandler.received_requests.append({
+            "has_guardian_token": bool(token),
+            "token_val": token,
+        })
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -65,9 +61,6 @@ def test_auth(tmp_path: Path):
     valid_token = secrets.token_urlsafe(32)
     admin_token = secrets.token_urlsafe(32)
     invalid_token = "wrong-token"
-    
-    _UpstreamHandler.valid_token = valid_token
-    _UpstreamHandler.admin_token = admin_token
 
     upstream = HTTPServer(("127.0.0.1", upstream_port), _UpstreamHandler)
     upstream_thread = threading.Thread(target=upstream.serve_forever, daemon=True)
@@ -83,7 +76,7 @@ def test_auth(tmp_path: Path):
             "security_mode": "balanced",
             "show_block_reason": True,
             "leak_prevention_strategy": "redact",
-            "admin_token": "",
+            "admin_token": admin_token,
         },
         "scanner": {},
         "runtime_monitoring": {},
@@ -157,6 +150,13 @@ def test_auth(tmp_path: Path):
         resp = requests.post(f"{PROXY_URL}/", json={"prompt": "hello"}, headers=headers, timeout=10)
         print(f"Result: Status {resp.status_code}")
         assert resp.status_code in [200, 502]
+
+        # 5. Positive assertion for P2-11: internal proxy headers MUST NOT reach upstream LLM
+        assert len(_UpstreamHandler.received_requests) >= 2, "Upstream should have received the valid requests"
+        for req in _UpstreamHandler.received_requests:
+            assert req["has_guardian_token"] is False, (
+                f"Security regression: X-Guardian-Token was leaked to upstream LLM! Received: {req['token_val']}"
+            )
 
     finally:
         out_f.close()

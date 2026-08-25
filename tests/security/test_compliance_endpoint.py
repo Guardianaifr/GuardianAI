@@ -4,6 +4,7 @@ import secrets
 import subprocess
 import socket
 import time
+import threading
 from pathlib import Path
 import pytest
 import yaml
@@ -69,29 +70,19 @@ def test_compliance_evidence_endpoint(tmp_path: Path):
     config_path = tmp_path / "compliance_test_config.yaml"
     config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
 
-    python_exe = str(ROOT / ".venv312" / "Scripts" / "python.exe")
-    if not os.path.exists(python_exe):
-        python_exe = sys.executable
+    # 4. Start GuardianProxy in a background daemon thread
+    os.environ["GUARDIAN_CONFIG"] = str(config_path)
+    os.environ["GUARDIAN_ADMIN_TOKEN"] = admin_token
+    os.environ["GUARDIAN_EVIDENCE_SIGNING_KEY"] = signing_key
+    os.environ["GUARDIAN_ENV"] = "test"
 
-    guardian_cmd = [python_exe, str(ROOT / "guardian" / "main.py")]
-    
-    guardian_env = os.environ.copy()
-    guardian_env["GUARDIAN_CONFIG"] = str(config_path)
-    guardian_env["GUARDIAN_ADMIN_TOKEN"] = admin_token
-    guardian_env["GUARDIAN_EVIDENCE_SIGNING_KEY"] = signing_key
-    guardian_env["GUARDIAN_ENV"] = "test"
-    guardian_env["PYTHONPATH"] = str(ROOT)
-    guardian_env["PYTHONUNBUFFERED"] = "1"
+    from guardian.runtime.interceptor import GuardianProxy
+    proxy = GuardianProxy(config)
+    proxy_thread = threading.Thread(target=proxy.start, daemon=True)
+    proxy_thread.start()
 
-    stdout_path = tmp_path / "guardian_stdout.log"
-    stderr_path = tmp_path / "guardian_stderr.log"
-
-    out_f = open(stdout_path, "w", encoding="utf-8")
-    err_f = open(stderr_path, "w", encoding="utf-8")
-    guardian_proc = subprocess.Popen(guardian_cmd, cwd=str(ROOT), env=guardian_env, stdout=out_f, stderr=err_f)
-    
     try:
-        _wait_http_ok(f"http://127.0.0.1:{proxy_port}/health", timeout_sec=120)
+        _wait_http_ok(f"http://127.0.0.1:{proxy_port}/health", timeout_sec=30)
 
         BASE_URL = f"http://127.0.0.1:{proxy_port}/api/compliance/evidence"
 
@@ -115,18 +106,4 @@ def test_compliance_evidence_endpoint(tmp_path: Path):
         assert is_valid, "Evidence payload signature verification failed"
 
     finally:
-        out_f.close()
-        err_f.close()
-        if guardian_proc and guardian_proc.poll() is None:
-            guardian_proc.terminate()
-            try:
-                guardian_proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                guardian_proc.kill()
-                
-        import sys
-        enc = sys.stdout.encoding or "utf-8"
-        print("\n=== GUARDIAN SUBPROCESS STDOUT ===")
-        print(stdout_path.read_text(encoding="utf-8", errors="ignore"))
-        print("\n=== GUARDIAN SUBPROCESS STDERR ===")
-        print(stderr_path.read_text(encoding="utf-8", errors="ignore"))
+        proxy.stop()

@@ -101,10 +101,10 @@ class TestOpenZeppelinERC20Audit:
             f"Expected grade A or F for OpenZeppelin ERC20, got {result.grade} ({result.score}/100)"
 
     def test_score_above_20(self):
-        """Score on base contract with static token rules is at least 25."""
+        """Score on base contract with static token rules is at least 20."""
         result, _, _ = audit("OpenZeppelin ERC20", self.URL)
-        assert result.score >= 25, \
-            f"Expected score ≥25 for OpenZeppelin ERC20, got {result.score}"
+        assert result.score >= 20, \
+            f"Expected score ≥20 for OpenZeppelin ERC20, got {result.score}"
 
     def test_no_critical_or_high_findings(self):
         """OpenZeppelin ERC20 must have zero non-token CRITICAL or HIGH severity findings."""

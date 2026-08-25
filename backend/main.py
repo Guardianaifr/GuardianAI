@@ -1913,11 +1913,6 @@ class BillingConfirmRequest(BaseModel):
     machine_id: str | None = None
 
 
-class LicenseIssueRequest(BaseModel):
-    order_id: str
-    machine_id: str
-
-
 class AnalyticsResponse(BaseModel):
     total_requests: int
     total_blocked: int
@@ -2485,6 +2480,10 @@ def _build_agentic_config_snapshot() -> Dict[str, Any]:
         except Exception:
             continue
         agent_keys.setdefault(agent_id, {})[key_id] = secret
+        for fingerprint in _json_list(cert_fingerprints_json):
+            normalized = _normalize_cert_fingerprint(fingerprint)
+            if normalized:
+                agent_cert_fingerprints.setdefault(agent_id, []).append(normalized)
         
     if needs_migration:
         for agent_id, key_id, secret in needs_migration:
@@ -2494,10 +2493,6 @@ def _build_agentic_config_snapshot() -> Dict[str, Any]:
                 (new_ct, agent_id, key_id)
             )
         conn.commit()
-        for fingerprint in _json_list(cert_fingerprints_json):
-            normalized = _normalize_cert_fingerprint(fingerprint)
-            if normalized:
-                agent_cert_fingerprints.setdefault(agent_id, []).append(normalized)
 
     cur.execute("SELECT DISTINCT agent_id FROM agentic_revocations WHERE revocation_type = 'agent' AND agent_id IS NOT NULL")
     revoked_agent_ids = [row[0] for row in cur.fetchall()]
@@ -4293,6 +4288,7 @@ from backend.routers import campaign_routes
 from backend.routers import contract_routes
 from backend.routers import cortex_routes
 from backend.routers import dashboard_routes
+from backend.routers import identity_registry_routes
 from backend.routers import misc_routes
 from backend.routers import passport_routes
 from backend.routers import scan_routes
@@ -4307,6 +4303,7 @@ app.include_router(campaign_routes.router)
 app.include_router(contract_routes.router)
 app.include_router(cortex_routes.router)
 app.include_router(dashboard_routes.router)
+app.include_router(identity_registry_routes.router)
 app.include_router(misc_routes.router)
 app.include_router(passport_routes.router)
 app.include_router(scan_routes.router)

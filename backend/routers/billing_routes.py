@@ -14,7 +14,6 @@ from backend.main import (
     CHECKOUT_SUCCESS_URL,
     CRYPTO_API_KEY,
     DB_PATH,
-    LicenseIssueRequest,
     STRIPE_PRICE_ENTERPRISE,
     STRIPE_PRICE_PRO,
     STRIPE_PRICE_STARTER,
@@ -139,44 +138,6 @@ async def billing_confirm(payload: BillingConfirmRequest, username: str = Depend
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
     return {"order_id": payload.order_id, "status": "paid" if payload.provider_status.lower() == "confirmed" else payload.provider_status.lower()}
-
-
-@router.post("/api/v1/licenses/issue")
-async def issue_license_endpoint(payload: LicenseIssueRequest, username: str = Depends(enforce_admin_rate_limit)):
-    import guardianctl
-
-    license_key = guardianctl.issue_license_key(payload.machine_id)
-    now = time.time()
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT order_id FROM orders WHERE order_id = ?", (payload.order_id,))
-    if not cur.fetchone():
-        conn.close()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-    cur.execute(
-        """
-        INSERT INTO licenses (order_id, machine_id, license_key, status, issued_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(order_id) DO UPDATE SET machine_id = excluded.machine_id, license_key = excluded.license_key, status = excluded.status, issued_at = excluded.issued_at
-        """,
-        (payload.order_id, payload.machine_id, license_key, "issued", now),
-    )
-    conn.commit()
-    conn.close()
-    return {"order_id": payload.order_id, "license_key": license_key, "status": "issued"}
-
-
-@router.get("/api/v1/licenses")
-async def list_licenses(username: str = Depends(enforce_admin_rate_limit)):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT order_id, machine_id, license_key, status, issued_at FROM licenses ORDER BY issued_at DESC")
-    rows = cur.fetchall()
-    conn.close()
-    return [
-        {"order_id": r[0], "machine_id": r[1], "license_key": r[2], "status": r[3], "issued_at": r[4]}
-        for r in rows
-    ]
 
 
 @router.get("/api/v1/orders")

@@ -9,18 +9,15 @@ This script gives a single command surface for Windows/macOS/Linux:
 """
 
 import argparse
-import hashlib
 import ipaddress
 import os
 import platform
-import re
 import secrets
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
-import uuid
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -28,11 +25,6 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent
 RISKY_PORTS = {8080, 6333, 8000}
-LICENSE_ACTIVATION_PATH = ROOT / "artifacts" / "control" / "license_activation.json"
-LICENSE_ENFORCEMENT = os.getenv("GUARDIAN_LICENSE_ENFORCEMENT", "true").strip().lower() in {"1", "true", "yes", "on"}
-LICENSE_KEY_RE = re.compile(r"^GAI-[a-f0-9]{12}-[A-Z0-9]{12}$")
-LICENSE_ISSUER_SECRET = os.getenv("GUARDIAN_LICENSE_ISSUER_SECRET", "").strip()
-LICENSE_KEY_ENV = "GUARDIAN_LICENSE_KEY"
 
 
 def parse_host_port(endpoint: str):
@@ -157,92 +149,6 @@ def default_config_path() -> Path:
 
 def resolve_config_path(config_arg: str = "") -> Path:
     return Path(config_arg).resolve() if config_arg else default_config_path()
-
-
-def get_machine_fingerprint() -> str:
-    raw = f"{platform.system()}|{platform.node()}|{uuid.getnode():012x}"
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
-
-
-def issue_license_key(machine_id: str) -> str:
-    normalized = (machine_id or "").strip().lower()
-    if len(normalized) < 12 or not re.fullmatch(r"[a-f0-9]+", normalized):
-        raise ValueError("machine_id must be a hex fingerprint.")
-    machine_part = normalized[:12]
-    random_part = secrets.token_hex(6).upper()
-    return f"GAI-{machine_part}-{random_part}"
-
-
-def save_license_activation(license_key: str, machine_id: str) -> None:
-    payload = {
-        "license_key": license_key.strip(),
-        "machine_id": machine_id.strip().lower(),
-        "activated_at_epoch": int(time.time()),
-    }
-    LICENSE_ACTIVATION_PATH.parent.mkdir(parents=True, exist_ok=True)
-    LICENSE_ACTIVATION_PATH.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
-
-
-def load_license_activation() -> dict | None:
-    if not LICENSE_ACTIVATION_PATH.exists():
-        return None
-    try:
-        data = yaml.safe_load(LICENSE_ACTIVATION_PATH.read_text(encoding="utf-8")) or {}
-    except Exception:  # noqa: BLE001
-        return None
-    if not isinstance(data, dict):
-        return None
-    return data
-
-
-def load_env_license_key() -> str:
-    return os.getenv(LICENSE_KEY_ENV, "").strip()
-
-
-def activate_license(license_key: str) -> tuple[bool, str]:
-    key = (license_key or "").strip()
-    if not LICENSE_KEY_RE.fullmatch(key):
-        return False, "Invalid license format."
-    machine_id = get_machine_fingerprint()
-    machine_part = key.split("-")[1].lower()
-    if machine_part != machine_id[:12]:
-        return False, "License key is bound to a different machine."
-    save_license_activation(key, machine_id)
-    return True, "License activated for this machine."
-
-
-def can_issue_license(issuer_secret: str) -> tuple[bool, str]:
-    if not LICENSE_ISSUER_SECRET:
-        return False, "License issuing is disabled on this build."
-    if not issuer_secret or not secrets.compare_digest(issuer_secret.strip(), LICENSE_ISSUER_SECRET):
-        return False, "Invalid issuer secret."
-    return True, "Issuer authorized."
-
-
-def check_license_ready() -> tuple[bool, str]:
-    if not LICENSE_ENFORCEMENT:
-        return True, "License enforcement disabled by env."
-    env_key = load_env_license_key()
-    if env_key:
-        ok, msg = activate_license(env_key)
-        if ok:
-            return True, f"License activated from {LICENSE_KEY_ENV}."
-        return False, f"{LICENSE_KEY_ENV} invalid: {msg}"
-
-    data = load_license_activation()
-    if not data:
-        return False, f"No activated license found. Run: guardianctl activate --license-key <key> or set {LICENSE_KEY_ENV}."
-    key = str(data.get("license_key", "")).strip()
-    if not LICENSE_KEY_RE.fullmatch(key):
-        return False, "Stored license is invalid. Re-run activation."
-    machine_id = get_machine_fingerprint()
-    stored_machine = str(data.get("machine_id", "")).strip().lower()
-    if stored_machine != machine_id:
-        return False, "Stored license does not match this machine."
-    key_machine = key.split("-")[1].lower()
-    if key_machine != machine_id[:12]:
-        return False, "Stored license key belongs to a different machine."
-    return True, "License valid for this machine."
 
 
 def generate_secret(length: int = 32) -> str:
@@ -673,29 +579,6 @@ def parse_args() -> argparse.Namespace:
         help="Dashboard URL",
     )
 
-    sub.add_parser("machine-id", help="Print this machine fingerprint for license issuing")
-
-    issue = sub.add_parser("issue-license", help="Issue a machine-bound license key")
-    issue.add_argument(
-        "--machine-id",
-        required=True,
-        help="Target machine fingerprint (from `guardianctl machine-id`).",
-    )
-    issue.add_argument(
-        "--issuer-secret",
-        default="",
-        help="Internal issuer secret. Required when issuing is enabled.",
-    )
-
-    activate = sub.add_parser("activate", help="Activate license key on this machine")
-    activate.add_argument(
-        "--license-key",
-        required=True,
-        help="Machine-bound license key.",
-    )
-
-    sub.add_parser("license-status", help="Check current license activation status")
-
     one_click = sub.add_parser("one-click", help="One-click full-feature SaaS launch")
     one_click.add_argument(
         "--target-url",
@@ -751,42 +634,7 @@ def main() -> int:
     if args.command == "hardening-check":
         return run_hardening_check(strict=args.strict)
 
-    if args.command == "machine-id":
-        print(get_machine_fingerprint())
-        return 0
-
-    if args.command == "issue-license":
-        ok, msg = can_issue_license(args.issuer_secret)
-        if not ok:
-            print(f"[ERROR] {msg}")
-            return 1
-        try:
-            key = issue_license_key(args.machine_id)
-        except ValueError as e:
-            print(f"[ERROR] {e}")
-            return 1
-        print(key)
-        return 0
-
-    if args.command == "activate":
-        ok, msg = activate_license(args.license_key)
-        if ok:
-            print(f"[OK] {msg}")
-            return 0
-        print(f"[ERROR] {msg}")
-        return 1
-
-    if args.command == "license-status":
-        ok, msg = check_license_ready()
-        state = "OK" if ok else "ERROR"
-        print(f"[{state}] {msg}")
-        return 0 if ok else 1
-
     if args.command == "one-click":
-        ok, msg = check_license_ready()
-        if not ok:
-            print(f"[ERROR] {msg}")
-            return 1
         hardening_rc = run_hardening_check(strict=not args.allow_risky_ports)
         if hardening_rc != 0:
             return hardening_rc
@@ -815,10 +663,6 @@ def main() -> int:
         return start_stack(python_exe, cfg_path, backend_only=False)
 
     if args.command == "start":
-        ok, msg = check_license_ready()
-        if not ok:
-            print(f"[ERROR] {msg}")
-            return 1
         hardening_rc = run_hardening_check(strict=not args.allow_risky_ports)
         if hardening_rc != 0:
             return hardening_rc

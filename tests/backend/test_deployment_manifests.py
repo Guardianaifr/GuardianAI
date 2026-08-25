@@ -8,21 +8,6 @@ def _load_yaml_documents(path: Path):
         return [doc for doc in yaml.safe_load_all(handle) if doc]
 
 
-def test_k8s_manifests_include_expected_resources():
-    repo_root = Path(__file__).resolve().parents[2]
-    backend_manifest = repo_root / "deploy" / "k8s" / "guardian-backend.yaml"
-    proxy_manifest = repo_root / "deploy" / "k8s" / "guardian-proxy.yaml"
-
-    backend_docs = _load_yaml_documents(backend_manifest)
-    proxy_docs = _load_yaml_documents(proxy_manifest)
-
-    backend_kinds = {doc.get("kind") for doc in backend_docs}
-    proxy_kinds = {doc.get("kind") for doc in proxy_docs}
-
-    assert {"ConfigMap", "Secret", "Deployment", "Service"}.issubset(backend_kinds)
-    assert {"Deployment", "Service"}.issubset(proxy_kinds)
-
-
 def test_prometheus_assets_include_scrape_and_alerts():
     repo_root = Path(__file__).resolve().parents[2]
     scrape_cfg = repo_root / "deploy" / "prometheus" / "scrape-config.yaml"

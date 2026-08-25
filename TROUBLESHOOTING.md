@@ -1,4 +1,4 @@
-﻿# GuardianAI Troubleshooting Guide
+# GuardianAI Troubleshooting Guide
 
 ## 1) Presidio runtime compatibility
 
@@ -77,6 +77,6 @@ python -m pytest tests -q
 python guardianctl.py status
 ```
 
-Expected tests status: `61 passed`.
+Expected tests status: backend + unit suites: 171 passed (2026-08-25).
 
 

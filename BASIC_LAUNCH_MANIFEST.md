@@ -7,7 +7,7 @@ This package contains only the files required for a basic public GitHub launch.
 - Backend API/telemetry: `backend/`
 - Test suite: `tests/`
 - Core docs: README/API/DEPLOYMENT/HARDENING/OPERATIONS/TROUBLESHOOTING/SECURITY/ROADMAP
-- Launch scripts: `guardianctl.py`, `start_guardian.*`, `install.*`
+- Launch scripts: `guardianctl.py`
 - Container and deps: `Dockerfile`, `railway.json`, `requirements.txt`
 
 ## Intentionally excluded

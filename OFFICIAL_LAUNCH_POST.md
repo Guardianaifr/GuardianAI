@@ -20,20 +20,17 @@ We blasted the GuardianAI proxy with a chaos load test of hundreds of concurrent
 * **Throughput:** Handled sustained traffic spikes flawlessly at ~100 Requests Per Second (RPS) with zero dropped packets (100% Success Rate).
 * **Time-to-Mitigate:** When a malicious prompt is detected, GuardianAI intercepts and neutralizes it in an average of **38.46ms**. By rejecting the traffic *before* it touches OpenAI, GuardianAI saves immense token costs and compute overhead.
 * **Overhead Latency:** For safe traffic, the firewall overhead is mathematically negligible. End-users experience zero visible degradation in chat performance.
-* **Resilience:** When we simulated a catastrophic backend database outage, the firewall gracefully "failed open" for logging, maintaining perfect 40ms routing without locking up connection pools.
+* **Resilience:** When we simulated a catastrophic backend database outage, the firewall degraded non-critical logging paths while maintaining routing stability — no connection-pool lockup, no dropped sessions.
 
 ---
 
-## 🛡️ 2. The Security Benchmark: 93.6% Zero-Day Mitigation
+## 🛡️ 2. The Security Benchmark: 97.6% Security-Gate Block Rate
 To prove GuardianAI isn't just "too strict", we ran it against the industry's hardest adversarial datasets (HarmBench and AdvBench) and mixed it with complex, safe business traffic (GAIA).
 
-**The Results:**
-* **97.0% Jailbreak Block Rate:** Out of 500 state-of-the-art "Developer Mode" jailbreaks and cognitive hacks, GuardianAI caught 485.
-* **94.0% Adversarial Math Block Rate:** Out of 300 mathematical adversarial string injections designed to bypass LLM alignment, GuardianAI stripped out 282.
-* **86.0% Safe Passage Rate:** We fired 200 highly ambiguous, complex business queries through the firewall. GuardianAI safely passed 86% of them without a false positive.
-
-**Overall Composite Security Score: 93.6%**
-GuardianAI catches the threats your LLM misses, right out of the box.
+**The Results** (definitive run, `artifacts/evidence/definitive_benchmark_v4.json`, 2026-08-08):
+* **97.6% security-gate block rate in strict mode** (949/972) across AdvBench, JailbreakBench, MaliciousInstruct and DAN prompt families; **90.7%** (882/972) in balanced mode.
+* **Grand-total block rates across every category: 76.6% strict / 58.5% balanced** — reported raw, because a firewall that only publishes its best subset isn't honest.
+* **0.0% false-positive rate** on benign traffic in the same run.
 
 ---
 
@@ -67,7 +64,7 @@ We didn't stop at the standard benchmarks. We pushed GuardianAI to its absolute 
 * **Egress Data Exfiltration: PASSED.** GuardianAI doesn't just protect the LLM; it protects the user. We proved that if the upstream LLM attempts to output a user's credit card or API key, GuardianAI acts as a final safety net, scrubbing the output before it hits the screen.
 * **Multilingual Evasion: PASSED.** Hackers often translate their payloads into non-English languages to bypass basic keyword filters. GuardianAI features a strict Language Allowlisting and Pre-Processing decoding pipeline. It successfully blocked attacks written in Russian, Chinese, Arabic, Leetspeak, and Hexadecimal, achieving an **83.3% Multilingual Block Rate** out of the box.
 * **PII & HIPAA Compliance: PASSED.** We sent payloads containing fake SSNs, Credit Cards, IPv4 addresses, and private emails. GuardianAI achieved a **100% Defense Rate**, perfectly masking every piece of sensitive data before it could reach the external LLM.
-* **p99 Latency SLA: ROADMAP.** While GuardianAI maintains a blazing-fast 23ms median latency, hitting the local SQLite database with 200 concurrent requests caused a p99 latency spike of 1.1 seconds due to database locking. For enterprise deployments, GuardianAI seamlessly connects to **PostgreSQL/Redis clusters**, which eliminates this spike and easily handles 10,000+ concurrent writes.
+* **p99 Latency SLA: ROADMAP.** While GuardianAI maintains a blazing-fast 23ms median latency, hitting the local SQLite database with 200 concurrent requests caused a p99 latency spike of 1.1 seconds due to database locking. The current stack is single-writer SQLite by design; eliminating this spike on the hosted platform (managed database tier) is on the roadmap before enterprise SLAs are offered.
 * **AutoDAN (Mutated Prompts): ROADMAP.** We value extreme transparency. GuardianAI struggled against "AutoDAN" attacks, where AI mathematically mutates prompts (e.g. replacing words with extreme synonyms or leetspeak). Tackling semantic drift requires a much heavier, dedicated embedding model, which is the core focus of our **GuardianAI v2.0** roadmap.
 
 ---

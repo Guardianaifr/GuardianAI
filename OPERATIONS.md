@@ -1,4 +1,4 @@
-﻿# GuardianAI Operations Guide
+# GuardianAI Operations Guide
 
 This document outlines the operational procedures for maintaining a healthy GuardianAI deployment.
 
@@ -43,7 +43,7 @@ Threat feeds are updated dynamically in memory.
 
 ### Telemetry Data
 If using the Guardian Dashboard/Backend:
-- **Database**: Ensure the backend database (SQLite (default)) has an automated backup schedule (e.g., WAL-G or pg_dump).
+- **Database**: Ensure the backend database (SQLite (default)) has an automated backup schedule (e.g., `sqlite3 guardian.db '.backup ...'` on a cron, or litestream).
 
 ## 4. Monitoring & Alerts
 

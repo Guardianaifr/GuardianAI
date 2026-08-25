@@ -649,7 +649,7 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Python test suites (targeted runs, 2026-08-23) | ERC-8004 identity 42/42 · backend package 136/136 · passport/security 50/50 — full-suite regeneration pending; 3 order-dependent tests fail only in full-suite ordering and pass individually (see OPERATIONS) |
+| Python test suites (targeted runs, 2026-08-23) | ERC-8004 identity 42/42 · backend+unit suites 171 passed (2026-08-25) · passport/security 50/50 (2026-08-23) — full multi-directory regeneration pending |
 | Smart contract unit tests (Hardhat) | 191 test cases across 9 suites in-repo — runner pass/fail count pending CI regeneration |
 | Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, per definitive_benchmark_v4.json)†† | **97.6%** (949/972) |
 | Security-gate block rate — Tier 1+2 (balanced mode)†† | **90.7%** (882/972) |

@@ -1,25 +1,10 @@
-# Deployment Manifests
+# Deployment Assets
 
-This folder contains baseline deployment assets for Kubernetes and Prometheus.
-
-## Kubernetes
-
-Files:
-- `deploy/k8s/namespace.yaml`
-- `deploy/k8s/guardian-backend.yaml`
-- `deploy/k8s/guardian-proxy.yaml`
-
-Apply:
-```bash
-kubectl apply -f deploy/k8s/namespace.yaml
-kubectl apply -f deploy/k8s/guardian-backend.yaml
-kubectl apply -f deploy/k8s/guardian-proxy.yaml
-```
-
-Notes:
-- Update image tags before production rollout.
-- Replace secret placeholders in `guardian-backend-secrets`.
-- Backend manifest defaults to Redis distributed rate limiting with fail-closed mode.
+This folder contains ops assets for the hosted deployment model.
+The service itself deploys from the repo-root `Dockerfile` (Railway reads
+`railway.json`; any Docker host works) — see `DEPLOYMENT.md` and
+`PRODUCTION_LAUNCH_RUNBOOK.md` for the full runbook, including the
+systemd/Caddy patterns for Oracle Cloud VMs under `production/`.
 
 ## Prometheus
 

@@ -1,4 +1,11 @@
-# GuardianAI Demo — "Your agent holds a wallet. Watch."
+# GuardianAI Demos
+
+**Flagship (all features):** `python demo/full_demo.py` — six scenes from
+provisioning to dual-chain ERC-8004 live registration. See [FULL_DEMO.md](FULL_DEMO.md).
+
+---
+
+## Classic quick preview — "Your agent holds a wallet. Watch."
 
 One command. Three acts. Real code, zero network, zero API keys.
 

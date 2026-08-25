@@ -1,4 +1,5 @@
-# GuardianAI Feature and Benchmark Analysis
+# > [Historical snapshot 2026-04-28 — test counts below are from that session; current status lives in VALIDATION.md.]
+#GuardianAI Feature and Benchmark Analysis
 
 Generated: April 28, 2026 (Updated — Threat Feed Benchmarked)
 Scope: `F:\Saas\guardianai-basic-launch`

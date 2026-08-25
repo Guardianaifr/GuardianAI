@@ -195,7 +195,7 @@ From `artifacts/evidence/TOPIC_PROGRESS.md`, completed topics:
 
 ## 8) API Surface
 
-### Backend API (`backend/main.py`)
+### Backend API (`backend/main.py` + `backend/routers/*`)
 
 HTTP endpoints:
 
@@ -251,7 +251,7 @@ Note: backend analytics differential-privacy controls are environment-driven (`G
 
 ### A) Full test status
 
-- Latest full suite run in this session: `241 passed`
+- Latest recorded runs: backend + unit suites 171 passed (2026-08-25); earlier full-suite snapshot `241 passed` (2026-08-22 session) kept for history
 - Standalone adversarial chaos E2E verification: `1 passed`
 
 Interpretation: full suite is green; intermittent chaos contention remains a known historical risk under resource pressure, but was stable in this run.

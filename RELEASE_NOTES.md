@@ -44,13 +44,13 @@ GuardianAI v1.0 is a production-ready security layer designed to protect LLM app
 
 ## ⚡ User Experience & Demos (The Truth)
 8.  **Honest Demo Suite:**
-    *   6 Interactive Batch Scripts (`demo_1_safe.bat` to `demo_6_rate_limit.bat`).
+    *   Flagship one-command demo: `python demo/full_demo.py` — six scenes ending in dual-chain ERC-8004 live registration.
     *   **Simulation Mode:** Reliable PII testing using mock data.
     *   **"Honest Truth" Disclaimers:** Each demo explicitly states what it proves and what it *does not* prove.
 
 9.  **Unified Launcher:**
-    *   `start_guardian.bat`: Single-click entry point for all tools.
-    *   **Setup Wizard (`wizard.py`):** Interactive configuration generator.
+    *   `python guardianctl.py start`: single entry point for backend + proxy.
+    *   **Setup Wizard:** `python guardianctl.py setup` interactive configuration generator.
 
 10. **Real-Time Dashboard:**
     *   Visualizes Threat Telemetry, PII Redaction events, and System Health.
@@ -72,5 +72,5 @@ GuardianAI v1.0 is a production-ready security layer designed to protect LLM app
 ---
 
 **Status:** ✅ PRODUCTION READY
-**License:** Proprietary — all rights reserved by the author.
+**License:** See [`LICENSE`](LICENSE).
 **Maintainer:** GuardianAI Team

@@ -56,19 +56,19 @@ One-click activation behavior:
 - Launches backend + proxy stack in a single command.
 
 Automated test status:
-- **188+ core tests passing** (`pytest -q` on auth/guardrails/proxy/backend)
+- **backend + unit suites 171 passed (2026-08-25)** (`pytest -q tests/backend tests/unit`)
 - **100% Phase 4 Delivery + Feature #12 Enterprise Auth**
 
 ## 3) Architecture (End-to-End)
 
 ```text
 Client
-  -> Guardian Proxy (Flask, localhost bind)
+  -> Guardian Proxy (Flask; bind set by GUARDIAN_PROXY_HOST — 0.0.0.0 in cloud hosting)
       -> InputFilter / Base64 detector / Threat feed / AI firewall / Rate limiter
       -> Upstream model endpoint
       -> OutputValidator (PII + exploit detection + redaction)
       -> Telemetry events
-  -> Backend API (FastAPI, localhost bind)
+  -> Backend API (FastAPI; GUARDIAN_BACKEND_HOST defaults 0.0.0.0)
       -> Event ingest (token-protected)
       -> Analytics + audit logs
       -> Protected event export endpoints

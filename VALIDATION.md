@@ -3,9 +3,8 @@
 This document outlines how we validate the security, performance, and reliability of GuardianAI.
 
 ## Current Test Status
-- **Total Tests:** 150
+- **Total Tests:** backend + unit suites: 171 passed (2026-08-25)
 - **Key Coverage:** Authentication, PII Redaction, Adversarial Defense, Audit Logging, RBAC
-- **Status:** PASSING (as of v1.0 Release)
 
 ## Verification Layers
 
@@ -24,7 +23,7 @@ Key Test Files:
 
 ### 2. Hardening Demos ("The Gauntlet")
 A suite of 10 live-fire scenarios running against a real backend instance.
-Located in `tools/hardening_demos.py` and orchestrated via `demo_hardening_*.bat`.
+Run directly via `pytest tools/hardening_demos.py` against a locally started backend (`python guardianctl.py start`).
 
 | Demo ID | Feature Tested | Outcome |
 | :--- | :--- | :--- |
@@ -38,7 +37,7 @@ Located in `tools/hardening_demos.py` and orchestrated via `demo_hardening_*.bat
 | 9 | Audit Integrity | Tamper-evident hash chain |
 
 ### 3. Real-Time Verification
-Simulated attacks using `demo_realtime_*.bat` scripts to verify:
+Attack simulations (see `demo/full_demo.py`, Scene 2–3) verify:
 - Prompt Injection blocking
 - PII Redaction coverage
 - Rate Limiting
@@ -46,7 +45,7 @@ Simulated attacks using `demo_realtime_*.bat` scripts to verify:
 ## Performance Benchmarks
 Run the professional benchmark suite:
 ```bash
-python professional_benchmark.py
+.\.venv312\Scripts\python.exe tools/run_performance_chaos_validation.py
 ```
 **Target Metrics:**
 - Latency (p95): < 20ms (internal overhead)

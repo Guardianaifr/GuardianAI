@@ -249,6 +249,16 @@ class PassportEngine:
         finally:
             conn.close()
 
+        # ERC-8004 identity registration (no-op unless GUARDIAN_ERC8004_ENABLED).
+        # Deliberately swallow-all: identity registration must never break
+        # passport issuance or affect traffic availability.
+        try:
+            from guardian.passport.erc8004_registrar import enqueue_registration
+
+            enqueue_registration(self.db_path, agent_id, passport.passport_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("ERC-8004 registration hook skipped: %s", exc)
+
         return passport
 
     def get_passport(self, agent_id: str) -> Optional[AgentPassport]:

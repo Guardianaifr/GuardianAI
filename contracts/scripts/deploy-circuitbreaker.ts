@@ -21,9 +21,10 @@ async function main() {
   console.log("MockERC20 deployed to:", tokenAddress);
 
   // Deploy Vault
+  const chainName = process.env.GUARDIAN_CHAIN_NAME || "monad";
   console.log("Deploying GuardianProtectedVault...");
   const Vault = await ethers.getContractFactory("GuardianProtectedVault");
-  const vault = await Vault.deploy(tokenAddress, riskAttestationAddress, threatFeedAddress);
+  const vault = await Vault.deploy(tokenAddress, riskAttestationAddress, threatFeedAddress, chainName);
   await vault.waitForDeployment();
 
   const vaultAddress = await vault.getAddress();
@@ -33,7 +34,7 @@ async function main() {
   console.log(`GUARDIAN_CIRCUIT_BREAKER_CONTRACT=${vaultAddress}`);
   console.log("");
   console.log("Verify with:");
-  console.log(`npx hardhat verify --network monad_testnet ${vaultAddress} ${tokenAddress} ${riskAttestationAddress} ${threatFeedAddress}`);
+  console.log(`npx hardhat verify --network monad_testnet ${vaultAddress} ${tokenAddress} ${riskAttestationAddress} ${threatFeedAddress} ${chainName}`);
 }
 
 main().catch((error) => {

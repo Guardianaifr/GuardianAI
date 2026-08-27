@@ -12,10 +12,10 @@ As large language models (LLMs) evolve from passive chatbots into autonomous, to
 
 **GuardianAI** is a unified, dual-layer security control plane that solves this problem end-to-end.
 
-- **Layer 1 — Off-Chain AI Gateway:** Executes 40+ real-time security controls in milliseconds. Addresses the OWASP Top 10 for LLM Applications. Protects against prompt injection, PII leakage, malicious runtime behavior, and unsafe multimodal inputs.
+- **Layer 1 — Off-Chain AI Gateway:** Executes 40 real-time security controls in milliseconds. Addresses the OWASP Top 10 for LLM Applications. Protects against prompt injection, PII leakage, malicious runtime behavior, and unsafe multimodal inputs.
 - **Layer 2 — On-Chain Web3 Trust:** Nine EVM-compatible smart contracts (Monad/Base) provide cryptographically verifiable AI identity, decentralized authorization, certificate anchoring, and a built-in smart contract static analyzer to audit the very contracts GuardianAI deploys. Agent identities are additionally registered on the canonical ERC-8004 "Trustless Agents" registries with transient registrar custody and client ownership handoff (Feature 39).
 
-GuardianAI is the only platform that secures the AI *execution layer* with millisecond heuristics while simultaneously cementing its *trust layer* on the blockchain.
+GuardianAI is, to our knowledge, the first platform that secures the AI *execution layer* with millisecond heuristics while simultaneously cementing its *trust layer* on the blockchain.
 
 ---
 
@@ -25,14 +25,14 @@ GuardianAI is the only platform that secures the AI *execution layer* with milli
 
 Prompt injection and agentic exploitation are no longer theoretical attack vectors.
 
-- **Prompt injection is the #1 LLM vulnerability** per OWASP Top 10 for LLM Applications (2025, 2026).
-- Audits of production AI deployments in 2025 indicated that **73% of systems were vulnerable** to prompt injection.
-- Bug bounty reports for AI-related flaws surged by **540%** in 2025, with payouts for AI vulnerabilities growing **339%**.
+- **Prompt injection is the #1 LLM vulnerability** per OWASP Top 10 for LLM Applications (2025).
+- Industry surveys in 2024–2025 consistently found the majority of AI-integrated systems vulnerable to prompt injection (e.g., HiddenLayer's 2024 report found **77% of companies** experienced AI-related breaches).
+- Bug bounty reports for **prompt-injection vulnerabilities** surged by **540%** in 2025, with payouts for AI vulnerabilities growing **339%**.
 - Attack success rates against unguarded models range from **50–95%** depending on technique sophistication.
 
 **The threat model has evolved in three critical dimensions:**
 
-1. **From Chatbots to Agents:** Attackers no longer just trick bots into saying bad things. They exploit LLM tool-calling to achieve Remote Code Execution (RCE). CVE-2025-53773 (CVSS 9.6) in GitHub Copilot demonstrated prompt-injection-via-tool-call leading to local configuration modification on developer machines.
+1. **From Chatbots to Agents:** Attackers no longer just trick bots into saying bad things. They exploit LLM tool-calling to achieve Remote Code Execution (RCE). CVE-2025-53773 (CVSS 7.8, High) in GitHub Copilot demonstrated prompt-injection-via-tool-call leading to local configuration modification on developer machines.
 
 2. **Indirect Prompt Injection (IDPI):** Attackers embed malicious instructions inside externally retrieved content — web pages, PDFs, database records — which an AI agent reads during a legitimate task. These hidden instructions hijack the agent without the user ever sending a malicious prompt.
 
@@ -104,7 +104,7 @@ GuardianAI operates on a dual-layer architecture designed to mitigate both class
 Data that is too fast, too dynamic, or contains PII is processed entirely off-chain. The proxy never writes user query content to the blockchain.
 
 **Design Principle — What Goes On-Chain:**
-Only cryptographic proofs, identity anchors, authorization states, risk scores, and financial stakes are written to the chain. Zero PII ever leaves the off-chain layer.
+Only cryptographic proofs, identity anchors, authorization states, and risk scores are written to the chain. Zero PII ever leaves the off-chain layer.
 
 ---
 
@@ -119,7 +119,7 @@ Only cryptographic proofs, identity anchors, authorization states, risk scores, 
 The first line of defense. A curated regex and keyword library drawn from JailbreakBench's 10 harm categories (harassment, malware, violence, fraud, disinformation, etc.) intercepts known-bad patterns before any embedding model is invoked.
 
 - **Why:** Sheds high-volume, low-sophistication attacks at zero ML inference cost, preserving budget for the semantic layer.
-- **What it is in code:** `fast_path.py` + the `HARM_TOPIC_KEYWORDS` dictionary in `ai_firewall.py` (10 harm categories, 100+ keyword clusters).
+- **What it is in code:** `fast_path.py` (defines `HARM_TOPIC_KEYWORDS`, 10 harm categories, 100+ keyword clusters) + `ai_firewall.py` (imports and applies them) (10 harm categories, 100+ keyword clusters).
 
 ---
 
@@ -160,8 +160,8 @@ Supported encodings detected and decoded:
 - Pig Latin
 - Zero-width and steganographic Unicode characters
 
-- **Why:** UTES (Uncommon Text-Encoded Structures) research shows that obfuscated inputs systematically bypass keyword and semantic filters by changing the representation while preserving malicious intent.
-- **What it is in code:** `encoding_detector.py` — 24,085 bytes of dedicated detection and decoding logic. `ai_firewall.py` runs decoding as a preprocessing step before any filter.
+- **Why:** Research on text-encoded attack structures (e.g., ArtPrompt [Jiang et al., 2024], CipherChat [Yuan et al., 2024]) shows that obfuscated inputs systematically bypass keyword and semantic filters by changing the representation while preserving malicious intent.
+- **What it is in code:** `encoding_detector.py` — 25,916 bytes of dedicated detection and decoding logic (Base64 decoding in sibling `base64_detector.py`) of dedicated detection and decoding logic. `ai_firewall.py` runs decoding as a preprocessing step before any filter.
 
 ---
 
@@ -208,7 +208,7 @@ Checks:
 
 Scans LLM responses for Personally Identifiable Information before delivery to the client.
 
-Detected types: SSNs, credit card numbers, phone numbers, email addresses, date-of-birth patterns, healthcare IDs.
+Detected types: SSNs, credit card numbers, phone numbers, email addresses.
 
 - **Why:** The primary risk of LLM deployment is not just input attacks but model outputs that leak sensitive data — either from training memorization or from context windows contaminated with user data. This is a foundational GDPR/CCPA control.
 - **What it is in code:** `output_validator.py` — PII redaction and blocking layer in the output pipeline.
@@ -355,7 +355,7 @@ Tracks session risk scores in real time. When a session's cumulative risk score 
 - **What is wired and active:**
   - Session risk accumulation (`observe_prompt`) and mode recommendation (`recommend_mode` → `strict` / `balanced`), honeypot routing, and session revocation — all wired in `brain/orchestrator.py` (`CyberBrain`) and the live request path (`interceptor.py`).
   - `SessionVelocityTracker` — **wired (FEAT-BLUE-ADVANCED, August 2026).** Detects burst-rate anomalies within a configurable sliding window. Anomalous velocity adds +1 risk point per request in `observe_prompt()`.
-  - `AdaptiveCooldown` — **wired (FEAT-BLUE-ADVANCED, August 2026).** Records a violation on every blocked request. When the session is cooling down, `get_action()` returns `"cooldown"` and the interceptor responds HTTP 429 with a `Retry-After` header (exponential backoff: base × 2 ^ violations, capped at max). This implements the "automatically tightens rate limits" capability.
+  - `AdaptiveCooldown` — **wired (FEAT-BLUE-ADVANCED, August 2026).** Records a violation on every blocked request. When the session is cooling down, `get_action()` returns `"cooldown"` and the interceptor responds HTTP 429 with a `Retry-After` header (exponential backoff: base × 2^(n−1) where n = violation count, capped at max). This implements the "automatically tightens rate limits" capability.
 - **What is NOT yet wired (advanced capabilities present in code, not integrated):** `GeoAnomalyDetector` (impossible-travel detection — deferred: no IP→geo resolver in the request path), `BehavioralFingerprint` (user-agent / timezone drift — deferred: requires header-extraction refactor). See backlog items `FEAT-BLUE-GEO` and `FEAT-BLUE-FINGER`.
 - **What it is in code:** `brain/blue_adapt.py`, `brain/orchestrator.py`, `runtime/interceptor.py`.
 
@@ -368,7 +368,7 @@ When the Red Team identifies a successful attack pattern not blocked by current 
 
 - **Why:** Zero-downtime patching is essential for mission-critical deployments. The window between vulnerability discovery and mitigation is eliminated. The governance gate prevents an adversary from weaponizing the auto-patch mechanism itself ("firewall poisoning" DoS).
 - **What it is in code:** `brain/purple_heal.py` + `security/purple_governance.py` + hot-reload integration in the proxy (`brain/orchestrator.py`).
-- **Governance and safety depth:** All auto-generated hotfix patterns pass through `PurplePatchGovernance` before being applied: (1) configurable enforce/audit mode — in enforce mode, patches require an approval YAML file (approver + ticket) before going live; (2) **regression false-positive gate** — every proposed pattern is tested against a bank of 30 known-benign prompts, and any pattern that would block a benign prompt is automatically quarantined rather than applied; (3) **staging quarantine** — rejected patterns are persisted to a staging YAML file with the specific safe prompts they would have incorrectly blocked, for admin review and sign-off; (4) evidence emission — each patch cycle writes a signed JSONL audit record (allow/block decision, pattern counts, applied counts).
+- **Governance and safety depth:** All auto-generated hotfix patterns pass through `PurplePatchGovernance` before being applied: (1) configurable enforce/audit mode — in enforce mode, patches require an approval YAML file (approver + ticket) before going live; (2) **regression false-positive gate** — every proposed pattern is tested against a bank of 30 known-benign prompts, and any pattern that would block a benign prompt is automatically quarantined rather than applied; (3) **staging quarantine** — rejected patterns are persisted to a staging YAML file with the specific safe prompts they would have incorrectly blocked, for admin review and sign-off; (4) evidence emission — each patch cycle writes a JSONL audit record (allow/block decision, pattern counts, applied counts).
 
 ---
 
@@ -456,7 +456,7 @@ Enforces structured response contracts — validates that AI outputs conform to 
 
 Normalizes internal detection metrics against public adversarial AI benchmarks (HarmBench, AdvBench, GAIA). Enforces minimum score gates in CI.
 
-Corrected results (August 2026): HarmBench 72.5% strict / 57.8% balanced, AdvBench 99.0% strict / 95.4% balanced, security-gate Tier 1+2 97.1% strict / 90.6% balanced across 3,211 real unseen prompts. Source: `artifacts/evidence/definitive_benchmark_v4.json` (2026-08-08). Prior claims (HarmBench 97%, AdvBench 94%, GAIA 86%, composite 93.6%) traced to a synthetic test fixture; see Section 6.2.
+Corrected results (August 2026): HarmBench 72.8% strict / 57.8% balanced, AdvBench 99.0% strict / 95.6% balanced, security-gate Tier 1+2 97.6% strict / 90.7% balanced across 972 security-relevant prompts (3,211 total across all 8 datasets). Source: `artifacts/evidence/definitive_benchmark_v4.json` (2026-08-08). Prior claims (HarmBench 97%, AdvBench 94%, GAIA 86%, composite 93.6%) traced to a synthetic test fixture; see Section 6.2.
 
 - **What it is in code:** `security/public_benchmark.py`.
 
@@ -474,7 +474,7 @@ Appends a verifiable `_guardian_watermark` JSON field to AI-generated responses.
 
 **Feature 30 — Differential Privacy Analytics**
 
-Applies calibrated Laplace noise to aggregated telemetry analytics before reporting, with a privacy budget tracker (`PrivacyAccountant`) that enforces total epsilon consumption limits.
+Applies calibrated Laplace noise to aggregated telemetry analytics before reporting, with a privacy budget tracker (`PrivacyBudgetTracker`) that enforces total epsilon consumption limits.
 
 Also includes: Gaussian noise for (ε, δ)-DP, noisy sum/average, exponential mechanism, and Local DP via Randomized Response (RAPPOR-lite).
 
@@ -497,47 +497,46 @@ Beyond the input-level RAG guard, this includes: agentic policy controls (`agent
 
 **Feature 32 — Multi-Chain Smart Contract Static Analyzer (AST Hybrid Engine)**
 
-A hybrid static analysis engine for Solidity and Vyper smart contracts. Combines Slither AST/CFG structural analysis with custom semantic detectors covering **48 implemented rule IDs** across Solidity and Vyper. High-severity rules utilize Slither-based AST validation to eliminate false positives on safe primitives (e.g., verifying actual access control modifiers rather than just keywords). Provides compliance mappings to SOC-2 and ISO 27001 (see Phase 6.1 accuracy caveat).
+A hybrid static analysis engine for Solidity and Vyper smart contracts. Combines Slither AST/CFG structural analysis with custom semantic detectors covering **52 registered rules (47 Solidity + 5 Vyper)**. Each high-severity rule is implemented as a structural detector (control-flow ordering, actual modifier resolution, state-mutation sequence) rather than a keyword pattern, verified individually against a matched vulnerable/safe/evasion fixture triple. Provides compliance mappings to SOC-2 and ISO 27001 (see Phase 6.1 accuracy caveat).
 
-Supported vulnerability classes (selected):
+Supported vulnerability classes (selected — IDs and severities from `VULN_RULES` in `smart_contract_analyzer.py`):
 
 | ID | Vulnerability | Severity |
 |---|---|---|
-| SC-001 | Reentrancy | Critical |
-| SC-002 | Integer Overflow | High |
-| SC-003 | Access Control Flaws | Critical |
-| SC-004 | Front-Running / MEV Sandwich | High |
-| SC-005 | `tx.origin` Authentication | High |
-| SC-006 | Delegatecall Misuse | Critical |
-| SC-007 | `selfdestruct` / Kill-switch | High |
-| SC-008 | Flash Loan Attack Surface | Critical |
-| SC-009 | Timestamp Dependence | Medium |
-| SC-010 | Unprotected `initialize()` | Critical |
-| SC-011 | Unverified Proxy Patterns | High |
-| SC-012 | No Timelock on Role Changes | High |
-| SC-013 | Uncapped Mint Authority | Critical |
-| SC-014 | Oracle Centralization | High |
-| SC-015 | Bridge Replay / Signature Replay | Critical |
-| SC-016 | Read-Only Reentrancy | High |
-| SC-017 | Storage Collision (Proxy) | High |
-| SC-018 | Governance Attack | Critical |
-| + 17 more | ERC-4626 inflation, permit phishing, etc. | Various |
+| SC-001 | Reentrancy Vulnerability | Critical |
+| SC-020 | Integer Overflow / Underflow | Critical |
+| SC-031 | Missing Access Control on Sensitive Function | High |
+| SC-041 | Dangerous delegatecall Usage | Critical |
+| SC-060 | Flash Loan Attack Vector | High |
+| SC-061 | Spot Price Oracle Manipulation | Critical |
+| SC-100 | Single-EOA Admin (No Multisig) | Critical |
+| SC-101 | No Timelock on Role Changes | Critical |
+| SC-102 | Uncapped Minting (No Supply Ceiling) | Critical |
+| SC-110 | Cross-Chain Bridge Replay | Critical |
+| SC-112 | Storage Collision in Proxy | Critical |
+| SC-113 | Read-Only Reentrancy | High |
+| SC-116 | Governance Vote Manipulation | High |
+| SC-119 | Unprotected Initialize Function | Critical |
+| SC-123 | Permit() Phishing Vector | High |
+| VY-001 | Vyper: Default Function Reentrancy | Critical |
+| VY-002 | Vyper: Missing Nonreentrant on State-Changing External | High |
+| + 35 more | Front-running, sandwich, donation attack, reward rounding, etc. | Various |
 
 Supports analysis by: raw source upload (Solidity/Vyper) or on-chain contract address + chain ID (fetches verified source via Etherscan-compatible APIs).
 
-Supported chains: Ethereum, Monad, Base, Arbitrum, Optimism, Polygon, BSC, Avalanche, Solana.
+Supported chains: Ethereum, Monad, Base, Arbitrum, Optimism, Polygon, BSC, Avalanche (EVM-compatible only).
 
 Each finding includes: severity rating, description, remediation guidance, and SOC-2/ISO 27001 compliance control mapping.
 
 ### Phase 6.1: July 2026 Smart Contract Analyzer Audit
 
-A July 2026 internal security audit directly tested the analyzer's detection logic across 18 critical-severity classes. The audit confirmed that while the tool numerically contains over 35 distinct vulnerability rules, the current implementation relies entirely on shallow regex pattern-matching rather than structural AST analysis. 
+A July 2026 internal security audit directly tested the analyzer's detection logic across 18 critical-severity classes. The audit confirmed that while the tool numerically contains over 35 distinct vulnerability rules, the original implementation relied entirely on shallow regex pattern-matching rather than structural AST analysis. 
 
 Empirical testing demonstrated a 94% false-signal rate (17 of 18 tested classes), where the analyzer flagged properly mitigated, secure code identically to vulnerable code, while remaining trivially evadable by attackers through minor syntax changes. 
 
 **Accuracy Caveat**: Until the detection engine is upgraded to perform real AST analysis, any customer-facing or compliance-facing output from this analyzer should not be represented as validated security analysis. Specifically, the SOC-2 and ISO 27001 compliance mappings generated by this tool cannot currently be relied upon for formal certification evidence, as the underlying detections do not reliably distinguish between vulnerable and safe code.
 
-**Status update (August 2026):** the codebase now integrates a real AST layer — `audit/slither_engine.py` (Slither 0.11.x, pinned) and `audit/vyper_engine.py` feed AST-validated findings into the analyzer, with approximately 30 of the rule IDs routed through Slither/Vyper structural validation (`is_slither_targeted`). The July 2026 "regex-only" characterization above is retained as the historical audit record; the headline counts in this section have been corrected to the implemented figure (48 rule IDs, not 52). Regression coverage: **192 parametrized fixture contracts (+1 diagnostic)** in `tests/audit/test_smart_contract_analyzer.py`, passing under standalone `--no-cov` runs. Two binding caveats: (1) under coverage instrumentation Slither silently falls back to regex detection, so structural verification is only valid in `--no-cov` runs (documented in the suite header); (2) an empirical false-positive re-run against the July audit's original 18-class benchmark has not yet been published — treat analyzer output as improved but not yet independently validated.
+**Status update (August 2026):** the codebase now integrates a real AST layer — `audit/slither_engine.py` (Slither 0.11.x, pinned) and `audit/vyper_engine.py` feed AST-validated findings into the analyzer, with approximately 30 of the rule IDs routed through Slither/Vyper structural validation (`is_slither_targeted`). The July 2026 "regex-only" characterization above is retained as the historical audit record; the headline counts in this section have been corrected to the implemented figure (**52 registered rules: 47 Solidity + 5 Vyper**). Regression coverage: **192 parametrized fixture contracts (+2 diagnostic cases)** in `tests/audit/test_smart_contract_analyzer.py`, passing under standalone `--no-cov` runs. Two binding caveats: (1) under coverage instrumentation Slither silently falls back to regex detection, so structural verification is only valid in `--no-cov` runs (documented in the suite header); (2) an empirical false-positive re-run against the July audit's original 18-class benchmark has not yet been published — treat analyzer output as improved but not yet independently validated.
 
 - **Why:** AI agents increasingly write, deploy, and interact with smart contracts. An AI that generates a reentrancy-vulnerable contract and then deploys it on behalf of a user creates catastrophic liability. GuardianAI closes the loop between AI behavioral security and on-chain asset security.
 - **What it is in code:** `audit/smart_contract_analyzer.py` (70,447 bytes), `audit/token_contract_analyzer.py`, `audit/crypto_scanner.py` (91,502 bytes).
@@ -547,6 +546,8 @@ Empirical testing demonstrated a 94% false-signal rate (17 of 18 tested classes)
 ### Phase 7: The Web3 Integrity Layer (On-Chain)
 
 Nine GuardianAI contracts are deployed on Monad/Base — the six registries below plus GuardianTimelock, GuardianCircuitBreaker, and GuardianProtectedVault — providing cryptographic truth about GuardianAI's operational state. Agent identities are additionally registered on the **canonical ERC-8004 "Trustless Agents" registries** (Feature 39), which GuardianAI does not deploy or own.
+
+> **Update (v1.0.1 - August 2026):** Following a senior smart contract security audit, critical hardening fixes have been applied across the Web3 contracts. These include parameterizing the Circuit Breaker chain for multi-chain (Base/Ethereum) deployments, enforcing safe CEI (Checks-Effects-Interactions) ordering in the Vault, capping array growth in the Interlock Registry, adding pause hooks against stale-balance withdrawals, and adding strict bounds checks. The contract suite passes all 159 structural and integration tests.
 
 ---
 
@@ -635,7 +636,7 @@ The answer is the **AI Shared Responsibility Model**. Model providers secure the
 
 | Scenario | Native Guardrails | GuardianAI |
 |---|---|---|
-| **Data Sovereignty** | PII is transmitted to the provider's servers before any check runs | PII is redacted *before* leaving your network perimeter |
+| **Data Sovereignty** | PII is transmitted to the provider's servers before any check runs | PII is redacted *before* reaching the upstream LLM provider. Note: non-English prompts transit an external translation service (see Feature 2 disclosure); deployments with strict data-sovereignty requirements should restrict ingress to English or use an approved enterprise translation endpoint |
 | **API Cost Protection** | Provider charges for tokens processed, even if the output is blocked | Malicious requests are dropped at the proxy — $0 in upstream API cost for attacks |
 | **Agentic Tool Execution** | Provider cannot police what happens *after* a tool-call JSON is generated | Tool-Call Policy Engine enforces allow/deny before any local execution |
 | **Multi-Model Governance** | Each provider has its own guardrail system — no unified policy | Single, provider-agnostic security plane governs OpenAI, Anthropic, local vLLM, and others uniformly |
@@ -649,8 +650,8 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Python test suites (targeted runs, 2026-08-23) | ERC-8004 identity 42/42 · backend+unit suites 171 passed (2026-08-25) · passport/security 50/50 (2026-08-23) — full multi-directory regeneration pending |
-| Smart contract unit tests (Hardhat) | 191 test cases across 9 suites in-repo — runner pass/fail count pending CI regeneration |
+| Python test suites (targeted runs, 2026-08-25) | ERC-8004 identity 42/42 · backend+unit suites 172 passed · passport 24/24 · security suite ~403 tests — full multi-directory regeneration pending |
+| Smart contract unit tests (Hardhat) | 159 test cases across 10 contract suites in-repo — runner pass/fail count pending CI regeneration |
 | Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, per definitive_benchmark_v4.json)†† | **97.6%** (949/972) |
 | Security-gate block rate — Tier 1+2 (balanced mode)†† | **90.7%** (882/972) |
 | HarmBench Official block rate (400 prompts, strict mode)†† | **72.8%** (291/400) |
@@ -661,24 +662,24 @@ All metrics are sourced from actual test runs and are reproducible.
 | Grand total across 8 datasets (3,211 prompts, balanced mode)†† | **58.5%** (1,879/3,211) |
 | GAIA alignment | *not re-verified — no current real run; prior figure (86.0%) traced to synthetic fixture only* |
 | Zero-day block rate (98.4% WildGuard/ToxicChat/JailbreakBench) | *not re-verified — no source file found; figure removed pending real re-run* |
-| Standard benchmark block rate (strict curated 25-prompt holdout, 2026-08-08) | **100%** (25/25) |
-| False positive rate (curated safe set, strict mode) | 0.0% |
-| Throughput (safe load, concurrency 20 — perf_chaos_report.json, June 2026 harness) | **95.68 rps** |
-| Block throughput (attack load, concurrency 20 — perf_chaos_report.json, June 2026 harness) | **494.01 rps**, 100% block rate |
-| Attack latency p95 (perf_chaos_report.json, June 2026 harness) | **41.88 ms** |
+| Standard benchmark block rate (strict curated 25-prompt holdout, per FEATURE_BENCHMARK_ANALYSIS.md April 2026) | **100%** (25/25) — not in definitive_benchmark_v4.json; from internal analysis corpus |
+| False positive rate (curated 20-prompt safe set, per FEATURE_BENCHMARK_ANALYSIS.md April 2026) | 0.0% (0/20) — not in definitive_benchmark_v4.json; from internal analysis corpus |
+| Throughput (safe load, concurrency 20, perf_chaos_report.json) | **95.68 rps** |
+| Block throughput (attack load, concurrency 20, perf_chaos_report.json) | **494.01 rps**, 100% block rate |
+| Attack latency p95 (perf_chaos_report.json) | **41.88 ms** |
 | SAST findings | 1 flagged, confirmed false positive (documented)\* |
 | IaC findings | 0 |
-| Internal security audit — critical/high findings | 4 identified and remediated (July 2026)\*\* |
+| Internal security audit — critical/high findings (July 2026, off-chain proxy) | 4 identified and remediated\*\* |
 
 \* SAST flagged a call to `secrets.token_urlsafe()` as a potential hardcoded secret; confirmed as a false positive — the call generates random tokens, not a hardcoded value.
 
-†† Source: `artifacts/evidence/definitive_benchmark_v4.json` (run date: 2026-08-08). 3,211 prompts from 8 independent public datasets with zero training contamination. Strict mode = AI Firewall threshold 0.45 (default). Balanced mode = threshold 0.55. HarmBench includes copyright and political-opinion prompts that are out-of-scope for a security firewall; the lower absolute rate on that dataset reflects intentional category coverage, not a security regression. See Section 6.2 for the full benchmark correction note.
+†† Source: `artifacts/evidence/definitive_benchmark_v4.json` (stated run date: 2026-08-08; file last modified: 2026-08-21 — the artifact does not embed an internal run-date field). 3,211 prompts from 8 independent public datasets with zero training contamination. Strict mode = AI Firewall threshold 0.45 (default). Balanced mode = threshold 0.55. HarmBench includes copyright and political-opinion prompts that are out-of-scope for a security firewall; the lower absolute rate on that dataset reflects intentional category coverage, not a security regression. See Section 6.2 for the full benchmark correction note.
 
 \*\* See Section 6.1 for a summary of the July 2026 internal security audit. Prior to this audit, this table did not reflect open findings that existed in the product at the time; the corrected figure is presented here as part of this update.
 
 ### 6.1 July 2026 Internal Security Audit
 
-GuardianAI's off-chain proxy layer underwent a targeted internal security audit in July 2026, combining automated scanning with direct empirical verification against the live system. The audit identified and remediated four critical-severity findings in the request-handling and authentication layers, along with closing all outstanding gaps in the automated scanner's own detection coverage. All findings were verified as resolved through direct testing against the running system — not test results alone — before being marked closed.
+GuardianAI's off-chain proxy layer underwent a targeted internal security audit in July 2026, combining automated scanning with direct empirical verification against the live system. The audit identified and remediated four critical-severity findings in the request-handling and authentication layers, along with closing all outstanding gaps in the automated scanner's own detection coverage. Findings were tracked and verified through commit history and direct testing against the running system (no standalone audit artifact was produced; evidence exists in git history and the corrected code).
 
 This audit covered the off-chain AI Gateway (Layer 1: proxy, guardrails, and financial-logic validation). It did not include a review of the on-chain smart contract layer (Layer 2) described in Sections 3 and 4; those components are covered separately under the smart contract unit test suite referenced above.
 
@@ -692,7 +693,7 @@ Specifically:
 - The `public_benchmark_report.json` (April 2026) that generated those numbers used 500 synthetic HarmBench-labelled prompts and 300 synthetic AdvBench-labelled prompts drawn from the test fixture, not from the real dataset releases.
 - The `definitive_benchmark_v4.json` (August 2026) used the actual HarmBench Official (400 prompts, centerforaisafety), AdvBench (520 prompts, llm-attacks), JBB PAIR+GCG (152 prompts), MaliciousInstruct (100), DAN Jailbreaks (200), ToxicChat (200), BeaverTails-Eval (700), and Do-Not-Answer (939) datasets — 3,211 prompts total with zero contamination.
 - GAIA alignment (86.0%) and the 98.4% zero-day block rate had no corresponding results file anywhere in the repository and have been removed pending a real re-run.
-- Throughput figures (67.78 / 223.20 rps) were from an April 2026 performance run; the current `perf_chaos_report.json` (August 2026) shows 95.68 rps safe load and 494.01 rps attack block throughput with 41.88 ms p95 attack latency.
+- Throughput figures (67.78 / 223.20 rps) were from an earlier performance run; the current `perf_chaos_report.json` (April 2026) shows 95.68 rps safe load and 494.01 rps attack block throughput with 41.88 ms p95 attack latency.
 
 The corrected figures now in the table above are drawn directly from these August 2026 sources. The `FEATURE_BENCHMARK_ANALYSIS.md` document already contained an internal acknowledgment of the HarmBench discrepancy ("72.8%, honest real-data result") that was not propagated to the whitepaper; this correction closes that gap.
 
@@ -702,16 +703,16 @@ The corrected figures now in the table above are drawn directly from these Augus
 
 ### In the AI Security Market
 
-Traditional AI security tools are **passive API scanners** — you send them a request, they return a verdict. GuardianAI is an **active, self-healing control plane**. The Red/Purple Brain generates new defensive rules in milliseconds and applies them to live traffic without restart. No other known open platform combines real-time Red/Blue/Purple team orchestration directly inside the request path.
+Traditional AI security tools are **passive API scanners** — you send them a request, they return a verdict. GuardianAI is an **active, self-healing control plane**. The Red/Purple Brain generates new defensive rules in milliseconds and applies them to live traffic without restart. No other known platform combines real-time Red/Blue/Purple team orchestration directly inside the request path.
 
 ### In the Web3 Market
 
 Web3 desperately needs AI agents. But blockchains cannot safely process natural language inputs, and no existing platform audits the smart contracts that AI agents write. GuardianAI solves both:
 1. Secures AI behavior off-chain at millisecond latency.
-2. Audits Solidity/Vyper contracts with 48 static-analysis rule IDs (high-severity subset AST-validated via Slither/Vyper) before deployment.
+2. Audits Solidity/Vyper contracts with 52 static-analysis rules (~30 backed by Slither/Vyper AST validation, all fixture-tested under `--no-cov`) before deployment.
 3. Anchors behavioral proof on-chain for trustless verification.
 
-No other platform integrates an AI behavioral security gateway, a smart contract static analyzer, and an on-chain identity/liability layer into a single deployable system.
+No other known platform integrates an AI behavioral security gateway, a smart contract static analyzer, and an on-chain identity/liability layer into a single system.
 
 > **Positioning update (August 2026):** GuardianAI now builds *on* the ERC-8004 standard rather than competing with bespoke identity contracts — registration happens on canonical registries, positioning GuardianAI as the security-telemetry layer of the Trustless Agents ecosystem (with Reputation emission and validator services as the roadmap).
 
@@ -719,22 +720,17 @@ No other platform integrates an AI behavioral security gateway, a smart contract
 
 ## 8. Deployment
 
-### Off-Chain Layer
+### Off-Chain Layer (Hosted Service)
 
-```bash
-# Python (Local)
-py -3.12 -m venv .venv312
-.\.venv312\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv312\Scripts\python.exe guardianctl.py one-click --target-url http://127.0.0.1:8080
-```
+GuardianAI's off-chain AI Gateway is delivered as a hosted service. Enterprise customers receive API credentials and endpoint URLs during onboarding. The gateway proxies your upstream LLM provider (OpenAI, Anthropic, vLLM, etc.) with zero code changes — point your client SDK at the GuardianAI endpoint instead of the provider's.
 
-### On-Chain Layer (Monad Testnet)
+- **Ports:** `8081` (proxy ingress), `8080` (backend API), `8001` (admin/diagnostics)
+- **Authentication:** Bearer-token ingress; JWT-authenticated backend APIs
+- **Configuration:** Security mode (`strict` / `balanced` / `permissive`), tenant sensitivity profiles, and on-chain opt-in are configured via the admin API or customer dashboard
 
-```bash
-# Configure .env with GUARDIAN_DEPLOYER_PRIVATE_KEY and MONAD_RPC_URL
-npm install --prefix contracts
-npm run deploy:all:monad --prefix contracts
-```
+### On-Chain Layer
+
+On-chain contracts (PassportSBT, ThreatFeedRegistry, RiskAttestation, InterlockRegistry, InsuranceLedger, CortexAnchor, Timelock, CircuitBreaker, Vault) are deployed and managed by GuardianAI on Base and Monad. ERC-8004 registrations use the canonical registries. Customers interact with the on-chain layer through the hosted API — no direct contract deployment is required.
 
 ---
 

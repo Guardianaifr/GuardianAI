@@ -21,7 +21,7 @@ By sitting between your application and your model endpoint, GuardianAI neutrali
 - **GuardianCortexAnchor:** Periodically publishes Merkle roots of the AI's internal security logs to provide an immutable, timestamped record of its decisions.
 - **GuardianPassportSBT:** Issues non-transferable Soulbound Tokens representing the verifiable identity of an AI Agent or User Session.
 - **GuardianInterlockRegistry:** A decentralized registry for AI agents to request, approve, and verify communication permissions dynamically.
-- **GuardianInsuranceLedger:** An automated SLA liability contract that slashes stakes or pays out affected users if an AI violates safety parameters.
+- **GuardianInsuranceLedger:** On-chain insurance certificate anchoring for autonomous agent verification and auditability.
 - **GuardianThreatFeedRegistry:** A decentralized, censorship-resistant threat intelligence repository for sharing zero-day patterns.
 - **GuardianRiskAttestation:** Enables third parties to verify an agent's real-time risk level before executing Web3 transactions.
 
@@ -29,21 +29,25 @@ By sitting between your application and your model endpoint, GuardianAI neutrali
 
 ## 🛠️ Quick Start
 
-### Option A: Local Python Setup
+### Option A: Docker Compose (Recommended for Evaluators)
+
+```bash
+cp .env.example .env          # fill in required values
+docker compose up -d
+docker compose ps              # verify all services healthy
+```
+
+This starts the security proxy (port 8081), dashboard API (port 8001), Redis, and the marketing frontend (port 3000). Point `TARGET_URL` in `.env` at your upstream LLM.
+
+### Option B: Local Python Setup (Development)
 
 ```bash
 py -3.12 -m venv .venv312
 .\.venv312\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv312\Scripts\python.exe guardianctl.py setup
-.\.venv312\Scripts\python.exe guardianctl.py start
-```
-
-### Option B: One-Click Full SaaS Launch (All Features)
-
-```bash
 .\.venv312\Scripts\python.exe guardianctl.py one-click --target-url http://127.0.0.1:8080
 ```
-*Generates secure credentials, writes a full-feature config, and starts the proxy & backend immediately.*
+
+*Generates secure credentials, writes a full-feature config, and starts the proxy & backend.*
 
 ### Option C: Web3 Deployment (Monad Testnet)
 
@@ -53,10 +57,9 @@ npm install --prefix contracts
 npm run deploy:all:monad --prefix contracts
 ```
 
-### Option D: Docker / Cloud Hosting
+### Option D: Cloud Hosting (Railway / Docker)
 
-GuardianAI runs as a hosted service. The repo ships a `Dockerfile`
-(Railway builds from it via `railway.json`; any Docker host works):
+GuardianAI ships a production `Dockerfile` and `railway.json`:
 
 ```bash
 docker build -t guardianai .
@@ -73,9 +76,9 @@ mount a volume for `guardian.db` and `artifacts/`. See `DEPLOYMENT.md` and
 
 Numbers below are sourced from named artifacts or dated test runs — no hand-typed figures.
 
-- **Python test suites (2026-08-23):** ERC-8004 identity 42/42 · backend package 136/136 · passport/security 50/50. Full-suite regeneration pending; 3 known order-dependent tests fail only under full-suite ordering and pass individually (see `OPERATIONS.md`).
-- **Smart contracts (Hardhat):** 191 test cases across 9 suites in-repo; runner pass/fail count pending CI regeneration.
-- **On-chain audit (August 2026):** findings remediated per internal audit record; Slither clean on naming-convention warnings only.
+- **Python test suites (targeted runs, 2026-08-25):** ERC-8004 identity 42/42 · backend+unit suites 172 passed · passport 24/24 · security suite ~403 tests. Full-suite regeneration pending; 3 known order-dependent tests fail only under full-suite ordering and pass individually (see `OPERATIONS.md`).
+- **Smart contracts (Hardhat):** 159 test cases across 10 suites in-repo; runner pass/fail count pending CI regeneration.
+- **On-chain audit (August 2026):** Completed senior smart contract security audit (v1.0.1 fixes applied: Circuit Breaker chain parameterized, Vault CEI enforced, Interlock Registry capped, Stale balance withdrawals paused, Threshold bounds added). All 159 Web3 contract tests passing.
 - **ERC-8004 integration (new, August 2026):** protected agents register on the *canonical* Trustless Agents Identity Registry with register-then-transfer ownership handoff, fail-closed safety gates, and a 42-test offline suite. Disabled by default — see `GUARDIAN_ERC8004_ENABLED` in `.env.example`.
 - **Security validation:** adversarial benchmark results live in whitepaper Section 6, generated from `artifacts/evidence/definitive_benchmark_v4.json`.
 

@@ -38,6 +38,11 @@ const _abi = [
   },
   {
     inputs: [],
+    name: "InvalidThreshold",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "NotCircuitBreakerAdmin",
     type: "error",
   },
@@ -96,6 +101,19 @@ const _abi = [
     ],
     name: "RiskThresholdUpdated",
     type: "event",
+  },
+  {
+    inputs: [],
+    name: "chainName",
+    outputs: [
+      {
+        internalType: "string",
+        name: "",
+        type: "string",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
   },
   {
     inputs: [],

@@ -38,9 +38,10 @@ contract GuardianProtectedVault is GuardianCircuitBreaker, Ownable2Step, Pausabl
     constructor(
         address _token,
         address _riskAttestation,
-        address _threatFeed
+        address _threatFeed,
+        string memory _chainName
     )
-        GuardianCircuitBreaker(_riskAttestation, _threatFeed, msg.sender)
+        GuardianCircuitBreaker(_riskAttestation, _threatFeed, msg.sender, _chainName)
         Ownable(msg.sender)
     {
         if (_token == address(0)) revert ZeroAddress();
@@ -49,9 +50,10 @@ contract GuardianProtectedVault is GuardianCircuitBreaker, Ownable2Step, Pausabl
 
     function deposit(uint256 _amount) external guardianProtected whenNotPaused nonReentrant {
         if (_amount == 0) revert ZeroAmount();
-        // CEI fix: safeTransferFrom before updating balances to prevent reentrancy via ERC777/hook tokens
-        token.safeTransferFrom(msg.sender, address(this), _amount);
+        // Audit M-2: CEI — update state before external call. If safeTransferFrom
+        // reverts, Solidity's atomic semantics roll back the balance increment.
         balances[msg.sender] += _amount;
+        token.safeTransferFrom(msg.sender, address(this), _amount);
         emit Deposited(msg.sender, _amount);
     }
 
@@ -70,6 +72,7 @@ contract GuardianProtectedVault is GuardianCircuitBreaker, Ownable2Step, Pausabl
         if (bal > 0) {
             token.safeTransfer(owner(), bal);
         }
+        _pause();   // Audit L-1: prevent withdraw() against stale balances
         emit EmergencyWithdrawn(owner(), bal);
     }
 

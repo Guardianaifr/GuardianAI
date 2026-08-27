@@ -66,6 +66,7 @@ contract GuardianCortexAnchor is Ownable2Step, Pausable, ReentrancyGuard {
     error InvalidPeriod();
     error RootAlreadyCommitted(bytes32 root);
     error AgentLimitReached(bytes32 agentHash, uint256 limit);
+    error InvalidAgentHash();   // Audit I-1
 
     // ── Constructor ──────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ contract GuardianCortexAnchor is Ownable2Step, Pausable, ReentrancyGuard {
     ) external onlyOwner whenNotPaused nonReentrant {
         if (_merkleRoot == bytes32(0)) revert EmptyRoot();
         if (_eventCount == 0) revert ZeroEventCount();
+        if (_agentHash == bytes32(0)) revert InvalidAgentHash();   // Audit I-1
         if (_periodEnd < _periodStart) revert InvalidPeriod();
         if (rootIndex[_merkleRoot] != 0) revert RootAlreadyCommitted(_merkleRoot);
         if (agentCommitments[_agentHash].length >= MAX_COMMITMENTS_PER_AGENT) {

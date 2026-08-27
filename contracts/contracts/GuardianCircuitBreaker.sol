@@ -44,6 +44,7 @@ abstract contract GuardianCircuitBreaker {
 
     IGuardianRiskAttestation public immutable riskAttestation;
     IGuardianThreatFeed     public immutable threatFeed;
+    string  public chainName;                   // Audit M-1: parameterized chain name
 
     address public circuitBreakerAdmin;
     uint16  public riskScoreThreshold = 6000;   // Block if score < 60% (below grade D)
@@ -61,6 +62,7 @@ abstract contract GuardianCircuitBreaker {
     error ContractRiskTooHigh(uint16 currentScore, uint16 threshold);
     error NotCircuitBreakerAdmin();
     error ZeroAddress();
+    error InvalidThreshold();                   // Audit L-2: threshold bounds check
 
     // ── Modifiers ────────────────────────────────────────────────────────
 
@@ -71,13 +73,15 @@ abstract contract GuardianCircuitBreaker {
 
     // ── Constructor ──────────────────────────────────────────────────────
 
-    constructor(address _riskAttestation, address _threatFeed, address _admin) {
+    constructor(address _riskAttestation, address _threatFeed, address _admin, string memory _chainName) {
         if (_riskAttestation == address(0)) revert ZeroAddress();
         if (_threatFeed == address(0)) revert ZeroAddress();
         if (_admin == address(0)) revert ZeroAddress();
+        require(bytes(_chainName).length > 0, "Empty chain name");
         riskAttestation     = IGuardianRiskAttestation(_riskAttestation);
         threatFeed          = IGuardianThreatFeed(_threatFeed);
         circuitBreakerAdmin = _admin;
+        chainName           = _chainName;
     }
 
     // ── Core Modifiers ───────────────────────────────────────────────────
@@ -95,7 +99,7 @@ abstract contract GuardianCircuitBreaker {
             if (isMalicious) revert CallerFlaggedMalicious(msg.sender);
 
             // Check 2: Is this contract's risk score below threshold?
-            try riskAttestation.getAttestation(address(this), "monad") returns (
+            try riskAttestation.getAttestation(address(this), chainName) returns (
                 IGuardianRiskAttestation.Attestation memory att
             ) {
                 if (att.score < riskScoreThreshold) {
@@ -118,7 +122,7 @@ abstract contract GuardianCircuitBreaker {
             if (isMalicious) revert CallerFlaggedMalicious(msg.sender);
 
             IGuardianRiskAttestation.Attestation memory att =
-                riskAttestation.getAttestation(address(this), "monad");
+                riskAttestation.getAttestation(address(this), chainName);
             if (att.score < riskScoreThreshold) {
                 revert ContractRiskTooHigh(att.score, riskScoreThreshold);
             }
@@ -134,6 +138,7 @@ abstract contract GuardianCircuitBreaker {
     }
 
     function setRiskScoreThreshold(uint16 _threshold) external onlyCircuitBreakerAdmin {
+        if (_threshold > 10000) revert InvalidThreshold();   // Audit L-2: bounds check
         uint16 old = riskScoreThreshold;
         riskScoreThreshold = _threshold;
         emit RiskThresholdUpdated(old, _threshold);

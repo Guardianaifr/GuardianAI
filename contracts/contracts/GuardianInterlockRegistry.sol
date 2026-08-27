@@ -44,6 +44,9 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
 
     // ── State ────────────────────────────────────────────────────────────
 
+    /// @notice Maximum interlocks to prevent unbounded array growth (Audit M-3)
+    uint256 public constant MAX_INTERLOCKS = 100_000;
+
     /// @notice Maps interlockId to its proof details
     mapping(bytes32 => InterlockProof) public registry;
 
@@ -74,6 +77,8 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
     /// @notice Thrown by verifyInterlock() and revokeInterlock() when the record
     ///         has already been revoked.
     error InterlockAlreadyRevoked(bytes32 interlockId);
+    /// @notice Audit M-3: array cap reached
+    error InterlockLimitReached();
 
     // ── Constructor ──────────────────────────────────────────────────────
 
@@ -97,6 +102,7 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
     ) external onlyOwner whenNotPaused nonReentrant returns (bytes32 interlockId) {
         if (_agentA == bytes32(0) || _agentB == bytes32(0)) revert InvalidAgentHash();
         if (_proofHash == bytes32(0)) revert InvalidProofHash();
+        if (interlockIds.length >= MAX_INTERLOCKS) revert InterlockLimitReached();  // Audit M-3
 
         interlockId = keccak256(abi.encodePacked(_agentA, _agentB, _proofHash, _nonce));
         if (registry[interlockId].registeredAt != 0) revert InterlockAlreadyExists(interlockId);

@@ -16,7 +16,7 @@ describe("P2-10: GuardianProtectedVault CEI Reentrancy Fix", function () {
     const Token = await ethers.getContractFactory("MaliciousToken");
     token = await Token.deploy();
     const Vault = await ethers.getContractFactory("GuardianProtectedVault");
-    vault = await Vault.deploy(await token.getAddress(), await mock.getAddress(), await mock.getAddress());
+    vault = await Vault.deploy(await token.getAddress(), await mock.getAddress(), await mock.getAddress(), "monad");
     
     await token.mint(attacker.address, 1000);
     // Give the malicious token itself some balance so its re-entrant deposit succeeds

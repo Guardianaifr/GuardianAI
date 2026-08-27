@@ -46,7 +46,8 @@ describe("GuardianCircuitBreaker", function () {
     vault = await VaultFactory.deploy(
       await mockToken.getAddress(),
       await riskAttestation.getAddress(),
-      await threatFeed.getAddress()
+      await threatFeed.getAddress(),
+      "monad"
     );
     await vault.waitForDeployment();
 

@@ -26,6 +26,7 @@ import type {
 export interface GuardianCircuitBreakerInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "chainName"
       | "circuitBreakerActive"
       | "circuitBreakerAdmin"
       | "riskAttestation"
@@ -43,6 +44,7 @@ export interface GuardianCircuitBreakerInterface extends Interface {
       | "RiskThresholdUpdated"
   ): EventFragment;
 
+  encodeFunctionData(functionFragment: "chainName", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "circuitBreakerActive",
     values?: undefined
@@ -76,6 +78,7 @@ export interface GuardianCircuitBreakerInterface extends Interface {
     values: [AddressLike]
   ): string;
 
+  decodeFunctionResult(functionFragment: "chainName", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "circuitBreakerActive",
     data: BytesLike
@@ -191,6 +194,8 @@ export interface GuardianCircuitBreaker extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  chainName: TypedContractMethod<[], [string], "view">;
+
   circuitBreakerActive: TypedContractMethod<[], [boolean], "view">;
 
   circuitBreakerAdmin: TypedContractMethod<[], [string], "view">;
@@ -223,6 +228,9 @@ export interface GuardianCircuitBreaker extends BaseContract {
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "chainName"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "circuitBreakerActive"
   ): TypedContractMethod<[], [boolean], "view">;

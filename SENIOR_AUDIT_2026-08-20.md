@@ -79,7 +79,7 @@ However, this audit found **one P0** that invalidates the security posture of an
 | P2-7 | `_validate_basic` supports plaintext-password compare path; unknown-user vs known-user timing asymmetry enables username enumeration | main.py:1265–1277 |
 | P2-8 | JWT `aud` validation one-sided: tokens without `aud` pass when `GUARDIAN_JWT_AUDIENCE` set; `create_token_pair` never emits `aud`/`iss` (moot while AuthManager is dead — fix if revived) | auth.py:162–172, 448–468 |
 | P2-9 | auth.py's ephemeral-secret fallback (auth.py:48) only warns; not gated on production the way main.py:327 is |
-| P2-10 | Vault reference impl credits balance **before** `safeTransferFrom` (deposit) — unsafe pattern for hook-tokens in a template integrators copy; labeled "NOT intended for production" | GuardianProtectedVault.sol:49–54 |
+| P2-10 | Vault reference impl credits balance **before** `safeTransferFrom` (deposit) — unsafe pattern for hook-tokens in a template integrators copy | GuardianProtectedVault.sol:49–54 | ✅ **FIXED** |
 | P2-11 | Forwarded request copies client cookies + `X-Guardian-Token` to upstream | interceptor.py:1889–1896 |
 | P2-12 | Compose publishes admin dashboard on 0.0.0.0 (docs claim 127.0.0.1); no HEALTHCHECK; `--allow-risky-ports` baked into image entrypoint; nginx.conf orphaned (referenced nowhere) with dead TLS block | docker-compose.yml:9-11, Dockerfile:75, nginx/ |
 | P2-13 | PII engine documented-degraded: presidio 2.2.361 cannot import (pydantic v1 chain); PII detection silently falls back to regex — release risk for a security product | requirements.txt:31–44 |
@@ -97,7 +97,7 @@ However, this audit found **one P0** that invalidates the security posture of an
 - `revokeCertificate` is `whenNotPaused` — cannot revoke during an incident pause (GuardianInsuranceLedger.sol:118).
 - CSP allows `cdn.jsdelivr.net` scripts and `unsafe-inline` styles; nonce injection regex is fragile (main.py:1163–1176).
 - CI: `redis_rate_limit.yml` on Python 3.11 vs project 3.12; supply-chain gate signs with hardcoded demo key; no Docker build job in CI; local dev runs Python 3.14 vs Docker 3.12 (confection warns).
-- Breaker hardcodes chain `"monad"` in attestation lookups (GuardianCircuitBreaker.sol:98, 121).
+- ~~Breaker hardcodes chain `"monad"` in attestation lookups (GuardianCircuitBreaker.sol:98, 121).~~ **(FIXED: Parameterized via constructor and `GUARDIAN_CHAIN_NAME` env var)**
 - Base images not digest-pinned; `./artifacts` host-mount into container; `DEPLOYMENT.md` port claims and "61/61 tests" stale.
 - Three near-identical whitepaper variants (`WHITEPAPER.md`, `_PUBLIC`, `Update`) — maintenance drift risk; keep one canonical source.
 - Tracked third-party-target scan artifacts (`scans/new scan.txt` vs polymarket.com, `artifacts/audit/agentlove_*.html`) — legal/reputational exposure; remove.

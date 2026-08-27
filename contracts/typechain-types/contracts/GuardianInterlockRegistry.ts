@@ -53,6 +53,7 @@ export declare namespace GuardianInterlockRegistry {
 export interface GuardianInterlockRegistryInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "MAX_INTERLOCKS"
       | "acceptOwnership"
       | "getInterlock"
       | "getInterlockCount"
@@ -80,6 +81,10 @@ export interface GuardianInterlockRegistryInterface extends Interface {
       | "Unpaused"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "MAX_INTERLOCKS",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "acceptOwnership",
     values?: undefined
@@ -126,6 +131,10 @@ export interface GuardianInterlockRegistryInterface extends Interface {
     values: [BytesLike]
   ): string;
 
+  decodeFunctionResult(
+    functionFragment: "MAX_INTERLOCKS",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "acceptOwnership",
     data: BytesLike
@@ -306,6 +315,8 @@ export interface GuardianInterlockRegistry extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  MAX_INTERLOCKS: TypedContractMethod<[], [bigint], "view">;
+
   acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   getInterlock: TypedContractMethod<
@@ -378,6 +389,9 @@ export interface GuardianInterlockRegistry extends BaseContract {
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "MAX_INTERLOCKS"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "acceptOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;

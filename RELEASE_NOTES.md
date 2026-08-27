@@ -74,3 +74,16 @@ GuardianAI v1.0 is a production-ready security layer designed to protect LLM app
 **Status:** ✅ PRODUCTION READY
 **License:** See [`LICENSE`](LICENSE).
 **Maintainer:** GuardianAI Team
+
+---
+
+## 🔒 v1.0.1 (Smart Contract Security Audit Fixes)
+Following a comprehensive senior smart contract audit, the following security and architecture fixes have been applied to the GuardianAI Web3 contracts:
+- **[M-1] Parameterized Circuit Breaker Chain:** Replaced the hardcoded `"monad"` chain string in `GuardianCircuitBreaker` with an immutable `chainName` parameter to support multi-chain deployments (Base, Ethereum, Monad) securely.
+- **[M-2] CEI Pattern Enforced in Vault:** Fixed a Checks-Effects-Interactions (CEI) ordering vulnerability in `GuardianProtectedVault.deposit()` to prevent hook-token reentrancy.
+- **[M-3] Bounded Interlock Registry:** Implemented a hard cap (`MAX_INTERLOCKS = 100,000`) on the `GuardianInterlockRegistry` array growth to prevent gas exhaustion.
+- **[L-1] Stale Balance Protection:** Added a `_pause()` hook following `emergencyWithdraw()` in the Vault to prevent withdrawal calls against stale balances.
+- **[L-2] Threshold Bounds Check:** Added a strict upper-bound validation (`<= 10000`) to `setRiskScoreThreshold`.
+- **[I-1] Agent Hash Zero Check:** Implemented a `bytes32(0)` null check for the agent hash in `GuardianCortexAnchor.commitRoot()`.
+
+*All 159 Web3 contract tests pass successfully.*

@@ -28,6 +28,7 @@ export interface GuardianProtectedVaultInterface extends Interface {
     nameOrSignature:
       | "acceptOwnership"
       | "balances"
+      | "chainName"
       | "circuitBreakerActive"
       | "circuitBreakerAdmin"
       | "deposit"
@@ -71,6 +72,7 @@ export interface GuardianProtectedVaultInterface extends Interface {
     functionFragment: "balances",
     values: [AddressLike]
   ): string;
+  encodeFunctionData(functionFragment: "chainName", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "circuitBreakerActive",
     values?: undefined
@@ -138,6 +140,7 @@ export interface GuardianProtectedVaultInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "balances", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "chainName", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "circuitBreakerActive",
     data: BytesLike
@@ -369,6 +372,8 @@ export interface GuardianProtectedVault extends BaseContract {
 
   balances: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
 
+  chainName: TypedContractMethod<[], [string], "view">;
+
   circuitBreakerActive: TypedContractMethod<[], [boolean], "view">;
 
   circuitBreakerAdmin: TypedContractMethod<[], [string], "view">;
@@ -433,6 +438,9 @@ export interface GuardianProtectedVault extends BaseContract {
   getFunction(
     nameOrSignature: "balances"
   ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "chainName"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "circuitBreakerActive"
   ): TypedContractMethod<[], [boolean], "view">;

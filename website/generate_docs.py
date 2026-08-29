@@ -1,0 +1,511 @@
+html_content = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuardianAI Documentation — Dual-Layer Agent Security & Trust</title>
+  <meta name="description" content="Technical documentation and developer reference for GuardianAI: millisecond off-chain prompt firewalls, verifiable ERC-8004 on-chain identity, and smart contract static analysis.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/docs.css">
+  <link rel="canonical" href="https://aiguardian.dev/docs">
+  <meta property="og:url" content="https://aiguardian.dev/docs">
+  <meta property="og:title" content="GuardianAI Documentation — Dual-Layer Agent Security">
+  <meta property="og:description" content="The comprehensive technical guide to GuardianAI: architecture, 10-layer AI firewall, on-chain ERC-8004 identity, Cortex anchoring, and API reference.">
+</head>
+<body class="docs-page">
+
+  <!-- Search Modal -->
+  <div id="docs-search-modal" class="docs-search-modal-backdrop">
+    <div class="docs-search-dialog">
+      <div class="docs-search-input-wrap">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="docs-search-input" class="docs-search-input" placeholder="Search documentation, APIs, and guides..." autocomplete="off">
+        <span class="docs-search-key">ESC</span>
+      </div>
+      <ul id="docs-search-results" class="docs-search-results"></ul>
+    </div>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header class="docs-header">
+    <div class="docs-header-inner">
+      <div class="docs-brand-group">
+        <button id="docs-sidebar-toggle" class="btn btn-ghost btn-sm" style="display:none; padding:4px 8px;" aria-label="Toggle navigation">?</button>
+        <a class="brand" href="/" aria-label="GuardianAI home" style="display:flex; align-items:center; gap:8px;">
+          <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="14" fill="none" stroke="#3dff7e" stroke-width="4"/><circle cx="32" cy="32" r="6" fill="#3dff7e"/><path d="M2 32h16M46 32h16" stroke="#3dff7e" stroke-width="4" stroke-linecap="round"/></svg>
+          <span style="font-weight:700; font-size:1.1rem; color:#fff;">GuardianAI</span>
+        </a>
+        <span class="docs-badge">Docs v1.0</span>
+      </div>
+
+      <button id="docs-search-btn" class="docs-search-btn" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <span>Search documentation...</span>
+        <span class="docs-search-key">Ctrl K</span>
+      </button>
+
+      <nav class="docs-top-links">
+        <a href="/">Home</a>
+        <a href="/how-it-works">Architecture</a>
+        <a href="/proof">Proof & Benchmarks</a>
+        <a href="/pricing">Pricing</a>
+        <a class="btn btn-primary btn-sm" href="/#demo">Live Demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Docs 3-Column Layout -->
+  <div class="docs-layout">
+    
+    <!-- Left Navigation Sidebar -->
+    <aside id="docs-sidebar" class="docs-sidebar">
+      <div class="docs-nav-group">
+        <div class="docs-nav-title">GETTING STARTED</div>
+        <ul class="docs-nav-links">
+          <li><a href="#overview" class="active">Overview & Vision</a></li>
+          <li><a href="#quickstart">Quickstart (5-Min Integration)</a></li>
+          <li><a href="#architecture">Dual-Plane Architecture</a></li>
+        </ul>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="docs-nav-title">OFF-CHAIN DEFENSE (LAYER 1)</div>
+        <ul class="docs-nav-links">
+          <li><a href="#firewall">10-Layer AI Prompt Firewall</a></li>
+          <li><a href="#dlp-scanner">Output DLP & Secret Scanner</a></li>
+          <li><a href="#honeypot-threats">Honeypots & Threat Intel Feed</a></li>
+          <li><a href="#rate-limiting">Fail-Closed Rate Limiter</a></li>
+        </ul>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="docs-nav-title">ON-CHAIN TRUST (LAYER 2)</div>
+        <ul class="docs-nav-links">
+          <li><a href="#erc8004">ERC-8004 Agent Registries</a></li>
+          <li><a href="#cortex-anchoring">Merkle Cortex State Anchoring</a></li>
+          <li><a href="#insurance-certificates">Insurance Certificates</a></li>
+          <li><a href="#contract-analyzer">Smart Contract Static Analyzer</a></li>
+        </ul>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="docs-nav-title">INTEGRATIONS & SDK</div>
+        <ul class="docs-nav-links">
+          <li><a href="#python-sdk">Python SDK & LangChain</a></li>
+          <li><a href="#proxy-gateway">OpenAI-Compatible Proxy</a></li>
+          <li><a href="#telemetry-siem">Telemetry & Event Pipeline</a></li>
+        </ul>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="docs-nav-title">COMPLIANCE & API</div>
+        <ul class="docs-nav-links">
+          <li><a href="#compliance">EU AI Act & Article 15</a></li>
+          <li><a href="#proxy-api">Proxy API Reference</a></li>
+          <li><a href="#telemetry-api">Backend Telemetry & WS</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="docs-content">
+
+      <!-- Breadcrumbs -->
+      <div class="docs-breadcrumbs">
+        <a href="/">GuardianAI</a> <span>/</span> <span>Docs</span> <span>/</span> <span id="docs-current-crumb">Overview</span>
+      </div>
+
+      <!-- SECTION: Overview -->
+      <section id="overview" class="docs-section">
+        <h1>GuardianAI Technical Documentation</h1>
+        <p class="docs-lead">Dual-plane security for autonomous AI agents: sub-millisecond prompt injection firewalls off-chain, coupled with cryptographically verifiable ERC-8004 identity and evidence anchoring on-chain.</p>
+
+        <div class="docs-grid">
+          <a href="#firewall" class="docs-card">
+            <div class="docs-card-icon">???</div>
+            <h4>Off-Chain Layer</h4>
+            <p>10-layer heuristic, regex, semantic, and de-obfuscation firewall filtering attacks in under 42ms p95.</p>
+          </a>
+          <a href="#erc8004" class="docs-card">
+            <div class="docs-card-icon">??</div>
+            <h4>On-Chain Layer</h4>
+            <p>ERC-8004 agent registries, Merkle tree state anchors, and signed insurance certificate registries.</p>
+          </a>
+          <a href="#quickstart" class="docs-card">
+            <div class="docs-card-icon">?</div>
+            <h4>5-Min Setup</h4>
+            <p>Drop-in proxy or single-line Python SDK wrapper for OpenAI, Anthropic, LangChain, and CrewAI.</p>
+          </a>
+          <a href="#contract-analyzer" class="docs-card">
+            <div class="docs-card-icon">??</div>
+            <h4>Contract Analyzer</h4>
+            <p>48 AST/CFG validated vulnerability detection rules for Solidity & Vyper smart contracts.</p>
+          </a>
+        </div>
+
+        <div class="docs-callout tip">
+          <div class="docs-callout-title">?? Core Design Philosophy</div>
+          Every AI agent makes promises to its users. GuardianAI provides the cryptographic infrastructure and runtime firewalls to continuously verify those promises without requiring trust in proprietary black boxes.
+        </div>
+      </section>
+
+      <!-- SECTION: Quickstart -->
+      <section id="quickstart" class="docs-section">
+        <h2>Quickstart (5-Minute Integration)</h2>
+        <p>Integrate GuardianAI into your existing autonomous agent stack in minutes using either our reverse proxy or the native Python SDK.</p>
+
+        <h3>Option A: OpenAI-Compatible Ingress Proxy</h3>
+        <p>Point your existing client code to the Guardian proxy host (`http://127.0.0.1:8081` or your managed cloud gateway) by simply updating the `base_url`:</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <div class="docs-tabs">
+              <button class="docs-tab active">Python</button>
+              <button class="docs-tab">cURL</button>
+              <button class="docs-tab">TypeScript</button>
+            </div>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block" style="display:block;"><code>from openai import OpenAI
+
+# Route completions directly through the GuardianAI Security Proxy
+client = OpenAI(
+    base_url="http://127.0.0.1:8081/v1",
+    api_key="your-guardian-api-token"
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Deploy trading agent transaction"}]
+)
+print(response.choices[0].message.content)</code></pre>
+          <pre class="docs-code-block" style="display:none;"><code>curl -X POST http://127.0.0.1:8081/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-guardian-api-token" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Hello Guardian"}]
+  }'</code></pre>
+          <pre class="docs-code-block" style="display:none;"><code>import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "http://127.0.0.1:8081/v1",
+  apiKey: "your-guardian-api-token",
+});
+
+async function main() {
+  const completion = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: "Execute task" }],
+  });
+  console.log(completion.choices[0].message);
+}
+main();</code></pre>
+        </div>
+
+        <h3>Option B: Python SDK Direct Wrapper</h3>
+        <p>Wrap standard agent frameworks like LangChain, LlamaIndex, or AutoGen using the `guardian` library:</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Python 3.10+</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>from guardian.sdk import GuardianAgentGuard
+
+# Initialize runtime firewall with balanced preset
+guard = GuardianAgentGuard(preset="balanced", fail_closed=True)
+
+# Inspect user input prior to model execution
+verdict = guard.inspect_input(user_prompt)
+if not verdict.allowed:
+    raise SecurityException(f"Attack blocked: {verdict.rule_id} ({verdict.reason})")
+
+# Forward to model and sanitize response
+response = agent.run(user_prompt)
+sanitized_output = guard.inspect_output(response)</code></pre>
+        </div>
+      </section>
+
+      <!-- SECTION: Dual-Plane Architecture -->
+      <section id="architecture" class="docs-section">
+        <h2>Dual-Plane Architecture</h2>
+        <p>GuardianAI separates security concerns into two distinct execution planes to balance extreme performance with permanent cryptographic auditability.</p>
+
+        <div class="docs-table-wrap">
+          <table class="docs-table">
+            <thead>
+              <tr>
+                <th>Plane</th>
+                <th>Target Execution</th>
+                <th>Core Responsibilities</th>
+                <th>Performance & SLA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Layer 1 (Off-Chain)</strong></td>
+                <td>Ingress Proxy & Runtime Guard</td>
+                <td>Prompt injection firewall, de-obfuscation pipeline, PII/credential scrubber, honeypot traps</td>
+                <td><code>&lt; 42 ms</code> p95 latency, 494 req/s attack blocking</td>
+              </tr>
+              <tr>
+                <td><strong>Layer 2 (On-Chain)</strong></td>
+                <td>EVM Smart Contracts (Monad/Base)</td>
+                <td>ERC-8004 Agent identity, Merkle state anchoring, signed insurance certificate registry</td>
+                <td>Verifiable roots, immutable audit trail, decentralized validation</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION: 10-Layer AI Firewall -->
+      <section id="firewall" class="docs-section">
+        <h2>10-Layer AI Prompt Firewall</h2>
+        <p>Every incoming prompt passes through a progressive 10-stage defense-in-depth pipeline. Fast heuristics reject obvious attacks in microseconds, while deeper semantic and de-obfuscation engines neutralize advanced multi-turn and obfuscated jailbreaks.</p>
+
+        <div class="docs-grid">
+          <div class="docs-card">
+            <h4>1. Regex Fast-Path</h4>
+            <p>Known jailbreak prefixes, instruction reset patterns, and exploit signatures evaluated in &lt; 0.5ms.</p>
+          </div>
+          <div class="docs-card">
+            <h4>2. Shannon Entropy Filter</h4>
+            <p>Detects high-entropy encrypted blobs, raw binary payloads, and compressed ciphertext attacks.</p>
+          </div>
+          <div class="docs-card">
+            <h4>3. Steganography & Cipher Engine</h4>
+            <p>Automated decoding for Braille, Morse code, Base64, Hex, ROT13, Leetspeak, and Unicode homoglyphs.</p>
+          </div>
+          <div class="docs-card">
+            <h4>4. Semantic Classifier</h4>
+            <p>Fine-tuned lightweight classifier scoring adversarial intent, DAN variants, and system-prompt extraction.</p>
+          </div>
+          <div class="docs-card">
+            <h4>5. Multi-Lingual Translation Gate</h4>
+            <p>Normalizes cross-lingual evasion attempts in Chinese, Russian, Arabic, and low-resource languages.</p>
+          </div>
+          <div class="docs-card">
+            <h4>6. Token Smuggling / Zero-Width</h4>
+            <p>Strips zero-width joiners, invisible unicode separators, and RTL directional override exploits.</p>
+          </div>
+          <div class="docs-card">
+            <h4>7. Roleplay & Virtualization Filter</h4>
+            <p>Neutralizes "fictional scenarios", "debug mode", "developer override", and hypothetical simulation prompts.</p>
+          </div>
+          <div class="docs-card">
+            <h4>8. Tool Calling & Transaction Interlock</h4>
+            <p>Validates tool arguments against strict schema constraints; blocks unauthorized wallet transfers and parameter tampering.</p>
+          </div>
+          <div class="docs-card">
+            <h4>9. Honeypot Canary Engine</h4>
+            <p>Plants synthetic credentials in system context; triggers immediate session quarantine if referenced.</p>
+          </div>
+          <div class="docs-card">
+            <h4>10. Threat Intelligence Matcher</h4>
+            <p>Live matching against globally synchronized IOC feeds and newly cataloged zero-day prompt signatures.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: Output DLP & Secret Scanner -->
+      <section id="dlp-scanner" class="docs-section">
+        <h2>Output DLP & Secret Scanner</h2>
+        <p>Even if an LLM is coaxed into generating sensitive data, GuardianAI's egress filter inspects completions before they reach the user or client application.</p>
+
+        <div class="docs-callout warning">
+          <div class="docs-callout-title">?? Egress Scrubbing Targets</div>
+          Automated redaction for EVM Private Keys (64-hex), BIP-39 seed phrases (12/24 words), API keys (OpenAI, AWS, Anthropic, Stripe), Social Security Numbers, and HIPAA/PII identifiers.
+        </div>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Output Sanitization Example</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code># Raw completion from model:
+"The private key is 0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+
+# Sanitized egress delivered by GuardianAI:
+"The private key is [REDACTED:EVM_PRIVATE_KEY_HASH_a8f9]"</code></pre>
+        </div>
+      </section>
+
+      <!-- SECTION: ERC-8004 Agent Registries -->
+      <section id="erc8004" class="docs-section">
+        <h2>ERC-8004 Agent Registries</h2>
+        <p>GuardianAI integrates with the canonical <strong>ERC-8004 "Trustless Agents"</strong> standard. Each autonomous agent receives a cryptographically verifiable on-chain identity linked to its verified developer and authorized capabilities.</p>
+
+        <div class="docs-grid">
+          <div class="docs-card">
+            <h4>Identity Registry</h4>
+            <p>Maps Agent ID to deployer address, cryptographic public keys, and verifiable credential hashes.</p>
+          </div>
+          <div class="docs-card">
+            <h4>Reputation Registry</h4>
+            <p>Anchors cryptographically signed compliance attestations and historic SLA uptime scores.</p>
+          </div>
+          <div class="docs-card">
+            <h4>Validation Registry</h4>
+            <p>Permits smart contract analyzers and auditor daemons to write tamper-proof security validation stamps.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: Merkle Cortex State Anchoring -->
+      <section id="cortex-anchoring" class="docs-section">
+        <h2>Merkle Cortex State Anchoring</h2>
+        <p>GuardianAI aggregates telemetry events into episodic memory batches, constructs a cryptographic Merkle tree, and periodically anchors the 32-byte root hash to the blockchain.</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Merkle Proof Verification</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>import { verifyMerkleProof } from "@guardianai/cortex";
+
+// Verifies whether a security incident was recorded in block root #140293
+const isValid = verifyMerkleProof({
+  leaf: "0x3f7a1...",
+  proof: ["0x8b2c...", "0x1e9a..."],
+  root: "0x94f0c8...",
+});
+console.log("Cryptographic Proof Valid:", isValid); // true</code></pre>
+        </div>
+      </section>
+
+      <!-- SECTION: Smart Contract Static Analyzer -->
+      <section id="contract-analyzer" class="docs-section">
+        <h2>Smart Contract Static Analyzer (48 Rules)</h2>
+        <p>GuardianAI includes a purpose-built static analysis engine that validates EVM smart contracts against 48 AST/CFG-verified vulnerability classes before an autonomous agent interacts with them.</p>
+
+        <div class="docs-table-wrap">
+          <table class="docs-table">
+            <thead>
+              <tr>
+                <th>Rule ID</th>
+                <th>Category</th>
+                <th>Engine</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SWC-107</code></td>
+                <td>Reentrancy</td>
+                <td>Slither AST</td>
+                <td>State change after external call without reentrancy guard.</td>
+              </tr>
+              <tr>
+                <td><code>SWC-112</code></td>
+                <td>Delegatecall Injection</td>
+                <td>Slither CFG</td>
+                <td>Uncontrolled delegatecall to user-supplied contract address.</td>
+              </tr>
+              <tr>
+                <td><code>SWC-115</code></td>
+                <td>Authorization Flaw</td>
+                <td>AST Semantic</td>
+                <td>Missing tx.origin / msg.sender checks on privileged mint or drain functions.</td>
+              </tr>
+              <tr>
+                <td><code>GRD-041</code></td>
+                <td>Approval Phishing</td>
+                <td>Bytecode Heuristic</td>
+                <td>Permit2 and universal approval traps designed to drain ERC-20 allowances.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION: API Reference -->
+      <section id="proxy-api" class="docs-section">
+        <h2>API Reference: Ingress Proxy</h2>
+
+        <h3><code>POST /v1/chat/completions</code></h3>
+        <p>Sends a standard chat completion request through Guardian's 10-layer firewall.</p>
+
+        <div class="docs-table-wrap">
+          <table class="docs-table">
+            <thead>
+              <tr>
+                <th>Header / Param</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Authorization</code></td>
+                <td>Header (Bearer)</td>
+                <td>Your GuardianAI project API key or tenant JWT.</td>
+              </tr>
+              <tr>
+                <td><code>model</code></td>
+                <td>String (Body)</td>
+                <td>Target model (e.g. <code>gpt-4o</code>, <code>claude-3-5-sonnet</code>).</td>
+              </tr>
+              <tr>
+                <td><code>messages</code></td>
+                <td>Array (Body)</td>
+                <td>Array of message objects with <code>role</code> and <code>content</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Response Status Codes:</h3>
+        <ul style="list-style:disc; padding-left:24px; margin-bottom:24px; color:#cbd5e1;">
+          <li><code style="color:var(--docs-accent)">200 OK</code>: Prompt passed all security layers; upstream model response returned.</li>
+          <li><code style="color:var(--docs-coral)">403 Forbidden</code>: Attack detected and blocked. Response contains detailed rule match metadata.</li>
+          <li><code style="color:#f59e0b)">429 Too Many Requests</code>: Rate limit exceeded (fail-closed protection triggered).</li>
+        </ul>
+      </section>
+
+      <!-- SECTION: Compliance & EU AI Act -->
+      <section id="compliance" class="docs-section">
+        <h2>Compliance & EU AI Act Article 15</h2>
+        <p>GuardianAI automatically compiles compliance evidence artifacts required by regulatory frameworks, including Article 15 of the EU AI Act (Cybersecurity, Accuracy, and Robustness).</p>
+
+        <div class="docs-callout tip">
+          <div class="docs-callout-title">?? Automated Evidence Generation</div>
+          Download cryptographically signed JSON/CSV reports of all blocked attacks, false positive benchmarks, and Merkle root commitments directly via <code>GET /api/v1/export/json</code>.
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Right Sticky TOC -->
+    <aside class="docs-toc">
+      <div class="docs-toc-title">ON THIS PAGE</div>
+      <ul class="docs-toc-list">
+        <li><a href="#overview" class="active">Overview & Vision</a></li>
+        <li><a href="#quickstart">Quickstart Integration</a></li>
+        <li><a href="#architecture">Dual-Plane Architecture</a></li>
+        <li><a href="#firewall">10-Layer AI Firewall</a></li>
+        <li><a href="#dlp-scanner">Output DLP Scanner</a></li>
+        <li><a href="#erc8004">ERC-8004 Registries</a></li>
+        <li><a href="#cortex-anchoring">Merkle Cortex Anchoring</a></li>
+        <li><a href="#contract-analyzer">Contract Analyzer</a></li>
+        <li><a href="#proxy-api">Proxy API Reference</a></li>
+        <li><a href="#compliance">EU AI Act Compliance</a></li>
+      </ul>
+    </aside>
+
+  </div>
+
+  <script src="js/docs.js"></script>
+</body>
+</html>
+"""
+
+with open("f:/Saas/guardianai-basic-launch/website/docs.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print("website/docs.html generated successfully!")

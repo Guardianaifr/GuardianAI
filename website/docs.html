@@ -34,7 +34,7 @@
   <header class="docs-header">
     <div class="docs-header-inner">
       <div class="docs-brand-group">
-        <button id="docs-sidebar-toggle" class="btn btn-ghost btn-sm" style="padding:4px 8px;" aria-label="Toggle navigation">&#9776;</button>
+        <button id="docs-sidebar-toggle" class="btn btn-ghost btn-sm" style="display:none; padding:4px 8px;" aria-label="Toggle navigation">&#9776;</button>
         <a class="brand" href="/" aria-label="GuardianAI home" style="display:flex; align-items:center; gap:8px;">
           <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="14" fill="none" stroke="#3dff7e" stroke-width="4"/><circle cx="32" cy="32" r="6" fill="#3dff7e"/><path d="M2 32h16M46 32h16" stroke="#3dff7e" stroke-width="4" stroke-linecap="round"/></svg>
           <span style="font-weight:700; font-size:1.1rem; color:#fff;">GuardianAI</span>
@@ -95,7 +95,7 @@
       <div class="docs-nav-group">
         <div class="docs-nav-title">INTEGRATIONS & SDK</div>
         <ul class="docs-nav-links">
-          <li><a href="#python-sdk">Python SDK & LangChain</a></li>
+          <li><a href="#python-sdk">Python SDK & Decorators</a></li>
           <li><a href="#proxy-gateway">OpenAI-Compatible Proxy</a></li>
           <li><a href="#telemetry-siem">Telemetry & Event Pipeline</a></li>
         </ul>
@@ -339,13 +339,62 @@ sanitized_output = guard.inspect_output(response)</code></pre>
       <!-- SECTION: Honeypots & Threat Intel Feed -->
       <section id="honeypot-threats" class="docs-section">
         <h2>Honeypots & Threat Intel Feed</h2>
-        <p>GuardianAI dynamically injects synthetic decoy credentials and canary tokens into agent system prompts. If a malicious prompt coaxes the model into reciting or calling a tool with a canary token, GuardianAI identifies the breach instantly.</p>
+        <p>GuardianAI dynamically injects synthetic decoy credentials and canary tokens into agent system prompts. If a prompt coaxes the model into reciting or calling a tool with a canary token, GuardianAI identifies the breach instantly and logs an emergency threat signal.</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Canary Tripwire Logic</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code># Dynamically provision canary token per tenant session
+canary_token = honeypot.generate_token(session_id="agent_sess_89a2")
+
+# Inject transparently into system message
+system_prompt += f"\nInternal Vault Key: {canary_token.secret}"
+
+# If tool arguments or egress contain the canary, tripwire fires immediately
+if honeypot.is_tripped(response_text):
+    security_pipeline.quarantine_session(session_id)</code></pre>
+        </div>
       </section>
 
       <!-- SECTION: Fail-Closed Rate Limiter -->
       <section id="rate-limiting" class="docs-section">
         <h2>Fail-Closed Rate Limiter</h2>
-        <p>To defend against denial-of-wallet and automated prompt bombing, GuardianAI implements a strict fail-closed token-bucket rate limiter backed by Redis or high-performance in-memory ring buffers.</p>
+        <p>To defend against denial-of-wallet and automated prompt bombing, GuardianAI implements a strict fail-closed token-bucket rate limiter. If backing services (e.g. Redis) experience downtime, GuardianAI safely restricts requests rather than failing open.</p>
+
+        <div class="docs-table-wrap">
+          <table class="docs-table">
+            <thead>
+              <tr>
+                <th>Tier</th>
+                <th>Rate Limit (Req/Min)</th>
+                <th>Burst Allowance</th>
+                <th>Rate Limit Backend</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Starter ($49/mo)</strong></td>
+                <td>100 req/min</td>
+                <td>20 requests</td>
+                <td>In-Memory Ring Buffer</td>
+              </tr>
+              <tr>
+                <td><strong>Pro Gateway ($299/mo)</strong></td>
+                <td>1,000 req/min</td>
+                <td>150 requests</td>
+                <td>Redis Distributed Cluster</td>
+              </tr>
+              <tr>
+                <td><strong>Enterprise (Custom)</strong></td>
+                <td>Unlimited / Custom</td>
+                <td>Custom SLA</td>
+                <td>Dedicated Redis Multi-Region</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- SECTION: ERC-8004 Agent Registries -->
@@ -393,8 +442,28 @@ console.log("Cryptographic Proof Valid:", isValid); // true</code></pre>
 
       <!-- SECTION: Insurance Certificates -->
       <section id="insurance-certificates" class="docs-section">
-        <h2>Insurance Certificates</h2>
-        <p>GuardianInsuranceLedger anchors cryptographic certificates containing integrity hashes, agent capability bounds, and policy limits, capped at 100,000 certificates per registry instance.</p>
+        <h2>Insurance Certificates (GuardianInsuranceLedger)</h2>
+        <p>The <code>GuardianInsuranceLedger.sol</code> smart contract anchors signed liability and insurance certificates for autonomous AI agents. The contract enforces a hard cap of 100,000 certificates per registry instance and is protected by a 24-hour OpenZeppelin Timelock.</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Solidity Interface</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IGuardianInsuranceLedger {
+    error CertificateLimitReached(uint256 maxCertificates);
+    
+    function issueCertificate(
+        bytes32 agentId,
+        bytes32 policyHash,
+        uint256 coverageAmount,
+        uint256 expiration
+    ) external returns (bytes32 certificateId);
+}</code></pre>
+        </div>
       </section>
 
       <!-- SECTION: Smart Contract Static Analyzer -->
@@ -444,20 +513,67 @@ console.log("Cryptographic Proof Valid:", isValid); // true</code></pre>
 
       <!-- SECTION: Python SDK -->
       <section id="python-sdk" class="docs-section">
-        <h2>Python SDK Reference</h2>
+        <h2>Python SDK & Decorators</h2>
         <p>The <code>guardianai</code> Python package provides asynchronous and synchronous decorators and clients for wrapping standard Python code.</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Decorator Syntax</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>from guardian import protect_agent
+
+@protect_agent(firewall="strict", dlp=True, redact_keys=True)
+async def autonomous_trading_agent(user_query: str):
+    # Safe execution context
+    return await llm.ainvoke(user_query)</code></pre>
+        </div>
       </section>
 
       <!-- SECTION: Proxy Gateway -->
       <section id="proxy-gateway" class="docs-section">
         <h2>OpenAI-Compatible Proxy Gateway</h2>
         <p>The gateway runs on port <code>8081</code> by default, accepting standard completions requests and injecting security inspection headers.</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">guardian/config/config.yaml</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>server:
+  host: "0.0.0.0"
+  port: 8081
+  upstream_url: "http://127.0.0.1:8080"
+
+firewall:
+  preset: "balanced"
+  fail_closed: true
+  entropy_threshold: 4.8
+  max_body_bytes: 1048576  # 1MB request body limit</code></pre>
+        </div>
       </section>
 
       <!-- SECTION: Telemetry & SIEM -->
       <section id="telemetry-siem" class="docs-section">
-        <h2>Telemetry & SIEM Forwarding</h2>
+        <h2>Telemetry & Event Pipeline</h2>
         <p>All security events, prompt classifications, and blocked attacks are logged into append-only JSONL files and streamed to the admin dashboard.</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Event Schema Example</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>{
+  "event_id": "evt_98f410c8e2",
+  "timestamp": "2026-08-29T17:15:00Z",
+  "action": "BLOCK",
+  "rule_id": "INJ-011",
+  "layer": "Semantic classifier",
+  "latency_ms": 1.42,
+  "tenant_id": "default",
+  "client_ip": "198.51.100.24"
+}</code></pre>
+        </div>
       </section>
 
       <!-- SECTION: API Reference -->
@@ -538,9 +654,15 @@ console.log("Cryptographic Proof Valid:", isValid); // true</code></pre>
         <li><a href="#architecture">Dual-Plane Architecture</a></li>
         <li><a href="#firewall">10-Layer AI Firewall</a></li>
         <li><a href="#dlp-scanner">Output DLP Scanner</a></li>
+        <li><a href="#honeypot-threats">Honeypots & Threats</a></li>
+        <li><a href="#rate-limiting">Fail-Closed Rate Limiter</a></li>
         <li><a href="#erc8004">ERC-8004 Registries</a></li>
         <li><a href="#cortex-anchoring">Merkle Cortex Anchoring</a></li>
+        <li><a href="#insurance-certificates">Insurance Certificates</a></li>
         <li><a href="#contract-analyzer">Contract Analyzer</a></li>
+        <li><a href="#python-sdk">Python SDK</a></li>
+        <li><a href="#proxy-gateway">Proxy Gateway</a></li>
+        <li><a href="#telemetry-siem">Telemetry & Events</a></li>
         <li><a href="#proxy-api">Proxy API Reference</a></li>
         <li><a href="#compliance">EU AI Act Compliance</a></li>
       </ul>

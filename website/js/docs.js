@@ -1,10 +1,16 @@
-document.addEventListener("DOMContentLoaded", () => {
+﻿document.addEventListener("DOMContentLoaded", () => {
   // 1. Mobile Sidebar Toggle
   const sidebarToggle = document.getElementById("docs-sidebar-toggle");
   const sidebar = document.getElementById("docs-sidebar");
   if (sidebarToggle && sidebar) {
     sidebarToggle.addEventListener("click", () => {
       sidebar.classList.toggle("open");
+    });
+    // Close sidebar on link click (mobile)
+    sidebar.addEventListener("click", (e) => {
+      if (e.target.tagName.toLowerCase() === 'a' && window.innerWidth <= 800) {
+        sidebar.classList.remove("open");
+      }
     });
   }
 

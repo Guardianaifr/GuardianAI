@@ -561,11 +561,27 @@ body.docs-page {
 }
 
 /* Mobile responsive */
+/* Mobile Navigation Toggle */
+#docs-sidebar-toggle {
+  display: none;
+  padding: 4px 8px;
+  font-size: 1.2rem;
+  background: transparent;
+  border: 1px solid var(--docs-border);
+  color: var(--docs-muted);
+  border-radius: 6px;
+  cursor: pointer;
+}
+#docs-sidebar-toggle:hover {
+  color: #fff;
+  border-color: var(--docs-border-focus);
+}
 @media (max-width: 1100px) {
   .docs-toc { display: none; }
 }
 
 @media (max-width: 800px) {
+  #docs-sidebar-toggle { display: inline-flex; }
   .docs-sidebar {
     position: fixed;
     left: -100%;

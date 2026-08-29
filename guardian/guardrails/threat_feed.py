@@ -132,6 +132,7 @@ class ThreatFeed:
         local_fallback: Optional[str] = None,
         api_key: Optional[str] = None,
         hmac_secret: Optional[str] = None,
+        ed25519_pubkey: Optional[str] = None,
         circuit_breaker_max_failures: int = 3,
         circuit_breaker_cooldown: int = 300,
         live_apis_config: Optional[dict] = None,
@@ -154,10 +155,15 @@ class ThreatFeed:
         # ── Auth ───────────────────────────────────────────────────────────
         self.api_key = api_key or os.environ.get("GUARDIAN_THREAT_FEED_KEY", "").strip() or None
 
-        # ── HMAC signature verification ────────────────────────────────────
+        # ── HMAC & Ed25519 signature verification ──────────────────────────
         self.hmac_secret = (
             hmac_secret
             or os.environ.get("GUARDIAN_FEED_HMAC_SECRET", "").strip()
+            or None
+        )
+        self.ed25519_pubkey = (
+            ed25519_pubkey
+            or os.environ.get("GUARDIAN_FEED_ED25519_PUBKEY", "").strip()
             or None
         )
 
@@ -394,33 +400,55 @@ class ThreatFeed:
             return {"Authorization": f"Bearer {self.api_key}"}
         return {}
 
-    def _verify_hmac(self, content: str, signature_header: str) -> bool:
+    def _verify_signature(self, content: str, signature_header: str) -> bool:
         """
-        Verify HMAC-SHA256 signature from X-Feed-Signature header.
-        Expected format: sha256=<hex_digest>
-        Returns True if valid (or if hmac_secret not configured).
+        Verify signature from X-Feed-Signature header.
+        Supports:
+        - HMAC-SHA256: sha256=<hex_digest>
+        - Ed25519: ed25519=<hex_signature>
+        
+        Returns True if valid (or if no signature keys are configured).
         """
-        if not self.hmac_secret:
-            return True  # HMAC not configured — accept all
+        if not self.hmac_secret and not self.ed25519_pubkey:
+            return True  # No verification keys configured — accept all
+            
         if not signature_header:
-            logger.warning("[ThreatFeed] HMAC: no X-Feed-Signature header — rejecting feed")
+            logger.warning("[ThreatFeed] Signature: no X-Feed-Signature header — rejecting feed")
             return False
+            
         try:
             algo, received_hex = signature_header.split("=", 1)
-            if algo != "sha256":
-                logger.warning(f"[ThreatFeed] HMAC: unsupported algorithm: {algo}")
+            
+            if algo == "sha256" and self.hmac_secret:
+                expected = hmac.new(
+                    self.hmac_secret.encode(),
+                    content.encode(),
+                    hashlib.sha256,
+                ).hexdigest()
+                valid = hmac.compare_digest(expected, received_hex)
+                if not valid:
+                    logger.error("[ThreatFeed] HMAC signature MISMATCH — feed may be tampered!")
+                return valid
+                
+            elif algo == "ed25519" and self.ed25519_pubkey:
+                try:
+                    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+                    pub_key = Ed25519PublicKey.from_public_bytes(bytes.fromhex(self.ed25519_pubkey))
+                    pub_key.verify(bytes.fromhex(received_hex), content.encode())
+                    return True
+                except ImportError:
+                    logger.error("[ThreatFeed] cryptography package required for Ed25519 verification")
+                    return False
+                except Exception as e:
+                    logger.error(f"[ThreatFeed] Ed25519 signature MISMATCH — feed may be tampered! {e}")
+                    return False
+                    
+            else:
+                logger.warning(f"[ThreatFeed] Signature: unsupported algorithm or missing key for: {algo}")
                 return False
-            expected = hmac.new(
-                self.hmac_secret.encode(),
-                content.encode(),
-                hashlib.sha256,
-            ).hexdigest()
-            valid = hmac.compare_digest(expected, received_hex)
-            if not valid:
-                logger.error("[ThreatFeed] HMAC signature MISMATCH — feed may be tampered!")
-            return valid
+                
         except Exception as e:
-            logger.error(f"[ThreatFeed] HMAC verification error: {e}")
+            logger.error(f"[ThreatFeed] Signature verification error: {e}")
             return False
 
     def _parse_pattern_entry(self, raw, source: str = "remote") -> Optional[PatternEntry]:
@@ -508,10 +536,10 @@ class ThreatFeed:
 
             content = resp.text
 
-            # ── HMAC signature verification ────────────────────────────────
+            # ── Cryptographic signature verification ─────────────────────────
             sig_header = resp.headers.get("X-Feed-Signature", "")
-            if not self._verify_hmac(content, sig_header):
-                logger.error(f"[ThreatFeed] HMAC verification failed for {url} — rejected")
+            if not self._verify_signature(content, sig_header):
+                logger.error(f"[ThreatFeed] Cryptographic signature verification failed for {url} — rejected")
                 return None
 
             # ── SHA-256 change detection ───────────────────────────────────
@@ -560,29 +588,42 @@ class ThreatFeed:
     @staticmethod
     def _is_safe_regex(pattern: str) -> bool:
         """
-        ReDoS sandbox: compile + 200ms test-match against worst-case input.
+        ReDoS sandbox: compile using Google RE2 Engine.
+        RE2 guarantees linear-time execution, immune to ReDoS.
+        Falls back to threading sandbox if google-re2 is not installed.
         """
-        result = [False]
-        error = [None]
-
-        def _try():
+        try:
+            import re2
             try:
-                c = re.compile(pattern, re.IGNORECASE)
-                c.search("a" * 1000)
-                result[0] = True
-            except (re.error, RecursionError, OverflowError) as e:
-                error[0] = str(e)
-
-        t = threading.Thread(target=_try, daemon=True)
-        t.start()
-        t.join(timeout=0.2)
-        if t.is_alive():
-            logger.warning(f"[ThreatFeed] ReDoS timeout — pattern rejected: {pattern[:60]!r}")
-            return False
-        if error[0]:
-            logger.warning(f"[ThreatFeed] Invalid/unsafe regex: {pattern[:60]!r} — {error[0]}")
-            return False
-        return result[0]
+                # RE2 rejects unsafe constructs (backreferences, lookarounds)
+                re2.compile(pattern, re2.IGNORECASE)
+                return True
+            except re2.error as e:
+                logger.warning(f"[ThreatFeed] RE2 rejected pattern: {pattern[:60]!r} — {e}")
+                return False
+        except ImportError:
+            # Fallback for environments without google-re2
+            result = [False]
+            error = [None]
+    
+            def _try():
+                try:
+                    c = re.compile(pattern, re.IGNORECASE)
+                    c.search("a" * 1000)
+                    result[0] = True
+                except (re.error, RecursionError, OverflowError) as e:
+                    error[0] = str(e)
+    
+            t = threading.Thread(target=_try, daemon=True)
+            t.start()
+            t.join(timeout=0.2)
+            if t.is_alive():
+                logger.warning(f"[ThreatFeed] ReDoS timeout — pattern rejected: {pattern[:60]!r}")
+                return False
+            if error[0]:
+                logger.warning(f"[ThreatFeed] Invalid/unsafe regex: {pattern[:60]!r} — {error[0]}")
+                return False
+            return result[0]
 
     def _merge_entries(self, new_entries: List[PatternEntry]):
         """
@@ -599,18 +640,28 @@ class ThreatFeed:
         for entry in new_entries:
             if not entry.pattern or entry.pattern in existing_patterns:
                 continue
+
             if not self._is_safe_regex(entry.pattern):
                 continue
-            entry.compiled = re.compile(entry.pattern, re.IGNORECASE)
-            with self._lock:
-                self._entries.append(entry)
-                existing_patterns.add(entry.pattern)
-            added += 1
 
+            try:
+                try:
+                    import re2
+                    entry.compiled = re2.compile(entry.pattern, re2.IGNORECASE)
+                except ImportError:
+                    entry.compiled = re.compile(entry.pattern, re.IGNORECASE)
+                with self._lock:
+                    self._entries.append(entry)
+                    existing_patterns.add(entry.pattern)
+                added += 1
+            except Exception as e:
+                logger.error(f"[ThreatFeed] Could not compile pattern {entry.pattern[:30]!r}: {e}")
+        
         if added:
             with self._lock:
                 self._last_updated = time.time()
             logger.info(f"[ThreatFeed] Merged {added} new patterns (total: {len(self._entries)})")
+
     def _update_patterns(self, new_patterns: List[str]):
         """Legacy compatibility wrapper for plain string pattern lists."""
         if not new_patterns:

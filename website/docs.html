@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -318,22 +318,38 @@ sanitized_output = guard.inspect_output(response)</code></pre>
         <h2>Output DLP & Secret Scanner</h2>
         <p>Even if an LLM is coaxed into generating sensitive data, GuardianAI's egress filter inspects completions before they reach the user or client application.</p>
 
-        <div class="docs-callout warning">
-          <div class="docs-callout-title">&#9888; Egress Scrubbing Targets</div>
-          Automated redaction for EVM Private Keys (64-hex), BIP-39 seed phrases (12/24 words), API keys (OpenAI, AWS, Anthropic, Stripe), Social Security Numbers, and HIPAA/PII identifiers.
+        <div class="docs-callout tip">
+          <div class="docs-callout-title">&#128737; Automated Data Loss Prevention</div>
+          Scans completions in real-time for leaked API credentials, database connection strings, auth tokens, seed phrases, and sensitive identifiers before responses leave the gateway.
         </div>
 
-        <div class="docs-code-box">
-          <div class="docs-code-header">
-            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Output Sanitization Example</span>
-            <button class="docs-copy-btn">Copy</button>
-          </div>
-          <pre class="docs-code-block"><code># Raw completion from model:
-"The private key is 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-
-# Sanitized egress delivered by GuardianAI:
-"The private key is [REDACTED:EVM_PRIVATE_KEY_HASH_a8f9]"</code></pre>
-        </div>
+        <div class="docs-table-wrap">
+          <table class="docs-table">
+            <thead>
+              <tr>
+                <th>Data Category</th>
+                <th>Detection Mechanism</th>
+                <th>Sanitization Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Cloud & Payment API Credentials</strong></td>
+                <td>Entropy + Prefix heuristics (AWS, Stripe, OpenAI, Cloud providers)</td>
+                <td>Redacted with cryptographic audit hash</td>
+              </tr>
+              <tr>
+                <td><strong>Cryptographic Keys & Seed Phrases</strong></td>
+                <td>Checksum validation & high-entropy pattern matching</td>
+                <td>Zeroized & logged to security audit stream</td>
+              </tr>
+              <tr>
+                <td><strong>Personal & Regulatory Identifiers (PII)</strong></td>
+                <td>HIPAA / GDPR regex & named entity recognition</td>
+                <td>Masked prior to client delivery</td>
+              </tr>
+            </tbody>
+          </table>
       </section>
 
       <!-- SECTION: Honeypots & Threat Intel Feed -->

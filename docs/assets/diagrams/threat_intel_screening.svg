@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 1060" width="1020" height="1060" style="background:#f8f9fa; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="110%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="10" stdDeviation="20" flood-color="#000" flood-opacity="0.06"/>
+    </filter>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#e03131" />
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2b8a3e" />
+    </marker>
+  </defs>
+
+  <!-- Main Card -->
+  <rect x="20" y="20" width="980" height="1020" rx="20" fill="#ffffff" stroke="#e9ecef" stroke-width="2" filter="url(#card-shadow)" />
+
+  <!-- Header Badge -->
+  <rect x="60" y="50" width="220" height="28" rx="14" fill="#e7f5ff" />
+  <text x="170" y="69" font-size="12" font-weight="700" fill="#1864ab" text-anchor="middle" letter-spacing="0.5">AGENTIC AI SECURITY · 6 / 12</text>
+
+  <!-- Header -->
+  <text x="60" y="115" font-size="34" font-weight="800" fill="#212529">Threat-Intelligence Address Screening</text>
+  <text x="60" y="145" font-size="17" font-weight="500" fill="#868e96">On-Chain Counterparty Reputation &amp; Hack Intelligence Before Execution</text>
+
+  <!-- ================= WITHOUT GUARDIANAI / REPUTATION BLINDNESS ================= -->
+  <text x="60" y="195" font-size="18" font-weight="800" fill="#e03131" letter-spacing="0.5">WITHOUT GUARDIANAI (REPUTATION BLINDNESS)</text>
+
+  <!-- Tainted Address Box -->
+  <rect x="60" y="220" width="250" height="120" rx="12" fill="#fff5f5" stroke="#fa5252" stroke-width="2" />
+  <text x="185" y="254" font-size="15" font-weight="800" fill="#c92a2a" text-anchor="middle">TAINTED COUNTERPARTY</text>
+  <text x="80" y="278" font-size="12" fill="#e03131">• KuCoin $275M hack wallet</text>
+  <text x="80" y="298" font-size="12" fill="#e03131">• Laundering hops &amp; drainers</text>
+  <text x="80" y="318" font-size="12" fill="#e03131">• Looks like normal 0x...</text>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="310" y1="280" x2="360" y2="280" stroke="#e03131" stroke-width="3" marker-end="url(#arrow-red)" />
+
+  <!-- Blind Payment Box -->
+  <rect x="375" y="220" width="250" height="120" rx="12" fill="#ffffff" stroke="#212529" stroke-width="2" />
+  <text x="500" y="254" font-size="15" font-weight="800" fill="#212529" text-anchor="middle">AI PAYMENT EXECUTION</text>
+  <text x="500" y="280" font-size="12" fill="#495057" text-anchor="middle">No reputation database</text>
+  <text x="500" y="302" font-size="12" font-weight="700" fill="#c92a2a" text-anchor="middle">Treats whole chain as honest</text>
+  <text x="500" y="322" font-size="11" fill="#862e9c" text-anchor="middle">Executes approve() / transfer()</text>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="625" y1="280" x2="675" y2="280" stroke="#e03131" stroke-width="3" marker-end="url(#arrow-red)" />
+
+  <!-- Forensic Autopsy Box -->
+  <rect x="690" y="220" width="260" height="120" rx="12" fill="#ffe3e3" stroke="#e03131" stroke-width="2.5" />
+  <text x="820" y="258" font-size="16" font-weight="900" fill="#c92a2a" text-anchor="middle">FORENSIC AUTOPSY</text>
+  <text x="820" y="286" font-size="14" font-weight="800" fill="#e03131" text-anchor="middle">Find Out Post-Loss</text>
+  <text x="820" y="308" font-size="11.5" fill="#862e9c" text-anchor="middle">Funds frozen / Blacklisted</text>
+
+  <!-- ================= WITH GUARDIANAI / OFFLINE FIRST ================= -->
+  <text x="60" y="395" font-size="18" font-weight="800" fill="#2b8a3e" letter-spacing="0.5">WITH GUARDIANAI (OFFLINE-FIRST THREAT INTEL)</text>
+
+  <!-- Payment Attempt Box -->
+  <rect x="60" y="420" width="245" height="180" rx="12" fill="#fff5f5" stroke="#fa5252" stroke-width="2" />
+  <text x="182" y="485" font-size="16" font-weight="800" fill="#c92a2a" text-anchor="middle">PAYMENT ATTEMPT</text>
+  <text x="182" y="515" font-size="13" fill="#e03131" text-anchor="middle">Target Counterparty 0x...</text>
+  <text x="182" y="538" font-size="13" fill="#e03131" text-anchor="middle">Screened pre-flight</text>
+
+  <!-- Green Arrow to Screener -->
+  <line x1="305" y1="510" x2="355" y2="510" stroke="#2b8a3e" stroke-width="3.5" marker-end="url(#arrow-green)" />
+
+  <!-- GuardianAI Screener Box -->
+  <rect x="370" y="405" width="285" height="210" rx="14" fill="#ebfbee" stroke="#2b8a3e" stroke-width="2.5" />
+  <text x="512" y="442" font-size="15.5" font-weight="900" fill="#2b8a3e" text-anchor="middle">THREAT-INTEL SCREENER</text>
+  
+  <text x="395" y="480" font-size="13.5" font-weight="700" fill="#212529">1 <tspan font-weight="500"> Hack feeds (KuCoin, BTM, Theft)</tspan></text>
+  <text x="395" y="512" font-size="13.5" font-weight="700" fill="#212529">2 <tspan font-weight="500"> Laundering pattern tags</tspan></text>
+  <text x="395" y="544" font-size="13.5" font-weight="700" fill="#212529">3 <tspan font-weight="500"> Offline &amp; Air-gapped (&lt;1ms)</tspan></text>
+  
+  <text x="512" y="585" font-size="12" font-weight="700" fill="#2b8a3e" text-anchor="middle">(Screened Before Execution)</text>
+
+  <!-- Output 1: Flagged Blocked -->
+  <line x1="655" y1="475" x2="705" y2="455" stroke="#e03131" stroke-width="2.5" stroke-dasharray="4,4" marker-end="url(#arrow-red)" />
+  <rect x="715" y="415" width="245" height="90" rx="12" fill="#ffe3e3" stroke="#e03131" stroke-width="2" />
+  <text x="837" y="450" font-size="13.5" font-weight="800" fill="#c92a2a" text-anchor="middle">FLAGGED [btm, theft, kucoin]</text>
+  <text x="837" y="476" font-size="11.5" fill="#e03131" text-anchor="middle">Blocked at machine speed</text>
+
+  <!-- Output 2: Clean Reputation Passes -->
+  <line x1="655" y1="545" x2="705" y2="565" stroke="#2b8a3e" stroke-width="3" marker-end="url(#arrow-green)" />
+  <rect x="715" y="525" width="245" height="90" rx="12" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2" />
+  <text x="837" y="450" font-size="13.5" font-weight="800" fill="#2b8a3e" text-anchor="middle">CLEAN REPUTATION PASSES</text>
+  <text x="837" y="586" font-size="11.5" font-weight="600" fill="#2f9e44" text-anchor="middle">Safe counterparties transact</text>
+
+  <!-- Fail-closed caption -->
+  <text x="500" y="670" font-size="14.5" font-style="italic" fill="#495057" text-anchor="middle">Screening turns "unknown counterparty" into "known-bad, blocked" — automatically, at machine speed.</text>
+
+  <!-- Divider -->
+  <line x1="60" y1="720" x2="960" y2="720" stroke="#dee2e6" stroke-width="1.5" />
+
+  <!-- Benchmark stats -->
+  <text x="500" y="775" font-size="15.5" font-weight="600" fill="#495057" text-anchor="middle">
+    <tspan font-weight="800" fill="#212529">Offline-First Feeds</tspan>   ·   <tspan font-weight="800" fill="#212529">Millisecond Screening</tspan>   ·   Air-Gapped Privacy &amp; Zero Network Leaks
+  </text>
+
+  <!-- CTA -->
+  <text x="500" y="875" font-size="23.5" font-weight="800" fill="#212529" text-anchor="middle">Without it, your agent treats the whole chain like honest people. The chain disagrees.</text>
+</svg>

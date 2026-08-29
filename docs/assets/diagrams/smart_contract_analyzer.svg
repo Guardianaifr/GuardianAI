@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 1060" width="1020" height="1060" style="background:#f8f9fa; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="110%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="10" stdDeviation="20" flood-color="#000" flood-opacity="0.06"/>
+    </filter>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#e03131" />
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2b8a3e" />
+    </marker>
+  </defs>
+
+  <!-- Main Card -->
+  <rect x="20" y="20" width="980" height="1020" rx="20" fill="#ffffff" stroke="#e9ecef" stroke-width="2" filter="url(#card-shadow)" />
+
+  <!-- Header Badge -->
+  <rect x="60" y="50" width="220" height="28" rx="14" fill="#e7f5ff" />
+  <text x="170" y="69" font-size="12" font-weight="700" fill="#1864ab" text-anchor="middle" letter-spacing="0.5">AGENTIC AI SECURITY · 5 / 12</text>
+
+  <!-- Header -->
+  <text x="60" y="115" font-size="34" font-weight="800" fill="#212529">Smart Contract Static Analyzer</text>
+  <text x="60" y="145" font-size="17" font-weight="500" fill="#868e96">Pre-Interaction Scoring Before Agents Touch On-Chain Code</text>
+
+  <!-- ================= WITHOUT GUARDIANAI / FIND OUT ON CHAIN ================= -->
+  <text x="60" y="195" font-size="18" font-weight="800" fill="#e03131" letter-spacing="0.5">WITHOUT GUARDIANAI (FIND OUT ON-CHAIN)</text>
+
+  <!-- Target Contract Box -->
+  <rect x="60" y="220" width="250" height="120" rx="12" fill="#fff5f5" stroke="#fa5252" stroke-width="2" />
+  <text x="185" y="254" font-size="15" font-weight="800" fill="#c92a2a" text-anchor="middle">TARGET CONTRACT</text>
+  <text x="80" y="278" font-size="12" fill="#e03131">• Reentrancy in withdraw()</text>
+  <text x="80" y="298" font-size="12" fill="#e03131">• [CRITICAL] SC-001 Access</text>
+  <text x="80" y="318" font-size="12" fill="#e03131">• Unchecked external calls</text>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="310" y1="280" x2="360" y2="280" stroke="#e03131" stroke-width="3" marker-end="url(#arrow-red)" />
+
+  <!-- Blind Agent Interaction Box -->
+  <rect x="375" y="220" width="250" height="120" rx="12" fill="#ffffff" stroke="#212529" stroke-width="2" />
+  <text x="500" y="254" font-size="15" font-weight="800" fill="#212529" text-anchor="middle">AI AGENT INTERACTION</text>
+  <text x="500" y="280" font-size="12" fill="#495057" text-anchor="middle">No pre-flight static scan</text>
+  <text x="500" y="302" font-size="12" font-weight="700" fill="#c92a2a" text-anchor="middle">Code "reads fine" to LLM</text>
+  <text x="500" y="322" font-size="11" fill="#862e9c" text-anchor="middle">Interacts &amp; deploys blindly</text>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="625" y1="280" x2="675" y2="280" stroke="#e03131" stroke-width="3" marker-end="url(#arrow-red)" />
+
+  <!-- Loss Time Exploit Box -->
+  <rect x="690" y="220" width="260" height="120" rx="12" fill="#ffe3e3" stroke="#e03131" stroke-width="2.5" />
+  <text x="820" y="258" font-size="16" font-weight="900" fill="#c92a2a" text-anchor="middle">ON-CHAIN LOSS TIME</text>
+  <text x="820" y="286" font-size="14" font-weight="800" fill="#e03131" text-anchor="middle">Find Out Post-Exploit</text>
+  <text x="820" y="308" font-size="11.5" fill="#862e9c" text-anchor="middle">The DAO ($60M) to 2026</text>
+
+  <!-- ================= WITH GUARDIANAI / PRE FLIGHT ================= -->
+  <text x="60" y="395" font-size="18" font-weight="800" fill="#2b8a3e" letter-spacing="0.5">WITH GUARDIANAI (FINDINGS IN SECONDS)</text>
+
+  <!-- Same Contract Box -->
+  <rect x="60" y="420" width="245" height="180" rx="12" fill="#fff5f5" stroke="#fa5252" stroke-width="2" />
+  <text x="182" y="485" font-size="16" font-weight="800" fill="#c92a2a" text-anchor="middle">SAME CONTRACT</text>
+  <text x="182" y="515" font-size="13" fill="#e03131" text-anchor="middle">Solidity Source or Bytecode</text>
+  <text x="182" y="538" font-size="13" fill="#e03131" text-anchor="middle">(e.g. NovaVault demo)</text>
+
+  <!-- Green Arrow to Analyzer -->
+  <line x1="305" y1="510" x2="355" y2="510" stroke="#2b8a3e" stroke-width="3.5" marker-end="url(#arrow-green)" />
+
+  <!-- GuardianAI Analyzer Box -->
+  <rect x="370" y="405" width="285" height="210" rx="14" fill="#ebfbee" stroke="#2b8a3e" stroke-width="2.5" />
+  <text x="512" y="442" font-size="15.5" font-weight="900" fill="#2b8a3e" text-anchor="middle">SMART CONTRACT ANALYZER</text>
+  
+  <text x="395" y="480" font-size="13.5" font-weight="700" fill="#212529">1 <tspan font-weight="500"> Reentrancy in withdraw()</tspan></text>
+  <text x="395" y="512" font-size="13.5" font-weight="700" fill="#212529">2 <tspan font-weight="500"> [CRITICAL] SC-001 Access Hole</tspan></text>
+  <text x="395" y="544" font-size="13.5" font-weight="700" fill="#212529">3 <tspan font-weight="500"> tx.origin &amp; Unchecked calls</tspan></text>
+  
+  <text x="512" y="585" font-size="12" font-weight="700" fill="#2b8a3e" text-anchor="middle">(11 Findings in Seconds)</text>
+
+  <!-- Output 1: Risky Contract Halted -->
+  <line x1="655" y1="475" x2="705" y2="455" stroke="#e03131" stroke-width="2.5" stroke-dasharray="4,4" marker-end="url(#arrow-red)" />
+  <rect x="715" y="415" width="245" height="90" rx="12" fill="#ffe3e3" stroke="#e03131" stroke-width="2" />
+  <text x="837" y="452" font-size="14.5" font-weight="800" fill="#c92a2a" text-anchor="middle">RISKY CONTRACT HALTED</text>
+  <text x="837" y="478" font-size="11.5" fill="#e03131" text-anchor="middle">Threat pipeline blocks interaction</text>
+
+  <!-- Output 2: Pre-Interaction Findings -->
+  <line x1="655" y1="545" x2="705" y2="565" stroke="#2b8a3e" stroke-width="3" marker-end="url(#arrow-green)" />
+  <rect x="715" y="525" width="245" height="90" rx="12" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2" />
+  <text x="837" y="562" font-size="14.5" font-weight="800" fill="#2b8a3e" text-anchor="middle">PRE-FLIGHT FINDINGS</text>
+  <text x="837" y="588" font-size="11.5" font-weight="600" fill="#2f9e44" text-anchor="middle">Scored by severity &amp; rule ID</text>
+
+  <!-- Fail-closed caption -->
+  <text x="500" y="670" font-size="14.5" font-style="italic" fill="#495057" text-anchor="middle">Without: find out on-chain, at loss time · With: findings in seconds, pre-interaction</text>
+
+  <!-- Divider -->
+  <line x1="60" y1="720" x2="960" y2="720" stroke="#dee2e6" stroke-width="1.5" />
+
+  <!-- Benchmark stats -->
+  <text x="500" y="775" font-size="15.5" font-weight="600" fill="#495057" text-anchor="middle">
+    <tspan font-weight="800" fill="#212529">Rule-Based AST Analysis</tspan>   ·   <tspan font-weight="800" fill="#212529">Sub-Second Scanning</tspan>   ·   Integrated Threat Pipeline
+  </text>
+
+  <!-- CTA -->
+  <text x="500" y="875" font-size="25" font-weight="800" fill="#212529" text-anchor="middle">Static analysis isn't a formal guarantee. It's the smoke detector.</text>
+</svg>

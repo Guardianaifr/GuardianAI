@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1020" width="1000" height="1020" style="background:#f8f9fa; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="110%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="10" stdDeviation="20" flood-color="#000" flood-opacity="0.06"/>
+    </filter>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#e03131" />
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2b8a3e" />
+    </marker>
+  </defs>
+
+  <!-- Main Card -->
+  <rect x="20" y="20" width="960" height="980" rx="20" fill="#ffffff" stroke="#e9ecef" stroke-width="2" filter="url(#card-shadow)" />
+
+  <!-- Header -->
+  <text x="60" y="80" font-size="34" font-weight="800" fill="#212529">Prompt Injection vs GuardianAI</text>
+  <text x="60" y="115" font-size="18" font-weight="500" fill="#868e96">one attack — two outcomes</text>
+
+  <!-- ================= WITHOUT GUARDIANAI ================= -->
+  <text x="60" y="170" font-size="18" font-weight="800" fill="#e03131" letter-spacing="0.5">WITHOUT GUARDIANAI</text>
+
+  <!-- Attacker Box -->
+  <rect x="60" y="195" width="240" height="115" rx="12" fill="#fff5f5" stroke="#fa5252" stroke-width="2" />
+  <text x="180" y="232" font-size="16" font-weight="800" fill="#c92a2a" text-anchor="middle">ATTACKER</text>
+  <text x="180" y="258" font-size="13" fill="#e03131" text-anchor="middle">X reply · NFT gift</text>
+  <text x="180" y="280" font-size="13" fill="#e03131" text-anchor="middle">Morse-coded payload</text>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="300" y1="252" x2="350" y2="252" stroke="#e03131" stroke-width="3" marker-end="url(#arrow-red)" />
+
+  <!-- AI Agent Box -->
+  <rect x="365" y="195" width="240" height="115" rx="12" fill="#ffffff" stroke="#212529" stroke-width="2" />
+  <text x="485" y="235" font-size="16" font-weight="800" fill="#212529" text-anchor="middle">AI AGENT</text>
+  <text x="485" y="262" font-size="13" fill="#495057" text-anchor="middle">reads context —</text>
+  <text x="485" y="282" font-size="13" font-weight="700" fill="#212529" text-anchor="middle">text = commands</text>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="605" y1="252" x2="655" y2="252" stroke="#e03131" stroke-width="3" marker-end="url(#arrow-red)" />
+
+  <!-- Wallet Drained Box -->
+  <rect x="670" y="195" width="260" height="115" rx="12" fill="#ffe3e3" stroke="#e03131" stroke-width="2.5" />
+  <text x="800" y="240" font-size="18" font-weight="900" fill="#c92a2a" text-anchor="middle">WALLET DRAINED</text>
+  <text x="800" y="272" font-size="14" font-weight="600" fill="#e03131" text-anchor="middle">~$150K · one transaction</text>
+
+  <!-- ================= WITH GUARDIANAI ================= -->
+  <text x="60" y="375" font-size="18" font-weight="800" fill="#2b8a3e" letter-spacing="0.5">WITH GUARDIANAI</text>
+
+  <!-- Same Attack Box -->
+  <rect x="60" y="400" width="240" height="175" rx="12" fill="#fff5f5" stroke="#fa5252" stroke-width="2" />
+  <text x="180" y="465" font-size="17" font-weight="800" fill="#c92a2a" text-anchor="middle">SAME ATTACK</text>
+  <text x="180" y="495" font-size="14" fill="#e03131" text-anchor="middle">same payload,</text>
+  <text x="180" y="518" font-size="14" fill="#e03131" text-anchor="middle">same agent</text>
+
+  <!-- Green Arrow to Firewall -->
+  <line x1="300" y1="487" x2="350" y2="487" stroke="#2b8a3e" stroke-width="3.5" marker-end="url(#arrow-green)" />
+
+  <!-- GuardianAI Firewall Box -->
+  <rect x="365" y="385" width="270" height="205" rx="14" fill="#ebfbee" stroke="#2b8a3e" stroke-width="2.5" />
+  <text x="500" y="422" font-size="16" font-weight="900" fill="#2b8a3e" text-anchor="middle">GUARDIANAI FIREWALL</text>
+  
+  <text x="400" y="462" font-size="14.5" font-weight="700" fill="#212529">1 <tspan font-weight="500"> regex filter (&lt;1ms)</tspan></text>
+  <text x="400" y="494" font-size="14.5" font-weight="700" fill="#212529">2 <tspan font-weight="500"> semantic detection</tspan></text>
+  <text x="400" y="526" font-size="14.5" font-weight="700" fill="#212529">3 <tspan font-weight="500"> tool-abuse guard</tspan></text>
+  
+  <text x="500" y="562" font-size="12" fill="#495057" text-anchor="middle">(unlimited approvals · drains)</text>
+
+  <!-- Output 1: Attack HTTP 403 -->
+  <line x1="635" y1="450" x2="685" y2="435" stroke="#e03131" stroke-width="2.5" stroke-dasharray="4,4" marker-end="url(#arrow-red)" />
+  <rect x="700" y="395" width="240" height="85" rx="12" fill="#ffe3e3" stroke="#e03131" stroke-width="2" />
+  <text x="820" y="432" font-size="16" font-weight="800" fill="#c92a2a" text-anchor="middle">ATTACK → HTTP 403</text>
+  <text x="820" y="458" font-size="13" fill="#e03131" text-anchor="middle">blocked at the edge</text>
+
+  <!-- Output 2: Benign Passes -->
+  <line x1="635" y1="525" x2="685" y2="540" stroke="#2b8a3e" stroke-width="3" marker-end="url(#arrow-green)" />
+  <rect x="700" y="505" width="240" height="85" rx="12" fill="#d3f9d8" stroke="#2b8a3e" stroke-width="2" />
+  <text x="820" y="542" font-size="16" font-weight="800" fill="#2b8a3e" text-anchor="middle">BENIGN PASSES</text>
+  <text x="820" y="568" font-size="13" font-weight="600" fill="#2f9e44" text-anchor="middle">0.0% false positives</text>
+
+  <!-- Fail-closed note -->
+  <text x="500" y="640" font-size="15" font-style="italic" fill="#495057" text-anchor="middle">fail-closed: when unsure, block.</text>
+
+  <!-- Divider -->
+  <line x1="60" y1="695" x2="940" y2="695" stroke="#dee2e6" stroke-width="1.5" />
+
+  <!-- Benchmark stats -->
+  <text x="500" y="750" font-size="16.5" font-weight="600" fill="#495057" text-anchor="middle">
+    <tspan font-weight="800" fill="#212529">97.6%</tspan> strict-gate block rate (949/972)   ·   <tspan font-weight="800" fill="#212529">p95</tspan> under attack 41.88 ms
+  </text>
+
+  <!-- CTA -->
+  <text x="500" y="850" font-size="30" font-weight="800" fill="#212529" text-anchor="middle">One command. Run it yourself.</text>
+</svg>

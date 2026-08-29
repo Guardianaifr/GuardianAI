@@ -30,7 +30,7 @@ To prove GuardianAI isn't just "too strict", we ran it against the industry's ha
 **The Results** (definitive run, `artifacts/evidence/definitive_benchmark_v4.json`, 2026-08-08):
 * **97.6% security-gate block rate in strict mode** (949/972) across AdvBench, JailbreakBench, MaliciousInstruct and DAN prompt families; **90.7%** (882/972) in balanced mode.
 * **Grand-total block rates across every category: 76.6% strict / 58.5% balanced** — reported raw, because a firewall that only publishes its best subset isn't honest.
-* **0.0% false-positive rate** on benign traffic in the same run.
+* **11.2% false-positive rate** in balanced mode, **29.2% in strict** (68/233 and 26/233 across three public benign corpora; live proxy, fresh session per request) — published as measured, method in artifact.
 
 ---
 

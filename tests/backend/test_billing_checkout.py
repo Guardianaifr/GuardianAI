@@ -61,7 +61,7 @@ def test_public_site_and_plan_catalog(monkeypatch, tmp_path):
     assert body["billing_mode"] == "mock"
     assert list(body["plans"].keys()) == ["free", "starter", "pro", "enterprise"]
     assert body["plans"]["pro"]["name"] == "Pro Gateway"
-    assert body["plans"]["pro"]["amount_usd"] == 999
+    assert body["plans"]["pro"]["amount_usd"] == 299
     assert "card" in body["payment_methods"]
     assert "crypto" in body["payment_methods"]
 

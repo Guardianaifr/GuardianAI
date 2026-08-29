@@ -77,6 +77,6 @@ python -m pytest tests -q
 python guardianctl.py status
 ```
 
-Expected tests status: backend + unit suites: 171 passed (2026-08-25).
+Expected tests status: backend + unit suites: 172 passed (2026-08-25).
 
 

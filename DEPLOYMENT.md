@@ -51,7 +51,7 @@ python guardianctl.py start
 
 ## Current Validation Snapshot
 
-- Tests: backend + unit suites: 171 passed (2026-08-25)
+- Tests: backend + unit suites: 172 passed (2026-08-25)
 - Runtime standard: use Python 3.12 for full compatibility.
 
 ## Related Docs

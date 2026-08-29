@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections import defaultdict
 import time
+from guardian.brain.cyberops_intel import CompositeThreatScorer
 
 
 @dataclass
@@ -55,6 +56,9 @@ class BlueAdaptAgent:
             max_seconds=cooldown_max_seconds,
             multiplier=cooldown_multiplier,
         )
+        self._threat_scorer = CompositeThreatScorer()
+        self._geo_detector = GeoAnomalyDetector()
+        self._fingerprint = BehavioralFingerprint()
 
     def _risk_to_threat_score(self, risk_points: int) -> float:
         # Normalized risk score in [0,1].
@@ -63,7 +67,10 @@ class BlueAdaptAgent:
     def _session_key(self, session_id: str | None) -> str:
         return session_id or "unknown"
 
-    def observe_prompt(self, session_id: str, prompt: str, blocked: bool, intel_score: int = 0):
+    def observe_prompt(
+        self, session_id: str, prompt: str, blocked: bool, intel_score: int = 0,
+        geo_label: str = "", user_agent: str = "", lang: str = "", tz_offset: int = 0
+    ):
         session_id = self._session_key(session_id)
         now = time.time()
         self._maybe_cleanup(now)
@@ -75,6 +82,15 @@ class BlueAdaptAgent:
         # FEAT-BLUE-ADVANCED: bump risk score when session velocity is anomalous
         if self._velocity.record(session_id, ts=now):
             risk_delta += 1
+            
+        if geo_label and self._geo_detector.record(session_id, geo_label, ts=now):
+            risk_delta += 2
+            
+        fingerprint_mismatch = not self._fingerprint.check(session_id, user_agent, lang, tz_offset)
+        if fingerprint_mismatch:
+            risk_delta += 2
+        self._fingerprint.register(session_id, user_agent, lang, tz_offset)
+        
         self.session_risk[session_id] += risk_delta
         profile = self.profiles[session_id]
         if profile.first_seen_ts == 0.0:
@@ -84,13 +100,27 @@ class BlueAdaptAgent:
         if blocked:
             profile.blocked_count += 1
         profile.risk_points = self.session_risk[session_id]
-        profile.threat_score = self._risk_to_threat_score(profile.risk_points)
+        
+        signals = {
+            "keyword_score": min(1.0, intel_score / 10.0),
+            "velocity_anomaly": 1.0 if self._velocity.get_rps(session_id) > self._velocity.max_rps else 0.0,
+            "geo_anomaly": 1.0 if len(self._geo_detector.get_distinct_geos(session_id)) > self._geo_detector.max_hops else 0.0,
+            "fingerprint_mismatch": 1.0 if fingerprint_mismatch else 0.0,
+        }
+        profile.threat_score = max(self._risk_to_threat_score(profile.risk_points), self._threat_scorer.score(signals))
+        
         if self.should_revoke_session(session_id):
             self.revoked_sessions.add(session_id)
         self._enforce_capacity()
 
-    def analyze_request(self, session_id: str, prompt: str, blocked: bool, intel_score: int = 0) -> dict:
-        self.observe_prompt(session_id, prompt, blocked=blocked, intel_score=intel_score)
+    def analyze_request(
+        self, session_id: str, prompt: str, blocked: bool, intel_score: int = 0,
+        geo_label: str = "", user_agent: str = "", lang: str = "", tz_offset: int = 0
+    ) -> dict:
+        self.observe_prompt(
+            session_id, prompt, blocked=blocked, intel_score=intel_score,
+            geo_label=geo_label, user_agent=user_agent, lang=lang, tz_offset=tz_offset
+        )
         session_id = self._session_key(session_id)
         profile = self.profiles[session_id]
         return {

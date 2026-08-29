@@ -7,7 +7,7 @@ lifecycle on the GuardianAI platform:
 
   SCENE 1  PROVISION   SaaS control plane: admin session, agent API key,
                        security telemetry ingested, tamper-evident audit
-                       chain verified, compliance report generated.
+                       chain verified.
   SCENE 2  VET         Admission vetting: smart-contract static analysis,
                        full attack-vector scan of an unprotected chatbot,
                        SSRF-guard refusal proof, threat-intel screening.
@@ -329,20 +329,7 @@ def scene_provision(ctx):
         f"audit verify -> HTTP {r.status_code}: {str(body)[:160]}"
     ok(f"Tamper-evident audit chain verified intact ({body.get('entries', '?')} entries)")
 
-    r = client.get("/api/v1/public/plans")
-    plan_names = []
-    if r.status_code == 200:
-        plans = r.json()
-        if isinstance(plans, dict) and isinstance(plans.get("plans"), dict):
-            plans = list(plans["plans"].values())          # keyed by tier
-        elif isinstance(plans, dict) and isinstance(plans.get("plans"), list):
-            plans = plans["plans"]
-        if isinstance(plans, list):
-            plan_names = [p.get("name", p.get("tier", "?")) for p in plans
-                          if isinstance(p, dict)]
-    if plan_names:
-        ok(f"Public plan catalog live (mock billing mode): "
-           f"{', '.join(str(n) for n in plan_names[:4])}")
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════

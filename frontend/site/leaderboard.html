@@ -140,10 +140,11 @@
 
     async function loadScans(){
       try{
-        // Load from scan-jobs and audits endpoints
+        const token = localStorage.getItem('guardian_token');
+        const headers = token ? {'Authorization': `Bearer ${token}`} : {};
         const [jobsResp, auditsResp] = await Promise.all([
-          fetch('/api/v1/scan-jobs?limit=50').catch(()=>({ok:false})),
-          fetch('/api/v1/audits').catch(()=>({ok:false}))
+          fetch('/api/v1/leaderboard', {headers}).catch(()=>({ok:false})),
+          fetch('/api/v1/audits', {headers}).catch(()=>({ok:false}))
         ]);
 
         const scans = [];

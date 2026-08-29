@@ -1,4 +1,4 @@
-> **Note (2026-08-23):** commit hashes referenced below (including the "final commit" `265813c5`) are not present in the current repository history and could not be verified. The verifiable state is: 48 rule IDs implemented, ~30 AST-backed, 192 fixture cases passing under `--no-cov`.
+> **Note (2026-08-25):** commit hashes referenced below (including pre-filter-repo commit `265813c5` -> `a30b6362`) are from before a git filter-repo history rewrite. The verifiable state is: 52 registered rules (47 Solidity + 5 Vyper), ~30 AST-backed, 192 fixture cases (+2 diagnostic) passing under `--no-cov`.
 
 # Smart Contract Static Analyzer — Gap Documentation & Fix Spec
 

@@ -251,7 +251,7 @@ Note: backend analytics differential-privacy controls are environment-driven (`G
 
 ### A) Full test status
 
-- Latest recorded runs: backend + unit suites 171 passed (2026-08-25); earlier full-suite snapshot `241 passed` (2026-08-22 session) kept for history
+- Latest recorded runs: backend + unit suites 172 passed (2026-08-25); earlier full-suite snapshot `241 passed` (2026-08-22 session) kept for history
 - Standalone adversarial chaos E2E verification: `1 passed`
 
 Interpretation: full suite is green; intermittent chaos contention remains a known historical risk under resource pressure, but was stable in this run.
@@ -264,17 +264,17 @@ Baseline safe load:
 
 - Requests: 120
 - Concurrency: 20
-- Throughput: 67.78 rps
+- Throughput: 95.68 rps
 - Status: 200 for all requests
-- Latency p95: 587.83 ms
+- Latency p95: 249.04 ms
 
 Attack block load:
 
 - Requests: 120
 - Concurrency: 20
-- Throughput: 223.20 rps
+- Throughput: 494.01 rps
 - Status: 403 for all requests (100% block rate)
-- Latency p95: 96.44 ms
+- Latency p95: 41.88 ms
 
 Chaos behavior:
 

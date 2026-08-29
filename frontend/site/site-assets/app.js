@@ -60,9 +60,12 @@ async function startCheckout(plan, paymentMethod) {
     plan,
     payment_method: paymentMethod,
   };
+  const headers = { "Content-Type": "application/json" };
+  const token = localStorage.getItem("guardian_token");
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const r = await fetch("/api/v1/billing/checkout", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers,
     body: JSON.stringify(payload),
   });
   const out = await r.json();

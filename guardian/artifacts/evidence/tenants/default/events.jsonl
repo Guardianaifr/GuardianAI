@@ -11,3 +11,4 @@
 {"tenant_id":"default","event_type":"unauthorized_access","severity":"MEDIUM","timestamp":1784049432.2154021,"details":{"path":"v1/chat/completions","ip":"unknown","latency_ms":"0.00ms","reason":"Missing or invalid X-Guardian-Token"}}
 {"tenant_id":"default","event_type":"unauthorized_access","severity":"MEDIUM","timestamp":1784050444.6046016,"details":{"path":"v1/chat/completions","ip":"unknown","latency_ms":"0.00ms","reason":"Missing or invalid X-Guardian-Token"}}
 {"tenant_id":"default","event_type":"unauthorized_access","severity":"MEDIUM","timestamp":1784210637.9387362,"details":{"path":"v1/chat/completions","ip":"unknown","latency_ms":"0.17ms","reason":"Missing or invalid X-Guardian-Token"}}
+{"tenant_id":"default","event_type":"unauthorized_access","severity":"MEDIUM","timestamp":1787769462.6044526,"details":{"path":"","ip":"127.0.0.1","latency_ms":"1.00ms","reason":"Missing or invalid X-Guardian-Token"}}

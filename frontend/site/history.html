@@ -612,6 +612,8 @@
           // already array
         } else if (globalScans.history) {
           globalScans = globalScans.history;
+        } else if (globalScans.scans) {
+          globalScans = globalScans.scans;
         } else {
           globalScans = [];
         }

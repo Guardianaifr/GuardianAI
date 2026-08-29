@@ -263,24 +263,24 @@ All six on-chain EVM contracts (Features 33–38) underwent their first dedicate
 
 | ID | Contract | Severity | Finding | Status | Commit |
 |---|---|---|---|---|---|
-| TF-1 | ThreatFeedRegistry | HIGH | AccessControl/role bypass — deployer EOA retains write access post-ownership-transfer | FIXED | `2a08fcda` |
-| TF-2 | ThreatFeedRegistry | MEDIUM | O(n) linear scan in removeAddress/removeStringAddress | FIXED | `55c3cd31` |
-| TF-3 | ThreatFeedRegistry | MEDIUM | No hard cap on evmAddresses/stringAddresses array cumulative size | FIXED | `55c3cd31` |
-| TF-4 | ThreatFeedRegistry | LOW | pause/unpause onlyOwner while writes were onlyRole — asymmetric access | RESOLVED BY TF-1 | `2a08fcda` |
-| RA-1 | RiskAttestation | MEDIUM | Missing Pausable (only contract of 5 with no emergency stop) | FIXED | `b41674fd` |
+| TF-1 | ThreatFeedRegistry | HIGH | AccessControl/role bypass — deployer EOA retains write access post-ownership-transfer | FIXED | `cdf52b3f` |
+| TF-2 | ThreatFeedRegistry | MEDIUM | O(n) linear scan in removeAddress/removeStringAddress | FIXED | `c36d9e50` |
+| TF-3 | ThreatFeedRegistry | MEDIUM | No hard cap on evmAddresses/stringAddresses array cumulative size | FIXED | `c36d9e50` |
+| TF-4 | ThreatFeedRegistry | LOW | pause/unpause onlyOwner while writes were onlyRole — asymmetric access | RESOLVED BY TF-1 | `cdf52b3f` |
+| RA-1 | RiskAttestation | MEDIUM | Missing Pausable (only contract of 5 with no emergency stop) | FIXED | `798218ed` |
 | RA-2 | RiskAttestation | LOW | No ReentrancyGuard on attest() | ACKNOWLEDGED / NOT FIXED — attest() has no external calls; vector does not exist | — |
-| RA-3 | RiskAttestation | MEDIUM | No grade allowlist — arbitrary string accepted | FIXED | `b41674fd` |
-| RA-4 | RiskAttestation | LOW | Silent attestation overwrite — no event distinction | FIXED | `b41674fd` |
-| IR-2 | InterlockRegistry | LOW | No revoke/update mechanism — bad registration is permanent | FIXED (soft-revoke) | `40df11cc` |
-| IL-1 | InsuranceLedger | LOW | Misleading error: CertificateNotFound used for zero _certId input guard | FIXED | `75056309` |
-| IL-2 | InsuranceLedger | LOW | Check ordering: cap check before input validation allows info leak via error type | FIXED | `75056309` |
-| IL-3 | InsuranceLedger | INFO | certificateIds unbounded array, no pagination for off-chain readers | FIXED | `75056309` |
-| CA-1 | CortexAnchor | INFO | getAgentCommitments() O(n) unbounded read | DOCUMENTED (no code change — caller-borne view cost, zero on-chain callers) | `75056309` |
-| CA-2 | CortexAnchor | INFO | verifyInclusion() O(n) proof array | DOCUMENTED (no code change — pure function, zero on-chain callers) | `75056309` |
+| RA-3 | RiskAttestation | MEDIUM | No grade allowlist — arbitrary string accepted | FIXED | `798218ed` |
+| RA-4 | RiskAttestation | LOW | Silent attestation overwrite — no event distinction | FIXED | `798218ed` |
+| IR-2 | InterlockRegistry | LOW | No revoke/update mechanism — bad registration is permanent | FIXED (soft-revoke) | `9f8bbfbb` |
+| IL-1 | InsuranceLedger | LOW | Misleading error: CertificateNotFound used for zero _certId input guard | FIXED | `b24883e9` |
+| IL-2 | InsuranceLedger | LOW | Check ordering: cap check before input validation allows info leak via error type | FIXED | `b24883e9` |
+| IL-3 | InsuranceLedger | INFO | certificateIds unbounded array, no pagination for off-chain readers | FIXED | `b24883e9` |
+| CA-1 | CortexAnchor | INFO | getAgentCommitments() O(n) unbounded read | DOCUMENTED (no code change — caller-borne view cost, zero on-chain callers) | `b24883e9` |
+| CA-2 | CortexAnchor | INFO | verifyInclusion() O(n) proof array | DOCUMENTED (no code change — pure function, zero on-chain callers) | `b24883e9` |
 | naming-conv | All 5 contracts | INFO | Slither naming-convention: underscore-prefix params | ACKNOWLEDGED / NOT FIXED — consistent style, ABI-breaking to rename, zero security impact | — |
-| PassportSBT | PassportSBT | (hardening) | ReentrancyGuard belt-and-suspenders on mint() | ADDED | `f0a08160` |
+| PassportSBT | PassportSBT | (hardening) | ReentrancyGuard belt-and-suspenders on mint() | ADDED | `dd33270a` |
 
-**Hardhat suite:** 147/147 passing (was 97/97 pre-audit), 50 net new tests, 0 regressions.
+**Hardhat suite:** 159/159 passing across 10 contract suites, 0 regressions.
 
 ---
 
@@ -500,16 +500,16 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 
 | Metric | Old (fabricated) | New (real source) | Source file |
 |---|---|---|---|
-| HarmBench block rate | 97.0% | 72.5% strict / 57.8% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
-| AdvBench block rate | 94.0% | 99.0% strict / 95.4% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
-| Security-gate Tier 1+2 | (not in table) | 97.1% strict / 90.6% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
-| Grand total 8 datasets | (not in table) | 76.2% strict / 58.2% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
+| HarmBench block rate | 97.0% | 72.8% strict / 57.8% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
+| AdvBench block rate | 94.0% | 99.0% strict / 95.6% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
+| Security-gate Tier 1+2 | (not in table) | 97.6% strict / 90.7% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
+| Grand total 8 datasets | (not in table) | 76.6% strict / 58.5% balanced | `definitive_benchmark_v4.json` (2026-08-08) |
 | GAIA alignment | 86.0% | *removed — no real source* | (none found in repo) |
 | Composite benchmark | 93.6% | *removed — derived from fabricated inputs* | (none found in repo) |
 | Zero-day block rate | 98.4% | *removed — no source file found* | (none found in repo) |
-| Throughput (safe load) | 67.78 rps | **95.68 rps** | `perf_chaos_report.json` (2026-08-08) |
-| Block throughput | 223.20 rps | **494.01 rps** | `perf_chaos_report.json` (2026-08-08) |
-| Attack latency p95 | 96.44 ms | **41.88 ms** | `perf_chaos_report.json` (2026-08-08) |
+| Throughput (safe load) | 67.78 rps | **95.68 rps** | `perf_chaos_report.json` (April 2026) |
+| Block throughput | 223.20 rps | **494.01 rps** | `perf_chaos_report.json` (April 2026) |
+| Attack latency p95 | 96.44 ms | **41.88 ms** | `perf_chaos_report.json` (April 2026) |
 
 **Files changed:**
 - `WHITEPAPER.md` — Section 6 table + added Section 6.2 correction note

@@ -87,10 +87,14 @@
       btn.disabled = true;
 
       try {
+        const token = localStorage.getItem('guardian_token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         if (urlParams.get('mode') === 'mock') {
           await fetch('/api/v1/billing/confirm', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({
               order_id: orderId,
               machine_id: machineId,
@@ -102,7 +106,7 @@
 
         const resp = await fetch('/api/v1/licenses/issue', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: headers,
           body: JSON.stringify({
             order_id: orderId,
             machine_id: machineId

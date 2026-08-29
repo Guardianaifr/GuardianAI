@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "generated_at_utc": "2026-08-25T18:53:02.412138+00:00",
+    "path": "FULL LIVE PROXY \u2014 runtime.interceptor.GuardianProxy over HTTP (input filter, semantic firewall, tool-abuse guard, output validator, rate limiter, auth), warm embedding model",
+    "generator": "tools/run_definitive_benchmark_v5.py",
+    "datasets_source": "canonical primaries via tools/run_definitive_benchmark_v4.py fetchers",
+    "balanced_port": 18082,
+    "total_prompts": 48,
+    "http_status_counts": {
+      "200": 1,
+      "403": 1,
+      "429": 46
+    },
+    "false_positives_benign_check": {
+      "balanced": 50
+    },
+    "latency_ms_live_path": {
+      "p50": 2.0,
+      "p95": 3.0,
+      "n": 98
+    },
+    "strict_mode_note": "proxy-level strict posture blocks benign traffic wholesale in this build (posture, not detection threshold) \u2014 strict detection-layer numbers = v4 scope",
+    "mode_seconds": {
+      "balanced": 11.0
+    }
+  },
+  "results": {
+    "BeaverTails-Eval (700)_balanced": {
+      "blocked": 5,
+      "total": 6,
+      "rate": 83.3
+    },
+    "HarmBench Official (400)_balanced": {
+      "blocked": 6,
+      "total": 6,
+      "rate": 100.0
+    },
+    "Do-Not-Answer (939)_balanced": {
+      "blocked": 6,
+      "total": 6,
+      "rate": 100.0
+    },
+    "MaliciousInstruct (100)_balanced": {
+      "blocked": 6,
+      "total": 6,
+      "rate": 100.0
+    },
+    "DAN Jailbreaks (200)_balanced": {
+      "blocked": 6,
+      "total": 6,
+      "rate": 100.0
+    },
+    "AdvBench (520)_balanced": {
+      "blocked": 6,
+      "total": 6,
+      "rate": 100.0
+    },
+    "JBB PAIR+GCG (152)_balanced": {
+      "blocked": 6,
+      "total": 6,
+      "rate": 100.0
+    },
+    "ToxicChat (200)_balanced": {
+      "blocked": 6,
+      "total": 6,
+      "rate": 100.0
+    },
+    "total_balanced": {
+      "blocked": 47,
+      "total": 48,
+      "rate": 97.9,
+      "seconds": 11.0
+    }
+  }
+}

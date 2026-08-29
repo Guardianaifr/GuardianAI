@@ -5,8 +5,8 @@ from __future__ import annotations
 import collections
 import hashlib
 import time
+import asyncio
 from typing import Any
-
 
 DEFAULT_TEMPLATES = [
     "Request accepted. Processing under elevated audit mode.",
@@ -31,6 +31,12 @@ class HoneypotManager:
         self._timestamps: dict[str, collections.deque[float]] = {}
         self._last_response_at: dict[str, float] = {}
         self._template_index: dict[str, int] = {}
+        self.inject_canary = bool(cfg.get("inject_canary", False))
+        self.inject_decoys = bool(cfg.get("inject_decoys", False))
+        self.enable_delay = bool(cfg.get("enable_delay", False))
+        self._canary_manager = CanaryTokenManager()
+        self._delay_simulator = AdaptiveDelaySimulator()
+        self._credential_rotator = DecoyCredentialRotator()
 
     def _prune(self, session_id: str, now: float):
         dq = self._timestamps.setdefault(session_id, collections.deque())
@@ -54,9 +60,27 @@ class HoneypotManager:
         idx = self._template_index.get(session_id, 0) % len(self.templates)
         self._template_index[session_id] = idx + 1
         message = self.templates[idx]
+        
+        decoy_cred = self._credential_rotator.next_credential(session_id)
+        canary = self._canary_manager.generate(session_id, path)
+        
+        if "{canary}" in message:
+            message = message.replace("{canary}", canary)
+        elif self.inject_canary:
+            message = f"{message}\nCorrelation ID: {canary}"
 
-        dq.append(now)
-        self._last_response_at[session_id] = now
+        if "{credential}" in message or "{token}" in message:
+            message = message.replace("{credential}", decoy_cred).replace("{token}", decoy_cred)
+        elif self.inject_decoys:
+            message = f"{message}\nDecoy Token: {decoy_cred}"
+        
+        if self.enable_delay:
+            delay_ms = self._delay_simulator.compute_delay_ms(session_id)
+            if delay_ms > 0:
+                time.sleep(delay_ms / 1000.0)
+
+        dq.append(time.time())
+        self._last_response_at[session_id] = time.time()
 
         nonce = hashlib.sha256(f"{session_id}:{now}:{path}".encode("utf-8")).hexdigest()[:12]
         return {
@@ -70,8 +94,11 @@ class HoneypotManager:
                 }
             ],
             "session_id": session_id,
-            "deception": {"mode": "honeypot", "path": path, "nonce": nonce},
+            "deception": {"mode": "honeypot", "path": path, "nonce": nonce, "canary": canary, "credential": decoy_cred},
         }
+
+    def check_inbound_exfiltration(self, text: str) -> list[str]:
+        return self._canary_manager.check_triggered(text)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

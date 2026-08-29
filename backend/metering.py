@@ -269,16 +269,21 @@ class UsageMeter:
         token_exceeded = token_limit > 0 and current_tokens > token_limit
 
         if request_exceeded or token_exceeded:
-            reason = "request_limit_exceeded" if request_exceeded else "token_limit_exceeded"
-            usage_pct = (current_requests / request_limit * 100) if request_limit > 0 else 0
-            return MeteringDecision(
-                allowed=False,
-                reason=reason,
-                remaining_requests=max(0, request_limit - current_requests) if request_limit > 0 else 999999,
-                remaining_tokens=max(0, token_limit - current_tokens) if token_limit > 0 else 999999,
-                tier=tier_name,
-                usage_pct=min(100.0, usage_pct),
-            )
+            import os
+            # Beta: pricing enforcement disabled when GUARDIAN_BETA_MODE=true.
+            if os.getenv('GUARDIAN_BETA_MODE', 'false').lower() in ('true', '1'):
+                pass
+            else:
+                reason = "request_limit_exceeded" if request_exceeded else "token_limit_exceeded"
+                usage_pct = (current_requests / request_limit * 100) if request_limit > 0 else 0
+                return MeteringDecision(
+                    allowed=False,
+                    reason=reason,
+                    remaining_requests=max(0, request_limit - current_requests) if request_limit > 0 else 999999,
+                    remaining_tokens=max(0, token_limit - current_tokens) if token_limit > 0 else 999999,
+                    tier=tier_name,
+                    usage_pct=min(100.0, usage_pct),
+                )
 
         remaining_req = (request_limit - current_requests) if request_limit > 0 else 999999
         remaining_tok = (token_limit - current_tokens) if token_limit > 0 else 999999

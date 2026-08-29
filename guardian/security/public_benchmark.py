@@ -6,6 +6,9 @@ Supports normalization for:
 - GAIA-style task-success metrics
 """
 
+# DEPRECATED: This module is not called at runtime. The canonical benchmark
+# runner is tools/run_definitive_benchmark_v4.py. Retained for reference only.
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -793,35 +793,35 @@
           <span class="status-dot"></span>
           <span style="font-size:0.8rem;color:var(--text-dim)">Live</span>
           <span class="user-badge" id="userBadge">admin</span>
-          <button onclick="doLogout()" style="background:none;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:0.8rem">Logout</button>
+          <button id="logoutBtn" style="background:none;border:1px solid var(--border);color:var(--text-dim);padding:4px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:0.8rem">Logout</button>
         </div>
       </div>
     </header>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="mainSidebar">
       <div class="nav-section">
         <h4>Monitor</h4>
-        <div class="nav-item active" onclick="showPage('overview')"><span class="icon">📊</span>Overview</div>
-        <div class="nav-item" onclick="showPage('events')"><span class="icon">🔔</span>Events<span class="badge" id="eventCount">0</span></div>
-        <div class="nav-item" onclick="showPage('threats')"><span class="icon">⚠️</span>Threat Map</div>
-        <div class="nav-item" onclick="showIframePage('history', 'history.html')"><span class="icon">📈</span>Regression Tracker</div>
-        <div class="nav-item" onclick="showIframePage('audit-scanner', 'audit.html')"><span class="icon">🔍</span>Audit Scanner</div>
+        <div class="nav-item active" data-page="overview"><span class="icon">📊</span>Overview</div>
+        <div class="nav-item" data-page="events"><span class="icon">🔔</span>Events<span class="badge" id="eventCount">0</span></div>
+        <div class="nav-item" data-page="threats"><span class="icon">⚠️</span>Threat Map</div>
+        <div class="nav-item" data-page="history" data-iframe="history.html"><span class="icon">📈</span>Regression Tracker</div>
+        <div class="nav-item" data-page="audit-scanner" data-iframe="audit.html"><span class="icon">🔍</span>Audit Scanner</div>
       </div>
       <div class="nav-section">
         <h4>Manage</h4>
-        <div class="nav-item" onclick="showIframePage('passport', 'passport.html')"><span class="icon">🪪</span>Agent Passport<span class="badge" style="background:var(--emerald)">NEW</span></div>
-        <div class="nav-item" onclick="showIframePage('cortex', 'cortex.html')"><span class="icon">🧠</span>Agent Cortex<span class="badge">BETA</span></div>
-        <div class="nav-item" onclick="showPage('users')"><span class="icon">👥</span>Tenants &amp; RBAC</div>
-        <div class="nav-item" onclick="showPage('compliance')"><span class="icon">📋</span>Compliance (EU Act)</div>
-        <div class="nav-item" onclick="showPage('policies')"><span class="icon">🛡️</span>Firewall Rules</div>
+        <div class="nav-item" data-page="passport" data-iframe="passport.html"><span class="icon">🪪</span>Agent Passport<span class="badge" style="background:var(--emerald)">NEW</span></div>
+        <div class="nav-item" data-page="cortex" data-iframe="cortex.html"><span class="icon">🧠</span>Agent Cortex<span class="badge">BETA</span></div>
+        <div class="nav-item" data-page="users"><span class="icon">👥</span>Tenants &amp; RBAC</div>
+        <div class="nav-item" data-page="compliance"><span class="icon">📋</span>Compliance (EU Act)</div>
+        <div class="nav-item" data-page="policies"><span class="icon">🛡️</span>Firewall Rules</div>
       </div>
       <div class="nav-section">
         <h4>System</h4>
-        <div class="nav-item" onclick="showPage('settings')"><span class="icon">⚙️</span>Settings</div>
-        <div class="nav-item" onclick="showPage('audit')"><span class="icon">📄</span>Immutable Audit Log</div>
-        <div class="nav-item" onclick="showPage('security-audits')"><span class="icon">🛡️</span>Security Audits</div>
-        <div class="nav-item" onclick="showPage('deception')"><span class="icon">🕸️</span>Honeypots &amp; Decoys</div>
-        <div class="nav-item" onclick="showIframePage('docs', 'docs.html')"><span class="icon">📚</span>Documentation</div>
+        <div class="nav-item" data-page="settings"><span class="icon">⚙️</span>Settings</div>
+        <div class="nav-item" data-page="audit"><span class="icon">📄</span>Immutable Audit Log</div>
+        <div class="nav-item" data-page="security-audits"><span class="icon">🛡️</span>Security Audits</div>
+        <div class="nav-item" data-page="deception"><span class="icon">🕸️</span>Honeypots &amp; Decoys</div>
+        <div class="nav-item" data-page="docs" data-iframe="docs.html"><span class="icon">📚</span>Documentation</div>
       </div>
     </aside>
 
@@ -1003,8 +1003,7 @@
       try {
         const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({username: user, password: pass}),
+          headers: {'Authorization': 'Basic ' + btoa(user + ':' + pass)},
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -1025,12 +1024,6 @@
     }
 
     function doLogout() {
-      if (accessToken) {
-        fetch(`${API_BASE}/api/v1/auth/logout`, {
-          method: 'POST',
-          headers: {'Authorization': `Bearer ${accessToken}`},
-        }).catch(() => {});
-      }
       accessToken = null;
       currentUser = null;
       localStorage.removeItem('guardian_token');
@@ -1080,12 +1073,8 @@
 
     async function loadAnalytics() {
       try {
-        const basicAuth = btoa(`${currentUser.username}:${document.getElementById('login-pass')?.value || 'guardian_default'}`);
-        const res = await fetch(`${API_BASE}/api/v1/analytics`, {
-          headers: {'Authorization': `Basic ${basicAuth}`},
-        });
-        if (!res.ok) return;
-        const d = await res.json();
+        const d = await apiFetch('/api/v1/analytics');
+        if (!d || Object.keys(d).length === 0) return;
         globalAnalytics = d;
         resetStatsView();
 
@@ -1161,11 +1150,20 @@
               <div style="font-size:0.85rem;color:var(--text-dim);margin-top:6px;">Score: <strong style="color:${color};">${a.score.toFixed(1)}/100 (${a.grade})</strong></div>
             </div>
             <div>
-              <img src="${API_BASE}/api/v1/audits/${a.id}/svg" alt="GuardianAI Badge" style="height:40px;"/>
+              <img id="idx-badge-${a.id}" alt="GuardianAI Badge" style="height:40px;"/>
             </div>
           </div>`;
         }
         container.innerHTML = html;
+        for(let a of data.audits) {
+          fetch(`${API_BASE}/api/v1/audits/${a.id}/svg`, {
+            headers: accessToken ? {'Authorization': `Bearer ${accessToken}`} : {}
+          })
+          .then(r => r.blob())
+          .then(blob => {
+            document.getElementById(`idx-badge-${a.id}`).src = URL.createObjectURL(blob);
+          }).catch(e => console.error(e));
+        }
       } catch(err) {
         console.error("Failed to load security audits", err);
       }
@@ -1173,12 +1171,8 @@
 
     async function loadEvents() {
       try {
-        const basicAuth = btoa(`${currentUser.username}:${document.getElementById('login-pass')?.value || 'guardian_default'}`);
-        const res = await fetch(`${API_BASE}/api/v1/export/json`, {
-          headers: {'Authorization': `Basic ${basicAuth}`},
-        });
-        if (!res.ok) return;
-        allEvents = await res.json();
+        allEvents = await apiFetch('/api/v1/export/json');
+        if (!allEvents || allEvents.length === undefined) return;
         renderEvents(allEvents.slice(0, 20));
         document.getElementById('eventCount').textContent = allEvents.length;
       } catch(e) {
@@ -1287,7 +1281,10 @@
       if (!accessToken) return;
       const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
       try {
-        wsConnection = new WebSocket(`${wsProto}://${location.host}/ws/threats?token=${accessToken}`);
+        wsConnection = new WebSocket(`${wsProto}://${location.host}/ws/threats`);
+        wsConnection.onopen = function() {
+          wsConnection.send(JSON.stringify({token: localStorage.getItem('guardian_token')}));
+        };
         wsConnection.onmessage = (evt) => {
           try {
             const msg = JSON.parse(evt.data);
@@ -1315,7 +1312,7 @@
       document.querySelectorAll('#dashApp .nav-item').forEach(el => el.classList.remove('active'));
       const pageEl = document.getElementById(`page-${pageId}`);
       if(pageEl) pageEl.style.display = 'block';
-      const navItem = Array.from(document.querySelectorAll('#dashApp .nav-item')).find(el => el.getAttribute('onclick') === `showPage('${pageId}')`);
+      const navItem = Array.from(document.querySelectorAll('#dashApp .nav-item')).find(el => el.dataset.page === pageId);
       if(navItem) navItem.classList.add('active');
 
       if (pageId === 'security-audits') loadSecurityAudits();
@@ -1331,10 +1328,7 @@
       document.querySelectorAll('#dashApp .main > div').forEach(el => el.style.display = 'none');
       document.querySelectorAll('#dashApp .nav-item').forEach(el => el.classList.remove('active'));
 
-      const navItem = Array.from(document.querySelectorAll('#dashApp .nav-item')).find(el => {
-        const attr = el.getAttribute('onclick');
-        return attr && attr.includes(`'${pageId}'`);
-      });
+      const navItem = Array.from(document.querySelectorAll('#dashApp .nav-item')).find(el => el.dataset.page === pageId);
       if(navItem) navItem.classList.add('active');
 
       let container = document.getElementById(`page-${pageId}`);
@@ -1492,6 +1486,17 @@
       }
       document.getElementById('login-pass').addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+      });
+
+      document.getElementById('logoutBtn').addEventListener('click', doLogout);
+      document.querySelectorAll('#mainSidebar .nav-item').forEach(el => {
+        el.addEventListener('click', () => {
+          if (el.dataset.iframe) {
+            showIframePage(el.dataset.page, el.dataset.iframe);
+          } else if (el.dataset.page) {
+            showPage(el.dataset.page);
+          }
+        });
       });
     })();
   </script>

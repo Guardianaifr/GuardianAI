@@ -156,6 +156,11 @@ jobs:
           EOF
 
       # -----------------------------------------------------------------------
+      - name: Minimum score gate (fail if below targets)
+        run: |
+          python tools/run_public_benchmark_alignment.py --input artifacts/evidence/latest_benchmark.json
+
+      # -----------------------------------------------------------------------
       - name: Update whitepapers
         run: |
           python tools/update_whitepaper_from_benchmark.py

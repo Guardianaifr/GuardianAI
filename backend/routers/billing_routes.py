@@ -41,13 +41,13 @@ async def public_plans():
             "starter": {
                 "name": "Starter",
                 "description": "Deep scans, CI reports, SARIF export, and signed evidence badges.",
-                "amount_usd": 299,
+                "amount_usd": 49,
                 "billing_cycle": "monthly",
             },
             "pro": {
                 "name": "Pro Gateway",
                 "description": "Runtime prompt, output, wallet-action, and tool-call guardrails.",
-                "amount_usd": 999,
+                "amount_usd": 299,
                 "billing_cycle": "monthly",
             },
             "enterprise": {

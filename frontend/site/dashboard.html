@@ -356,8 +356,7 @@ async function doLogin() {
   try {
     const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: user, password: pass}),
+      headers: {'Authorization': 'Basic ' + btoa(user + ':' + pass)},
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -378,12 +377,6 @@ async function doLogin() {
 }
 
 function doLogout() {
-  if (accessToken) {
-    fetch(`${API_BASE}/api/v1/auth/logout`, {
-      method: 'POST',
-      headers: {'Authorization': `Bearer ${accessToken}`},
-    }).catch(() => {});
-  }
   accessToken = null;
   currentUser = null;
   localStorage.removeItem('guardian_token');
@@ -413,12 +406,8 @@ async function apiFetch(path) {
 
 async function loadAnalytics() {
   try {
-    const basicAuth = btoa(`${currentUser.username}:${document.getElementById('login-pass')?.value || 'admin'}`);
-    const res = await fetch(`${API_BASE}/api/v1/analytics`, {
-      headers: {'Authorization': `Basic ${basicAuth}`},
-    });
-    if (!res.ok) return;
-    const d = await res.json();
+    const d = await apiFetch('/api/v1/analytics');
+    if (!d || Object.keys(d).length === 0) return;
     globalAnalytics = d;
     resetStatsView();
 
@@ -494,11 +483,20 @@ async function loadSecurityAudits() {
           <div style="font-size:0.85rem;color:var(--text2);margin-top:6px;">Score: <strong style="color:${color};">${a.score.toFixed(1)}/100 (${a.grade})</strong></div>
         </div>
         <div>
-          <img src="${API_BASE}/api/v1/audits/${a.id}/svg" alt="GuardianAI Badge" style="height:40px;"/>
+          <img id="dash-badge-${a.id}" alt="GuardianAI Badge" style="height:40px;"/>
         </div>
       </div>`;
     }
     container.innerHTML = html;
+    for(let a of data.audits) {
+      fetch(`${API_BASE}/api/v1/audits/${a.id}/svg`, {
+        headers: accessToken ? {'Authorization': `Bearer ${accessToken}`} : {}
+      })
+      .then(r => r.blob())
+      .then(blob => {
+        document.getElementById(`dash-badge-${a.id}`).src = URL.createObjectURL(blob);
+      }).catch(e => console.error(e));
+    }
   } catch(err) {
     console.error("Failed to load security audits", err);
   }
@@ -506,12 +504,8 @@ async function loadSecurityAudits() {
 
 async function loadEvents() {
   try {
-    const basicAuth = btoa(`${currentUser.username}:${document.getElementById('login-pass')?.value || 'admin'}`);
-    const res = await fetch(`${API_BASE}/api/v1/export/json`, {
-      headers: {'Authorization': `Basic ${basicAuth}`},
-    });
-    if (!res.ok) return;
-    allEvents = await res.json();
+    allEvents = await apiFetch('/api/v1/export/json');
+    if (!allEvents || allEvents.length === undefined) return;
     renderEvents(allEvents.slice(0, 20));
     document.getElementById('eventCount').textContent = allEvents.length;
   } catch(e) {
@@ -583,6 +577,9 @@ function connectWebSocket() {
   const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
   try {
     wsConnection = new WebSocket(`${wsProto}://${location.host}/ws/threats`);
+    wsConnection.onopen = function() {
+      wsConnection.send(JSON.stringify({token: localStorage.getItem('guardian_token')}));
+    };
     wsConnection.onmessage = (evt) => {
       try {
         const msg = JSON.parse(evt.data);

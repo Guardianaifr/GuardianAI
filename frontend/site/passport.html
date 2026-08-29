@@ -398,8 +398,7 @@ async function doLogin() {
   try {
     const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username: user, password: pass}),
+      headers: {'Authorization': 'Basic ' + btoa(user + ':' + pass)},
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

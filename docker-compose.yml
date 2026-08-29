@@ -1,0 +1,74 @@
+# GuardianAI Docker Compose — Development & Staging
+# For production, see DEPLOYMENT.md and PRODUCTION_LAUNCH_RUNBOOK.md
+#
+# Usage:
+#   cp .env.example .env   # then fill in required values
+#   docker compose up -d
+#   docker compose ps
+#   docker compose logs -f guardian
+
+services:
+  # ── Redis (rate limiting & caching) ─────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── GuardianAI Backend (Proxy + Dashboard API) ─────────────────────────────
+  guardian:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - GUARDIAN_RATE_LIMIT_BACKEND=redis
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      - GUARDIAN_PROXY_HOST=0.0.0.0
+      - GUARDIAN_PROXY_PORT=8081
+      - GUARDIAN_BACKEND_PORT=8001
+      - GUARDIAN_BETA_MODE=${GUARDIAN_BETA_MODE:-true}
+    ports:
+      - "${GUARDIAN_PROXY_PORT:-8081}:8081"    # Security proxy
+      - "${GUARDIAN_BACKEND_PORT:-8001}:8001"  # Dashboard API
+    volumes:
+      - guardian-data:/app/data
+      - guardian-artifacts:/app/artifacts
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # ── Frontend (static marketing site via nginx) ─────────────────────────────
+  frontend:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    volumes:
+      - ./website:/usr/share/nginx/html:ro
+    depends_on:
+      - guardian
+
+volumes:
+  redis-data:
+  guardian-data:
+  guardian-artifacts:

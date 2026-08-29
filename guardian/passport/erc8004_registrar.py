@@ -349,6 +349,9 @@ class ERC8004Registrar:
         # Serializes send+update within this process; cross-process safety
         # comes from the conditional-claim UPDATE in process_pending().
         self._send_lock = threading.Lock()
+        
+        if is_enabled() and int(_env("GUARDIAN_ERC8004_DAILY_BUDGET_WEI", "0")) == 0:
+            logger.warning("ERC-8004 enabled with zero daily budget — no spend cap enforced. Set GUARDIAN_ERC8004_DAILY_BUDGET_WEI to limit gas spend.")
 
     # -- injectable factories ------------------------------------------------
 

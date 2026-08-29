@@ -41,7 +41,6 @@ class Chain(Enum):
     BSC        = "bsc"
     MONAD      = "monad"
     AVALANCHE  = "avalanche"
-    SOLANA     = "solana"
     UNKNOWN    = "unknown"
 
 
@@ -1158,8 +1157,6 @@ def detect_chain_from_address(address: str) -> Chain:
     """Best-guess chain from address format."""
     if address.startswith("0x") and len(address) == 42:
         return Chain.ETHEREUM  # EVM compatible; caller should specify
-    if len(address) in (43, 44) and not address.startswith("0x"):
-        return Chain.SOLANA
     return Chain.UNKNOWN
 
 
@@ -1287,8 +1284,6 @@ class SmartContractAnalyzer:
             "avalanche": {"id": 43114, "legacy_api": "https://api.snowtrace.io/api"},
             # Monad target for launch readiness (EVM path may vary by environment)
             "monad": {"id": 10143, "legacy_api": "https://api.monadscan.com/api"},
-            "solana": {"id": None, "non_evm": True},
-            "sol": {"id": None, "non_evm": True},
         }
 
         chain_key = (chain or "").strip().lower()
@@ -1299,11 +1294,6 @@ class SmartContractAnalyzer:
                 chain_info = {"id": chain_id}
             except Exception as exc:
                 raise ValueError(f"Unsupported chain: {chain}") from exc
-
-        if chain_info.get("non_evm"):
-            raise ValueError(
-                f"Chain '{chain}' is non-EVM. from_onchain currently supports EVM chains only."
-            )
 
         chain_id = chain_info.get("id")
         address = contract_address.strip().lower()

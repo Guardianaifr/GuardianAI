@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- PLACEHOLDER host: replace https://guardianai.example/ with the real
+<!-- PLACEHOLDER host: replace https://aiguardian.dev/ with the real
      domain before deploying. Lastmod: update when content changes. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://guardianai.example/</loc>
+    <loc>https://aiguardian.dev/</loc>
     <lastmod>2026-08-24</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://guardianai.example/how-it-works.html</loc>
+    <loc>https://aiguardian.dev/how-it-works.html</loc>
     <lastmod>2026-08-24</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://guardianai.example/pricing.html</loc>
+    <loc>https://aiguardian.dev/pricing.html</loc>
     <lastmod>2026-08-24</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://guardianai.example/proof.html</loc>
+    <loc>https://aiguardian.dev/proof.html</loc>
     <lastmod>2026-08-24</lastmod>
     <priority>0.7</priority>
   </url>

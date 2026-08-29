@@ -26,7 +26,7 @@ mobile nav, reveal-on-scroll, year stamp), `assets/logo.svg`,
 
 ## BEFORE DEPLOYING
 
-- Replace the placeholder host `https://guardianai.example/` in **both**
+- Replace the placeholder host `https://aiguardian.dev/` in **both**
   `sitemap.xml` and `robots.txt` with the real domain.
 - Add `<link rel="canonical">` and `og:url` per page once the domain exists.
 - SVG favicons are unsupported in older Safari; add a PNG favicon if that
@@ -41,9 +41,10 @@ the proof page (`proof.html#sources`) and below. The prior site
 
 | Published figure / claim | Source artifact |
 |---|---|
-| All benchmark block rates incl. totals (76.6%/58.5%), security-gate subset (97.6%/90.7% = 949/972, 882/972), FP 0.0% | `artifacts/evidence/definitive_benchmark_v4.json` (run 2026-08-08) |
-| Throughput 95.68 req/s safe / 494.01 req/s attack-blocking, p95 41.88 ms, chaos outcomes, SLOs | `artifacts/performance/perf_chaos_report.json` (run 2026-08-08) |
-| Test counts ERC-8004 42/42; backend+unit 171 passed (2026-08-25); Hardhat 191 cases/9 suites + caveats | `README.md` validation snapshot |
+| All benchmark block rates incl. totals (76.6%/58.5%), security-gate subset (97.6%/90.7% = 949/972, 882/972) | `artifacts/evidence/definitive_benchmark_v4.json` (run 2026-08-08) |
+| False positives, fresh-session live run: balanced 11.2% (26/233), strict 29.2% (68/233), three public corpora | `artifacts/evidence/fp_clean_measure.json` |
+| Throughput 95.68 req/s safe / 494.01 req/s attack-blocking, p95 41.88 ms, chaos outcomes, SLOs | `artifacts/performance/perf_chaos_report.json` (April 2026) |
+| Test counts ERC-8004 42/42; backend+unit 172 passed (2026-08-25); Hardhat 159 cases/10 suites + caveats | `README.md` validation snapshot |
 | Audit history (external pentest closed 2026-03-18; internal audits remediated Jul/Aug 2026; next external review Q3 2026) | `artifacts/evidence/security_signoff.md`, `artifacts/evidence/external_pentest_status.md` |
 | Prices $0 / $49 / $299 / custom, all tier limits & features | `backend/metering.py` PRICING_TIERS |
 | Anchoring simulated-by-default, Monad testnet opt-in; ERC-8004 mainnet registries = ecosystem infra; insurance = certificate anchoring only | `guardian/cortex/merkle_anchor.py`, whitepaper §6–7 |

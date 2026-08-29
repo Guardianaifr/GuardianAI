@@ -1,0 +1,13 @@
+{
+  "hosting": [
+    {
+      "target": "guardian-target",
+      "public": "website",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ]
+    }
+  ]
+}

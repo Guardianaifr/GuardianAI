@@ -1,0 +1,13 @@
+{
+  "projects": {},
+  "targets": {
+    "kadan-kanakku": {
+      "hosting": {
+        "guardian-target": [
+          "aiguardian-site"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

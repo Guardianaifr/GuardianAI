@@ -3,6 +3,7 @@
     {
       "target": "guardian-target",
       "public": "website",
+      "cleanUrls": true,
       "ignore": [
         "firebase.json",
         "**/.*",

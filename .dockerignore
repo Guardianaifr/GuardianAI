@@ -1,48 +1,17 @@
-# Exclude large binaries
 
-# Exclude archive
-
-# Exclude Python junk
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.coverage
-
-# Exclude local DB
-guardian.db
-*.db
-artifacts/control/license_activation.json
-
-# Exclude node_modules (we don't build React in Docker yet)
 node_modules/
-
-# Exclude Git
-.git/
-.gitignore
-
-# Exclude local environment
-.venv*/
-.env*
-guardian_data/
-
-# Additional exclusions
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
 tests/
 tools/
-contracts/
-website/
 htmlcov/
-*.md
-!README.md
-!DEPLOYMENT.md
+docs/assets/
+*.db
+*.log
 scratch/
-demo.mp4
+.venv*
+__pycache__/
+*.exe
+*.mp4
 *.png
-*.spec
-
-# Root-level scratch and diagnostic scripts
-/test_*.py
-/_*.py
-/debug_*.py
-/temp*.sol

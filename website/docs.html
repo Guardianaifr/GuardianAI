@@ -179,7 +179,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="gpt-4o-mini",
+    model="claude-3-7-sonnet",
     messages=[{"role": "user", "content": "Deploy trading agent transaction"}]
 )
 print(response.choices[0].message.content)</code></pre>
@@ -187,7 +187,7 @@ print(response.choices[0].message.content)</code></pre>
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-guardian-api-token" \
   -d '{
-    "model": "gpt-4o-mini",
+    "model": "claude-3-7-sonnet",
     "messages": [{"role": "user", "content": "Hello Guardian"}]
   }'</code></pre>
           <pre class="docs-code-block" style="display:none;"><code>import OpenAI from "openai";
@@ -199,7 +199,7 @@ const client = new OpenAI({
 
 async function main() {
   const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "claude-3-7-sonnet",
     messages: [{ role: "user", content: "Execute task" }],
   });
   console.log(completion.choices[0].message);
@@ -601,7 +601,7 @@ firewall:
               <tr>
                 <td><code>model</code></td>
                 <td>String (Body)</td>
-                <td>Target model (e.g. <code>gpt-4o</code>, <code>claude-3-5-sonnet</code>).</td>
+                <td>Target model (e.g. <code>claude-3-7-sonnet</code>, <code>gpt-4o</code>, <code>deepseek-r1</code>, <code>o3-mini</code>, <code>gemini-2.0-flash</code>, <code>llama-3.3-70b</code>).</td>
               </tr>
               <tr>
                 <td><code>messages</code></td>

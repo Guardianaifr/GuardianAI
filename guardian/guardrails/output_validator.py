@@ -21,14 +21,12 @@ OBFUSCATED_REGEX_PATTERNS = {
 }
 
 try:
-    from presidio_analyzer import AnalyzerEngine
-    from presidio_anonymizer import AnonymizerEngine
-    from presidio_anonymizer.entities import OperatorConfig
-    PRESIDIO_AVAILABLE = True
+    import scrubadub
+    SCRUBADUB_AVAILABLE = True
     DEGRADED_PII = None
 except Exception as e:
-    logger.warning(f"Microsoft Presidio not found or incompatible in current runtime. Falling back to basic regex. Error: {e}")
-    PRESIDIO_AVAILABLE = False
+    logger.warning(f"Scrubadub not found. Falling back to basic regex. Error: {e}")
+    SCRUBADUB_AVAILABLE = False
     DEGRADED_PII = str(e)
 
 class OutputValidator:
@@ -64,18 +62,15 @@ class OutputValidator:
         # Pre-compile patterns for performance
         self.compiled_patterns = {k: re.compile(v) for k, v in self.sensitive_patterns.items()}
         
-        if PRESIDIO_AVAILABLE:
+        if SCRUBADUB_AVAILABLE:
             try:
-                self.analyzer = AnalyzerEngine()
-                self.anonymizer = AnonymizerEngine()
-                logger.info("Microsoft Presidio PII Engine initialized.")
+                self.scrubber = scrubadub.Scrubber()
+                logger.info("Scrubadub PII Engine initialized.")
             except Exception as e:
-                logger.error(f"Failed to initialize Presidio: {e}")
-                self.analyzer = None
-                self.anonymizer = None
+                logger.error(f"Failed to initialize Scrubadub: {e}")
+                self.scrubber = None
         else:
-            self.analyzer = None
-            self.anonymizer = None
+            self.scrubber = None
 
     def _load_patterns(self):
         """Loads PII patterns from config/pii_patterns.yaml."""
@@ -190,15 +185,20 @@ class OutputValidator:
                 logger.warning(f"LEAK DETECTED: Found possible {label} (Obfuscated Pattern)")
                 return False
 
-                # 2. Presidio NER Check (Contextual Entities)
-        if self.analyzer:
-            entities = ["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION", "CRYPTO", "SSH_KEY", "JWT_TOKEN"]
-            entities.extend(self.custom_entities)
-            results = self.analyzer.analyze(text=content, entities=entities, language='en')
-            # Only block if confidence is reasonable for critical entities
-            high_conf_leaks = [r for r in results if r.score > 0.65 and r.entity_type not in ("PERSON", "LOCATION")]
-            if high_conf_leaks:
-                logger.warning(f"LEAK DETECTED: NER found {len(high_conf_leaks)} sensitive entities.")
+                # 2. Scrubadub NER Check (Contextual Entities)
+        if hasattr(self, 'scrubber') and self.scrubber:
+            filths = list(self.scrubber.iter_filth(content))
+            
+            # PII FALSE POSITIVE FIX: Filter out Unix Timestamps
+            filtered_filths = []
+            for filth in filths:
+                if filth.type == 'phone' and filth.text.isdigit() and len(filth.text) in [10, 13]:
+                    logger.debug(f"DEBUG PII: Ignoring timestamp '{filth.text}'")
+                    continue
+                filtered_filths.append(filth)
+            
+            if filtered_filths:
+                logger.warning(f"LEAK DETECTED: NER found {len(filtered_filths)} sensitive entities.")
                 return False
         
         return True
@@ -213,40 +213,20 @@ class OutputValidator:
         sanitized = content
         detected_entities = []
         
-        # 1. Presidio Anonymization
-        if self.analyzer and self.anonymizer:
-            entities = ["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION", "CRYPTO", "SSH_KEY", "JWT_TOKEN"]
-            entities.extend(self.custom_entities)
-            analysis_results = self.analyzer.analyze(text=content, entities=entities, language='en')
+        # 1. Scrubadub Anonymization
+        if hasattr(self, 'scrubber') and self.scrubber:
+            filths = list(self.scrubber.iter_filth(sanitized))
             
-            # PII FALSE POSITIVE FIX: Filter out Unix Timestamps (10-digit integers) flagged as phone numbers
-            filtered_results = []
-            if analysis_results:
-                for res in analysis_results:
-                    # Get the text that was flagged
-                    entity_text = content[res.start:res.end]
-                    
-                    # Check if it's a PHONE_NUMBER that looks like a timestamp (10 or 13 digits, no separators)
-                    if res.entity_type == "PHONE_NUMBER" and entity_text.isdigit() and len(entity_text) in [10, 13]:
-                        logger.debug(f"DEBUG PII: Ignoring timestamp '{entity_text}'")
-                        continue
-                    
-                    filtered_results.append(res)
+            filtered_filths = []
+            for filth in filths:
+                if filth.type == 'phone' and filth.text.isdigit() and len(filth.text) in [10, 13]:
+                    logger.debug(f"DEBUG PII: Ignoring timestamp '{filth.text}'")
+                    continue
+                filtered_filths.append(filth)
+                detected_entities.append(filth.type.upper())
                 
-                detected_entities.extend([r.entity_type for r in filtered_results])
-                
-                if filtered_results:
-                    anonymized_result = self.anonymizer.anonymize(
-                        text=content,
-                        analyzer_results=filtered_results,
-                        operators={
-                            "PERSON": OperatorConfig("mask", {"chars_to_mask": 10, "masking_char": "*", "from_end": True}),
-                            "PHONE_NUMBER": OperatorConfig("replace", {"new_value": "[REDACTED_PHONE_NUMBER]"}),
-                            "EMAIL_ADDRESS": OperatorConfig("replace", {"new_value": "[REDACTED_EMAIL_ADDRESS]"}),
-                            "DEFAULT": OperatorConfig("replace", {"new_value": "[REDACTED]"}),
-                        }
-                    )
-                    sanitized = anonymized_result.text
+            if filtered_filths:
+                sanitized = self.scrubber.clean(sanitized, filths=filtered_filths)
         
         # 2. Obfuscated key fallback redaction (e.g., "s k - a b c ...")
         for label, pattern in OBFUSCATED_REGEX_PATTERNS.items():
@@ -466,8 +446,8 @@ class OutputValidator:
             "total_patterns": len(self.compiled_patterns),
             "obfuscation_patterns": len(OBFUSCATED_REGEX_PATTERNS),
             "custom_entities": self.custom_entities,
-            "presidio_available": PRESIDIO_AVAILABLE,
-            "presidio_initialized": self.analyzer is not None,
+            "presidio_available": SCRUBADUB_AVAILABLE,
+            "presidio_initialized": getattr(self, "scrubber", None) is not None,
             "pattern_names": list(self.compiled_patterns.keys()),
             "severity_map": dict(self.SEVERITY_MAP),
         }

@@ -1,30 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- PLACEHOLDER host: replace https://aiguardian.dev/ with the real
-     domain before deploying. Lastmod: update when content changes. -->
+<!-- GuardianAI Sitemap. Lastmod: updated on content changes. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://aiguardian.dev/</loc>
-    <lastmod>2026-08-24</lastmod>
+    <loc>/</loc>
+    <lastmod>2026-08-30</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://aiguardian.dev/how-it-works</loc>
-    <lastmod>2026-08-24</lastmod>
+    <loc>/how-it-works</loc>
+    <lastmod>2026-08-30</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://aiguardian.dev/pricing</loc>
-    <lastmod>2026-08-24</lastmod>
+    <loc>/pricing</loc>
+    <lastmod>2026-08-30</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://aiguardian.dev/proof</loc>
-    <lastmod>2026-08-24</lastmod>
+    <loc>/proof</loc>
+    <lastmod>2026-08-30</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://aiguardian.dev/docs</loc>
-    <lastmod>2026-08-29</lastmod>
+    <loc>/docs</loc>
+    <lastmod>2026-08-30</lastmod>
     <priority>0.9</priority>
   </url>
 </urlset>

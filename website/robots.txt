@@ -1,5 +1,4 @@
-# Placeholder Sitemap host: update to the real domain before deploying.
 User-agent: *
 Allow: /
 
-Sitemap: https://aiguardian.dev/sitemap.xml
+Sitemap: /sitemap.xml

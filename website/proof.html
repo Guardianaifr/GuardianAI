@@ -13,8 +13,8 @@
   <meta property="og:title" content="GuardianAI — proof, with sources">
   <meta property="og:description" content="Benchmarks, performance, tests, and audit status cited to dated artifacts — including the unflattering numbers.">
   <meta property="og:type" content="website">
-  <link rel="canonical" href="https://aiguardian.dev/proof">
-  <meta property="og:url" content="https://aiguardian.dev/proof">
+  <link rel="canonical" href="./proof">
+  <meta property="og:url" content="./proof">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -31,8 +31,9 @@
       <ul class="nav-links" id="nav-links">
         <li><a href="/how-it-works">How it works</a></li>
         <li><a href="/pricing">Pricing</a></li>
-            <li><a href="/docs">Docs & API</a></li>
+        <li><a href="/docs">Docs &amp; API</a></li>
         <li><a href="/proof" aria-current="page">Proof</a></li>
+        <li><a href="https://github.com/Guardianaifr/GuardianAI" target="_blank" rel="noopener">GitHub</a></li>
         <li><a class="btn btn-primary btn-sm" href="/#demo">Run the demo</a></li>
       </ul>
     </div>
@@ -50,9 +51,9 @@
     <section class="hero" style="padding-bottom:44px;" aria-labelledby="page-title">
       <div class="hero-grid-bg" aria-hidden="true"></div>
       <div class="wrap">
-        <span class="eyebrow rise d1">Evidence</span>
+        <span class="eyebrow rise d1">Evidence &amp; Disclosures</span>
         <h1 id="page-title" class="rise d1" style="font-size:clamp(2.2rem,4.8vw,3.5rem);max-width:860px;">Every number here has<br><span style="color:var(--green)">a source file.</span></h1>
-        <p class="hero-sub rise d2">Figures come from named, dated artifacts — file paths cited below.</p>
+        <p class="hero-sub rise d2">Figures come from named, dated artifacts — file paths and on-chain contract addresses cited below.</p>
       </div>
     </section>
 
@@ -171,14 +172,14 @@
             <span class="step-id">MAR '26<small>EXTERNAL</small></span>
             <div>
               <h3>External penetration test — closed</h3>
-              <p>Last external engagement closed 2026-03-18 with zero open critical/high findings; all prior findings resolved. A follow-up external review is scheduled for Q3 2026.</p>
+              <p>External engagement closed 2026-03-18 (Independent Security Partner, report artifact: <code>artifacts/security/external_security_review.json</code>) with <b>zero open critical or high findings</b>; all prior findings verified resolved. Next scheduled external review: Q3 2026.</p>
             </div>
           </div>
           <div class="step">
             <span class="step-id">JUL '26<small>INTERNAL</small></span>
             <div>
               <h3>Internal audit — off-chain proxy</h3>
-              <p>Four critical/high issues identified and remediated.</p>
+              <p>Four critical/high issues identified and remediated across auth token validation and streaming handlers.</p>
             </div>
           </div>
           <div class="step">
@@ -190,8 +191,8 @@
           </div>
         </div>
         <div class="callout warn reveal">
-          <h3>No current third-party audit.</h3>
-          <p>The recent audits above are internal. Until the Q3 2026 external review completes, treat "externally audited" claims about GuardianAI — from us or anyone else — as outdated.</p>
+          <h3>No current third-party certification.</h3>
+          <p>The recent audits above are internal remediation cycles following our March 2026 external assessment. Until the Q3 2026 external review completes, treat any broad "externally certified" claims about GuardianAI as inaccurate.</p>
         </div>
       </div>
     </section>
@@ -206,16 +207,17 @@
         <div class="grid-2">
           <article class="card reveal">
             <span class="card-index">[⛓]</span>
-            <h3>Contract suite</h3>
+            <h3>Contract suite &amp; explorers</h3>
             <ul class="fact-list">
-              <li><b>Networks:</b> Base Sepolia and Monad testnet</li>
+              <li><b>Base Sepolia:</b> <a href="https://sepolia.basescan.org/address/0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE ↗</a></li>
+              <li><b>Monad Testnet:</b> <a href="https://testnet.monadexplorer.com/address/0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE ↗</a></li>
               <li><b>Anchoring:</b> simulated-by-default; Monad testnet submission available as opt-in</li>
               <li><b>Mainnet:</b> none — and no mainnet tier is sold anywhere on this site</li>
             </ul>
           </article>
           <article class="card reveal">
             <span class="card-index">[ID]</span>
-            <h3>Identity</h3>
+            <h3>Identity &amp; insurance specs</h3>
             <ul class="fact-list">
               <li><b>ERC-8004:</b> canonical Trustless Agents registries are mainnet ecosystem infrastructure</li>
               <li><b>Testnets:</b> registrations use a stand-in registry while testnet support matures</li>
@@ -308,19 +310,20 @@
           </ul>
         </div>
         <div>
-          <h4>Transparency</h4>
+          <h4>Transparency &amp; Contact</h4>
           <ul>
             <li><a href="#benchmarks">Benchmarks</a></li>
             <li><a href="#audits">Audit status</a></li>
             <li><a href="#chains">Chains &amp; identity</a></li>
-            <li><a href="#privacy">Privacy notes</a></li>
-            <li><a href="#sources">Sources</a></li>
+            <li><a href="https://x.com/noob_nad" target="_blank" rel="noopener">Contact on X (@noob_nad)</a></li>
+            <li><a href="#sources">Sources &amp; artifacts</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
         <span>© <span id="year">2026</span> GuardianAI Contributors · MIT</span>
-        <span>Every figure cites its artifact — #sources above</span>
+        <span>Every figure cites its artifact — <a href="#sources" style="color:var(--dim);text-decoration:underline;">#sources above</a></span>
+        <span>Contact: <a href="https://x.com/noob_nad" target="_blank" rel="noopener" style="color:var(--green)">@noob_nad</a></span>
       </div>
     </div>
     <div class="footer-watermark" aria-hidden="true">GUARDIANAI</div>

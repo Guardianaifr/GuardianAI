@@ -564,3 +564,112 @@ footer li a:hover { color: var(--green); }
   transition: none !important;
 }
 .no-anim .js .reveal, .no-anim .reveal { opacity: 1 !important; transform: none !important; }
+
+/* --------------------------------------------------------------------------
+   Waitlist & conversion capture
+   -------------------------------------------------------------------------- */
+
+.waitlist-card-box {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.waitlist-form {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.waitlist-input {
+  flex: 1;
+  min-width: 200px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.waitlist-input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+.waitlist-status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  margin-top: 8px;
+  min-height: 1.4em;
+  color: var(--dim);
+}
+.waitlist-status.success { color: var(--green); }
+.waitlist-status.error { color: var(--coral); }
+
+.partner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--green);
+  background: var(--green-wash);
+  border: 1px solid var(--green-line);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+.term-buyer-note {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: rgba(237, 242, 238, 0.03);
+  border: 1px dashed rgba(237, 242, 238, 0.15);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--dim);
+  line-height: 1.6;
+}
+.term-buyer-note .label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 4px;
+}
+
+.stat-disclosure {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.demo-select-wrap {
+  margin-bottom: 12px;
+}
+.gate-select {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.gate-select:focus {
+  outline: none;
+  border-color: var(--green);
+}
+.gate-select option {
+  background: var(--surface);
+  color: var(--ink);
+}
+

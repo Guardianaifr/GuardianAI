@@ -13,8 +13,8 @@
   <meta property="og:title" content="How GuardianAI works">
   <meta property="og:description" content="Security off-chain in milliseconds. Trust on-chain, independently verifiable.">
   <meta property="og:type" content="website">
-  <link rel="canonical" href="https://aiguardian.dev/how-it-works">
-  <meta property="og:url" content="https://aiguardian.dev/how-it-works">
+  <link rel="canonical" href="./how-it-works">
+  <meta property="og:url" content="./how-it-works">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -33,6 +33,7 @@
         <li><a href="/pricing">Pricing</a></li>
         <li><a href="/proof">Proof</a></li>
         <li><a href="/docs">Docs</a></li>
+        <li><a href="https://github.com/Guardianaifr/GuardianAI" target="_blank" rel="noopener">GitHub</a></li>
         <li><a class="btn btn-primary btn-sm" href="/#demo">Run the demo</a></li>
       </ul>
     </div>
@@ -110,42 +111,42 @@
         <div class="section-head reveal">
           <span class="eyebrow">On-chain · the trust path</span>
           <h2 class="section-title" id="tp-title">Identity first. Evidence second.</h2>
-          <p class="section-lede">The on-chain suite doesn't secure execution — it makes an agent's identity and track record independently verifiable.</p>
+          <p class="section-lede">The on-chain suite doesn't slow down execution — it makes an agent's identity, permissions, and security track record independently verifiable.</p>
         </div>
         <div class="steps reveal">
           <div class="step">
             <span class="step-id">06<small>IDENTITY</small></span>
             <div>
-              <h3>Register identity (ERC-8004)</h3>
-              <p>Your agent is registered in the Trustless Agents ecosystem with a transferable identity token — ownership hands off with the agent, not with us.</p>
+              <h3>Register portable identity (ERC-8004)</h3>
+              <p>Your agent is registered in the Trustless Agents ecosystem with a verifiable identity token — proving ownership, capabilities, and delegation without centralized vendor lock-in.</p>
             </div>
           </div>
           <div class="step">
             <span class="step-id">07<small>PASSPORT</small></span>
             <div>
               <h3>Mint a soulbound passport (ERC-5192)</h3>
-              <p>A non-transferable passport carries trust tiers (UNVERIFIED → SILVER → GOLD → DIAMOND) and a 0–10000 trust score derived from scan history.</p>
+              <p>A non-transferable passport carries verifiable trust tiers (UNVERIFIED → SILVER → GOLD → DIAMOND) and a 0–10000 reputation score derived from empirical security scan history.</p>
             </div>
           </div>
           <div class="step">
             <span class="step-id">08<small>ANCHOR</small></span>
             <div>
-              <h3>Anchor evidence roots</h3>
-              <p>Security events are hashed into a Merkle tree; periodic roots are anchored as tamper-evident timestamps. Anchoring runs simulated-by-default with Monad testnet submission as an opt-in mode — see the note below.</p>
+              <h3>Anchor tamper-evident Merkle roots</h3>
+              <p>Security events and prompt audits are batched and hashed into a Merkle tree. Periodic roots are anchored on-chain — so when an incident occurs, you're not debugging from vibes or trusting unverified server logs.</p>
             </div>
           </div>
           <div class="step">
             <span class="step-id">09<small>CERTIFY</small></span>
             <div>
-              <h3>Issue insurance evidence certificates</h3>
-              <p>GuardianInsuranceLedger anchors signed certificate packages summarizing an agent's verified history for underwriters. It records evidence — it does not automate payouts or slashing.</p>
+              <h3>Issue signed insurance certificates</h3>
+              <p>GuardianInsuranceLedger anchors cryptographic certificates summarizing an agent's verified security posture for underwriters and enterprise compliance. It records immutable evidence — it does not automate payouts or slashing.</p>
             </div>
           </div>
         </div>
 
         <div class="callout warn reveal">
           <h3>What's real today — stated plainly.</h3>
-          <p>Merkle anchoring defaults to <b>simulated mode</b>; live submission targets Monad <b>testnet</b>. The canonical ERC-8004 registries are mainnet ecosystem infrastructure — testnet registrations use a stand-in registry. The insurance ledger anchors certificates only; no payout or slashing automation exists. We'd rather lose the hype than the trust this page asks you to place in us.</p>
+          <p>Merkle anchoring defaults to <b>simulated mode</b>; live testnet submission is active on <a href="https://sepolia.basescan.org/address/0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Base Sepolia</a> and <a href="https://testnet.monadexplorer.com/address/0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. The canonical ERC-8004 registries are mainnet ecosystem infrastructure — testnet registrations use an ABI-faithful stand-in registry. The insurance ledger anchors certificates only; no payout or slashing automation exists. We'd rather lose the hype than the trust this page asks you to place in us.</p>
         </div>
       </div>
     </section>
@@ -247,19 +248,20 @@ out = guardian.<span class="tok-fn">scan_response</span>(reply, system_prompt=SY
           </ul>
         </div>
         <div>
-          <h4>Transparency</h4>
+          <h4>Transparency &amp; Contact</h4>
           <ul>
             <li><a href="/proof#benchmarks">Benchmarks</a></li>
             <li><a href="/proof#audits">Audit status</a></li>
             <li><a href="/proof#chains">Chains &amp; identity</a></li>
-            <li><a href="/proof#privacy">Privacy notes</a></li>
-            <li><a href="/proof#sources">Sources</a></li>
+            <li><a href="https://x.com/noob_nad" target="_blank" rel="noopener">Contact on X (@noob_nad)</a></li>
+            <li><a href="/proof#sources">Sources &amp; artifacts</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
         <span>© <span id="year">2026</span> GuardianAI Contributors · MIT</span>
-        <span>Every figure cites its artifact — proof.html#sources</span>
+        <span>Every figure cites its artifact — <a href="/proof#sources" style="color:var(--dim);text-decoration:underline;">/proof#sources</a></span>
+        <span>Contact: <a href="https://x.com/noob_nad" target="_blank" rel="noopener" style="color:var(--green)">@noob_nad</a></span>
       </div>
     </div>
     <div class="footer-watermark" aria-hidden="true">GUARDIANAI</div>

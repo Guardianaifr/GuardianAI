@@ -29,6 +29,9 @@ except Exception as e:
     SCRUBADUB_AVAILABLE = False
     DEGRADED_PII = str(e)
 
+PRESIDIO_AVAILABLE = SCRUBADUB_AVAILABLE
+
+
 class OutputValidator:
     # Patterns checked in this order: more-specific patterns MUST precede
     # greedier ones (e.g. ssn_pattern before phone_number) so the first

@@ -87,3 +87,13 @@ Following a comprehensive senior smart contract audit, the following security an
 - **[I-1] Agent Hash Zero Check:** Implemented a `bytes32(0)` null check for the agent hash in `GuardianCortexAnchor.commitRoot()`.
 
 *All 159 Web3 contract tests pass successfully.*
+
+---
+
+## 🛡️ v1.1.0 (ERC-8004 Identity Gate & Point-of-Interaction Enforcement)
+- **Pre-flight RPC Relay Gate (`rpc_relay.py`):** Intercepts transaction `from` addresses before execution, validating registered agent identity and trust tiers against canonical ERC-8004 registries and local passports.
+- **Agentic Channel Enforcement (`agentic_controls.py`):** Enforces identity verification on inter-agent communication channels with configurable minimum trust tier requirements.
+- **Active Hot-Wallet Collision Defense:** Database-level partial unique index (`ON agent_passports(owner_pubkey COLLATE NOCASE) WHERE is_active = 1`) and active-first `LEFT JOIN` resolution on `erc8004_registrations` prevent revoked or orphaned identities from hijacking permissions or causing false-positive blocks.
+- **Fail-Open Resilience:** Default fail-open posture (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false`) protects agent uptime during RPC or testnet timeouts with fallback to local state.
+- **Zero-Disruption Shadow Mode:** Ships in `GUARDIAN_IDENTITY_GATE_MODE=shadow` by default with `audit_identity_drift.py` and cron automation for safe observation and data reconciliation.
+- **100% Regression Suite:** Complete 17-test suite in `tests/web3_identity/test_identity_gate.py` covering live fail-open, on-chain `ownerOf` lookups, and multi-identity tie-breaking.

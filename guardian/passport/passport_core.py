@@ -145,6 +145,19 @@ class PassportEngine:
             for agent in existing_passports:
                 print(f"[PASSPORT MIGRATION AUDIT] Migrated passport {agent} to default tenant")
                 logger.info("[PASSPORT MIGRATION AUDIT] Migrated passport %s to default tenant", agent)
+        # Identity Gate (point-of-interaction enforcement) needs to resolve an
+        # RPC tx `from` address back to an agent_id quickly. owner_pubkey is
+        # not guaranteed to be a checksummed EVM address (it may hold other
+        # key formats), so this index only accelerates the case-insensitive
+        # match — callers still validate/normalize the address themselves.
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_passports_owner_pubkey "
+            "ON agent_passports (owner_pubkey COLLATE NOCASE)"
+        )
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_active_owner_pubkey_unique "
+            "ON agent_passports (owner_pubkey COLLATE NOCASE) WHERE is_active = 1"
+        )
         cur.execute("""
             CREATE TABLE IF NOT EXISTS passport_credentials (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -243,7 +256,7 @@ class PassportEngine:
             result = self.get_passport(agent_id)
             if result is None:
                 raise RuntimeError(
-                    f"Failed to issue or retrieve passport for {agent_id}"
+                    f"Failed to issue passport for {agent_id}. The wallet '{owner_pubkey}' may already be in use by another active agent."
                 )
             return result
         finally:
@@ -294,6 +307,38 @@ class PassportEngine:
             FROM agent_passports WHERE passport_id = ?
             """,
             (passport_id,),
+        )
+        row = cur.fetchone()
+        conn.close()
+        if row is None:
+            return None
+        return AgentPassport.from_row(row)
+
+    def get_passport_by_owner_address(self, owner_address: str) -> Optional[AgentPassport]:
+        """Retrieve a passport by wallet address, case-insensitive.
+
+        Matches against owner_pubkey. This is a best-effort lookup: owner_pubkey
+        is operator-supplied and not guaranteed to be a checksummed EVM address
+        (see ERC-8004 registrar's separate, validated owner_address column for
+        the stronger guarantee once an agent has gone through registration).
+        Returns the first active match, falling back to an inactive match
+        if no active ones exist, when more than one row shares an owner_pubkey.
+        """
+        if not owner_address:
+            return None
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT passport_id, agent_id, owner_pubkey, chain_id,
+                   trust_score, tier, credentials, metadata,
+                   issued_at, updated_at, is_active,
+                   cortex_events_count, last_anchor_tx, tenant_id
+            FROM agent_passports
+            WHERE owner_pubkey = ? COLLATE NOCASE
+            ORDER BY is_active DESC, updated_at DESC LIMIT 1
+            """,
+            (owner_address,),
         )
         row = cur.fetchone()
         conn.close()

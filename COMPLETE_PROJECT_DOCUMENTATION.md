@@ -158,6 +158,9 @@ Major implemented feature groups: **38** (32 Off-Chain Security Controls + 6 On-
 39. ERC-8004 Identity Registration (Canonical Trustless Agents, Aug 2026)
    - Registers protected agents on the canonical ERC-8004 Identity Registry (register-then-transfer ownership), links each agentId to its GuardianPassportSBT, serves the spec registration JSON, and enforces fail-closed safety gates. Disabled by default — see `GUARDIAN_ERC8004_ENABLED` in `.env.example` and whitepaper Feature 39.
 
+40. Identity Gate & Point-of-Interaction Enforcement (ERC-8004 Live Enforcement & Hot-Wallet Collision Defense, Sep 2026)
+   - Enforces verified ERC-8004 identities and trust tiers pre-flight across RPC relay transactions (`rpc_relay.py`) and inter-agent messages (`agentic_controls.py`). Features case-insensitive address-to-passport resolution with structural active-wallet unique indexing, fail-open RPC fallback resiliency, and zero-downtime shadow observation mode (`GUARDIAN_IDENTITY_GATE_MODE=shadow`).
+
 ## 7) Roadmap Delivery (What Was Built Beyond Basic Version)
 
 From `artifacts/evidence/TOPIC_PROGRESS.md`, completed topics:

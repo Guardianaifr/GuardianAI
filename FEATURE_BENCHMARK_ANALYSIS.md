@@ -102,7 +102,13 @@ Scope: `F:\Saas\guardianai-basic-launch`
 - **Output Watermarking:** Versioned key rotation, steganographic invisible text watermarks, batch verification, bounded audit log, content fingerprinting.
 - **Differential Privacy:** Gaussian mechanism (L2), strict Privacy Budget Tracker (epsilon/delta composition), automated noisy sum/average bounds clipping, Exponential mechanism, Local DP (RAPPOR-lite).
 
-Primary source: `guardian/guardrails/ai_firewall.py` and advanced modules in `guardian/brain/` & `guardian/security/`.
+### Web3 Identity & Point-of-Interaction Enforcement (September 2026)
+- **Identity Gate Pre-flight Interception:** Real-time validation of EVM `from` addresses in `rpc_relay.py` and inter-agent tokens in `agentic_controls.py`.
+- **Active Hot-Wallet Collision Defense:** Database-level partial unique index (`ON agent_passports(owner_pubkey COLLATE NOCASE) WHERE is_active = 1`) and active-first `LEFT JOIN` resolution on `erc8004_registrations`.
+- **Fail-Open RPC Resiliency:** Safe fallback to local DB records on on-chain RPC error / testnet timeout (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false`).
+- **Shadow Mode Observation:** Default zero-downtime observation posture with automated drift reconciliation (`audit_identity_drift.py`).
+
+Primary source: `guardian/passport/identity_gate.py`, `guardian/guardrails/ai_firewall.py` and advanced modules in `guardian/brain/` & `guardian/security/`.
 
 ---
 

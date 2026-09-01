@@ -1,18 +1,19 @@
 # GuardianAI Roadmap
 
-**Updated**: August 23, 2026  
+**Updated**: September 1, 2026  
 **Vision**: Expand from an LLM firewall into the industry's most complete AI security control plane.  
-**Current**: 39 features shipped · canonical ERC-8004 identity integration live (disabled by default) · Production Go  
+**Current**: 40 features shipped · canonical ERC-8004 identity integration & live Identity Gate enforcement live · Production Go  
 
 ---
 
-## Completed Milestones (v1.0)
+## Completed Milestones (v1.0 - v1.1)
 
-- ✅ 32 major security feature groups
-- ✅ 28 roadmap topics delivered
+- ✅ 33 major security feature groups
+- ✅ 29 roadmap topics delivered
 - ✅ Full OWASP LLM Top 10 (2025) coverage — **10/10**
 - ✅ Benchmark alignment on real datasets (3,211 prompts, 8 datasets): AdvBench 99.0% strict, HarmBench 72.8% strict — see whitepaper §6 and `artifacts/evidence/definitive_benchmark_v4.json`
 - ✅ **ERC-8004 Identity Registration (Aug 2026):** canonical Trustless Agents registry integration, register-then-transfer ownership handoff, fail-closed safety gates, 42-test offline suite (whitepaper Feature 39)
+- ✅ **Identity Gate & Point-of-Interaction Enforcement (Sep 2026):** pre-flight RPC relay & agentic control plane enforcement, on-chain `ownerOf` validation, database-level hot-wallet collision defense, and shadow observation mode (whitepaper Feature 40)
 - ✅ SLO verdict: all_passed = true
 
 ---

@@ -13,7 +13,7 @@ As large language models (LLMs) evolve from passive chatbots into autonomous, to
 **GuardianAI** is a unified, dual-layer security control plane that solves this problem end-to-end.
 
 - **Layer 1 — Off-Chain AI Gateway:** Executes 40 real-time security controls in milliseconds. Addresses the OWASP Top 10 for LLM Applications. Protects against prompt injection, PII leakage, malicious runtime behavior, and unsafe multimodal inputs.
-- **Layer 2 — On-Chain Web3 Trust:** Nine EVM-compatible smart contracts (Monad/Base) provide cryptographically verifiable AI identity, decentralized authorization, certificate anchoring, and a built-in smart contract static analyzer to audit the very contracts GuardianAI deploys. Agent identities are additionally registered on the canonical ERC-8004 "Trustless Agents" registries with transient registrar custody and client ownership handoff (Feature 39).
+- **Layer 2 — On-Chain Web3 Trust:** Nine EVM-compatible smart contracts (Monad/Base) provide cryptographically verifiable AI identity, decentralized authorization, certificate anchoring, and a built-in smart contract static analyzer to audit the very contracts GuardianAI deploys. Agent identities are registered on canonical ERC-8004 "Trustless Agents" registries (Feature 39) and actively enforced at the point of interaction across RPC relays and agentic channels with hot-wallet collision guards (Feature 40).
 
 GuardianAI is, to our knowledge, the first platform that secures the AI *execution layer* with millisecond heuristics while simultaneously cementing its *trust layer* on the blockchain.
 
@@ -625,6 +625,18 @@ Allows auditors or GuardianAI itself to publish cryptographic attestations of an
 - **Safety design:** fail-closed `eth_getCode` verification before first send per chain; production-URI gate refusing localhost/non-https `GUARDIAN_PUBLIC_URL` on mainnet chains; gas-price ceiling reuse; daily on-chain spend budget; idempotent retries (broadcast-hash preservation + receipt recovery prevents double mints); conditional-claim row locking against concurrent workers; chain rollout base-sepolia → base → monad-testnet.
 - **Honest scope:** discovery-only today — no Reputation emission and no Validation-Registry validator yet (the Validation portion of ERC-8004 is still marked unstable by its editors). Default disabled behind `GUARDIAN_ERC8004_ENABLED=false`; nothing changes at runtime until enabled.
 - **What it is in code:** `guardian/passport/erc8004_registrar.py`, `backend/routers/identity_registry_routes.py`, hook in `passport_core.issue_passport()`; tests `tests/web3_identity/` (42 tests, offline fakes + failure injection).
+
+---
+
+**Feature 40 — Identity Gate & Point-of-Interaction Enforcement (ERC-8004 Live Enforcement & Hot-Wallet Collision Protection)**
+
+Added September 2026. Bridges on-chain ERC-8004 identity registration to runtime execution by enforcing cryptographic agent identity and trust tiers at the point of interaction.
+
+- **What it does:** Pre-flight interception for both Web3 transactions in the RPC relay (`guardian/web3sec/rpc_relay.py`) and inter-agent communication in the agentic control plane (`guardian/security/agentic_controls.py`). Intercepts transaction `from` addresses and inter-agent headers, resolving them against canonical on-chain ERC-8004 registrations (`ownerOf` checks) and local passport records before any transaction or tool execution is permitted.
+- **Identity Resolution & Collision Defense:** Implements case-insensitive address-to-identity resolution backed by a structural database partial unique index (`ON agent_passports(owner_pubkey COLLATE NOCASE) WHERE is_active = 1`) and active-first `LEFT JOIN` resolution on `erc8004_registrations`. This guarantees deterministic resolution, strictly preventing revoked or orphaned identities from causing false-positive blocks or permission hijacking on shared hot-wallets.
+- **Fail-Open / Fail-Closed Resiliency:** Operates with configurable failure semantics (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false` by default). In the event of an RPC endpoint failure or testnet timeout, the gate fails open to local database state rather than dropping legitimate agent traffic, while logging full on-chain error telemetry.
+- **Zero-Disruption Shadow Mode:** Ships with `GUARDIAN_IDENTITY_GATE_MODE=shadow` as the default posture, allowing operators to observe identity validation verdicts and drift without risk of blocking live traffic. Supported by automated reconciliation scripts (`audit_identity_drift.py` and cron wrappers).
+- **What it is in code:** `guardian/passport/identity_gate.py`, `guardian/passport/passport_core.py`, `guardian/web3sec/rpc_relay.py`, `guardian/security/agentic_controls.py`, `audit_identity_drift.py`; tests in `tests/web3_identity/test_identity_gate.py` (17 tests covering local DB, live on-chain fallback, revoked status, and collision tie-breaking).
 
 ---
 

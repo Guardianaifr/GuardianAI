@@ -37,4 +37,17 @@ tests/scratch_*
 # OS & Editor
 .DS_Store
 .vscode/
+.zcode/
 .ipynb_checkpoints/
+
+# Environment & Secrets
+.env*
+.admin_pass
+.coverage
+files/
+files (1)/
+*.sql
+*.patch
+guardian/config/one_click_runtime.yaml
+
+

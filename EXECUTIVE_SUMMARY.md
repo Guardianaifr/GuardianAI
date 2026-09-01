@@ -26,6 +26,7 @@ GuardianAI now operates as a comprehensive **Dual-Layer AI Security Control Plan
 - **GuardianInterlockRegistry:** Decentralized permissions management for Agent-to-Agent communication.
 - **GuardianInsuranceLedger:** On-chain insurance certificate anchoring for autonomous agent deployment.
 - **Threat Feeds & Risk Attestation:** Decentralized crowdsourced intelligence and real-time verifiable risk scoring.
+- **Identity Gate & ERC-8004 Enforcement:** Pre-flight transaction & inter-agent enforcement with hot-wallet collision guards and fail-open resilience.
 
 ## Key Performance and Security Results
 
@@ -43,7 +44,7 @@ Maintained honestly as of **August 23, 2026** (a prior "None" entry here was ina
 2. **Test hygiene:** 3 tests fail only under full-suite ordering (pass individually); full-suite regeneration pending. Analyzer fixture suite must run `--no-cov` (coverage instrumentation silently degrades Slither to regex).
 3. **Performance evidence scale:** current perf artifact is a 120-request harness from April 2026; enterprise-scale rerun is open backlog.
 4. **Benchmark honesty:** grand-total detection across 8 real datasets is 76.6% strict / 58.5% balanced (`definitive_benchmark_v4.json`); earlier synthetic-fixture figures were retracted in whitepaper §6.2.
-5. **ERC-8004 scope:** identity registration is live but discovery-only; Reputation emission and validator services are roadmap.
+5. **ERC-8004 scope:** identity registration live; point-of-interaction enforcement (IdentityGate) now wired into the RPC relay pre-flight and inter-agent control plane. Reputation emission and validator services are roadmap.
 
 ## Executive Decision
 

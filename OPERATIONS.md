@@ -79,3 +79,20 @@ If using the Guardian Dashboard/Backend:
 
 ### Canonical registry availability (verified 2026-08-23)
 `eth_getCode` probes: canonical `0x8004A169…a432` is deployed on **Base mainnet and Polygon mainnet** but has **no bytecode on Base Sepolia or Ethereum Sepolia**. For testnet rehearsal, deploy the stand-in (`contracts/contracts/erc8004/IdentityRegistryTestnet.sol`, ABI-faithful, NOT the audited reference) via `npx hardhat run scripts/deploy-erc8004-testnet.ts --network base_sepolia` and set `GUARDIAN_ERC8004_IDENTITY_REGISTRY_OVERRIDE`. The registrar's fail-closed gate will refuse any chain where the target registry has no bytecode.
+
+## Identity Gate & Point-of-Interaction Enforcement Runbook (added 2026-09-01)
+
+**Status:** Disabled by default. Enabled via `GUARDIAN_IDENTITY_GATE_ENABLED=true`.
+
+### Configuration Variables
+- `GUARDIAN_IDENTITY_GATE_ENABLED`: `true` to activate point-of-interaction identity gating.
+- `GUARDIAN_IDENTITY_GATE_MODE`: `shadow` (observe-only, logs verdicts without blocking) or `enforce` (blocks unverified/revoked traffic). Default: `shadow`.
+- `GUARDIAN_IDENTITY_GATE_MIN_TIER`: Minimum required trust tier (`UNVERIFIED`, `SILVER`, `GOLD`, `DIAMOND`). Default: `UNVERIFIED`.
+- `GUARDIAN_IDENTITY_GATE_UNREGISTERED_BLOCK`: `true` to block transactions from addresses not found in passport/ERC-8004 tables. Default: `false`.
+- `GUARDIAN_IDENTITY_GATE_ONCHAIN_VERIFY`: `true` to perform real-time `ownerOf()` queries to the canonical ERC-8004 registry. Default: `false`.
+- `GUARDIAN_IDENTITY_GATE_FAIL_CLOSED`: `false` (default) fails open to local DB state if RPC calls error/timeout. Set `true` for strict security environments.
+
+### Operational Procedures & Drift Audit
+- **Reconciliation Audit:** Run `python audit_identity_drift.py` to compare on-chain NFT ownership against local `agent_passports.owner_pubkey` and `erc8004_registrations.owner_address`.
+- **Automated Cron Monitoring:** Deploy `scripts/cron_audit_identity_drift.sh` to run hourly in crontab to alert on data drift or unauthorized NFT transfers.
+- **Hot-Wallet Uniqueness:** A database-level partial unique index prevents multiple active agents from registering against the same hot wallet (`idx_active_owner_pubkey_unique`). Ensure all newly provisioned agents use dedicated operator wallets.

@@ -24,6 +24,7 @@ By sitting between your application and your model endpoint, GuardianAI neutrali
 - **GuardianInsuranceLedger:** On-chain insurance certificate anchoring for autonomous agent verification and auditability.
 - **GuardianThreatFeedRegistry:** A decentralized, censorship-resistant threat intelligence repository for sharing zero-day patterns.
 - **GuardianRiskAttestation:** Enables third parties to verify an agent's real-time risk level before executing Web3 transactions.
+- **Identity Gate & Point-of-Interaction Enforcement (ERC-8004 Integration):** Pre-flight identity enforcement for RPC relay transactions and inter-agent communication, featuring on-chain `ownerOf()` verification, structural hot-wallet collision prevention, and zero-downtime shadow observation mode.
 
 ---
 
@@ -76,10 +77,10 @@ mount a volume for `guardian.db` and `artifacts/`. See `DEPLOYMENT.md` and
 
 Numbers below are sourced from named artifacts or dated test runs — no hand-typed figures.
 
-- **Python test suites (targeted runs, 2026-08-25):** ERC-8004 identity 42/42 · backend+unit suites 172 passed · passport 24/24 · security suite ~403 tests. Full-suite regeneration pending; 3 known order-dependent tests fail only under full-suite ordering and pass individually (see `OPERATIONS.md`).
+- **Python test suites (targeted runs, 2026-08-25 / 2026-09-01):** ERC-8004 identity & Gate 63/63 passed (42 registrar + 17 gate regression suite) · backend+unit suites 172 passed · passport 24/24 · security suite ~403 tests. Full-suite regeneration pending; 3 known order-dependent tests fail only under full-suite ordering and pass individually (see `OPERATIONS.md`).
 - **Smart contracts (Hardhat):** 159 test cases across 10 suites in-repo; runner pass/fail count pending CI regeneration.
 - **On-chain audit (August 2026):** Completed senior smart contract security audit (v1.0.1 fixes applied: Circuit Breaker chain parameterized, Vault CEI enforced, Interlock Registry capped, Stale balance withdrawals paused, Threshold bounds added). All 159 Web3 contract tests passing.
-- **ERC-8004 integration (new, August 2026):** protected agents register on the *canonical* Trustless Agents Identity Registry with register-then-transfer ownership handoff, fail-closed safety gates, and a 42-test offline suite. Disabled by default — see `GUARDIAN_ERC8004_ENABLED` in `.env.example`.
+- **ERC-8004 integration & Identity Gate (new, August-September 2026):** protected agents register on canonical ERC-8004 registries and are enforced pre-flight across the Web3 RPC relay and agentic control plane with live on-chain `ownerOf` checks, fail-open resilience, and hot-wallet collision guards. Configurable via `GUARDIAN_IDENTITY_GATE_MODE` (shadow by default).
 - **Security validation:** adversarial benchmark results live in whitepaper Section 6, generated from `artifacts/evidence/definitive_benchmark_v4.json`.
 
 ---

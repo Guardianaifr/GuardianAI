@@ -15,6 +15,7 @@ import rlp
 from guardian.guardrails.rate_limiter import RateLimiter
 from guardian.web3sec.simulation import SimulationEngine, SimulationResult
 from guardian.web3sec.tx_analyzer import TransactionAnalyzer
+from guardian.passport.identity_gate import IdentityGate
 
 logger = logging.getLogger("guardian.web3sec.rpc_relay")
 
@@ -102,6 +103,21 @@ class GuardianRPCRelay:
         # Rate limiting
         self.rate_limiter = RateLimiter(requests_per_minute=600)
 
+        # Identity Gate — point-of-interaction ERC-8004/passport enforcement.
+        # Cheap to construct (env-var read only); the gate itself no-ops
+        # entirely unless GUARDIAN_IDENTITY_GATE_ENABLED=true. Lazily import
+        # PassportEngine here rather than at module load so a relay-only
+        # deployment without the passport subsystem installed doesn't fail
+        # to import at all.
+        self.identity_gate: Optional[IdentityGate] = None
+        try:
+            from guardian.passport.passport_core import PassportEngine
+            from guardian.passport.erc8004_registrar import default_db_path
+            passport_engine = PassportEngine(db_path=default_db_path())
+            self.identity_gate = IdentityGate(passport_engine)
+        except Exception as e:
+            logger.warning(f"Identity Gate unavailable, running without it: {e}")
+
         # Stats counters (thread-safe via GIL for simple increments)
         self.stats = {"intercepted": 0, "blocked": 0, "passed": 0, "errors": 0}
 
@@ -163,6 +179,17 @@ class GuardianRPCRelay:
                     "INSERT OR IGNORE INTO web3sec_rules (rule_name, enabled, updated_at) VALUES (?, 1, ?)",
                     (rule, now)
                 )
+            # identity_check is NOT a live_rules-gated detector (the Identity
+            # Gate has its own GUARDIAN_IDENTITY_GATE_ENABLED switch and is
+            # checked unconditionally above) — seeded here only so the admin
+            # API/dashboard can show and toggle it like the other rules.
+            # Starts disabled=0 so existing deployments see no behavior change
+            # from this row alone; actual enforcement is controlled by the
+            # identity gate's own env vars.
+            conn.execute(
+                "INSERT OR IGNORE INTO web3sec_rules (rule_name, enabled, updated_at) VALUES (?, 0, ?)",
+                ("identity_check", now)
+            )
             conn.commit()
 
     def _log_blocked(self, ip: str, tx_from: str, tx_to: str, detector: str,
@@ -352,6 +379,27 @@ class GuardianRPCRelay:
         to_addr = (tx.get("to") or "").lower()
         from_addr = (tx.get("from") or "").lower()
         is_whitelisted = to_addr in whitelist or from_addr in whitelist
+
+        # ── Identity Gate: point-of-interaction ERC-8004/passport check ──
+        # Runs before the calldata detectors so an unregistered/revoked/
+        # low-tier agent gets stopped without spending analyzer or
+        # simulation cycles on it. No-ops immediately if disabled.
+        if self.identity_gate is not None:
+            identity_result = self.identity_gate.check_address(tx.get("from", ""))
+            if not identity_result.allowed:
+                if is_whitelisted:
+                    logger.warning(
+                        f"Whitelisted address {from_addr} bypassed identity gate: {identity_result.reason}"
+                    )
+                else:
+                    self.stats["blocked"] += 1
+                    self._log_blocked(
+                        client_ip, tx.get("from", ""), tx.get("to", ""),
+                        "identity_gate", identity_result.reason, "HIGH", json.dumps(req_data),
+                    )
+                    return self._make_json_rpc_error(
+                        -32000, f"Guardian Identity Block: {identity_result.reason}", req_id
+                    )
 
         # Apply live rule flags from DB
         live_rules = self._load_rules_from_db()

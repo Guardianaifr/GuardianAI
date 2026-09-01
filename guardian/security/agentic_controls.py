@@ -21,13 +21,23 @@ class AgenticDecision:
 
 
 class AgenticSecurityManager:
-    def __init__(self, config: Dict[str, Any] | None, root_dir: Path):
+    def __init__(self, config: Dict[str, Any] | None, root_dir: Path, identity_gate: "Any | None" = None):
         cfg = config or {}
         self.enabled = bool(cfg.get("enabled", False))
         self.enforcement_mode = str(cfg.get("enforcement_mode", "enforce")).lower()
         self.require_agent_id = bool(cfg.get("require_agent_id", True))
         self.require_execution_id = bool(cfg.get("require_execution_id", False))
         self.require_scope = bool(cfg.get("require_scope", False))
+        # Identity Gate integration (point-of-interaction ERC-8004/passport
+        # enforcement). Opt-in by design, deliberately separate from
+        # GUARDIAN_IDENTITY_GATE_ENABLED: that env var controls whether the
+        # gate does anything AT ALL (relay + here); this config key controls
+        # whether THIS control plane additionally requires the check to pass.
+        # If identity_gate is None (not wired by the caller) this is always a
+        # no-op regardless of the flag, so a misconfigured deployment fails
+        # open here rather than raising — see _identity_decision().
+        self.require_agent_identity = bool(cfg.get("require_agent_identity", False))
+        self.identity_gate = identity_gate
         self.agent_id_header = str(cfg.get("agent_id_header", "X-Guardian-Agent-Id"))
         self.parent_agent_header = str(cfg.get("parent_agent_header", "X-Guardian-Agent-Parent"))
         self.execution_id_header = str(cfg.get("execution_id_header", "X-Guardian-Exec-Id"))
@@ -279,22 +289,23 @@ class AgenticSecurityManager:
         if self.kill_switch_enabled and exec_id and exec_id in set(kill_switch.get("blocked_execution_ids", [])):
             return AgenticDecision("block", "execution_kill_switch", {"execution_id": exec_id})
 
-        return AgenticDecision(
-            "allow",
-            "ok",
-            {
-                "agent_id": agent_id,
-                "parent_agent": parent_id,
-                "execution_id": exec_id,
-                "scope": scope,
-                "mcp_server": mcp_server,
-                "mtls_subject": mtls_subject,
-                "mtls_fingerprint": mtls_fingerprint,
-                "trace_hash": trace_hash,
-                "threat_score": threat_score,
-            },
-            severity="LOW",
-        )
+        identity_decision, identity_details = self._enforce_identity_gate(agent_id)
+        if identity_decision:
+            return identity_decision
+
+        allow_details = {
+            "agent_id": agent_id,
+            "parent_agent": parent_id,
+            "execution_id": exec_id,
+            "scope": scope,
+            "mcp_server": mcp_server,
+            "mtls_subject": mtls_subject,
+            "mtls_fingerprint": mtls_fingerprint,
+            "trace_hash": trace_hash,
+            "threat_score": threat_score,
+        }
+        allow_details.update(identity_details)
+        return AgenticDecision("allow", "ok", allow_details, severity="LOW")
 
     @staticmethod
     def _header(headers: Dict[str, Any], name: str) -> str:
@@ -839,6 +850,38 @@ class AgenticSecurityManager:
             separators=(",", ":"),
         )
         return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+    def _enforce_identity_gate(self, agent_id: str) -> tuple[Optional[AgenticDecision], Dict[str, Any]]:
+        """Point-of-interaction identity/tier check via the shared IdentityGate.
+
+        Returns (block_decision_or_None, extra_allow_details). The second
+        element is merged into the final allow decision's details dict when
+        this check doesn't block, so a downstream caller (dashboard, log
+        line) can see the tier that was actually checked — not just that the
+        request was allowed.
+
+        Fails open by design when misconfigured: require_agent_identity=true
+        with no identity_gate wired in is a caller wiring mistake, not a
+        traffic-blocking event — it's logged and skipped rather than
+        silently enforced against an agent_id with no gate to check it, and
+        rather than raising and taking the control plane down.
+        """
+        if not self.require_agent_identity:
+            return None, {}
+        if self.identity_gate is None:
+            return None, {"identity_verified": None, "identity_gate_note": "require_agent_identity set but no gate wired"}
+
+        result = self.identity_gate.check_agent(agent_id)
+        if not result.allowed:
+            return (
+                AgenticDecision(
+                    "block",
+                    "unregistered_or_low_trust_agent",
+                    {"agent_id": agent_id, "identity_reason": result.reason, **result.as_details()},
+                ),
+                {},
+            )
+        return None, {"erc8004_tier": result.tier, "identity_verified": result.source != "disabled"}
 
     def _load_trace_replay_cache(self) -> list[str]:
         if not self.trace_replay_cache_file.exists():

@@ -49,6 +49,8 @@ As of **April 28, 2026**, this workspace includes:
 - Full UI / Backend telemetry and metering integration (Dashboard)
 - JWT Auth and RBAC
 - Dependency Pinning CI Gates
+- Canonical ERC-8004 Identity Registration with transient custody handoff
+- Pre-flight Identity Gate enforcement on RPC relays and agentic channels with hot-wallet collision guards and fail-open resilience
 
 One-click activation behavior:
 - Generates secure runtime credentials if not already provided in environment.

@@ -99,6 +99,14 @@ Follow these practices to secure your GuardianAI deployment against advanced thr
 - **Timelock Governance:** On-chain contract ownership is transferred to `GuardianTimelock.sol` with a mandatory 24-hour minimum execution delay (`MIN_DELAY = 24 hours`).
 - **Certificate Capping:** `GuardianInsuranceLedger.sol` enforces `MAX_CERTIFICATES = 100,000` with custom error `CertificateLimitReached()` as the first line of execution.
 
+## 10. Web3 Identity & Hot-Wallet Collision Defense
+
+- **Active Wallet Uniqueness:** A database partial unique index (`ON agent_passports(owner_pubkey COLLATE NOCASE) WHERE is_active = 1`) strictly prevents multiple active AI agents from multiplexing the same hot wallet address.
+- **Deterministic Resolver Tiebreaking:** `IdentityGate` resolves addresses using active-first `ORDER BY is_active DESC, updated_at DESC` across passports and ERC-8004 registrations, preventing revoked graveyard records from hijacking permissions or causing false-positive blocks.
+- **Fail-Safe RPC Resiliency:** Configured to fail-open (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false`) during network/RPC interruptions, maintaining agent uptime while logging full on-chain error telemetry.
+- **Shadow Mode Staging:** Deploy in `GUARDIAN_IDENTITY_GATE_MODE=shadow` initially. Verify 0 drift via `python audit_identity_drift.py` before promoting to `enforce` mode.
+
+
 
 
 

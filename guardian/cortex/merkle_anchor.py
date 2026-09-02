@@ -64,10 +64,10 @@ def _sha256_hex(data: str) -> str:
 
 
 def _hash_pair(left: bytes, right: bytes) -> bytes:
-    """Hash two nodes together (sorted to ensure deterministic ordering)."""
+    """Hash two nodes together (sorted to ensure deterministic ordering with domain separation)."""
     if left > right:
         left, right = right, left
-    return _sha256_bytes(left + right)
+    return _sha256_bytes(b"\x01" + left + right)
 
 
 @dataclass
@@ -112,26 +112,20 @@ class MerkleTree:
         self._original_leaves = list(leaves)
         self._leaf_bytes = [bytes.fromhex(h) for h in leaves]
 
-        # Pad to power of 2 by duplicating last leaf
-        n = len(self._leaf_bytes)
-        next_pow2 = 1
-        while next_pow2 < n:
-            next_pow2 *= 2
-        while len(self._leaf_bytes) < next_pow2:
-            self._leaf_bytes.append(self._leaf_bytes[-1])
-
         self._tree: List[List[bytes]] = []
         self._build()
 
     def _build(self) -> None:
-        """Build the tree bottom-up."""
+        """Build the tree bottom-up without duplicate padding (promoting odd trailing leaves)."""
         level = list(self._leaf_bytes)
         self._tree.append(level)
 
         while len(level) > 1:
             next_level = []
-            for i in range(0, len(level), 2):
+            for i in range(0, len(level) - 1, 2):
                 next_level.append(_hash_pair(level[i], level[i + 1]))
+            if len(level) % 2 == 1:
+                next_level.append(level[-1])
             self._tree.append(next_level)
             level = next_level
 
@@ -142,7 +136,7 @@ class MerkleTree:
 
     @property
     def leaf_count(self) -> int:
-        """Original (non-padded) leaf count."""
+        """Original leaf count."""
         return len(self._original_leaves)
 
     def get_proof(self, leaf_index: int) -> MerkleProof:
@@ -159,13 +153,16 @@ class MerkleTree:
             raise IndexError(f"Leaf index {leaf_index} out of range [0, {len(self._original_leaves)})")
 
         proof: List[str] = []
-        idx = leaf_index
+        curr_idx = leaf_index
 
         for level in self._tree[:-1]:  # All levels except root
-            sibling_idx = idx ^ 1  # Flip last bit to get sibling
-            if sibling_idx < len(level):
+            if curr_idx % 2 == 1:
+                sibling_idx = curr_idx - 1
                 proof.append(level[sibling_idx].hex())
-            idx //= 2
+            elif curr_idx + 1 < len(level):
+                sibling_idx = curr_idx + 1
+                proof.append(level[sibling_idx].hex())
+            curr_idx //= 2
 
         return MerkleProof(
             leaf=self._original_leaves[leaf_index],

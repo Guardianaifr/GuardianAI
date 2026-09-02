@@ -309,6 +309,10 @@ class IdentityGate:
             )
             owner = contract.functions.ownerOf(token_id).call()
         except Exception as exc:  # noqa: BLE001
+            exc_str = str(exc).lower()
+            if "nonexistent token" in exc_str or "erc721nonexistenttoken" in exc_str or "invalid token id" in exc_str:
+                logger.warning("IdentityGate on-chain token %s is nonexistent/burned: %s", token_id, exc)
+                return self._blocked("onchain_token_revoked_or_burned", passport, details={"token_id": token_id})
             logger.warning("IdentityGate on-chain ownerOf(%s) failed: %s", token_id, exc)
             return self._chain_unavailable_result(passport)
 

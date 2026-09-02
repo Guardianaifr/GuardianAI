@@ -23,6 +23,35 @@ def laplace_noise(scale: float, rng: random.Random | None = None) -> float:
     return -scale * math.copysign(math.log(1 - 2 * abs(u)), u)
 
 
+def geometric_noise(alpha: float, rng: random.Random | None = None) -> int:
+    """
+    Two-sided geometric mechanism (discrete Laplace) for differential privacy on integer counts.
+    alpha = exp(-epsilon). Returns an integer in (-inf, +inf).
+    Ref: Ghosh, Roughgarden, Sundararajan (STOC 2009 / SICOMP 2012).
+    """
+    if rng is None:
+        rng = _get_default_rng()
+    if alpha <= 0 or alpha >= 1:
+        return 0
+    u1 = max(1e-15, rng.random())
+    u2 = max(1e-15, rng.random())
+    geom1 = int(math.floor(math.log(u1) / math.log(alpha)))
+    geom2 = int(math.floor(math.log(u2) / math.log(alpha)))
+    return geom1 - geom2
+
+
+def noisy_count_unbiased(true_count: int, epsilon: float, rng: random.Random | None = None) -> float:
+    """
+    Returns un-truncated, un-clamped noisy count preserving the exact mean of the Laplace mechanism.
+    E[noisy_count_unbiased] == true_count.
+    """
+    if rng is None:
+        rng = _get_default_rng()
+    eps = max(float(epsilon), 1e-6)
+    scale = 1.0 / eps
+    return float(true_count) + laplace_noise(scale, rng)
+
+
 def noisy_count(true_count: int, epsilon: float, rng: random.Random | None = None) -> int:
     if rng is None:
         rng = _get_default_rng()

@@ -42,6 +42,9 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
     /// @notice agentHash => tokenId (0 = not minted)
     mapping(bytes32 => uint256) public agentToken;
 
+    /// @notice agentHash => permanent revocation tombstone
+    mapping(bytes32 => bool) public isAgentRevoked;
+
     /// @notice Auto-incrementing token ID counter
     uint256 private _nextTokenId;
 
@@ -200,6 +203,9 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
         p.revoked = true;
         p.updatedAt = block.timestamp;
         activePassportCount--;
+
+        // Set permanent revocation tombstone so off-chain identity gates fail closed
+        isAgentRevoked[p.agentHash] = true;
 
         // Free agent slot so a new passport can be minted
         delete agentToken[p.agentHash];

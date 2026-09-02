@@ -66,6 +66,23 @@ class TestMerkleTree:
         tree2 = MerkleTree([_sha256_hex(f"different-{i}") for i in range(4)])
         assert tree1.root != tree2.root
 
+    def test_cve_2012_2459_duplicate_leaf_collision_prevented(self):
+        """Regression test: duplicate leaf padding in [A, B, C] must NOT collide with [A, B, C, C]."""
+        leaves_3 = ["aa" * 32, "bb" * 32, "cc" * 32]
+        leaves_4 = ["aa" * 32, "bb" * 32, "cc" * 32, "cc" * 32]
+        t1 = MerkleTree(leaves_3)
+        t2 = MerkleTree(leaves_4)
+        assert t1.root != t2.root, "Collision detected between 3-leaf and 4-leaf tree (CVE-2012-2459 regression)!"
+
+    def test_all_odd_tree_sizes_generate_valid_proofs(self):
+        """Verify inclusion proofs for various odd and prime tree sizes."""
+        for size in [1, 3, 5, 7, 9, 13, 17, 33, 57]:
+            leaves = _make_leaves(size)
+            tree = MerkleTree(leaves)
+            for idx in range(size):
+                proof = tree.get_proof(idx)
+                assert MerkleTree.verify_proof(proof.leaf, proof.proof, tree.root) is True
+
 
 class TestMerkleProof:
 

@@ -201,17 +201,7 @@ if _raw_admin_pass:
     ADMIN_PASS = _raw_admin_pass
 else:
     ADMIN_PASS = secrets.token_urlsafe(32)
-    logger.warning("GUARDIAN_ADMIN_PASS environment variable was not configured. Ephemeral admin credentials generated.")
-    try:
-        from pathlib import Path
-        pass_file = Path(__file__).resolve().parent.parent / ".admin_pass"
-        fd = os.open(str(pass_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as f:
-            f.write(ADMIN_PASS)
-        import sys
-        print(f"\n{'='*60}\n[SECURITY WARNING] GUARDIAN_ADMIN_PASS environment variable was not configured.\nEphemeral admin password written to secure file: {pass_file}\n{'='*60}\n", file=sys.stderr)
-    except Exception as exc:
-        logger.error("Failed to write ephemeral admin password to secure file: %s", exc)
+    logger.warning("GUARDIAN_ADMIN_PASS environment variable was not configured. Ephemeral in-memory admin credentials generated.")
 
 AUDITOR_USER = os.getenv("GUARDIAN_AUDITOR_USER", "").strip()
 AUDITOR_PASS = os.getenv("GUARDIAN_AUDITOR_PASS", "").strip()
@@ -327,7 +317,8 @@ APP_START_TIME = time.time()
 import sys
 if _env_mode == "production":
     if not _raw_admin_pass:
-        logger.warning("Starting in production mode without explicit GUARDIAN_ADMIN_PASS. Ephemeral password used.")
+        logger.error("CRITICAL SECURITY ERROR: GUARDIAN_ADMIN_PASS must be explicitly configured in production mode! Refusing to start.")
+        sys.exit(1)
     if not _raw_jwt_secret:
         logger.error("CRITICAL SECURITY ERROR: JWT_SECRET is not set in production mode! Refusing to start.")
         sys.exit(1)
@@ -2359,6 +2350,10 @@ def _agentic_decrypt_secret(ciphertext: str) -> str:
         except Exception:
             raise ValueError("Decryption failed")
     else:
+        if _env_mode == "production":
+            logger.critical("SECURITY ALERT: Rejecting legacy unauthenticated XOR stream cipher secret in production mode")
+            raise ValueError("Legacy unauthenticated secret format rejected in production mode")
+        logger.warning("Decrypting legacy unauthenticated XOR stream secret. Rotate to v2 (AES-GCM).")
         encrypted = base64.urlsafe_b64decode(ciphertext.encode("ascii"))
         stream = _agentic_secret_stream(len(encrypted))
         raw = bytes(a ^ b for a, b in zip(encrypted, stream))
@@ -3180,42 +3175,62 @@ def _forward_audit_payload(audit_payload: Dict[str, Any]):
         raise
 
 
-def _write_control_plane_audit_entry(action: str, user: str, details: Dict[str, Any]) -> Dict[str, Any]:
-    timestamp = time.time()
-    guardian_id = "guardian-backend"
-    details_json = json.dumps(details)
-    signature = hmac.new(JWT_SECRET.encode("utf-8"), f"{guardian_id}:{timestamp}:{details_json}".encode("utf-8"), hashlib.sha256).hexdigest()
+_audit_chain_lock = threading.Lock()
 
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT entry_hash
-        FROM audit_logs
-        WHERE entry_hash IS NOT NULL AND entry_hash != ''
-        ORDER BY id DESC LIMIT 1
-        """
-    )
-    prev_row = cur.fetchone()
-    prev_hash = prev_row[0] if prev_row and prev_row[0] else ""
-    entry_hash = _compute_audit_entry_hash(
-        guardian_id=guardian_id,
-        action=action,
-        user=user,
-        details_json=details_json,
-        timestamp=timestamp,
-        signature=signature,
-        prev_hash=prev_hash,
-    )
-    cur.execute(
-        """
-        INSERT INTO audit_logs (guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (guardian_id, action, user, details_json, timestamp, signature, prev_hash, entry_hash),
-    )
-    conn.commit()
-    conn.close()
+
+def write_audit_log_entry_locked(
+    guardian_id: str,
+    action: str,
+    user: str,
+    details: Dict[str, Any],
+    timestamp: Optional[float] = None,
+    signature: Optional[str] = None,
+    forward: bool = True,
+) -> Dict[str, Any]:
+    if timestamp is None:
+        timestamp = time.time()
+    details_json = json.dumps(details)
+    if signature is None:
+        signature = hmac.new(
+            JWT_SECRET.encode("utf-8"),
+            f"{guardian_id}:{timestamp}:{details_json}".encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+    with _audit_chain_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=10.0)
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT entry_hash
+                FROM audit_logs
+                WHERE entry_hash IS NOT NULL AND entry_hash != ''
+                ORDER BY id DESC LIMIT 1
+                """
+            )
+            prev_row = cur.fetchone()
+            prev_hash = prev_row[0] if prev_row and prev_row[0] else ""
+            entry_hash = _compute_audit_entry_hash(
+                guardian_id=guardian_id,
+                action=action,
+                user=user,
+                details_json=details_json,
+                timestamp=timestamp,
+                signature=signature,
+                prev_hash=prev_hash,
+            )
+            cur.execute(
+                """
+                INSERT INTO audit_logs (guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (guardian_id, action, user, details_json, timestamp, signature, prev_hash, entry_hash),
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     audit_payload = {
         "guardian_id": guardian_id,
@@ -3227,8 +3242,18 @@ def _write_control_plane_audit_entry(action: str, user: str, details: Dict[str, 
         "prev_hash": prev_hash,
         "entry_hash": entry_hash,
     }
-    _forward_audit_payload(audit_payload)
+    if forward:
+        _forward_audit_payload(audit_payload)
     return audit_payload
+
+
+def _write_control_plane_audit_entry(action: str, user: str, details: Dict[str, Any]) -> Dict[str, Any]:
+    return write_audit_log_entry_locked(
+        guardian_id="guardian-backend",
+        action=action,
+        user=user,
+        details=details,
+    )
 
 
 def _verify_audit_log_chain_internal() -> Dict[str, Any]:

@@ -35,6 +35,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      - GUARDIAN_DB_PATH=/app/data/guardian.db
       - GUARDIAN_RATE_LIMIT_BACKEND=redis
       - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
       - GUARDIAN_PROXY_HOST=0.0.0.0

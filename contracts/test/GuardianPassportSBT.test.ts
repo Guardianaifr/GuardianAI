@@ -118,6 +118,9 @@ describe("GuardianPassportSBT", function () {
       // Agent slot should be freed — can mint again
       const agentTokenId = await sbt.getAgentTokenId(AGENT_HASH);
       expect(agentTokenId).to.equal(0);
+
+      // Permanent revocation tombstone must be set
+      expect(await sbt.isAgentRevoked(AGENT_HASH)).to.be.true;
     });
 
     it("should revert for already revoked passport", async function () {

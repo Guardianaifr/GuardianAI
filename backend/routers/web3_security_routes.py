@@ -30,14 +30,16 @@ _RELAY_WHITELIST_URL = _RELAY_BASE_URL + "/whitelist"
 
 # Management token for relay mutating endpoints (audit P1-3).
 # Must match the relay's management_token (sourced from the same env vars).
-_RELAY_MGMT_TOKEN = (
-    os.environ.get("GUARDIAN_ADMIN_TOKEN", "")
-    or os.environ.get("GUARDIAN_ADMIN_BYPASS_TOKEN", "")
-)
+def _get_relay_mgmt_token() -> str:
+    return (
+        os.environ.get("GUARDIAN_ADMIN_TOKEN", "")
+        or os.environ.get("GUARDIAN_ADMIN_BYPASS_TOKEN", "")
+    )
 
 _VALID_RULES = frozenset(
-    ["reserve_manipulation", "infinite_approval", "role_change", "zero_slippage", "threat_address"]
+    ["reserve_manipulation", "infinite_approval", "role_change", "zero_slippage", "threat_address", "identity_check"]
 )
+
 
 def _db_conn():
     """Return a sqlite3 connection to the shared web3sec DB."""
@@ -75,8 +77,9 @@ def _notify_relay(method: str, url: str, **kwargs):
     Sends management Bearer token for auth on mutating endpoints (audit P1-3)."""
     try:
         headers = kwargs.pop("headers", {})
-        if _RELAY_MGMT_TOKEN:
-            headers["Authorization"] = f"Bearer {_RELAY_MGMT_TOKEN}"
+        mgmt_token = _get_relay_mgmt_token()
+        if mgmt_token:
+            headers["Authorization"] = f"Bearer {mgmt_token}"
         http_requests.request(method, url, timeout=2, headers=headers, **kwargs)
     except Exception:
         pass  # Relay may not be running; DB is the source of truth

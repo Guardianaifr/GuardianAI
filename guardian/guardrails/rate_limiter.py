@@ -31,6 +31,41 @@ License: MIT
 """
 logger = logging.getLogger("GuardianAI.rate_limiter")
 
+_REDIS_RATE_LIMIT_LUA = """
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local refill_rate = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local offline_delta = tonumber(ARGV[4]) or 0
+
+local data = redis.call("HMGET", key, "tokens", "last_time")
+local tokens = tonumber(data[1])
+local last_time = tonumber(data[2])
+
+if not tokens then
+    tokens = capacity
+    last_time = now
+else
+    local elapsed = math.max(0, now - last_time)
+    tokens = math.min(capacity, tokens + (elapsed * refill_rate))
+end
+
+if offline_delta > 0 then
+    tokens = math.max(0, tokens - offline_delta)
+end
+
+if tokens >= 1.0 then
+    tokens = tokens - 1.0
+    redis.call("HMSET", key, "tokens", tokens, "last_time", now)
+    redis.call("EXPIRE", key, 120)
+    return 1
+else
+    redis.call("HMSET", key, "tokens", tokens, "last_time", now)
+    redis.call("EXPIRE", key, 120)
+    return 0
+end
+"""
+
 
 class RateLimiter:
     """
@@ -64,6 +99,7 @@ class RateLimiter:
         self._time_fn = time_fn or time.time
         self.redis = redis_client
         self.redis_prefix = redis_prefix
+        self.max_local_buckets = 50000
 
         # Dictionary to store (IP) -> (tokens, last_refill_time)
         self.buckets: Dict[str, Tuple[float, float]] = {}
@@ -96,6 +132,30 @@ class RateLimiter:
         # Tracks tokens consumed in-memory during Redis outages so they
         # can be lazily deducted from Redis when connectivity resumes.
         self._local_recovery_deltas: Dict[str, int] = {}  # ip -> tokens_consumed_offline
+
+        self._redis_script = None
+        if self.redis is not None:
+            try:
+                self._redis_script = self.redis.register_script(_REDIS_RATE_LIMIT_LUA)
+            except Exception:
+                self._redis_script = None
+
+        # ── Background Janitor Daemon (ARCH-04 Fix) ───────────────────
+        self._janitor_stop_event = threading.Event()
+        self._janitor_thread = threading.Thread(
+            target=self._run_janitor,
+            daemon=True,
+            name="RateLimiterJanitor",
+        )
+        self._janitor_thread.start()
+
+    def _run_janitor(self):
+        """Periodically sweeps stale IP buckets and trims memory (runs every 60s)."""
+        while not self._janitor_stop_event.wait(60.0):
+            try:
+                self.cleanup_stale(max_age_seconds=300)
+            except Exception as exc:
+                logger.debug("RateLimiter janitor sweep encountered error: %s", exc)
 
     # ─── Core: Token Bucket ──────────────────────────────────────────────
 
@@ -318,13 +378,32 @@ class RateLimiter:
             return [self.get_bucket_info(ip) for ip in list(self.buckets.keys())[:100]]
 
     def cleanup_stale(self, max_age_seconds: float = 300) -> int:
-        """Remove stale buckets that haven't been accessed recently."""
+        """Remove stale buckets that haven't been accessed recently, prune burst windows, and enforce max capacity."""
         with self._lock:
             now = self._time_fn()
             stale = [ip for ip, (_, last) in self.buckets.items()
                      if now - last > max_age_seconds]
             for ip in stale:
                 del self.buckets[ip]
+
+            # Prune old timestamps in burst windows
+            cutoff = now - self._burst_window_seconds
+            empty_bursts = []
+            for ip, timestamps in self._burst_windows.items():
+                self._burst_windows[ip] = [t for t in timestamps if t > cutoff]
+                if not self._burst_windows[ip]:
+                    empty_bursts.append(ip)
+            for ip in empty_bursts:
+                del self._burst_windows[ip]
+
+            # Enforce max_local_buckets ceiling (evict oldest accessed)
+            if len(self.buckets) > self.max_local_buckets:
+                excess = len(self.buckets) - self.max_local_buckets
+                sorted_ips = sorted(self.buckets.items(), key=lambda item: item[1][1])
+                for ip, _ in sorted_ips[:excess]:
+                    del self.buckets[ip]
+
+            self._stats["unique_ips"] = len(self.buckets)
             return len(stale)
 
     # ─── Burst Detection ────────────────────────────────────────────────
@@ -404,36 +483,86 @@ class RateLimiter:
         return f"{self.redis_prefix}:{ip}"
 
     def _read_redis_bucket(self, ip: str) -> Tuple[float, float]:
-        raw = self.redis.get(self._redis_key(ip))
+        key = self._redis_key(ip)
+        try:
+            hm_data = self.redis.hmget(key, "tokens", "last_time")
+            if hm_data and hm_data[0] is not None:
+                return float(hm_data[0]), float(hm_data[1] or self._time_fn())
+        except Exception:
+            pass
+        raw = self.redis.get(key)
         if not raw:
             return float(self.capacity), self._time_fn()
         if isinstance(raw, bytes):
             raw = raw.decode("utf-8", errors="ignore")
-        data = json.loads(raw)
-        return float(data.get("tokens", self.capacity)), float(data.get("last_time", self._time_fn()))
+        try:
+            data = json.loads(raw)
+            return float(data.get("tokens", self.capacity)), float(data.get("last_time", self._time_fn()))
+        except Exception:
+            return float(self.capacity), self._time_fn()
 
     def _write_redis_bucket(self, ip: str, tokens: float, last_time: float):
-        payload = json.dumps({"tokens": tokens, "last_time": last_time})
-        self.redis.setex(self._redis_key(ip), 120, payload)
+        key = self._redis_key(ip)
+        try:
+            self.redis.hmset(key, {"tokens": tokens, "last_time": last_time})
+            self.redis.expire(key, 120)
+        except Exception:
+            payload = json.dumps({"tokens": tokens, "last_time": last_time})
+            self.redis.setex(key, 120, payload)
 
     def _is_allowed_redis(self, ip: str) -> bool:
         current_time = self._time_fn()
-        tokens, last_time = self._read_redis_bucket(ip)
-
-        elapsed = current_time - last_time
-        tokens = min(float(self.capacity), tokens + (elapsed * self.refill_rate))
-
-        # Lazy sync: deduct any tokens consumed during a prior Redis partition.
-        # This prevents quota drift — offline consumption is reconciled before
-        # granting new requests from the central Redis bucket.
         with self._lock:
             offline_delta = self._local_recovery_deltas.pop(ip, 0)
         if offline_delta > 0:
-            tokens = max(0.0, tokens - float(offline_delta))
             logger.info(
                 f"[RateLimiter] Lazy sync for {ip}: deducted {offline_delta} offline token(s) "
                 f"from Redis bucket on partition recovery."
             )
+
+        effective_capacity = float(self._get_effective_capacity(ip))
+        effective_refill = effective_capacity / 60.0
+        key = self._redis_key(ip)
+
+        # 1. Atomic execution via registered Lua script
+        if self._redis_script is not None:
+            try:
+                res = self._redis_script(
+                    keys=[key],
+                    args=[effective_capacity, effective_refill, current_time, offline_delta],
+                )
+                allowed = bool(res == 1)
+                if not allowed:
+                    logger.warning(f"Rate limit exceeded for IP: {ip} (Bucket empty, redis)")
+                return allowed
+            except Exception as exc:
+                logger.debug(f"Redis Lua script execution failed: {exc}")
+
+        # 2. Direct eval fallback
+        try:
+            res = self.redis.eval(
+                _REDIS_RATE_LIMIT_LUA,
+                1,
+                key,
+                effective_capacity,
+                effective_refill,
+                current_time,
+                offline_delta,
+            )
+            allowed = bool(res == 1)
+            if not allowed:
+                logger.warning(f"Rate limit exceeded for IP: {ip} (Bucket empty, redis)")
+            return allowed
+        except Exception as exc:
+            logger.debug(f"Redis eval failed: {exc}, using read-modify-write fallback")
+
+        # 3. Read-modify-write fallback if script execution not supported
+        tokens, last_time = self._read_redis_bucket(ip)
+        elapsed = current_time - last_time
+        tokens = min(float(effective_capacity), tokens + (elapsed * effective_refill))
+
+        if offline_delta > 0:
+            tokens = max(0.0, tokens - float(offline_delta))
 
         if tokens >= 1.0:
             self._write_redis_bucket(ip, tokens - 1.0, current_time)

@@ -50,11 +50,11 @@ contract GuardianProtectedVault is GuardianCircuitBreaker, Ownable2Step, Pausabl
 
     function deposit(uint256 _amount) external guardianProtected whenNotPaused nonReentrant {
         if (_amount == 0) revert ZeroAmount();
-        // Audit M-2: CEI — update state before external call. If safeTransferFrom
-        // reverts, Solidity's atomic semantics roll back the balance increment.
-        balances[msg.sender] += _amount;
+        uint256 balanceBefore = token.balanceOf(address(this));
         token.safeTransferFrom(msg.sender, address(this), _amount);
-        emit Deposited(msg.sender, _amount);
+        uint256 actualReceived = token.balanceOf(address(this)) - balanceBefore;
+        balances[msg.sender] += actualReceived;
+        emit Deposited(msg.sender, actualReceived);
     }
 
     function withdraw(uint256 _amount) external guardianProtected whenNotPaused nonReentrant {

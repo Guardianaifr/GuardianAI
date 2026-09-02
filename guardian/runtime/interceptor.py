@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+_GUARDIAN_ROOT = str(Path(__file__).resolve().parent.parent)
+if _GUARDIAN_ROOT not in sys.path:
+    sys.path.insert(0, _GUARDIAN_ROOT)
+
 from flask import Flask, request, Response, has_request_context
 import requests
 import threading
@@ -9,7 +16,6 @@ import hashlib
 import secrets
 import json
 import os
-from pathlib import Path
 from typing import Dict, Any, List, Optional
 from guardrails.input_filter import InputFilter
 from guardrails.output_validator import OutputValidator
@@ -75,6 +81,18 @@ class GuardianProxy:
         self.target_url = proxy_config.get('target_url', "http://localhost:18789")
         
         self.app = Flask(__name__)
+        # Enforce maximum request payload limit (10MB default) to prevent DoS via unbounded memory allocation
+        max_body_bytes = int(config.get("proxy", {}).get("max_request_body_bytes", 10 * 1024 * 1024))
+        self.app.config['MAX_CONTENT_LENGTH'] = max_body_bytes
+
+        @self.app.errorhandler(413)
+        def _request_entity_too_large(error):
+            return Response(
+                json.dumps({"error": "Payload Too Large", "max_bytes": max_body_bytes}),
+                status=413,
+                mimetype="application/json",
+            )
+
         # ProxyFix: trust exactly `trusted_proxy_hops` upstream proxy hops.
         # Prevents X-Forwarded-For spoofing for rate-limit bypass / audit falsification.
         # (audit finding #4, eb180c04)
@@ -123,9 +141,17 @@ class GuardianProxy:
             config.get("tenant_isolation", {}),
             Path(__file__).resolve().parent.parent,
         )
+        try:
+            from guardian.passport.identity_gate import IdentityGate
+            identity_gate_instance = IdentityGate()
+        except Exception as exc:
+            logger.warning(f"Could not initialize IdentityGate for agentic security: {exc}")
+            identity_gate_instance = None
+
         self.agentic_security = AgenticSecurityManager(
             config.get("agentic_security", {}),
             Path(__file__).resolve().parent.parent,
+            identity_gate=identity_gate_instance,
         )
 
         self.rag_security = RAGSecurityGuard(config.get("rag_security", {}))
@@ -262,10 +288,10 @@ class GuardianProxy:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _check_admin_auth(self) -> Optional[Response]:
-        """Verify admin Bearer token. Returns error Response or None if valid."""
         from flask import request as flask_request
         auth = flask_request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer ") or auth[7:].strip() != self.admin_token:
+        token = auth[7:].strip() if auth.startswith("Bearer ") else ""
+        if not token or not secrets.compare_digest(token, self.admin_token):
             return Response(
                 json.dumps({"error": "Unauthorized — provide admin Bearer token"}),
                 status=401,
@@ -1911,10 +1937,16 @@ class GuardianProxy:
         logger.info(f"DEBUG: Forwarding to {target}")
         
         # Prepare headers
-        # Strip Host, X-Guardian-Token (internal auth), and any other Guardian-specific headers
+        # Strip RFC 9110 Hop-by-Hop headers, Host, Content-Length, and internal Guardian tokens
+        # to prevent HTTP request smuggling / framing desynchronization (ARCH-05 Fix)
+        hop_by_hop_headers = frozenset([
+            "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+            "te", "trailers", "transfer-encoding", "upgrade", "host",
+            "content-length", "x-guardian-token"
+        ])
         fwd_headers = {
             key: value for (key, value) in request.headers 
-            if key.lower() not in ('host', 'x-guardian-token')
+            if key.lower() not in hop_by_hop_headers
         }
         
         # SECURITY FEATURE: Upstream Key Injection
@@ -1941,10 +1973,13 @@ class GuardianProxy:
             )
             
             if is_stream:
+                system_prompt = self._extract_system_prompt(data) if (data and self.system_prompt_guard.enabled) else None
+
                 def generate():
                     window = ""
-                    # 500-byte margin to prevent prefix leaks of long sensitive patterns (P2-2 trade-off)
+                    accumulated_content = ""
                     margin = 2048
+                    content_regex = re.compile(r'"content"\s*:\s*"((?:[^"\\]|\\.)*)"')
                     for chunk in resp.iter_content(chunk_size=1, decode_unicode=True):
                         if chunk:
                             window += chunk
@@ -1953,6 +1988,25 @@ class GuardianProxy:
                                 if detected:
                                     yield 'data: {"error": "Forbidden: Potential data leak blocked by GuardianAI."}\n\n'
                                     return
+                            
+                            if self.system_prompt_guard.enabled and "\n" in window:
+                                matches = content_regex.findall(window)
+                                if matches:
+                                    try:
+                                        extracted = "".join(json.loads(f'"{m}"') for m in matches)
+                                    except Exception:
+                                        extracted = "".join(matches)
+                                    if len(extracted) > len(accumulated_content):
+                                        accumulated_content = extracted
+                                        leak = self.system_prompt_guard.check_response(
+                                            response_text=accumulated_content,
+                                            system_prompt=system_prompt,
+                                            user_prompt=prompt,
+                                        )
+                                        if leak.action == "block":
+                                            yield 'data: {"error": "Forbidden: System prompt leak blocked by GuardianAI."}\n\n'
+                                            return
+
                             if len(window) > margin:
                                 yield window[:-margin]
                                 window = window[-margin:]

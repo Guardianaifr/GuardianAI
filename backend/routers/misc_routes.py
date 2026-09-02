@@ -48,6 +48,7 @@ from backend.main import (
     JWT_SECRET,
     METRICS_ENABLED,
     PROXY_EVENT_TYPES,
+    write_audit_log_entry_locked,
     # Auth dependencies
     enforce_admin_rate_limit,
     enforce_auditor_rate_limit,
@@ -63,6 +64,10 @@ from backend.main import (
     SecurityEvent,
 )
 from backend.security.authorization import can_access_tenant
+
+def _db_path() -> str:
+    import backend.main as bm
+    return getattr(bm, "DB_PATH", DB_PATH)
 
 router = APIRouter()
 
@@ -323,90 +328,42 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
     event.severity = event.severity.upper()
     
     # 1. Persist to SQLite
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    
-    # Insert new event
-    cur.execute(
-        "INSERT INTO security_events (guardian_id, tenant_id, event_type, severity, details, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-        (event.guardian_id, event.tenant_id, event.event_type, event.severity, json.dumps(event.details), event.timestamp)
-    )
+    with sqlite3.connect(_db_path(), timeout=10.0) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO security_events (guardian_id, tenant_id, event_type, severity, details, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+            (event.guardian_id, event.tenant_id, event.event_type, event.severity, json.dumps(event.details), event.timestamp)
+        )
+
+        # Extract Analytics if present (Add to analytics table)
+        if "latency_ms" in event.details and "path" in event.details:
+            try:
+                latency = float(event.details["latency_ms"].replace("ms", ""))
+                path = event.details["path"]
+                cur.execute(
+                    "INSERT INTO analytics (tenant_id, path, latency_ms, timestamp) VALUES (?, ?, ?, ?)",
+                    (event.tenant_id, path, latency, event.timestamp)
+                )
+            except (ValueError, TypeError, KeyError, AttributeError) as exc:
+                logger.debug("Analytics extraction skipped: %s", exc)
+        
+        # Retention Policy: Auto-purge events older than the configured retention window
+        retention_cutoff = time.time() - (30 * 24 * 60 * 60)
+        cur.execute("DELETE FROM security_events WHERE timestamp < ?", (retention_cutoff,))
+        conn.commit()
 
     audit_payload = None
 
     # 2. Immutable Audit Log (Critical Events)
     if event.event_type == "admin_action":
-        import hashlib
-        # Simulate cryptographic signing of the log entry
-        details_json = json.dumps(event.details)
-        payload = f"{event.guardian_id}:{event.timestamp}:{details_json}"
-        signature = hmac.new(JWT_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
-        cur.execute(
-            """
-            SELECT entry_hash
-            FROM audit_logs
-            WHERE entry_hash IS NOT NULL AND entry_hash != ''
-            ORDER BY id DESC LIMIT 1
-            """
-        )
-        prev_row = cur.fetchone()
-        prev_hash = prev_row[0] if prev_row and prev_row[0] else ""
-        entry_hash = _compute_audit_entry_hash(
+        audit_payload = write_audit_log_entry_locked(
             guardian_id=event.guardian_id,
             action=event.details.get("action", "unknown"),
             user=event.details.get("user", "unknown"),
-            details_json=details_json,
+            details=event.details,
             timestamp=event.timestamp,
-            signature=signature,
-            prev_hash=prev_hash,
+            forward=False,
         )
-        audit_payload = {
-            "guardian_id": event.guardian_id,
-            "action": event.details.get("action", "unknown"),
-            "user": event.details.get("user", "unknown"),
-            "details": event.details,
-            "timestamp": event.timestamp,
-            "signature": signature,
-            "prev_hash": prev_hash,
-            "entry_hash": entry_hash,
-        }
-        
-        cur.execute(
-            """
-            INSERT INTO audit_logs (guardian_id, action, user, details, timestamp, signature, prev_hash, entry_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                event.guardian_id,
-                event.details.get("action", "unknown"),
-                event.details.get("user", "unknown"),
-                details_json,
-                event.timestamp,
-                signature,
-                prev_hash,
-                entry_hash,
-            ),
-        )
-
-
-    # Extract Analytics if present (Add to analytics table)
-    if "latency_ms" in event.details and "path" in event.details:
-        try:
-            latency = float(event.details["latency_ms"].replace("ms", ""))
-            path = event.details["path"]
-            cur.execute(
-                "INSERT INTO analytics (tenant_id, path, latency_ms, timestamp) VALUES (?, ?, ?, ?)",
-                (event.tenant_id, path, latency, event.timestamp)
-            )
-        except (ValueError, TypeError, KeyError, AttributeError) as exc:
-            logger.debug("Analytics extraction skipped: %s", exc)
-    
-    # 2. Retention Policy: Auto-purge events older than the configured retention window
-    retention_cutoff = time.time() - (30 * 24 * 60 * 60)
-    cur.execute("DELETE FROM security_events WHERE timestamp < ?", (retention_cutoff,))
-    
-    conn.commit()
-    conn.close()
 
     # 3. External Audit Sinks (best effort unless strict mode enabled)
     if audit_payload is not None:

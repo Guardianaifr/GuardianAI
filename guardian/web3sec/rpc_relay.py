@@ -182,13 +182,10 @@ class GuardianRPCRelay:
             # identity_check is NOT a live_rules-gated detector (the Identity
             # Gate has its own GUARDIAN_IDENTITY_GATE_ENABLED switch and is
             # checked unconditionally above) — seeded here only so the admin
-            # API/dashboard can show and toggle it like the other rules.
-            # Starts disabled=0 so existing deployments see no behavior change
-            # from this row alone; actual enforcement is controlled by the
-            # identity gate's own env vars.
+            gate_default = 1 if os.getenv("GUARDIAN_IDENTITY_GATE_ENABLED", "true").strip().lower() in ("true", "1") else 0
             conn.execute(
-                "INSERT OR IGNORE INTO web3sec_rules (rule_name, enabled, updated_at) VALUES (?, 0, ?)",
-                ("identity_check", now)
+                "INSERT OR IGNORE INTO web3sec_rules (rule_name, enabled, updated_at) VALUES (?, ?, ?)",
+                ("identity_check", gate_default, now)
             )
             conn.commit()
 
@@ -380,11 +377,15 @@ class GuardianRPCRelay:
         from_addr = (tx.get("from") or "").lower()
         is_whitelisted = to_addr in whitelist or from_addr in whitelist
 
+        # Apply live rule flags from DB
+        live_rules = self._load_rules_from_db()
+
         # ── Identity Gate: point-of-interaction ERC-8004/passport check ──
         # Runs before the calldata detectors so an unregistered/revoked/
         # low-tier agent gets stopped without spending analyzer or
-        # simulation cycles on it. No-ops immediately if disabled.
-        if self.identity_gate is not None:
+        # simulation cycles on it. No-ops immediately if disabled or toggled off in live_rules.
+        identity_rule_enabled = live_rules.get("identity_check", True)
+        if self.identity_gate is not None and identity_rule_enabled:
             identity_result = self.identity_gate.check_address(tx.get("from", ""))
             if not identity_result.allowed:
                 if is_whitelisted:
@@ -400,9 +401,6 @@ class GuardianRPCRelay:
                     return self._make_json_rpc_error(
                         -32000, f"Guardian Identity Block: {identity_result.reason}", req_id
                     )
-
-        # Apply live rule flags from DB
-        live_rules = self._load_rules_from_db()
 
         # Run detectors FIRST (calldata-only, no simulation needed)
         dummy_sim = SimulationResult(success=True, gas_used=0, return_data="")

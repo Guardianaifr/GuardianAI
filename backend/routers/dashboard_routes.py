@@ -487,23 +487,50 @@ async def public_site():
 @router.websocket("/ws/threats")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    try:
-        message_str = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
-        data = json.loads(message_str)
-        token = data.get("token")
-        if not token:
-            raise ValueError("Missing token")
-        payload = _jwt_decode(token, JWT_SECRET)
-        if payload.get("role") not in {"admin", "auditor"}:
-            await websocket.close(code=1008)
-            return
-    except Exception:
+    authenticated = False
+
+    # 1. Inspect session cookie
+    cookie_token = websocket.cookies.get("guardian_session")
+    if cookie_token:
         try:
-            await websocket.send_json({"error": "unauthorized"})
-            await websocket.close(code=1008)
+            payload = _jwt_decode(cookie_token, JWT_SECRET)
+            if payload.get("role") in {"admin", "auditor"}:
+                authenticated = True
         except Exception:
             pass
-        return
+
+    # 2. Inspect query parameter (?token=...)
+    if not authenticated:
+        query_token = websocket.query_params.get("token")
+        if query_token:
+            try:
+                payload = _jwt_decode(query_token, JWT_SECRET)
+                if payload.get("role") in {"admin", "auditor"}:
+                    authenticated = True
+            except Exception:
+                pass
+
+    # 3. Inspect first text message within 10 seconds if not yet authenticated
+    if not authenticated:
+        try:
+            message_str = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
+            data = json.loads(message_str)
+            token = data.get("token")
+            if not token:
+                raise ValueError("Missing token")
+            payload = _jwt_decode(token, JWT_SECRET)
+            if payload.get("role") in {"admin", "auditor"}:
+                authenticated = True
+            else:
+                await websocket.close(code=1008)
+                return
+        except Exception:
+            try:
+                await websocket.send_json({"error": "unauthorized"})
+                await websocket.close(code=1008)
+            except Exception:
+                pass
+            return
 
     await manager.connect(websocket)
     try:

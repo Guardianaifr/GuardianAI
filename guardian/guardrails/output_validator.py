@@ -9,7 +9,15 @@ import re
 import unicodedata
 import os
 import yaml
-from utils.logger import setup_logger
+try:
+    from guardian.utils.logger import setup_logger
+except ImportError:
+    try:
+        from utils.logger import setup_logger
+    except ImportError:
+        import logging
+        def setup_logger(name: str):
+            return logging.getLogger(name)
 
 logger = setup_logger("output_validator")
 

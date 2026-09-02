@@ -130,6 +130,18 @@ describe("GuardianInsuranceLedger", function () {
         ledger.revokeCertificate(CERT_ID)
       ).to.be.revertedWithCustomError(ledger, "CertificateAlreadyRevoked");
     });
+
+    it("should allow revocation even when contract is paused", async function () {
+      await ledger.issueCertificate(
+        CERT_ID, AGENT_HASH, PERIOD_START, PERIOD_END, CERT_HASH, RISK_LEVEL
+      );
+      await ledger.pause();
+      expect(await ledger.paused()).to.be.true;
+
+      await ledger.revokeCertificate(CERT_ID);
+      const cert = await ledger.getCertificate(CERT_ID);
+      expect(cert.revoked).to.be.true;
+    });
   });
 
   // ── Certificate Cap — preserved + IL-1 error ABI check ───────────────

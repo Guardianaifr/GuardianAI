@@ -113,9 +113,9 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Revoke a certificate.
+     * @notice Revoke a certificate. Allowed even when paused so administrators can invalidate compromised policies during incidents.
      */
-    function revokeCertificate(bytes32 _certId) external onlyOwner whenNotPaused nonReentrant {
+    function revokeCertificate(bytes32 _certId) external onlyOwner nonReentrant {
         Certificate storage cert = certificates[_certId];
         if (cert.issuedAt == 0) revert CertificateNotFound(_certId);
         if (cert.revoked) revert CertificateAlreadyRevoked(_certId);

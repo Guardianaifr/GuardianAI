@@ -70,8 +70,16 @@ function App() {
   }
 
   useEffect(() => {
+    // Read auth token from URL query params (?token=...) or localStorage/sessionStorage
+    const urlParams = new URLSearchParams(window.location.search)
+    const tokenFromUrl = urlParams.get("token")
+    if (tokenFromUrl) {
+      localStorage.setItem("guardian_token", tokenFromUrl)
+    }
+    const token = tokenFromUrl || localStorage.getItem("guardian_token") || sessionStorage.getItem("guardian_token") || ""
+
     // Connect directly to Backend (bypass proxy)
-    const wsUrl = `ws://127.0.0.1:8001/ws/threats`
+    const wsUrl = token ? `ws://127.0.0.1:8001/ws/threats?token=${encodeURIComponent(token)}` : `ws://127.0.0.1:8001/ws/threats`
 
     let ws = null
     let retryTimeout = null
@@ -82,6 +90,13 @@ function App() {
       ws.onopen = () => {
         console.log("Connected to GuardianAI Backend")
         setIsConnected(true)
+        if (token) {
+          try {
+            ws.send(JSON.stringify({ token }))
+          } catch (e) {
+            console.error("Failed to send initial token", e)
+          }
+        }
       }
 
       ws.onclose = () => {
@@ -114,7 +129,9 @@ function App() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8001/api/v1/events?limit=50')
+        const token = localStorage.getItem("guardian_token") || sessionStorage.getItem("guardian_token") || ""
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        const res = await fetch('http://127.0.0.1:8001/api/v1/events?limit=50', { headers })
         const data = await res.json()
         if (Array.isArray(data)) {
           // Process chronologically (Oldest -> Newest) to build stats

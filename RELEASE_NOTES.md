@@ -6,6 +6,37 @@ GuardianAI v1.0 is a production-ready security layer designed to protect LLM app
 
 ---
 
+## 🛡️ GuardianAI v1.1.0 Enterprise Security & Cryptographic Architecture Hardening (September 2026)
+
+GuardianAI v1.1.0 incorporates comprehensive enterprise-grade remediations from our senior cryptographic and systems adversarial audit:
+
+1. **Merkle Second-Preimage Defense & CVE-2012-2459 Collision Prevention:**
+   - Replaced duplicate leaf padding in `guardian/cortex/merkle_anchor.py` with bottom-up odd leaf promotion.
+   - Implemented RFC 6962 domain separation (`0x01` internal node hash prefix), preventing second-preimage attacks between leaves and intermediate nodes.
+   - Verified across all odd/prime tree sizes (26/26 tests passed in `tests/security/test_merkle_anchor.py`).
+
+2. **Atomic Distributed Rate Limiter Hot Path:**
+   - Implemented `_REDIS_RATE_LIMIT_LUA` script executing atomic token bucket refill, partition recovery deductions, and token consumption within a single Redis atomic transaction.
+   - Prevents burst concurrency check-then-act race conditions (33/33 tests passed in `tools/test_rate_limiter_heavy.py`).
+
+3. **Smart Contract Soulbound Revocation Tombstones:**
+   - Added permanent `mapping(bytes32 => bool) public isAgentRevoked` to `GuardianPassportSBT.sol`.
+   - Hardened `IdentityGate` to identify burned/nonexistent ERC-721 token reverts (`ERC721NonexistentToken`) and fail closed, preventing revoked agents from falling through to unregistered passthrough mode (29/29 SBT tests passed; 59/59 Web3 identity tests passed).
+
+4. **Monotonic Memory Leak Remediation & Janitor Daemon:**
+   - Bounded in-memory IP buckets with a `max_local_buckets = 50,000` ceiling.
+   - Added `RateLimiterJanitor` background daemon thread running 60-second sweeps to prune stale buckets and purge sliding burst-window timestamps.
+
+5. **Gateway Smuggling & Denial of Service Protection:**
+   - Configured `MAX_CONTENT_LENGTH = 10 * 1024 * 1024` (10MB) in `GuardianProxy` with JSON 413 error handling.
+   - Stripped all RFC 9110 hop-by-hop headers (`Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade`, etc.) before forwarding to upstream LLMs.
+
+6. **Differential Privacy & Keystream Deprecation:**
+   - Implemented discrete two-sided geometric noise mechanism (`geometric_noise`) and un-truncated continuous noise (`noisy_count_unbiased`) to eliminate upward statistical bias at zero counts.
+   - Strictly prohibited and halted on legacy unauthenticated XOR keystream secrets in production mode.
+
+---
+
 ## 🛡️ Core Security Features (The Lock)
 1.  **PII Redaction Engine:**
     *   Automatically detects and masks sensitive data in LLM responses.

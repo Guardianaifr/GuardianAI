@@ -24,10 +24,14 @@ curl -X POST http://127.0.0.1:8081/v1/chat/completions \
   }'
 ```
 
+
 Notes:
-- Guardian may return `403` for blocked prompts.
-- Guardian may return `429` for rate limit violations.
+- Guardian returns `403` for blocked prompts (AI Firewall, SystemPromptGuard, InputFilter).
+- Guardian returns `413` if the request payload exceeds 10MB (`MAX_CONTENT_LENGTH`).
+- Guardian returns `429` for rate limit violations (atomic Redis token bucket).
 - Guardian returns proxied upstream response when allowed.
+- RFC 9110 Hop-by-Hop headers (`Connection`, `Keep-Alive`, `Transfer-Encoding`, `TE`, `Upgrade`, etc.) are stripped before forwarding.
+- Real-time SSE streaming responses (`"stream": true`) are dynamically inspected for system prompt leaks (OWASP LLM07).
 
 ### GET `/health`
 

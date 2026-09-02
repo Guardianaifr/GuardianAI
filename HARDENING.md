@@ -106,6 +106,27 @@ Follow these practices to secure your GuardianAI deployment against advanced thr
 - **Fail-Safe RPC Resiliency:** Configured to fail-open (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false`) during network/RPC interruptions, maintaining agent uptime while logging full on-chain error telemetry.
 - **Shadow Mode Staging:** Deploy in `GUARDIAN_IDENTITY_GATE_MODE=shadow` initially. Verify 0 drift via `python audit_identity_drift.py` before promoting to `enforce` mode.
 
+## 11. Cryptographic Tree Integrity & Second-Preimage Defense
+
+- **RFC 6962 Domain Separation:** Internal Merkle tree parent nodes are hashed with a `0x01` domain separation byte (`SHA256(0x01 || left || right)`), strictly preventing second-preimage collision attacks between leaves and internal tree nodes.
+- **Odd-Node Trailing Leaf Promotion (CVE-2012-2459 Fix):** Trees never pad odd-length node lists by duplicating the last element. Instead, odd trailing nodes are promoted directly to the next level bottom-up, preventing malleability attacks where `[A, B, C]` and `[A, B, C, C]` produce identical roots.
+
+## 12. Gateway Smuggling & Payload Defenses
+
+- **RFC 9110 Hop-by-Hop Header Stripping:** Before forwarding HTTP requests to upstream LLMs, `GuardianProxy` unconditionally strips all RFC 9110 hop-by-hop headers (`Connection`, `Keep-Alive`, `Proxy-Authenticate`, `Proxy-Authorization`, `TE`, `Trailers`, `Transfer-Encoding`, `Upgrade`, `Host`, and `Content-Length`) to prevent HTTP request smuggling and framing desynchronization.
+- **Request Entity Ceiling (10MB):** Configured with `MAX_CONTENT_LENGTH = 10 * 1024 * 1024` and a JSON 413 error handler to block unbounded payload buffer allocations and memory-exhaustion denial-of-service attacks.
+- **Streaming SSE OWASP LLM07 Inspection:** Server-Sent Events (SSE) token chunks are parsed in real time to accumulate complete textual deltas, actively evaluated against `SystemPromptGuard` to block prompt leakages in streaming responses.
+
+## 13. Concurrency & Distributed Rate Limiting
+
+- **Atomic Redis Lua Token Bucket:** Token bucket calculations, replenishment rates, and recovery deductions are executed inside an atomic Redis Lua script (`_REDIS_RATE_LIMIT_LUA`), eliminating check-then-act race conditions during concurrent request bursts.
+- **Bounded Local Buckets & Background Janitor:** In-memory buckets are capped at `max_local_buckets = 50,000`. A dedicated daemon thread (`RateLimiterJanitor`) runs every 60 seconds to prune stale IP buckets and purge sliding burst-window timestamps, preventing long-running monotonic memory leaks.
+
+## 14. Differential Privacy & Cryptographic Secrets
+
+- **Discrete Geometric Mechanism:** Implements a two-sided geometric mechanism (`geometric_noise`) for discrete count differential privacy, alongside un-clamped continuous noise (`noisy_count_unbiased`) to eliminate the positive truncation bias created by zero-clamping (`max(0, ...)`).
+- **Keystream Deprecation:** Legacy unauthenticated XOR stream cipher secrets without nonces are strictly prohibited and rejected at startup/runtime when `GUARDIAN_ENV=production`. AES-256-GCM with authenticated 96-bit nonces (`v2:`) is mandatory.
+
 
 
 

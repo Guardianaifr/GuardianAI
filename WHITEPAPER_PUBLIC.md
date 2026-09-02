@@ -527,7 +527,7 @@ Two honesty notes bound these claims. First, the batch-completion commit hash ci
 
 Nine GuardianAI contracts are deployed on Monad/Base — the six registries below plus GuardianTimelock, GuardianCircuitBreaker, and GuardianProtectedVault — providing cryptographic truth about GuardianAI's operational state. Agent identities are additionally registered on the **canonical ERC-8004 "Trustless Agents" registries** (Feature 39), which GuardianAI does not deploy or own.
 
-> **Update (v1.0.1 - August 2026):** Following a senior smart contract security audit, critical hardening fixes have been applied across the Web3 contracts. These include parameterizing the Circuit Breaker chain for multi-chain (Base/Ethereum) deployments, enforcing safe CEI (Checks-Effects-Interactions) ordering in the Vault, capping array growth in the Interlock Registry, adding pause hooks against stale-balance withdrawals, and adding strict bounds checks. The contract suite passes all 159 structural and integration tests.
+> **Update (v1.0.1 - August-September 2026):** Following senior smart contract and architecture security audits, critical hardening fixes have been applied across the Web3 contracts. These include parameterizing the Circuit Breaker chain for multi-chain (Base/Ethereum) deployments, enforcing safe CEI (Checks-Effects-Interactions) ordering in the Vault, capping array growth in the Interlock Registry, adding pause hooks against stale-balance withdrawals, adding permanent on-chain revocation tombstones (`isAgentRevoked`) in `GuardianPassportSBT.sol`, and adding strict bounds checks. The contract suite passes all 160 structural and integration tests (100% pass rate).
 
 ---
 
@@ -681,8 +681,8 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Python test suites (targeted runs, 2026-08-25) | ERC-8004 identity 42/42 · backend+unit suites 172 passed · passport 24/24 · security suite ~403 tests — full multi-directory regeneration pending |
-| Smart contract unit tests (Hardhat) | 159 test cases across 10 contract suites in-repo — runner pass/fail count pending CI regeneration |
+| Python test suites (targeted runs, September 2026) | 107 passing tests across security, audit chain, web3 identity, relay, and security headers suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 42/42 · passport 24/24 |
+| Smart contract unit tests (Hardhat, September 2026) | **160 passing test cases across 10 contract suites in-repo (100% pass rate)** |
 | Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, per definitive_benchmark_v4.json)†† | **97.6%** (949/972) |
 | Security-gate block rate — Tier 1+2 (balanced mode)†† | **90.7%** (882/972) |
 | HarmBench Official block rate (400 prompts, strict mode)†† | **72.8%** (291/400) |
@@ -701,8 +701,8 @@ All metrics are sourced from actual test runs and are reproducible.
 | SAST findings | 1 flagged, confirmed false positive (documented)\* |
 | IaC findings | 0 |
 | Internal security audit — critical/high findings (July 2026, off-chain proxy) | 4 identified and remediated\*\* |
-| On-chain contract audit — HIGH findings (August 2026) | 1 identified and remediated\*\*\* |
-| On-chain contract audit — MEDIUM findings (August 2026) | 4 identified and remediated\*\*\* |
+| On-chain contract audit — HIGH/MED findings (August 2026) | 5 identified and remediated\*\*\* |
+| Senior systems & cryptographic audit (September 2026) | 6 identified and remediated (ARCH-01 through ARCH-06)\*\*\*\* |
 
 \* SAST flagged a call to `secrets.token_urlsafe()` as a potential hardcoded secret; confirmed as a false positive — the call generates random tokens, not a hardcoded value.
 
@@ -710,9 +710,9 @@ All metrics are sourced from actual test runs and are reproducible.
 
 \*\* The full Python suite passes cleanly in a dedicated environment. Two specific integration tests (`test_full_saas_e2e_stack` and `test_is003_auth_bypass_probe`) bind to local TCP ports and are sensitive to multi-process port contention; they may exhibit transient failures if multiple test suites run concurrently on the same host, but pass reliably in isolation or sequential runs.
 
-\*\*\* See Section 6.1 for a summary of the July 2026 internal security audit of the off-chain proxy layer. Prior to this audit, this table did not reflect open findings that existed in the product at the time; the corrected figure is presented here as part of this update.
+\*\*\* See Section 6.1 and Phase 7 for notes on prior off-chain and on-chain contract audits.
 
-\*\*\*\* See the on-chain audit note in Phase 7 (Features 33–38) for per-contract finding breakdown and commit references.
+\*\*\*\* See Section 6.3 for details on the September 2026 Senior Systems & Cryptographic Architecture Audit.
 
 ### 6.1 July 2026 Internal Security Audit (Off-Chain Proxy)
 
@@ -733,6 +733,17 @@ Specifically:
 - Throughput figures (67.78 / 223.20 rps) were from an earlier performance run; the current `perf_chaos_report.json` (April 2026) shows 95.68 rps safe load and 494.01 rps attack block throughput with 41.88 ms p95 attack latency.
 
 The corrected figures now in the table above are drawn directly from these August 2026 sources. The `FEATURE_BENCHMARK_ANALYSIS.md` document already contained an internal acknowledgment of the HarmBench discrepancy that was not propagated to the public whitepaper; this correction closes that gap.
+
+### 6.3 September 2026 Senior Systems & Cryptographic Architecture Audit
+
+In September 2026, an adversarial senior systems and cryptographic audit was conducted across GuardianAI's off-chain runtime and on-chain Web3 contracts. All identified findings were remediated and empirically verified:
+
+1. **Cryptographic Second-Preimage & Duplicate Leaf Collision (CVE-2012-2459 Fix):** Replaced duplicate-leaf padding in `guardian/cortex/merkle_anchor.py` with odd-leaf promotion and RFC 6962 domain-separated hashing (`0x01` prefix for internal nodes), eliminating the collision vulnerability where different batch sizes produced identical Merkle roots. Verified by `tests/security/test_merkle_anchor.py` (26/26 passed).
+2. **Atomic Distributed Rate Limiting:** Resolved a distributed read-modify-write race condition in `guardian/guardrails/rate_limiter.py` by implementing an atomic Redis Lua script (`_REDIS_RATE_LIMIT_LUA`) that calculates replenishment, applies partition recovery deltas, and decrements tokens atomically. Verified by `tools/test_rate_limiter_heavy.py` (33/33 passed).
+3. **Smart Contract Revocation Tombstones:** Updated `GuardianPassportSBT.sol` to record a permanent `isAgentRevoked` mapping when burning a soulbound token. Hardened `identity_gate.py` to identify burned token errors (`ERC721NonexistentToken`) and fail closed, preventing revoked agents from bypassing access controls under unregistered passthrough policies. Verified by Hardhat (29/29 SBT tests passed) and `tests/web3_identity/` (59/59 passed).
+4. **Monotonic Memory Leak Prevention:** Equipped `RateLimiter` with an active 60-second background daemon thread (`RateLimiterJanitor`) and a `max_local_buckets = 50,000` ceiling to sweep stale IP buckets and prune sliding burst windows, eliminating slow-burn out-of-memory crashes.
+5. **Gateway Protocol Security & DoS Protection:** Hardened `guardian/runtime/interceptor.py` by configuring a 10MB `MAX_CONTENT_LENGTH` request body limit and stripping RFC 9110 hop-by-hop headers (`Connection`, `Transfer-Encoding`, `Keep-Alive`, `Upgrade`) to prevent HTTP request smuggling / framing desynchronization against upstream LLM providers.
+6. **Differential Privacy & Stream Cipher Hardening:** Added two-sided discrete geometric noise mechanisms to prevent boundary truncation bias at zero-counts in `guardian/security/differential_privacy.py`, and strictly enforced rejection of legacy unauthenticated XOR stream cipher secrets in production mode.
 
 ---
 

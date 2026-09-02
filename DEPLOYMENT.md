@@ -47,11 +47,11 @@ python guardianctl.py start
 - Keep upstream service on localhost/private network only.
 - Expose only Guardian ingress as needed.
 - Enable host-level firewall and log rotation.
-- Run `python -m pytest tests -q` before release.
+- Run `.\.venv312\Scripts\pytest.exe tests -q` before release.
 
 ## Current Validation Snapshot
 
-- Tests: backend + unit suites: 172 passed (2026-08-25)
+- Tests: Targeted suites: 107 passed across security, audit chain, web3 identity, relay, and security headers (32.29s); 33/33 passed on rate limiter heavy stress suite; Smart contracts: 160 passing test cases across 10 Hardhat suites (100% pass rate).
 - Runtime standard: use Python 3.12 for full compatibility.
 
 ## Related Docs

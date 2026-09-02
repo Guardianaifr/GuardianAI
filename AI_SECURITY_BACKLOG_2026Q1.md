@@ -242,7 +242,7 @@ Status update:
 - FL_003 (Trading Signals): **CLOSED** — real source verification requiring Pyth/Chainlink ECDSA signature block; prompts that merely mention an exchange name without a verifiable signature are blocked.
 - FL_005 (Governance): **BLOCKED** — requires session-wallet auth prerequisite (caller's on-chain address must be verifiably bound to the session) before `getVotes()` lookup is meaningful. Permanently blocked until that prerequisite is built. Does NOT silently fail open — the current implementation rejects all governance vote-cast instructions because the governance ledger is empty (fails closed by design after the fix; the prior failure was failing closed by accident).
 - FL_008 (Slippage): **BLOCKED** — requires a 1inch API key for production DEX liquidity depth queries. The intent gate and normalization logic is implemented; the live enforcement path is gated on the API credential. Fails closed (rejects the slippage-modification instruction) when the DEX aggregator is unavailable.
-- See `FL_pillar_gap_and_fix_spec (1).md` for full spec, structural decisions, and open TTL-cache timing question.
+- See `FL_pillar_gap_and_fix_spec.md` for full spec, structural decisions, and open TTL-cache timing question.
 
 14. Agentic Security Fail-Open State - `accepted-risk` (documented, no code change planned)
 - The `agentic_security` parent module currently defaults to `enabled: False`, completely bypassing its sub-controls (`rag_security`, `agentic_controls`).

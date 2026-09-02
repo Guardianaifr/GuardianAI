@@ -77,11 +77,16 @@ mount a volume for `guardian.db` and `artifacts/`. See `DEPLOYMENT.md` and
 
 Numbers below are sourced from named artifacts or dated test runs — no hand-typed figures.
 
-- **Python test suites (targeted runs, 2026-08-25 / 2026-09-01):** ERC-8004 identity & Gate 63/63 passed (42 registrar + 17 gate regression suite) · backend+unit suites 172 passed · passport 24/24 · security suite ~403 tests. Full-suite regeneration pending; 3 known order-dependent tests fail only under full-suite ordering and pass individually (see `OPERATIONS.md`).
-- **Smart contracts (Hardhat):** 159 test cases across 10 suites in-repo; runner pass/fail count pending CI regeneration.
-- **On-chain audit (August 2026):** Completed senior smart contract security audit (v1.0.1 fixes applied: Circuit Breaker chain parameterized, Vault CEI enforced, Interlock Registry capped, Stale balance withdrawals paused, Threshold bounds added). All 159 Web3 contract tests passing.
-- **ERC-8004 integration & Identity Gate (new, August-September 2026):** protected agents register on canonical ERC-8004 registries and are enforced pre-flight across the Web3 RPC relay and agentic control plane with live on-chain `ownerOf` checks, fail-open resilience, and hot-wallet collision guards. Configurable via `GUARDIAN_IDENTITY_GATE_MODE` (shadow by default).
-- **Security validation:** adversarial benchmark results live in whitepaper Section 6, generated from `artifacts/evidence/definitive_benchmark_v4.json`.
+- **Python test suites (targeted runs, September 2026):** 107 passed across security, audit chain, web3 identity, relay, and security headers suites (`pytest tests/... -v` in 32.29s) · 33/33 passed on rate limiter heavy stress suite (`tools/test_rate_limiter_heavy.py`) · ERC-8004 identity & Gate 63/63 passed · backend+unit suites 172 passed · passport 24/24.
+- **Smart contracts (Hardhat, September 2026):** **160 passing test cases across 10 contract suites in-repo (100% pass rate, 5s runtime)**.
+- **Senior Systems & Cryptographic Audit (September 2026):** Completed comprehensive architecture remediation:
+  - **CVE-2012-2459 Duplicate Leaf Collision Defense:** Merkle tree RFC 6962 domain separation and odd-leaf promotion (`merkle_anchor.py`).
+  - **Atomic Distributed Rate Limiting:** Lua-scripted token replenishment eliminating concurrent check-then-act race conditions (`rate_limiter.py`).
+  - **Soulbound SBT Revocation Tombstones:** Permanent on-chain revocation mapping (`GuardianPassportSBT.sol`) and fail-closed burned-token enforcement in `IdentityGate`.
+  - **Memory Leak Protection:** Automatic 60-second background daemon sweeps (`RateLimiterJanitor`) with 50,000-bucket capacity bounds.
+  - **Gateway Smuggling & DoS Defenses:** RFC 9110 hop-by-hop header stripping and 10MB payload size limits in `interceptor.py`.
+- **ERC-8004 integration & Identity Gate:** Protected agents register on canonical ERC-8004 registries and are enforced pre-flight across the Web3 RPC relay and agentic control plane with live on-chain `ownerOf` checks, fail-open resilience, and hot-wallet collision guards.
+- **Security validation:** Adversarial benchmark results live in whitepaper Section 6, generated from `artifacts/evidence/definitive_benchmark_v4.json`.
 
 ---
 

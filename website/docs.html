@@ -378,7 +378,7 @@ if honeypot.is_tripped(response_text):
       <!-- SECTION: Fail-Closed Rate Limiter -->
       <section id="rate-limiting" class="docs-section">
         <h2>Fail-Closed Rate Limiter</h2>
-        <p>To defend against denial-of-wallet and automated prompt bombing, GuardianAI implements a strict fail-closed token-bucket rate limiter. If backing services (e.g. Redis) experience downtime, GuardianAI safely restricts requests rather than failing open.</p>
+        <p>To defend against denial-of-wallet and automated prompt bombing, GuardianAI implements a strict fail-closed token-bucket rate limiter powered by atomic Redis Lua scripts (<code>_REDIS_RATE_LIMIT_LUA</code>) for zero-drift distributed replenishment. In-memory local buckets are bounded to 50,000 entries and continually swept by a 60-second <code>RateLimiterJanitor</code> daemon. If backing services experience downtime, GuardianAI safely restricts requests rather than failing open.</p>
 
         <div class="docs-table-wrap">
           <table class="docs-table">
@@ -442,7 +442,7 @@ if honeypot.is_tripped(response_text):
       <!-- SECTION: Merkle Cortex State Anchoring -->
       <section id="cortex-anchoring" class="docs-section">
         <h2>Merkle Cortex State Anchoring</h2>
-        <p>GuardianAI aggregates telemetry events into episodic memory batches, constructs a cryptographic Merkle tree, and periodically anchors the 32-byte root hash to the blockchain.</p>
+        <p>GuardianAI aggregates telemetry events into episodic memory batches, constructs a cryptographic Merkle tree, and periodically anchors the 32-byte root hash to the blockchain. Trees strictly follow RFC 6962 domain separation (using a <code>0x01</code> internal node prefix) and promote odd trailing leaves directly to parent tiers, completely preventing Bitcoin-style (CVE-2012-2459) duplicate-leaf collision and second-preimage attacks.</p>
 
         <div class="docs-code-box">
           <div class="docs-code-header">
@@ -637,6 +637,7 @@ firewall:
         <ul style="list-style:disc; padding-left:24px; margin-bottom:24px; color:#cbd5e1;">
           <li><code style="color:var(--docs-accent)">200 OK</code>: Prompt passed all security layers; upstream model response returned.</li>
           <li><code style="color:var(--docs-coral)">403 Forbidden</code>: Attack detected and blocked. Response contains detailed rule match metadata.</li>
+          <li><code style="color:#f59e0b">413 Payload Too Large</code>: Request entity exceeded the 10MB gateway body ceiling (<code>MAX_CONTENT_LENGTH</code>).</li>
           <li><code style="color:#f59e0b">429 Too Many Requests</code>: Rate limit exceeded (fail-closed protection triggered).</li>
         </ul>
       </section>

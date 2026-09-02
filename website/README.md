@@ -44,8 +44,8 @@ the proof page (`proof.html#sources`) and below. The prior site
 | All benchmark block rates incl. totals (76.6%/58.5%), security-gate subset (97.6%/90.7% = 949/972, 882/972) | `artifacts/evidence/definitive_benchmark_v4.json` (run 2026-08-08) |
 | False positives, fresh-session live run: balanced 11.2% (26/233), strict 29.2% (68/233), three public corpora | `artifacts/evidence/fp_clean_measure.json` |
 | Throughput 95.68 req/s safe / 494.01 req/s attack-blocking, p95 41.88 ms, chaos outcomes, SLOs | `artifacts/performance/perf_chaos_report.json` (April 2026) |
-| Test counts ERC-8004 42/42; backend+unit 172 passed (2026-08-25); Hardhat 159 cases/10 suites + caveats | `README.md` validation snapshot |
-| Audit history (external pentest closed 2026-03-18; internal audits remediated Jul/Aug 2026; next external review Q3 2026) | `artifacts/evidence/security_signoff.md`, `artifacts/evidence/external_pentest_status.md` |
+| Test counts ERC-8004 42/42; targeted Python 107/107 passed; rate limiter 33/33 passed; Hardhat 160 cases/10 suites (100% pass) | `README.md` validation snapshot |
+| Audit history (external pentest closed 2026-03-18; internal audits remediated Jul/Aug/Sep 2026; next external review Q3 2026) | `artifacts/evidence/security_signoff.md`, `WHITEPAPER.md §6.3` |
 | Prices $0 / $49 / $299 / custom, all tier limits & features | `backend/metering.py` PRICING_TIERS |
 | Anchoring simulated-by-default, Monad testnet opt-in; ERC-8004 mainnet registries = ecosystem infra; insurance = certificate anchoring only | `guardian/cortex/merkle_anchor.py`, whitepaper §6–7 |
 

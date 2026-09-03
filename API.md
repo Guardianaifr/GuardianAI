@@ -124,7 +124,7 @@ Queue an agent for canonical-registry registration (admin only). Body:
 ```json
 {
   "agent_id": "my-agent",
-  "chain": "base-sepolia",
+  "chain": "monad-testnet",
   "owner_address": "0x..."
 }
 ```
@@ -141,7 +141,62 @@ Registration queue state for one agent (tenant-scoped: admins global, users own 
 
 Public ERC-8004 registration file served at the on-chain `agentURI`. 404 while the feature is disabled or the agent is unknown. Contains no passport identifiers beyond what the spec requires.
 
-## 6) Common Status Codes
+## 6) Guardian Relayer & Attestation API (RPC Relay Port 8546)
+
+### POST `/api/v1/attest`
+
+Evaluates agent prompt and transaction parameters using the deterministic rules engine (InputFilter, TransactionAnalyzer, AgentPolicy allowlists, and OutflowTracker spending caps). Returns a signed EIP-712 `SafetyAttestation` and pre-encoded `wrapped_calldata` for `GuardianPolicyGuard.executeWithAttestation(...)`.
+
+**Request Body:**
+```json
+{
+  "agent_id": "agent-monad-01",
+  "target": "0x1234567890abcdef1234567890abcdef12345678",
+  "data": "0xa9059cbb...",
+  "value": 0,
+  "prompt": "Swap 10 USDC for MON",
+  "nonce": 12345678,
+  "ttl_seconds": 300
+}
+```
+
+**Response (`200 OK` - Approved):**
+```json
+{
+  "status": "approved",
+  "risk_score": 0,
+  "reasons": [],
+  "attestation": {
+    "agentId": "0x...",
+    "targetContract": "0x...",
+    "calldataHash": "0x...",
+    "value": 0,
+    "riskScore": 0,
+    "nonce": 12345678,
+    "deadline": 1788462000
+  },
+  "signature": "0x...",
+  "policy_guard": "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+  "wrapped_calldata": "0x3cb7461c..."
+}
+```
+
+**Response (`200 OK` - Blocked):**
+```json
+{
+  "status": "blocked",
+  "risk_score": 100,
+  "reasons": [
+    "Function selector 0xdeadbeef not in agent allowlist. Permitted: ['0x095ea7b3', '0xa9059cbb']"
+  ],
+  "attestation": null,
+  "signature": null,
+  "policy_guard": "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+  "wrapped_calldata": null
+}
+```
+
+## 7) Common Status Codes
 
 - `200`: success
 - `401`: backend auth failure (protected backend routes)
@@ -149,11 +204,13 @@ Public ERC-8004 registration file served at the on-chain `agentURI`. 404 while t
 - `413`: request body exceeds maximum 1MB payload limit
 - `429`: rate limit exceeded (fail-closed token bucket)
 - `502`: upstream connectivity failure
+- `503`: attestation service unavailable
 
-## 7) Current Behavior Notes
+## 8) Current Behavior Notes
 
 - Security mode is configured via YAML (`guardian/config/*.yaml`).
 - Passwords are encrypted with Argon2id (`t=7, m=64MB, p=4`) with automatic legacy SHA-256 migration.
-- Runtime decisions are made by Input Filter, AI Firewall, Threat Feed, Base64 detector, and Output Validator.
+- Runtime decisions are made by Input Filter, AI Firewall, Threat Feed, Base64 detector, AgentPolicy allowlists, OutflowTracker, and Output Validator.
+- Fail-Closed Policy: Middleware strictly rejects pre-wrapped calldata and blocks calls when relayer is unreachable.
 - All protected API routes enforce standard security headers (`CSP`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`).
 

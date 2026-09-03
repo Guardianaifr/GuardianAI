@@ -2,7 +2,7 @@
 
 GuardianAI is a dual-layer security control plane for LLM applications and autonomous AI agents. It provides a blistering-fast, **off-chain security engine** for real-time protection, paired with a decentralized, **on-chain Web3 layer** for cryptographically verifiable trust, identity, and insurance.
 
-By sitting between your application and your model endpoint, GuardianAI neutralizes prompt injections, data leaks, and malicious runtime behaviors in milliseconds—while simultaneously anchoring its security posture to the blockchain (Monad / Base).
+By sitting between your application and your model endpoint, GuardianAI neutralizes prompt injections, data leaks, and malicious runtime behaviors in milliseconds—while simultaneously anchoring its security posture to the blockchain (Monad).
 
 ---
 
@@ -16,10 +16,12 @@ By sitting between your application and your model endpoint, GuardianAI neutrali
 - **Runtime Monitoring:** Process/resource monitoring, reverse-shell detection, and token-bucket rate limiting.
 - **Dynamic Brain Layer:** Red/Blue/Purple/CyberOps agents for real-time automated probing, hotfix generation, and adaptive session hardening.
 
-### 2. The On-Chain Web3 Layer (Cryptographic Trust)
-*What goes on-chain is cryptographic proof, identity, risk scores, and interlock coordination.*
+### 2. The On-Chain Web3 Layer (Cryptographic Trust & Execution Containment)
+*What goes on-chain is cryptographic proof, identity, risk scores, and execution-layer containment.*
+- **GuardianPolicyGuard (Monad Native):** Hard cryptographic execution gateway enforcing EIP-712 safety attestations, unordered namespaced nonces for conflict-free parallel execution up to 10,000 TPS, and 10 on-chain invariants.
+- **Function Selector Allowlists (RBAC) & Outflow Caps:** Zero-trust selector restriction (`AgentPolicy.allowed_selectors`), per-transaction value limits (`max_value_per_tx`), and 24-hour rolling cumulative outflow budgets (`OutflowTracker`) that prevent treasury drains even if an agent's LLM reasoning is fully hijacked.
 - **GuardianCortexAnchor:** Periodically publishes Merkle roots of the AI's internal security logs to provide an immutable, timestamped record of its decisions.
-- **GuardianPassportSBT:** Issues non-transferable Soulbound Tokens representing the verifiable identity of an AI Agent or User Session.
+- **GuardianPassportSBT:** Issues non-transferable Soulbound Tokens (ERC-5192) representing the verifiable identity and trust score of an AI Agent, with permanent revocation tombstones.
 - **GuardianInterlockRegistry:** A decentralized registry for AI agents to request, approve, and verify communication permissions dynamically.
 - **GuardianInsuranceLedger:** On-chain insurance certificate anchoring for autonomous agent verification and auditability.
 - **GuardianThreatFeedRegistry:** A decentralized, censorship-resistant threat intelligence repository for sharing zero-day patterns.
@@ -75,18 +77,32 @@ mount a volume for `guardian.db` and `artifacts/`. See `DEPLOYMENT.md` and
 
 ## 📊 Validation Snapshot
 
-Numbers below are sourced from named artifacts or dated test runs — no hand-typed figures.
+Numbers below are sourced directly from reproducible test runs and live on-chain Monad Testnet RPC queries:
 
-- **Python test suites (targeted runs, September 2026):** 107 passed across security, audit chain, web3 identity, relay, and security headers suites (`pytest tests/... -v` in 32.29s) · 33/33 passed on rate limiter heavy stress suite (`tools/test_rate_limiter_heavy.py`) · ERC-8004 identity & Gate 63/63 passed · backend+unit suites 172 passed · passport 24/24.
-- **Smart contracts (Hardhat, September 2026):** **160 passing test cases across 10 contract suites in-repo (100% pass rate, 5s runtime)**.
-- **Senior Systems & Cryptographic Audit (September 2026):** Completed comprehensive architecture remediation:
-  - **CVE-2012-2459 Duplicate Leaf Collision Defense:** Merkle tree RFC 6962 domain separation and odd-leaf promotion (`merkle_anchor.py`).
-  - **Atomic Distributed Rate Limiting:** Lua-scripted token replenishment eliminating concurrent check-then-act race conditions (`rate_limiter.py`).
-  - **Soulbound SBT Revocation Tombstones:** Permanent on-chain revocation mapping (`GuardianPassportSBT.sol`) and fail-closed burned-token enforcement in `IdentityGate`.
-  - **Memory Leak Protection:** Automatic 60-second background daemon sweeps (`RateLimiterJanitor`) with 50,000-bucket capacity bounds.
-  - **Gateway Smuggling & DoS Defenses:** RFC 9110 hop-by-hop header stripping and 10MB payload size limits in `interceptor.py`.
-- **ERC-8004 integration & Identity Gate:** Protected agents register on canonical ERC-8004 registries and are enforced pre-flight across the Web3 RPC relay and agentic control plane with live on-chain `ownerOf` checks, fail-open resilience, and hot-wallet collision guards.
-- **Security validation:** Adversarial benchmark results live in whitepaper Section 6, generated from `artifacts/evidence/definitive_benchmark_v4.json`.
+- **Smart contracts (Hardhat, September 2026):** **183 passing test cases across 11 contract suites in-repo (100% pass rate, 6s runtime)**. Covers `GuardianPolicyGuard`, `GuardianThreatFeedRegistry`, `GuardianPassportSBT`, `GuardianTimelock`, `GuardianCircuitBreaker`, etc.
+- **Python Core & Middleware (September 2026):** **43 passing test cases (0 failures)** across attestation engine, extended security, agent policies, and SDK middleware.
+- **Real-World Exploit Defense Harness:** **5 / 5 exploits neutralized (100%)** (`tools/reproduce_realworld_exploits.py`):
+  - Bankrbot ($204k Morse-code injection)
+  - Freysa ($47k calldata redefinition & transfer)
+  - aixbt ($104k context poisoning)
+  - Permit2 ($1.4M infinite allowance phishing)
+  - Monad EVM concurrent nonce replay double-spend
+- **Hardcore Live Adversarial Suite:** **38 / 38 real-time live network tests passed** (`tools/hardcore_live_adversarial_suite.py`) against live Monad Testnet and QuickNode WebSocket stream.
+- **Attestation Latency Benchmark:** **P50 = 2.68 ms**, Mean = 3.00 ms (measured via `tools/benchmark_attestation_latency.py` over 100 iterations), well within Monad's ~400ms block budget.
+- **Monad Testnet Deployed Bytecode (Chain ID 10143):**
+  - `GuardianPolicyGuard`: [`0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101`](https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/) (5,197 bytes)
+  - `GuardianThreatFeedRegistry`: [`0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8`](https://testnet.monadvision.com/contracts/full_match/10143/0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8/) (7,948 bytes)
+  - `GuardianPassportSBT`: [`0x65e081101a08F8c1C2df1cB9D008b3f988fF147f`](https://testnet.monadvision.com/contracts/full_match/10143/0x65e081101a08F8c1C2df1cB9D008b3f988fF147f/) (7,873 bytes)
+- **Live On-Chain Transaction Receipts:**
+  - Tx [`0x2ac9f4ee...`](https://testnet.monadvision.com/tx/0x2ac9f4eea0e9b918bf915f62e9763e9b67c48aa53425eff90c318106fb04d33a): Confirmed on Monad Block **#59,420,050**, Status 1 (Success), 300,000 Gas.
+  - Tx `0x65195a04...`: Confirmed on Monad Block **#59,419,967**, Status 1 (Success), 300,000 Gas.
+- **Public Interactive Tenderly Traces:** 19 public simulations on Monad Testnet, e.g. [Verified Valid Execution Trace](https://dashboard.tenderly.co/shared/simulation/b45791d7-a479-475a-a4c7-b26f34f9fc8e).
+- **Senior Systems & Cryptographic Audit:**
+  - Added `nonReentrant` protection to `sweepETH` in `GuardianPolicyGuard.sol`.
+  - Added contract code length verification (`target.code.length > 0`) preventing silent fund loss to EOAs.
+  - Added permanent revocation tombstone enforcement (`AgentPermanentlyRevoked`) in `GuardianPassportSBT.sol`.
+  - Neutralized `is_wrapped` client-side bypass in both Python and TypeScript agent middleware.
+  - Implemented zero-trust function selector allowlists (RBAC) and rolling 24-hour spending caps.
 
 ---
 

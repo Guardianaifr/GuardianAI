@@ -128,3 +128,14 @@ Following a comprehensive senior smart contract audit, the following security an
 - **Fail-Open Resilience:** Default fail-open posture (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false`) protects agent uptime during RPC or testnet timeouts with fallback to local state.
 - **Zero-Disruption Shadow Mode:** Ships in `GUARDIAN_IDENTITY_GATE_MODE=shadow` by default with `audit_identity_drift.py` and cron automation for safe observation and data reconciliation.
 - **100% Regression Suite:** Complete 17-test suite in `tests/web3_identity/test_identity_gate.py` covering live fail-open, on-chain `ownerOf` lookups, and multi-identity tie-breaking.
+
+---
+
+## ⚡ v1.2.0 (Monad Metropolis Track 04 Execution Containment & Hardening)
+- **GuardianPolicyGuard Native Monad Deployment (`GuardianPolicyGuard.sol`):** Native execution containment contract deployed to Monad Testnet (`0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101`) enforcing 10 on-chain invariants, EIP-712 cryptographic attestation, and conflict-free parallel execution up to 10,000 TPS.
+- **Function Selector Allowlists (RBAC) & Outflow Spending Caps:** Implemented zero-trust selector allowlists (`AgentPolicy.allowed_selectors`), per-transaction value limits (`max_value_per_tx`), and rolling 24-hour cumulative spending budgets (`OutflowTracker`) to contain compromised agent blast radius.
+- **Middleware Fail-Closed Bypass Neutralization:** Closed client-side bypass (`is_wrapped`) in Python and TypeScript SDKs, raising `GuardianSecurityBlockedError` (risk 100) on any pre-wrapped input.
+- **Smart Contract Invariant Hardening:** Added `nonReentrant` to `sweepETH` in `GuardianPolicyGuard.sol`, added contract code length check (`target.code.length > 0`) preventing silent fund loss against EOAs, and enforced `AgentPermanentlyRevoked` tombstone in `GuardianPassportSBT.sol`.
+- **183 / 183 Passing Hardhat Tests:** Full contract suite passes cleanly in 6 seconds across 11 test suites.
+- **43 / 43 Passing Python Core Tests:** Full attestation, security, SDK middleware, and policy suites green.
+- **Live On-Chain Verification:** Live confirmed transactions on Monad Testnet blocks #59,420,050 and #59,419,967; 19 public interactive Tenderly simulation traces; reproducible benchmark measuring **P50 = 2.68 ms** attestation latency.

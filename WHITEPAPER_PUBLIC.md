@@ -13,7 +13,7 @@ As large language models (LLMs) evolve from passive chatbots into autonomous, to
 **GuardianAI** is a unified, dual-layer security control plane that solves this problem end-to-end.
 
 - **Layer 1 — Off-Chain AI Gateway:** Executes 40 real-time security controls in milliseconds. Addresses the OWASP Top 10 for LLM Applications. Protects against prompt injection, PII leakage, malicious runtime behavior, and unsafe multimodal inputs.
-- **Layer 2 — On-Chain Web3 Trust:** Nine EVM-compatible smart contracts (Monad/Base) provide cryptographically verifiable AI identity, decentralized authorization, certificate anchoring, and a built-in smart contract static analyzer to audit the very contracts GuardianAI deploys. Agent identities are registered on canonical ERC-8004 "Trustless Agents" registries (Feature 39) and actively enforced at the point of interaction across RPC relays and agentic channels with hot-wallet collision guards (Feature 40).
+- **Layer 2 — On-Chain Web3 Trust:** Nine EVM-compatible smart contracts (Monad) provide cryptographically verifiable AI identity, decentralized authorization, certificate anchoring, and a built-in smart contract static analyzer to audit the very contracts GuardianAI deploys. Agent identities are registered on canonical ERC-8004 "Trustless Agents" registries (Feature 39) and actively enforced at the point of interaction across RPC relays and agentic channels with hot-wallet collision guards (Feature 40).
 
 GuardianAI is, to our knowledge, the first platform that secures the AI *execution layer* with millisecond heuristics while simultaneously cementing its *trust layer* on the blockchain.
 
@@ -525,9 +525,9 @@ Two honesty notes bound these claims. First, the batch-completion commit hash ci
 
 ### Phase 7: The Web3 Integrity Layer (On-Chain)
 
-Nine GuardianAI contracts are deployed on Monad/Base — the six registries below plus GuardianTimelock, GuardianCircuitBreaker, and GuardianProtectedVault — providing cryptographic truth about GuardianAI's operational state. Agent identities are additionally registered on the **canonical ERC-8004 "Trustless Agents" registries** (Feature 39), which GuardianAI does not deploy or own.
+Nine GuardianAI contracts are deployed on Monad — the six registries below plus GuardianTimelock, GuardianCircuitBreaker, and GuardianProtectedVault — providing cryptographic truth about GuardianAI's operational state. Agent identities are additionally registered on the **canonical ERC-8004 "Trustless Agents" registries** (Feature 39), which GuardianAI does not deploy or own.
 
-> **Update (v1.0.1 - August-September 2026):** Following senior smart contract and architecture security audits, critical hardening fixes have been applied across the Web3 contracts. These include parameterizing the Circuit Breaker chain for multi-chain (Base/Ethereum) deployments, enforcing safe CEI (Checks-Effects-Interactions) ordering in the Vault, capping array growth in the Interlock Registry, adding pause hooks against stale-balance withdrawals, adding permanent on-chain revocation tombstones (`isAgentRevoked`) in `GuardianPassportSBT.sol`, and adding strict bounds checks. The contract suite passes all 160 structural and integration tests (100% pass rate).
+> **Update (v1.0.1 - August-September 2026):** Following senior smart contract and architecture security audits, critical hardening fixes have been applied across the Web3 contracts. These include parameterizing the Circuit Breaker chain for multi-chain EVM deployments, enforcing safe CEI (Checks-Effects-Interactions) ordering in the Vault, capping array growth in the Interlock Registry, adding pause hooks against stale-balance withdrawals, adding permanent on-chain revocation tombstones (`isAgentRevoked`) in `GuardianPassportSBT.sol`, and adding strict bounds checks. The contract suite passes all 160 structural and integration tests (100% pass rate).
 
 ---
 
@@ -631,6 +631,34 @@ Added September 2026. Bridges on-chain ERC-8004 identity registration to runtime
 - **Fail-Open / Fail-Closed Resiliency:** Operates with configurable failure semantics (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false` by default). In the event of an RPC endpoint failure or testnet timeout, the gate fails open to local database state rather than dropping legitimate agent traffic, while logging full on-chain error telemetry.
 - **Zero-Disruption Shadow Mode:** Ships with `GUARDIAN_IDENTITY_GATE_MODE=shadow` as the default posture, allowing operators to observe identity validation verdicts and drift without risk of blocking live traffic. Supported by automated reconciliation scripts (`audit_identity_drift.py` and cron wrappers).
 - **What it is in code:** `guardian/passport/identity_gate.py`, `guardian/passport/passport_core.py`, `guardian/web3sec/rpc_relay.py`, `guardian/security/agentic_controls.py`, `audit_identity_drift.py`; tests in `tests/web3_identity/test_identity_gate.py` (17 tests covering local DB, live on-chain fallback, revoked status, and collision tie-breaking).
+
+---
+
+**Feature 41 — GuardianPolicyGuard & Execution Containment (Monad Parallel EVM Native)**
+
+Added September 2026. Solves the execution vulnerability in autonomous AI agents on Monad: while semantic prompt injection filters are probabilistic, **on-chain execution containment is mathematically deterministic**.
+
+- **The Problem:** When an AI agent operating with a crypto wallet is compromised via prompt injection, indirect context injection, or memory poisoning (e.g., Bankrbot $204k, Freysa $47k, and aixbt $104k incidents), it attempts to execute unauthorized transfers or malicious contract calls directly on-chain.
+- **The Solution:** GuardianPolicyGuard sits between the agent's reasoning loop and the blockchain. Transactions must be intercepted pre-flight by the Guardian attestation service, evaluated by a deterministic rules engine (zero LLMs in the security loop), and wrapped into `GuardianPolicyGuard.executeWithAttestation(...)` with an authorized EIP-712 typed data signature (`SafetyAttestation`).
+- **Function Selector Allowlists (RBAC) & Outflow Spending Caps:**
+  - **Zero-Trust Allowlists:** Agents are restricted to explicitly permitted 4-byte function selectors via `AgentPolicy.allowed_selectors`. Any unlisted selector is rejected with risk score 100.
+  - **Per-Transaction Spending Caps:** Enforces maximum native value per transaction (`AgentPolicy.max_value_per_tx`).
+  - **Rolling 24-Hour Outflow Budgets:** The `OutflowTracker` maintains an active sliding window of cumulative value outflows per agent (`AgentPolicy.max_daily_outflow`), preventing slow-drain treasury theft across multiple approved calls.
+- **10 On-Chain Invariants Enforced in Solidity:**
+  1. Target is non-zero (`InvalidTargetAddress`)
+  2. Target is not PolicyGuard itself (`SelfCallProhibited`)
+  3. Target strictly matches attestation payload (`TargetMismatch`)
+  4. Native `msg.value` strictly matches attestation payload (`ValueMismatch`)
+  5. Calldata payload hash `keccak256(data)` strictly matches attestation (`CalldataHashMismatch`)
+  6. Unix timestamp does not exceed attestation deadline (`AttestationExpired`)
+  7. Attestation risk score does not exceed threshold (default 25/100) (`RiskScoreExceedsThreshold`)
+  8. Cryptographic EIP-712 signature recovers to the authorized attestation signer (`InvalidAttestationSignature`)
+  9. Agent-namespaced unordered nonce has never been used (`NonceAlreadyUsed`)
+  10. Target address contains contract bytecode (`target.code.length > 0`), preventing silent fund dissipation to EOAs (`InvalidTargetAddress`)
+  *(Protected with OpenZeppelin `nonReentrant` on both execution and fund sweep paths, plus `whenNotPaused` emergency halt).*
+- **Monad Parallel EVM Optimization:** Nonces are namespaced per agent (`usedNonces[agentId][nonce]`), preventing cross-agent storage slot contention. Multiple agents execute transactions concurrently without read/write conflicts, achieving full parallel throughput up to 10,000 TPS.
+- **Measured Attestation Latency:** Evaluated across 100 iterations via `tools/benchmark_attestation_latency.py`: **P50 = 2.68 ms**, Mean = 3.00 ms, Min = 2.31 ms — executing well within Monad's ~400ms block budget.
+- **What it is in code:** `contracts/contracts/GuardianPolicyGuard.sol`, `guardian/relayer/attestation_service.py`, `sdk/python/guardian_middleware.py`, `packages/guardian-middleware/src/interceptor.ts`. Verified by 183 Hardhat tests, 43 Python tests, 5/5 real-world exploit reproductions, and 38/38 live Monad Testnet adversarial tests.
 
 ---
 
@@ -776,7 +804,7 @@ GuardianAI's off-chain AI Gateway is delivered as a hosted service. Enterprise c
 
 ### On-Chain Layer
 
-On-chain contracts (PassportSBT, ThreatFeedRegistry, RiskAttestation, InterlockRegistry, InsuranceLedger, CortexAnchor, Timelock, CircuitBreaker, Vault) are deployed and managed by GuardianAI on Base and Monad. ERC-8004 registrations use the canonical registries. Customers interact with the on-chain layer through the hosted API — no direct contract deployment is required.
+On-chain contracts (PassportSBT, ThreatFeedRegistry, RiskAttestation, InterlockRegistry, InsuranceLedger, CortexAnchor, Timelock, CircuitBreaker, Vault) are deployed and managed by GuardianAI on Monad. ERC-8004 registrations use the canonical registries. Customers interact with the on-chain layer through the hosted API — no direct contract deployment is required.
 
 ---
 

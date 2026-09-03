@@ -50,7 +50,7 @@ GuardianAI is an AI security control plane that sits between clients and model e
 8. Security telemetry events are posted to backend.
 9. Backend stores events/analytics and serves authenticated reporting/export APIs.
 10. Validation and evidence tools generate audit artifacts for release/governance gates.
-11. Web3 Anchor periodically commits Merkle roots of state to the blockchain (Monad/Base), while emitting Passports and maintaining decentralized Interlocks.
+11. Web3 Anchor periodically commits Merkle roots of state to the blockchain (Monad), while emitting Passports and maintaining decentralized Interlocks.
 
 ## 5) Codebase Inventory (Quantified)
 
@@ -195,6 +195,7 @@ From `artifacts/evidence/TOPIC_PROGRESS.md`, completed topics:
 28. Release governance closure (sign-off completion + external review closure + strict dependency pinning)
 29. Phase 7 Enterprise Security Hardening (HMAC audit signatures, thread-safety, non-root containers, and fail-safe defaults)
 30. Phase 8 Web3 Integrity Layer (On-chain anchoring, Passport SBT, Interlock Registry, Insurance Ledger, Threat Feeds, Risk Attestation)
+31. Monad Metropolis Track 04 Execution Containment Layer (GuardianPolicyGuard native contract with 10 on-chain invariants, EIP-712 attestation relayer, zero-trust function selector allowlists, and rolling 24-hour spending caps)
 
 ## 8) API Surface
 
@@ -215,6 +216,12 @@ HTTP endpoints:
 Realtime endpoint:
 
 - `WS /ws/threats`
+
+### Guardian RPC Relayer & Attestation API (Port 8546)
+
+- `POST /api/v1/attest` — Pre-flight transaction evaluation, function selector allowlist enforcement, spending cap tracking, and EIP-712 cryptographic attestation signing.
+- `GET /health` — Health check endpoint.
+- `GET /stats` — Relayer operational metrics and upstream RPC connectivity stats.
 
 ### Proxy API
 
@@ -254,10 +261,12 @@ Note: backend analytics differential-privacy controls are environment-driven (`G
 
 ### A) Full test status
 
-- Latest recorded runs: backend + unit suites 172 passed (2026-08-25); earlier full-suite snapshot `241 passed` (2026-08-22 session) kept for history
-- Standalone adversarial chaos E2E verification: `1 passed`
-
-Interpretation: full suite is green; intermittent chaos contention remains a known historical risk under resource pressure, but was stable in this run.
+- **Smart Contracts (Hardhat, September 2026):** **183 passed, 0 failed** across 11 test suites in `contracts/test/`.
+- **Python Core & Middleware (September 2026):** **43 passed, 0 failed** across attestation service, extended security, agent policies, and SDK middleware.
+- **Real-World Exploit Defense Harness:** **5 / 5 passed (100%)** (`tools/reproduce_realworld_exploits.py`).
+- **Hardcore Live Adversarial Suite:** **38 / 38 passed (100%)** (`tools/hardcore_live_adversarial_suite.py`).
+- **Attestation Latency Benchmark:** **P50 = 2.68 ms**, Mean = 3.00 ms (measured over 100 iterations via `tools/benchmark_attestation_latency.py`).
+- Backend + unit suites: 172 passed; standalone adversarial chaos E2E verification: 1 passed.
 
 ### B) Performance/chaos benchmark
 

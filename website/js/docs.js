@@ -1,4 +1,4 @@
-﻿document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
   // 1. Mobile Sidebar Toggle
   const sidebarToggle = document.getElementById("docs-sidebar-toggle");
   const sidebar = document.getElementById("docs-sidebar");
@@ -97,7 +97,7 @@
     { title: "System Architecture & Dual-Plane", url: "#architecture", snippet: "Off-chain millisecond prompt filtering combined with on-chain trust anchoring." },
     { title: "10-Layer AI Firewall", url: "#firewall", snippet: "Fast-path regex, entropy anomaly, semantic classifier, de-obfuscation and policy checks." },
     { title: "Output & DLP Scanner", url: "#dlp-scanner", snippet: "Scans model completions for private keys, seed phrases, API credentials and PII." },
-    { title: "ERC-8004 Agent Registries", url: "#erc8004", snippet: "On-chain decentralized identity and permission registry on Monad and Base." },
+    { title: "ERC-8004 Agent Registries", url: "#erc8004", snippet: "On-chain decentralized identity and permission registry on Monad." },
     { title: "Merkle Cortex Anchoring", url: "#cortex-anchoring", snippet: "Cryptographic state anchoring with verifiable Merkle tree root hashes." },
     { title: "Insurance Ledger & Certificates", url: "#insurance-certificates", snippet: "Cryptographic insurance certificate anchoring for automated agent verification." },
     { title: "Smart Contract Static Analyzer", url: "#contract-analyzer", snippet: "48 automated AST-validated vulnerability detection rules for EVM contracts." },

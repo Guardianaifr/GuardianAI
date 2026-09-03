@@ -269,7 +269,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z"/></svg>
             GuardianAI Agent Passport
           </div>
-          <span class="passport-chain" id="passportChain">Base L2</span>
+          <span class="passport-chain" id="passportChain">Monad Testnet</span>
         </div>
 
         <div class="score-section">
@@ -463,7 +463,7 @@ async function initPassportCard() {
     data = await apiPost('/api/v1/passport/issue', {
       agent_id: 'default',
       owner_pubkey: '0x' + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join(''),
-      chain_id: 'base',
+      chain_id: 'monad-testnet',
       metadata: { name: 'GuardianAI Primary Agent', environment: 'production' },
     });
   }
@@ -525,7 +525,7 @@ function renderPassportCard(passport) {
   document.getElementById('credsCountVal').textContent = `${credsList.length} verified`;
 
   // Chain
-  document.getElementById('passportChain').textContent = (passport.chain_id || 'base').toUpperCase() + ' L2';
+  document.getElementById('passportChain').textContent = (passport.chain_id || 'monad-testnet').toUpperCase();
 
   // Mini credential badges
   const credsEl = document.getElementById('passportCreds');
@@ -544,7 +544,7 @@ function getDemoPassport() {
     passport_id: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
     agent_id: 'default',
     owner_pubkey: '0x1a2b3c4d5e6f7890abcdef1234567890abcdef12',
-    chain_id: 'base',
+    chain_id: 'monad-testnet',
     trust_score: 87.5,
     tier: 'GOLD',
     credentials: [],

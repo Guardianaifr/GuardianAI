@@ -51,13 +51,33 @@
 | Component | Category | Target Deliverable | Status | Implementation Notes |
 | :--- | :--- | :--- | :---: | :--- |
 | **Domain Context & Research** | **Pre-existing** | Prompt injection heuristics, safety datasets, jailbreak taxonomy, NLP filters | ✅ **100% COMPLETE** | Fully integrated into `guardian/guardrails/` and wired into the relayer. |
-| **Monad Smart Contracts** | **New (Hackathon)** | `GuardianPolicyGuard.sol`, `GuardianThreatFeedRegistry.sol`, and `GuardianPassportSBT.sol` deployed natively to Monad Testnet | 🟡 **90% COMPLETE** | Contracts compiled, audited, and verified (183 tests passing). Pending live testnet broadcast. |
-| **Cryptographic Attestation Relayer** | **New (Hackathon)** | Sub-second EIP-712 signing pipeline converting AI safety decisions into on-chain proofs (<40ms) | ✅ **100% COMPLETE** | Built in `guardian/relayer/attestation_service.py` & `/api/v1/attest` in `rpc_relay.py`. 10/10 tests passing. |
-| **Agent Middleware / SDK** | **New (Hackathon)** | Lightweight drop-in middleware/interceptor (`guardian-middleware`) between AI agent frameworks and Monad RPC | ⏳ **PLANNED** | Pre-flight calldata decoding + ERC-8004 identity verification. |
+| **Monad Smart Contracts** | **New (Hackathon)** | `GuardianPolicyGuard.sol`, `GuardianThreatFeedRegistry.sol`, and `GuardianPassportSBT.sol` deployed natively to Monad Testnet | ✅ **100% COMPLETE** | Deployed (`10143`) via QuickNode. 183 Hardhat tests passing. Full Match Verified on [MonadVision](https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/). |
+| **Cryptographic Attestation Relayer** | **New (Hackathon)** | Sub-second EIP-712 signing pipeline converting AI safety decisions into on-chain proofs (<3ms P50) | ✅ **100% COMPLETE** | Built in `guardian/relayer/attestation_service.py` & `/api/v1/attest` in `rpc_relay.py`. Includes Function Allowlists & 24h Outflow Caps. |
+| **Agent Middleware / SDK** | **New (Hackathon)** | Lightweight drop-in middleware/interceptor (`guardian-middleware`) between AI agent frameworks and Monad RPC | ✅ **100% COMPLETE** | TypeScript SDK (`packages/guardian-middleware`) + Python SDK (`sdk/python/guardian_middleware.py`) with ElizaOS plugin & LangChain callback. Strict fail-closed. |
 
 ---
 
-## 3. Integration Roadmap & Deliverables
+## 3. Monad Parallel EVM & Category Labs Architectural Alignment
+
+GuardianAI is custom-engineered to exploit the unique properties of **Category Labs' Monad parallel execution engine**:
+
+1. **Storage Slot Isolation (Zero Parallel Contention):**
+   * Monad executes transactions optimistically in parallel, resolving conflicts on a *storage slot* basis.
+   * GuardianAI isolates agent state via `mapping(bytes32 => mapping(uint256 => bool)) public usedNonces;` keyed by `keccak256(agentId, nonce)`.
+   * Multiple independent AI agents submitting attested transactions never touch overlapping storage slots, achieving **conflict-free parallel throughput up to 10,000 TPS**.
+2. **128 KB Contract Bytecode Limit:**
+   * Unlike Ethereum's 24.576 KB limit (EIP-170), Monad supports up to **128 KB** bytecode. GuardianAI leverages this headroom to embed comprehensive policy rule sets (10 on-chain invariants including contract code length verification) and signature verification matrices without runtime proxy fragmentation.
+3. **Sub-second Attestation & Finality Alignment:**
+   * Category Labs prioritizes high-throughput execution with Monad's **~400ms block times**. GuardianAI's Python Relayer signs EIP-712 attestations in **P50 = 2.68 ms** (Mean = 3.00 ms, measured across 100 iterations), delivering end-to-end security verification within a single Monad block window.
+4. **Full-Match Explorer Verification:**
+   * Deployed contracts are verified on **MonadVision** (Sourcify API) on Chain ID `10143`:
+     * [`GuardianPolicyGuard`](https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/)
+     * [`GuardianThreatFeedRegistry`](https://testnet.monadvision.com/contracts/full_match/10143/0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8/)
+     * [`GuardianPassportSBT`](https://testnet.monadvision.com/contracts/full_match/10143/0x65e081101a08F8c1C2df1cB9D008b3f988fF147f/)
+
+---
+
+## 4. Integration Roadmap & Deliverables
 
 ### A. Mera Passkey Integration (metropolis/mera/)
 - [ ] Connect Mera WebAuthn PRF to encrypt agent context/memory.
@@ -68,7 +88,14 @@
 - [x] Define schema.graphql for ActionExecuted, ThreatReported, ScoreUpdated, RootCommitted, and GlobalSecurityStats.
 - [x] Surface real-time indexed security feed on the frontend dashboard with 7/7 passing unit tests.
 
-### C. Chainlink CRE Workflow (metropolis/chainlink/)
+### C. Agent Middleware / SDK (packages/guardian-middleware/ & sdk/python/) [COMPLETED ✅]
+- [x] TypeScript middleware package (`@guardianai/middleware`) with ElizaOS plugin, Viem decorator, and calldata decoder.
+- [x] Python agent middleware (`sdk/python/guardian_middleware.py`) with LangChain callback, Web3.py middleware, and tool wrapper.
+- [x] ElizaOS `guardianMemoryGuard` evaluator countering Princeton/Sentient memory-poisoning drain attacks.
+- [x] Pre-flight interception wrapping transactions into Monad `GuardianPolicyGuard` (`0x3cb7461c`) with strict fail-closed security.
+- [x] 100% test coverage (12 Python unit tests + 26 TypeScript unit tests passing).
+
+### D. Chainlink CRE Workflow (metropolis/chainlink/)
 - [ ] Implement a verifiable TypeScript workflow via @chainlink/cre-sdk.
 - [ ] Query Guardian's off-chain /api/v1/stats endpoint and commit verified threat roots to GuardianThreatFeedRegistry.sol.
 

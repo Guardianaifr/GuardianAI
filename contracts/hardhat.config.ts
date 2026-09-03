@@ -1,8 +1,10 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from "dotenv";
+// import * as tenderly from "@tenderly/hardhat-tenderly";
 
 dotenv.config({ path: "../.env" });
+// tenderly.setup({ automaticVerifications: false });
 
 const DEPLOYER_KEY = process.env.GUARDIAN_DEPLOYER_PRIVATE_KEY || "0x" + "00".repeat(32);
 
@@ -66,9 +68,19 @@ const config: HardhatUserConfig = {
       },
     ],
   },
+  sourcify: {
+    enabled: true,
+    apiUrl: "https://sourcify-api-monad.blockvision.org",
+    browserUrl: "https://testnet.monadvision.com",
+  },
   gasReporter: {
     enabled: process.env.REPORT_GAS === "true",
     currency: "USD",
+  },
+  tenderly: {
+    project: process.env.TENDERLY_PROJECT_SLUG || "project",
+    username: process.env.TENDERLY_ACCOUNT_SLUG || "monad-86d12ef02b",
+    privateVerification: false,
   },
 };
 

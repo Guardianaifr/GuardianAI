@@ -77,6 +77,7 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
     error AgentAlreadyHasPassport(bytes32 agentHash);
     error PassportNotFound(uint256 tokenId);
     error PassportAlreadyRevoked(uint256 tokenId);
+    error AgentPermanentlyRevoked(bytes32 agentHash);
     error InvalidScore();
 
     // ── Constructor ──────────────────────────────────────────────────────
@@ -136,6 +137,9 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
         string calldata _metadataURI
     ) external onlyOwner whenNotPaused nonReentrant returns (uint256 tokenId) {
         // ── Checks ───────────────────────────────────────────────────────
+        if (isAgentRevoked[_agentHash]) {
+            revert AgentPermanentlyRevoked(_agentHash);
+        }
         if (agentToken[_agentHash] != 0) {
             revert AgentAlreadyHasPassport(_agentHash);
         }

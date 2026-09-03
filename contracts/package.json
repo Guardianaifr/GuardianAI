@@ -11,12 +11,14 @@
     "deploy:insurance:monad": "hardhat run scripts/deploy-insurance.ts --network monad_testnet",
     "deploy:threatfeed:monad": "hardhat run scripts/deploy-threatfeed.ts --network monad_testnet",
     "deploy:risk:monad": "hardhat run scripts/deploy-risk.ts --network monad_testnet",
-    "deploy:all:monad": "npm run deploy:cortex:monad && npm run deploy:sbt:monad && npm run deploy:interlock:monad && npm run deploy:insurance:monad && npm run deploy:threatfeed:monad && npm run deploy:risk:monad",
+    "deploy:guard:monad": "hardhat run scripts/deploy-policy-guard.ts --network monad_testnet",
+    "deploy:all:monad": "npm run deploy:cortex:monad && npm run deploy:sbt:monad && npm run deploy:interlock:monad && npm run deploy:insurance:monad && npm run deploy:threatfeed:monad && npm run deploy:risk:monad && npm run deploy:guard:monad",
     "verify:monad": "hardhat verify --network monad_testnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.1.0",
+    "@tenderly/hardhat-tenderly": "^2.6.0",
     "dotenv": "^17.4.2",
     "hardhat": "^2.22.0"
   }

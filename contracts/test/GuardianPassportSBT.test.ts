@@ -130,11 +130,12 @@ describe("GuardianPassportSBT", function () {
       ).to.be.revertedWithCustomError(sbt, "PassportAlreadyRevoked");
     });
 
-    it("should allow re-minting after revocation", async function () {
+    it("should revert on re-minting after revocation", async function () {
       await sbt.revoke(1);
-      // Should work — agent slot was freed
-      await sbt.mint(user1.address, AGENT_HASH, 7500, METADATA_URI);
-      expect(await sbt.activePassportCount()).to.equal(1);
+      // Revocation is now permanent
+      await expect(
+        sbt.mint(user1.address, AGENT_HASH, 7500, METADATA_URI)
+      ).to.be.revertedWithCustomError(sbt, "AgentPermanentlyRevoked").withArgs(AGENT_HASH);
     });
   });
 

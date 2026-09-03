@@ -118,6 +118,16 @@ class GuardianRPCRelay:
         except Exception as e:
             logger.warning(f"Identity Gate unavailable, running without it: {e}")
 
+        # Attestation Service — EIP-712 policy relayer for Monad
+        self.attestation_service: Optional[Any] = None
+        try:
+            from guardian.relayer import SafetyAttestationService
+            self.attestation_service = SafetyAttestationService(
+                tx_analyzer_config=self.config
+            )
+        except Exception as e:
+            logger.warning(f"Attestation Service unavailable: {e}")
+
         # Stats counters (thread-safe via GIL for simple increments)
         self.stats = {"intercepted": 0, "blocked": 0, "passed": 0, "errors": 0}
 
@@ -132,6 +142,7 @@ class GuardianRPCRelay:
         self.app.add_url_rule('/health', view_func=self.health_check, methods=['GET'])
         self.app.add_url_rule('/stats', view_func=self.get_stats, methods=['GET'])
         self.app.add_url_rule('/', view_func=self.proxy, methods=['POST'])
+        self.app.add_url_rule('/api/v1/attest', view_func=self.attest_transaction, methods=['POST'])
         # Management routes (backend → relay sync)
         self.app.add_url_rule('/rules', view_func=self.get_rules, methods=['GET'])
         self.app.add_url_rule('/rules', view_func=self.post_rules, methods=['POST'], endpoint='post_rules')
@@ -259,6 +270,58 @@ class GuardianRPCRelay:
             "upstream_rpc": self.upstream_rpc,
             "stats": dict(self.stats),
         }
+
+    def attest_transaction(self):
+        """POST /api/v1/attest
+
+        Evaluates agent prompt and transaction parameters, generating a signed
+        EIP-712 SafetyAttestation if safety bounds are satisfied.
+        """
+        if not self.attestation_service:
+            return Response(
+                json.dumps({"error": "Attestation service unavailable"}),
+                status=503,
+                mimetype="application/json"
+            )
+
+        req_data = request.get_json(silent=True)
+        if not req_data or not isinstance(req_data, dict):
+            return Response(
+                json.dumps({"error": "Invalid JSON body"}),
+                status=400,
+                mimetype="application/json"
+            )
+
+        agent_id = req_data.get("agent_id")
+        target = req_data.get("target")
+        if not agent_id or not target:
+            return Response(
+                json.dumps({"error": "Missing required fields: agent_id, target"}),
+                status=400,
+                mimetype="application/json"
+            )
+
+        data = req_data.get("data", "0x")
+        value = int(req_data.get("value", 0))
+        prompt = req_data.get("prompt")
+        nonce = req_data.get("nonce")
+        ttl = req_data.get("ttl_seconds")
+
+        result = self.attestation_service.evaluate_and_attest(
+            agent_id=agent_id,
+            target=target,
+            data=data,
+            value=value,
+            prompt=prompt,
+            nonce=int(nonce) if nonce is not None else None,
+            ttl_seconds=int(ttl) if ttl is not None else None,
+        )
+
+        return Response(
+            json.dumps(result.to_dict()),
+            status=200,
+            mimetype="application/json"
+        )
 
     def get_rules(self):
         """Relay-side endpoint: return current rules from DB."""

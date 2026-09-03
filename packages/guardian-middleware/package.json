@@ -1,0 +1,23 @@
+{
+  "name": "@guardianai/middleware",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GuardianAI Agent Middleware — Pre-flight security & Policy Guard wrapper for ElizaOS, Viem, and Web3 AI agents on Monad.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "node test/run-tests.js"
+  },
+  "keywords": [
+    "guardianai",
+    "elizaos",
+    "viem",
+    "monad",
+    "ai-agents",
+    "security",
+    "eip712",
+    "guardrails"
+  ],
+  "author": "GuardianAI Security Labs",
+  "license": "MIT"
+}

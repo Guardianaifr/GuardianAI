@@ -49,7 +49,10 @@ import math
 import base64
 import binascii
 import urllib.parse
-from guardrails.encoding_detector import EncodingDetector
+try:
+    from guardrails.encoding_detector import EncodingDetector
+except ImportError:
+    from guardian.guardrails.encoding_detector import EncodingDetector
 
 class InputFilter:
     def __init__(self):

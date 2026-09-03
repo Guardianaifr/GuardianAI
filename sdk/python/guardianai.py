@@ -29,9 +29,52 @@ from typing import Any, Dict, List, Optional, Union
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
+try:
+    from .guardian_middleware import (
+        GuardianMiddleware,
+        InterceptedTx,
+        DecodedCalldata,
+        GuardianMiddlewareError,
+        GuardianSecurityBlockedError as MiddlewareBlockedError,
+        GuardianConnectionError,
+        GuardianLangChainCallback,
+        GuardianToolWrapper,
+        guardian_web3_middleware,
+        DEFAULT_MONAD_POLICY_GUARD,
+    )
+except (ImportError, ValueError):
+    from guardian_middleware import (  # type: ignore
+        GuardianMiddleware,
+        InterceptedTx,
+        DecodedCalldata,
+        GuardianMiddlewareError,
+        GuardianSecurityBlockedError as MiddlewareBlockedError,
+        GuardianConnectionError,
+        GuardianLangChainCallback,
+        GuardianToolWrapper,
+        guardian_web3_middleware,
+        DEFAULT_MONAD_POLICY_GUARD,
+    )
+
 
 __version__ = "1.0.0"
-__all__ = ["GuardianAI", "ScanResult", "AuthResult", "GuardianError", "GuardianShield", "SecurityBlockedError"]
+__all__ = [
+    "GuardianAI",
+    "ScanResult",
+    "AuthResult",
+    "GuardianError",
+    "GuardianShield",
+    "SecurityBlockedError",
+    "GuardianMiddleware",
+    "InterceptedTx",
+    "DecodedCalldata",
+    "GuardianMiddlewareError",
+    "MiddlewareBlockedError",
+    "GuardianConnectionError",
+    "GuardianLangChainCallback",
+    "GuardianToolWrapper",
+    "guardian_web3_middleware",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +429,45 @@ class GuardianAI:
         """
         body = {"model": model, "messages": messages, **kwargs}
         return self._request("POST", "/v1/chat/completions", body=body)
+
+    # ------------------------------------------------------------------
+    # Agent Web3 Security & Transaction Interception
+    # ------------------------------------------------------------------
+
+    def get_middleware(
+        self,
+        policy_guard_address: Optional[str] = None,
+        chain_id: int = 10143,
+        fail_closed: bool = True,
+    ) -> GuardianMiddleware:
+        """Create a configured GuardianMiddleware instance bound to this client's API URL."""
+        return GuardianMiddleware(
+            relayer_url=self.api_url,
+            policy_guard_address=policy_guard_address or DEFAULT_MONAD_POLICY_GUARD,
+            chain_id=chain_id,
+            fail_closed=fail_closed,
+            timeout_seconds=self.timeout,
+        )
+
+    def intercept_transaction(
+        self,
+        agent_id: str,
+        target: str,
+        data: Union[str, bytes] = "0x",
+        value: int = 0,
+        prompt: Optional[str] = None,
+        nonce: Optional[int] = None,
+    ) -> InterceptedTx:
+        """Intercept and validate an EVM transaction via GuardianPolicyGuard."""
+        middleware = self.get_middleware()
+        return middleware.intercept_transaction(
+            agent_id=agent_id,
+            target=target,
+            data=data,
+            value=value,
+            prompt=prompt,
+            nonce=nonce,
+        )
 
     # ------------------------------------------------------------------
     # HTTP Transport

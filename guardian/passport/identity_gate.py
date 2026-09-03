@@ -37,7 +37,7 @@ Env vars (all optional; gate is a no-op until GUARDIAN_IDENTITY_GATE_ENABLED=tru
   GUARDIAN_IDENTITY_GATE_ONCHAIN_VERIFY      default: false
   GUARDIAN_IDENTITY_GATE_FAIL_CLOSED         default: false
   GUARDIAN_IDENTITY_GATE_CACHE_TTL           default: 60 (seconds)
-  GUARDIAN_IDENTITY_GATE_CHAIN               default: base-sepolia (used only when ONCHAIN_VERIFY=true)
+  GUARDIAN_IDENTITY_GATE_CHAIN               default: monad-testnet (used only when ONCHAIN_VERIFY=true)
 """
 from __future__ import annotations
 
@@ -300,7 +300,7 @@ class IdentityGate:
             )
 
         try:
-            chain = _env_str("GUARDIAN_IDENTITY_GATE_CHAIN", "base-sepolia")
+            chain = _env_str("GUARDIAN_IDENTITY_GATE_CHAIN", "monad-testnet")
             cfg = _resolve_chain_config(chain)
             w3 = Web3(Web3.HTTPProvider(cfg["rpc_url"]))
             contract = w3.eth.contract(

@@ -1,4 +1,4 @@
-﻿
+
 """
 audit_identity_drift.py � read-only reconciliation check.
 
@@ -14,7 +14,7 @@ anywhere that matters, and periodically afterward (ownership can drift again
 any time an operator transfers a token outside this system's own workflow).
 
 Usage:
-    python3 audit_identity_drift.py [--chain base-sepolia] [--db guardian.db]
+    python3 audit_identity_drift.py [--chain monad-testnet] [--db guardian.db]
 
 Exit code: 0 if no drift found, 1 if any mismatch found (so this can be used
 as a CI/cron gate � e.g. refuse to flip enforce mode on if this fails).
@@ -57,7 +57,7 @@ def fetch_confirmed_registrations(db_path: str, chain: str):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--chain", default="base-sepolia")
+    ap.add_argument("--chain", default="monad-testnet")
     ap.add_argument("--db", default="guardian.db")
     args = ap.parse_args()
 

@@ -53,7 +53,7 @@ _CONTRACT_ENV_PATTERNS: Dict[str, str] = {
 }
 
 _RPC_BY_CHAIN: Dict[str, str] = {
-    "monad":    "https://testnet.monad.xyz/v1",
+    "monad":    os.environ.get("MONAD_RPC_URL", "https://testnet.monad.xyz/v1"),
     "base":     "https://mainnet.base.org",
     "ethereum": "https://eth.llamarpc.com",
 }

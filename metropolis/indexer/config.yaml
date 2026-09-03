@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: guardianai-monad-indexer
+description: Real-time Envio HyperIndex for GuardianAI on Monad Testnet
+
+contracts:
+  - name: GuardianPolicyGuard
+    abi_file_path: abis/GuardianPolicyGuard.json
+    handler: src/EventHandlers.ts
+    events:
+      - event: ActionExecutedWithAttestation(bytes32 indexed agentId, address indexed target, uint8 riskScore, uint256 nonce)
+      - event: AttestationSignerUpdated(address indexed previousSigner, address indexed newSigner)
+      - event: MaxAllowedRiskScoreUpdated(uint8 previousScore, uint8 newScore)
+
+  - name: GuardianThreatFeedRegistry
+    abi_file_path: abis/GuardianThreatFeedRegistry.json
+    handler: src/EventHandlers.ts
+    events:
+      - event: AddressAdded(address indexed malicious, string reason)
+      - event: AddressRemoved(address indexed malicious)
+      - event: StringAddressAdded(string indexed malicious, string reason)
+      - event: StringAddressRemoved(string indexed malicious)
+
+  - name: GuardianPassportSBT
+    abi_file_path: abis/GuardianPassportSBT.json
+    handler: src/EventHandlers.ts
+    events:
+      - event: ScoreUpdated(uint256 indexed tokenId, bytes32 indexed agentHash, uint256 newScore, uint8 newTier)
+      - event: PassportRevoked(uint256 indexed tokenId, bytes32 indexed agentHash, uint256 revokedAt)
+
+  - name: GuardianCortexAnchor
+    abi_file_path: abis/GuardianCortexAnchor.json
+    handler: src/EventHandlers.ts
+    events:
+      - event: RootCommitted(bytes32 indexed merkleRoot, bytes32 indexed agentHash, uint256 eventCount, uint256 periodStart, uint256 periodEnd, uint256 commitmentIndex)
+
+  - name: GuardianRiskAttestation
+    abi_file_path: abis/GuardianRiskAttestation.json
+    handler: src/EventHandlers.ts
+    events:
+      - event: RiskAttested(address indexed contractAddress, string indexed chain, uint16 score, string grade, bytes32 signalsHash)
+      - event: AttestationUpdated(address indexed contractAddress, string indexed chain, uint16 score, string grade, bytes32 signalsHash)
+
+chains:
+  - id: 10143
+    start_block: 0
+    rpc_config:
+      url: https://snowy-ultra-film.monad-testnet.quiknode.pro/e9b2075b87f936cab2a8777098e57a00a51c5673/
+    contracts:
+      - name: GuardianPolicyGuard
+        address: "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101"
+      - name: GuardianThreatFeedRegistry
+        address: "0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8"
+      - name: GuardianPassportSBT
+        address: "0x65e081101a08F8c1C2df1cB9D008b3f988fF147f"
+      - name: GuardianCortexAnchor
+        address: "0x0000000000000000000000000000000000000004"
+      - name: GuardianRiskAttestation
+        address: "0x0000000000000000000000000000000000000005"

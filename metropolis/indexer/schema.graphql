@@ -1,0 +1,64 @@
+type AgentAction @entity {
+  id: ID! # ${txHash}-${logIndex}
+  agentId: String!
+  target: String!
+  riskScore: Int!
+  nonce: BigInt!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+type ThreatRecord @entity {
+  id: ID! # Lowercased address or string identifier
+  target: String!
+  isStringAddress: Boolean!
+  reason: String!
+  active: Boolean!
+  addedBy: String! # Derived from event.transaction.from
+  addedAt: BigInt!
+  removedAt: BigInt
+}
+
+type PassportRecord @entity {
+  id: ID! # tokenId
+  tokenId: BigInt!
+  agentHash: String!
+  score: BigInt!
+  tier: String! # UNVERIFIED, BRONZE, SILVER, GOLD, DIAMOND
+  tierNumber: Int!
+  isRevoked: Boolean!
+  revokedAt: BigInt
+  updatedAt: BigInt!
+}
+
+type CortexCommitment @entity {
+  id: ID! # ${txHash}-${logIndex}
+  merkleRoot: String!
+  agentHash: String!
+  eventCount: BigInt!
+  periodStart: BigInt!
+  periodEnd: BigInt!
+  commitmentIndex: BigInt!
+  committedBy: String!
+  timestamp: BigInt!
+}
+
+type ContractRiskRecord @entity {
+  id: ID! # ${contractAddress}-${chain}
+  contractAddress: String!
+  chain: String!
+  score: Int!
+  grade: String!
+  signalsHash: String!
+  updatedAt: BigInt!
+}
+
+type GlobalSecurityStats @entity {
+  id: ID! # "global"
+  totalActionsExecuted: BigInt!
+  totalThreatsRegistered: BigInt!
+  activeThreatCount: BigInt!
+  totalPassportsTracked: BigInt!
+  totalCortexRootsAnchored: BigInt!
+  lastUpdated: BigInt!
+}

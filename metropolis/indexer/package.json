@@ -1,0 +1,23 @@
+{
+  "name": "guardianai-monad-indexer",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Real-time Envio HyperIndex for GuardianAI security events on Monad Testnet",
+  "scripts": {
+    "sync-abis": "node scripts/sync-indexer-abis.js",
+    "codegen": "envio codegen",
+    "build": "tsc",
+    "test": "node test/run-tests.js",
+    "start": "envio start"
+  },
+  "keywords": [
+    "envio",
+    "hyperindex",
+    "monad",
+    "metropolis",
+    "guardianai",
+    "security"
+  ],
+  "author": "GuardianAI",
+  "license": "MIT"
+}

@@ -45,6 +45,7 @@ import logging
 import os
 import re
 import sqlite3
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -107,7 +108,7 @@ class IdentityGate:
     cache actually helps both hot paths instead of being duplicated.
     """
 
-    def __init__(self, passport_engine: Any, erc8004_db_path: Optional[str] = None):
+    def __init__(self, passport_engine: Any, erc8004_db_path: Optional[str] = None, onchain_verify: Optional[bool] = None):
         """
         passport_engine: a guardian.passport.passport_core.PassportEngine
             instance (or anything exposing get_passport() and
@@ -123,9 +124,25 @@ class IdentityGate:
         self.shadow_mode = _env_str("GUARDIAN_IDENTITY_GATE_MODE", "enforce").strip().lower() == "shadow"
         self.min_tier = _env_str("GUARDIAN_IDENTITY_GATE_MIN_TIER", "UNVERIFIED").strip().upper()
         self.block_unregistered = _env_bool("GUARDIAN_IDENTITY_GATE_UNREGISTERED_BLOCK", False)
-        self.onchain_verify = _env_bool("GUARDIAN_IDENTITY_GATE_ONCHAIN_VERIFY", False)
         self.fail_closed = _env_bool("GUARDIAN_IDENTITY_GATE_FAIL_CLOSED", False)
         self.cache_ttl = _env_int("GUARDIAN_IDENTITY_GATE_CACHE_TTL", 60)
+        self.chain = _env_str("GUARDIAN_IDENTITY_GATE_CHAIN", "monad-testnet").strip().lower()
+        if self.chain != "monad-testnet":
+            logger.warning(
+                "GUARDIAN_IDENTITY_GATE_CHAIN=%r is not supported (strictly targeting monad-testnet). Defaulting to monad-testnet.",
+                self.chain,
+            )
+            self.chain = "monad-testnet"
+
+        # Default onchain_verify to True for production / Monad Testnet
+        if onchain_verify is not None:
+            self.onchain_verify = onchain_verify
+        elif os.environ.get("GUARDIAN_IDENTITY_GATE_ONCHAIN_VERIFY") is not None:
+            self.onchain_verify = _env_bool("GUARDIAN_IDENTITY_GATE_ONCHAIN_VERIFY", False)
+        else:
+            is_prod = os.getenv("GUARDIAN_ENV", "development").strip().lower() in ("production", "prod")
+            is_test = "pytest" in sys.modules or os.getenv("GUARDIAN_ENV") == "test"
+            self.onchain_verify = is_prod or (self.chain == "monad-testnet" and not is_test)
 
         if self.min_tier not in _TIER_RANK:
             logger.warning(
@@ -136,6 +153,9 @@ class IdentityGate:
 
         self._cache: Dict[str, _CacheEntry] = {}
         self._cache_lock = threading.Lock()
+        
+        if hasattr(self.passport_engine, "register_invalidation_callback"):
+            self.passport_engine.register_invalidation_callback(self.invalidate_cache)
 
     # ── Public entry points ─────────────────────────────────────────
 
@@ -157,7 +177,7 @@ class IdentityGate:
             logger.warning("IdentityGate DB lookup failed for agent_id=%s: %s", agent_id, exc)
             return self._error_result(str(exc))
 
-        result = self._evaluate_passport(passport, lookup_key=agent_id)
+        result = self._evaluate_passport(passport, lookup_key=agent_id, claimed_address=getattr(passport, "owner_pubkey", None))
         self._cache_set(cache_key, result)
         return result
 
@@ -185,7 +205,7 @@ class IdentityGate:
             logger.warning("IdentityGate DB lookup failed for address=%s: %s", normalized, exc)
             return self._error_result(str(exc))
 
-        result = self._evaluate_passport(passport, lookup_key=normalized)
+        result = self._evaluate_passport(passport, lookup_key=normalized, claimed_address=normalized)
         self._cache_set(cache_key, result)
         return result
 
@@ -212,30 +232,34 @@ class IdentityGate:
             conn = sqlite3.connect(self.erc8004_db_path)
             try:
                 cur = conn.cursor()
-                # LEFT JOIN agent_passports so a wallet shared by an active
-                # and a revoked/deleted registration resolves to the active
-                # one first — mirrors the ORDER BY is_active DESC tiebreak in
-                # get_passport_by_owner_address(). Without this, a wallet
-                # holding two confirmed registrations (one revoked) could
-                # resolve to the revoked agent purely because its
-                # registration row was touched more recently, incorrectly
-                # blocking the real active agent's real wallet. Requires
-                # agent_passports and erc8004_registrations to live in the
-                # same DB file (true by default — see erc8004_registrar's
-                # default_db_path()); if they're ever split across files,
-                # this join silently degrades to "no match" rather than
-                # raising, since the whole call is wrapped below.
-                cur.execute(
-                    """
-                    SELECT r.agent_id
-                    FROM erc8004_registrations r
-                    LEFT JOIN agent_passports p ON p.agent_id = r.agent_id
-                    WHERE r.owner_address = ? COLLATE NOCASE AND r.status = 'confirmed'
-                    ORDER BY COALESCE(p.is_active, 0) DESC, r.updated_at DESC
-                    LIMIT 1
-                    """,
-                    (address,),
-                )
+                cur.execute("PRAGMA table_info(erc8004_registrations)")
+                cols = {row[1] for row in cur.fetchall()}
+                if "chain" in cols:
+                    cur.execute(
+                        """
+                        SELECT r.agent_id
+                        FROM erc8004_registrations r
+                        LEFT JOIN agent_passports p ON p.agent_id = r.agent_id
+                        WHERE r.owner_address = ? COLLATE NOCASE
+                          AND r.chain = ?
+                          AND r.status = 'confirmed'
+                        ORDER BY COALESCE(p.is_active, 0) DESC, r.updated_at DESC
+                        LIMIT 1
+                        """,
+                        (address, self.chain),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT r.agent_id
+                        FROM erc8004_registrations r
+                        LEFT JOIN agent_passports p ON p.agent_id = r.agent_id
+                        WHERE r.owner_address = ? COLLATE NOCASE AND r.status = 'confirmed'
+                        ORDER BY COALESCE(p.is_active, 0) DESC, r.updated_at DESC
+                        LIMIT 1
+                        """,
+                        (address,),
+                    )
                 row = cur.fetchone()
                 return row[0] if row else None
             finally:
@@ -247,7 +271,7 @@ class IdentityGate:
             logger.debug("IdentityGate: erc8004_registrations lookup skipped: %s", exc)
             return None
 
-    def _evaluate_passport(self, passport: Any, lookup_key: str) -> IdentityCheckResult:
+    def _evaluate_passport(self, passport: Any, lookup_key: str, claimed_address: Optional[str] = None) -> IdentityCheckResult:
         if passport is None:
             return self._unregistered_result("no_passport", details={"lookup_key": lookup_key})
 
@@ -262,7 +286,7 @@ class IdentityGate:
             )
 
         if self.onchain_verify:
-            onchain_result = self._verify_onchain(passport)
+            onchain_result = self._verify_onchain(passport, claimed_address=claimed_address)
             if onchain_result is not None:
                 return onchain_result
 
@@ -273,7 +297,7 @@ class IdentityGate:
 
     # ── On-chain (optional layer) ───────────────────────────────────
 
-    def _verify_onchain(self, passport: Any) -> Optional[IdentityCheckResult]:
+    def _verify_onchain(self, passport: Any, claimed_address: Optional[str] = None) -> Optional[IdentityCheckResult]:
         """Confirm the registry actually knows this agent's token and that
         ownership is non-zero. Returns None (no override — fall through to
         the local-DB result) when on-chain verification can't run at all;
@@ -300,7 +324,7 @@ class IdentityGate:
             )
 
         try:
-            chain = _env_str("GUARDIAN_IDENTITY_GATE_CHAIN", "monad-testnet")
+            chain = self.chain
             cfg = _resolve_chain_config(chain)
             w3 = Web3(Web3.HTTPProvider(cfg["rpc_url"]))
             contract = w3.eth.contract(
@@ -310,7 +334,14 @@ class IdentityGate:
             owner = contract.functions.ownerOf(token_id).call()
         except Exception as exc:  # noqa: BLE001
             exc_str = str(exc).lower()
-            if "nonexistent token" in exc_str or "erc721nonexistenttoken" in exc_str or "invalid token id" in exc_str:
+            if (
+                "nonexistent token" in exc_str
+                or "erc721nonexistenttoken" in exc_str
+                or "invalid token id" in exc_str
+                or "7e273289" in exc_str
+                or "agentnotfound" in exc_str
+                or "e93ba223" in exc_str
+            ):
                 logger.warning("IdentityGate on-chain token %s is nonexistent/burned: %s", token_id, exc)
                 return self._blocked("onchain_token_revoked_or_burned", passport, details={"token_id": token_id})
             logger.warning("IdentityGate on-chain ownerOf(%s) failed: %s", token_id, exc)
@@ -319,6 +350,9 @@ class IdentityGate:
         if not owner or int(owner, 16) == 0:
             return self._blocked("onchain_owner_zero", passport, details={"token_id": token_id})
 
+        if claimed_address and owner.lower() != claimed_address.lower():
+            return self._blocked("onchain_owner_mismatch", passport, details={"token_id": token_id, "owner": owner, "claimed_address": claimed_address})
+
         tier = str(getattr(passport, "tier", "UNVERIFIED") or "UNVERIFIED").upper()
         return IdentityCheckResult(
             True, "ok", tier, "onchain",
@@ -326,6 +360,11 @@ class IdentityGate:
         )
 
     def _token_id_for(self, passport: Any) -> Optional[int]:
+        if getattr(passport, "token_id", None) is not None:
+            try:
+                return int(passport.token_id)
+            except (ValueError, TypeError):
+                pass
         if not self.erc8004_db_path:
             return None
         agent_id = getattr(passport, "agent_id", None)
@@ -335,14 +374,26 @@ class IdentityGate:
             conn = sqlite3.connect(self.erc8004_db_path)
             try:
                 cur = conn.cursor()
-                cur.execute(
-                    """
-                    SELECT token_id FROM erc8004_registrations
-                    WHERE agent_id = ? AND status = 'confirmed' AND token_id IS NOT NULL
-                    ORDER BY updated_at DESC LIMIT 1
-                    """,
-                    (agent_id,),
-                )
+                cur.execute("PRAGMA table_info(erc8004_registrations)")
+                cols = {row[1] for row in cur.fetchall()}
+                if "chain" in cols:
+                    cur.execute(
+                        """
+                        SELECT token_id FROM erc8004_registrations
+                        WHERE agent_id = ? AND chain = ? AND status = 'confirmed' AND token_id IS NOT NULL
+                        ORDER BY updated_at DESC LIMIT 1
+                        """,
+                        (agent_id, self.chain),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT token_id FROM erc8004_registrations
+                        WHERE agent_id = ? AND status = 'confirmed' AND token_id IS NOT NULL
+                        ORDER BY updated_at DESC LIMIT 1
+                        """,
+                        (agent_id,),
+                    )
                 row = cur.fetchone()
                 return int(row[0]) if row and row[0] is not None else None
             finally:
@@ -383,6 +434,20 @@ class IdentityGate:
         return IdentityCheckResult(False, "lookup_error", "UNKNOWN", "error", details={"error": error})
 
     # ── Cache ────────────────────────────────────────────────────────
+
+    def invalidate_cache(self, key_pattern: str) -> None:
+        """Invalidate specific cache entries matching a substring (e.g. agent_id)."""
+        if self.cache_ttl <= 0:
+            return
+        with self._cache_lock:
+            to_remove = [k for k in self._cache.keys() if key_pattern in k]
+            for k in to_remove:
+                self._cache.pop(k, None)
+
+    def invalidate_all(self) -> None:
+        """Clear the entire identity cache (used on global revocation)."""
+        with self._cache_lock:
+            self._cache.clear()
 
     def _cache_get(self, key: str) -> Optional[IdentityCheckResult]:
         if self.cache_ttl <= 0:

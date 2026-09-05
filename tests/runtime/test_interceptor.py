@@ -1,6 +1,7 @@
 import importlib
 import json
 import sys
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -614,6 +615,7 @@ def test_agentic_controls_block_missing_agent_id(proxy):
 def test_agentic_controls_block_scope_tool_violation(proxy):
     proxy.agentic_security.enabled = True
     proxy.agentic_security.require_agent_id = True
+    proxy.agentic_security.require_agent_attestation = False
     proxy.agentic_security.scope_tool_allowlist = {"read_only": ["search_docs"]}
     payload = {"tools": [{"type": "function", "function": {"name": "wire_transfer"}}]}
     headers = {"X-Guardian-Agent-Id": "agent-a", "X-Guardian-Agent-Scope": "read_only"}
@@ -630,6 +632,7 @@ def test_agentic_controls_honor_kill_switch_file(proxy, tmp_path):
         encoding="utf-8",
     )
     proxy.agentic_security.enabled = True
+    proxy.agentic_security.require_agent_attestation = False
     proxy.agentic_security.kill_switch_enabled = True
     proxy.agentic_security.kill_switch_file = kill_file
     payload = {"messages": [{"role": "user", "content": "hello"}]}
@@ -643,6 +646,7 @@ def test_agentic_controls_honor_kill_switch_file(proxy, tmp_path):
 def test_agentic_controls_block_untrusted_mcp_server(proxy):
     proxy.agentic_security.enabled = True
     proxy.agentic_security.require_agent_id = True
+    proxy.agentic_security.require_agent_attestation = False
     proxy.agentic_security.trusted_mcp_servers = {"mcp://trusted-a"}
     payload = {"tools": [{"type": "function", "function": {"name": "search_docs"}}]}
     headers = {"X-Guardian-Agent-Id": "agent-a", "X-Guardian-MCP-Server": "mcp://unknown"}
@@ -655,6 +659,7 @@ def test_agentic_controls_block_untrusted_mcp_server(proxy):
 def test_agentic_controls_block_mcp_tool_violation(proxy):
     proxy.agentic_security.enabled = True
     proxy.agentic_security.require_agent_id = True
+    proxy.agentic_security.require_agent_attestation = False
     proxy.agentic_security.require_mcp_server_for_tools = True
     proxy.agentic_security.mcp_server_tool_allowlist = {"mcp://trusted-a": ["search_docs"]}
     payload = {"tools": [{"type": "function", "function": {"name": "wire_transfer"}}]}
@@ -668,6 +673,7 @@ def test_agentic_controls_block_mcp_tool_violation(proxy):
 def test_agentic_controls_block_scope_escalation(proxy):
     proxy.agentic_security.enabled = True
     proxy.agentic_security.require_agent_id = True
+    proxy.agentic_security.require_agent_attestation = False
     proxy.agentic_security.enforce_scope_non_escalation = True
     proxy.agentic_security.scope_hierarchy = {"read_only": 0, "standard": 1, "privileged": 2}
     payload = {"messages": [{"role": "user", "content": "hello"}]}
@@ -680,6 +686,61 @@ def test_agentic_controls_block_scope_escalation(proxy):
         resp = proxy._enforce_agentic_controls(payload, "v1/chat/completions", "default")
     assert resp is not None
     assert resp.status_code == 403
+
+
+def test_agentic_controls_returns_401_on_missing_attestation(proxy):
+    proxy.agentic_security.enabled = True
+    proxy.agentic_security.require_agent_id = True
+    proxy.agentic_security.require_agent_attestation = True
+    payload = {"messages": [{"role": "user", "content": "hello"}]}
+    headers = {"X-Guardian-Agent-Id": "agent-a"}
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json=payload, headers=headers):
+        resp = proxy._enforce_agentic_controls(payload, "v1/chat/completions", "default")
+    assert resp is not None
+    assert resp.status_code == 401
+    assert "WWW-Authenticate" in resp.headers
+    assert "Bearer" in resp.headers["WWW-Authenticate"]
+
+
+def test_agentic_controls_returns_401_on_invalid_attestation(proxy):
+    proxy.agentic_security.enabled = True
+    proxy.agentic_security.require_agent_id = True
+    proxy.agentic_security.require_agent_attestation = True
+    proxy.agentic_security.agent_attestation_keys = {"agent-a": {"key-1": "secret-1"}}
+    payload = {"messages": [{"role": "user", "content": "hello"}]}
+    headers = {
+        "X-Guardian-Agent-Id": "agent-a",
+        "X-Guardian-Agent-Key-Id": "key-1",
+        "X-Guardian-Agent-Attestation-Ts": str(time.time()),
+        "X-Guardian-Agent-Attestation": "sha256=invalid_signature",
+    }
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json=payload, headers=headers):
+        resp = proxy._enforce_agentic_controls(payload, "v1/chat/completions", "default")
+    assert resp is not None
+    assert resp.status_code == 401
+    assert "WWW-Authenticate" in resp.headers
+    assert "invalid_token" in resp.headers["WWW-Authenticate"]
+
+
+def test_agentic_controls_returns_401_on_stale_attestation(proxy):
+    proxy.agentic_security.enabled = True
+    proxy.agentic_security.require_agent_id = True
+    proxy.agentic_security.require_agent_attestation = True
+    proxy.agentic_security.agent_attestation_keys = {"agent-a": {"key-1": "secret-1"}}
+    stale_ts = str(time.time() - 1000)
+    payload = {"messages": [{"role": "user", "content": "hello"}]}
+    headers = {
+        "X-Guardian-Agent-Id": "agent-a",
+        "X-Guardian-Agent-Key-Id": "key-1",
+        "X-Guardian-Agent-Attestation-Ts": stale_ts,
+        "X-Guardian-Agent-Attestation": "sha256=whatever",
+    }
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json=payload, headers=headers):
+        resp = proxy._enforce_agentic_controls(payload, "v1/chat/completions", "default")
+    assert resp is not None
+    assert resp.status_code == 401
+    assert "WWW-Authenticate" in resp.headers
+    assert "invalid_token" in resp.headers["WWW-Authenticate"]
 
 
 def test_rag_controls_block_indirect_injection_chunk(proxy):
@@ -1011,4 +1072,67 @@ def test_report_event_persists_tenant_scoped_evidence(proxy, mocked_dependencies
     first_line = evidence_file.read_text(encoding="utf-8").strip().splitlines()[0]
     payload = json.loads(first_line)
     assert payload["tenant_id"] == "acme"
+
+
+def test_agentic_controls_status_code_semantics(proxy):
+    """Semantic alignment: attestation auth failures return 401 with WWW-Authenticate; policy/revocation blocks return 403."""
+    from guardian.security.agentic_controls import AgenticDecision
+
+    # 1. Missing attestation -> 401 with WWW-Authenticate: Bearer
+    proxy.agentic_security.evaluate = MagicMock(return_value=AgenticDecision("block", "missing_agent_attestation", {}, severity="HIGH"))
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json={"prompt": "test"}):
+        resp = proxy._enforce_agentic_controls(data={"prompt": "test"}, path="/v1/chat/completions", tenant_id="tenant-1")
+        assert resp is not None
+        assert resp.status_code == 401
+        assert resp.headers.get("WWW-Authenticate") == "Bearer"
+
+    # 2. Invalid attestation -> 401 with WWW-Authenticate containing error details
+    proxy.agentic_security.evaluate = MagicMock(return_value=AgenticDecision("block", "invalid_agent_attestation", {}, severity="HIGH"))
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json={"prompt": "test"}):
+        resp = proxy._enforce_agentic_controls(data={"prompt": "test"}, path="/v1/chat/completions", tenant_id="tenant-1")
+        assert resp is not None
+        assert resp.status_code == 401
+        assert 'Bearer error="invalid_token"' in resp.headers.get("WWW-Authenticate", "")
+
+    # 3. Stale attestation -> 401 with WWW-Authenticate containing error details
+    proxy.agentic_security.evaluate = MagicMock(return_value=AgenticDecision("block", "stale_agent_attestation", {}, severity="HIGH"))
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json={"prompt": "test"}):
+        resp = proxy._enforce_agentic_controls(data={"prompt": "test"}, path="/v1/chat/completions", tenant_id="tenant-1")
+        assert resp is not None
+        assert resp.status_code == 401
+        assert "stale_agent_attestation" in resp.headers.get("WWW-Authenticate", "")
+
+    # 4. Revoked agent identity -> 403 Forbidden
+    proxy.agentic_security.evaluate = MagicMock(return_value=AgenticDecision("block", "revoked_agent_identity", {}, severity="HIGH"))
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json={"prompt": "test"}):
+        resp = proxy._enforce_agentic_controls(data={"prompt": "test"}, path="/v1/chat/completions", tenant_id="tenant-1")
+        assert resp is not None
+        assert resp.status_code == 403
+        assert "revoked_agent_identity" in resp.get_data(as_text=True)
+
+    # 5. Unregistered or low trust agent -> 403 Forbidden
+    proxy.agentic_security.evaluate = MagicMock(return_value=AgenticDecision("block", "unregistered_or_low_trust_agent", {}, severity="HIGH"))
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json={"prompt": "test"}):
+        resp = proxy._enforce_agentic_controls(data={"prompt": "test"}, path="/v1/chat/completions", tenant_id="tenant-1")
+        assert resp is not None
+        assert resp.status_code == 403
+        assert "unregistered_or_low_trust_agent" in resp.get_data(as_text=True)
+
+    # 6. Policy block (e.g. tool violation) -> 403 Forbidden
+    proxy.agentic_security.evaluate = MagicMock(return_value=AgenticDecision("block", "scope_tool_violation", {}, severity="HIGH"))
+    with proxy.app.test_request_context("/v1/chat/completions", method="POST", json={"prompt": "test"}):
+        resp = proxy._enforce_agentic_controls(data={"prompt": "test"}, path="/v1/chat/completions", tenant_id="tenant-1")
+        assert resp is not None
+        assert resp.status_code == 403
+        assert "scope_tool_violation" in resp.get_data(as_text=True)
+
+    # 7. JWT Claim mismatches (payload, execution, scope) -> 401 Unauthorized
+    for mismatch_reason in ("agent_attestation_payload_mismatch", "agent_attestation_execution_mismatch", "agent_attestation_scope_mismatch"):
+        proxy.agentic_security.evaluate = MagicMock(return_value=AgenticDecision("block", mismatch_reason, {}, severity="HIGH"))
+        with proxy.app.test_request_context("/v1/chat/completions", method="POST", json={"prompt": "test"}):
+            resp = proxy._enforce_agentic_controls(data={"prompt": "test"}, path="/v1/chat/completions", tenant_id="tenant-1")
+            assert resp is not None
+            assert resp.status_code == 401
+            assert mismatch_reason in resp.headers.get("WWW-Authenticate", "")
+
 

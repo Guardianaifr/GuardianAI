@@ -612,7 +612,7 @@ Allows auditors or GuardianAI itself to publish cryptographic attestations of an
 - **Safety design:** fail-closed `eth_getCode` verification before first send per chain; production-URI gate
   refusing localhost/non-https `GUARDIAN_PUBLIC_URL` on mainnet chains; gas-price ceiling reuse; daily on-chain
   spend budget; idempotent retries (broadcast-hash preservation + receipt recovery prevents double mints);
-  conditional-claim row locking against concurrent workers; configured chains include base-sepolia (default), base, and monad-testnet (no enforced rollout ordering).
+  conditional-claim row locking against concurrent workers; exclusively targeting Monad Testnet (Chain ID 10143).
 - **Honest scope:** discovery-only today — no Reputation emission and no Validation-Registry validator yet
   (the Validation portion of ERC-8004 is still marked unstable by its editors). Default disabled behind
   `GUARDIAN_ERC8004_ENABLED=false`; nothing changes at runtime until enabled.

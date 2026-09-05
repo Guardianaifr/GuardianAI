@@ -67,7 +67,7 @@ class InputFilter:
             r"reveal (your )?system (prompt|instructions|rules)",
             r"you are now|act as|pretend to be|immerse yourself",
             r"new (instructions|role|personality|mission|programming)",
-            r"bypass (all )?.*(filters|safety|restrictions)",  # Flexible bypass match
+            r"bypass\s+(?:all\s+)?[^.\n]{0,60}?(?:filters|safety|restrictions)",  # Flexible bypass match
             r"system (override|notification|debug|shield)",
             # Persona / Roleplay jailbreak patterns (catch decoded Morse, Braille, etc.)
             r"from now on (you|your|act|pretend|respond|ignore|forget)",
@@ -99,7 +99,7 @@ class InputFilter:
             # PowerShell/CMD patterns - block command execution and script running
             r"powershell\s+-|powershell\.exe\s+-|powershell\s+script|run\s+powershell|cmd\.exe\s+/c|invoke-expression|iex\s+",
             r"system\(|eval\(|subprocess\.",
-            r"(?:curl|wget)\b.*\|.*\bsh\b",
+            r"(?:curl|wget)\b[^|\n]{0,80}?\|[^|\n]{0,50}?\bsh\b",
             # Safety Anchors for high-risk categories (missed by embeddings)
             r"(?:steal|leak|exfiltrate|hack|crack)\s+(?:credit\s*card|passport|social\s*security|ssn|root\s*password|api\s*key|bank|database|financial)",
             r"(?:manufacture|recipe|build|cook|create|make)\s+(?:a\s+|an\s+|the\s+)?(?:bomb|explosive|napalm|poison|meth|methamphetamine|fentanyl|drug|weapon)",
@@ -108,11 +108,11 @@ class InputFilter:
             r"(?:hate\s*speech|racial\s*slur|extremist\s*propaganda|toxic\s*content)",
             r"(?:strictly|immediately)\s+follow\s+this\s+(?:instruction|command|prompt)", # Directive hardening
             # Hallucination / Package planting
-            r"(?:recommend|explicitly tell|instruct|force|say).*(?:pip|npm)\s*install\s+[A-Za-z0-9_-]+",
-            r"(?:must|should|tell|ask).*(?:user|users|developer|developers)?.*(?:run|use|execute).*(?:pip|npm)\s+install\s+[A-Za-z0-9][A-Za-z0-9_-]*",
-            r"(?:pip|npm)\s+install\s+[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+){1,}.*(?:instead of|better|secure|trusted|official)",
+            r"(?:recommend|explicitly tell|instruct|force|say)[^.\n]{0,80}?(?:pip|npm)\s*install\s+[A-Za-z0-9_-]+",
+            r"(?:must|should|tell|ask)\b[^.\n]{0,80}?(?:pip|npm)\s+install\b",
+            r"(?:pip|npm)\s+install\s+[A-Za-z0-9_-]+[^.\n]{0,80}?(?:instead of|better|secure|trusted|official)",
             # SSRF / Internal Network Targeting (Defense in Depth for OpenClaw v2026.2.12)
-            r"(?:fetch|browse|access|curl|wget|get)\s+.*(?:169\.254\.169\.254|127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\]|metadata\.google\.internal)",
+            r"(?:fetch|browse|access|curl|wget|get)\s+[^.\n]{0,80}?(?:169\.254\.169\.254|127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\]|metadata\.google\.internal)",
             r"(?:http|https)://(?:169\.254\.169\.254|127\.0\.0\.1|localhost|0\.0\.0\.0)",
             # Explicit Block for Demo Reliability
             r"delete the database",
@@ -122,6 +122,33 @@ class InputFilter:
             # Override indicators
             r"(?:SYSTEM|INSTRUCTION|CONTEXT|PROMPT)\s*:?\s*(?:OVERRIDE|Override|New directive)",
             r"\[INST\]|\[/INST\]",
+            # Autonomous Agent Financial Drain & Treasury Siphoning
+            r"(?:transfer|send|sweep|drain|withdraw|siphon|route)(?:all)?\s+(?:all\s+)?(?:funds|balance|tokens|mon|eth|assets|coins|treasury|vault|collateral)\b",
+            r"(?:transfer|send|sweep|drain|withdraw|siphon|route)all\b[^.\n]{0,80}?(?:vault|treasury|contract|wallet|funds|tokens|balance)",
+            r"\b(?:all|entire|total)\s+(?:funds|balance|tokens|assets|treasury|vault)\b[^.\n]{0,80}?(?:wallet|address|transfer|send|drain|account)",
+            r"(?:drain|empty|siphon|liquidate)\s+(?:the\s+)?(?:treasury|vault|contract|pool|wallet|balance|all\s+tokens)",
+            r"0x[a-fA-F0-9]{40}[^.\n]{0,80}?(?:transfer|send|sweep|drain|withdraw)",
+            r"(?:transfer|send|sweep|drain)\b[^.\n]{0,80}?0x[a-fA-F0-9]{40}",
+            # Flash Loan / Collateral Hijack
+            r"(?:flash\s*loan|liquidity|swap)[^.\n]{0,80}?(?:100%|all|entire|collateral)[^.\n]{0,80}?(?:untrusted|drain|siphon|attacker|steal)",
+            # Supervisor / Deep System Directive Escaping
+            r"```(?:system|admin|root|directive|supervisor)",
+            r"\[(?:SUPERVISOR|SYSTEM|SECURITY|ADMIN|OPERATOR)\s+DIRECTIVE",
+            r"(?:revoke|disable|cancel|bypass|remove)\s+(?:all\s+)?(?:spend|spending|outflow|transaction)\s+(?:limits|caps|restrictions|allowance)",
+            # Agent Long-Term Memory Poisoning
+            r"(?:store|save|inject|plant|keep)\s+(?:in|into)\s+(?:long-term\s+|agent\s+|context\s+)?(?:memory|cortex|state)[^.\n]{0,80}?(?:recipient|transfer|drain|send|tx|transaction)",
+            # Unicode Bi-directional Override Attack (Trojan Source CVE-2021-42574)
+            r"[\u202a-\u202e\u2066-\u2069]",
+            # ChatML, Llama, and Prompt Injection Delimiters (PayloadsAllTheThings)
+            r'["\']?role["\']?\s*:\s*["\']?(?:system|assistant|admin)["\']?',
+            r'<<\s*SYS\s*>>|<</\s*SYS\s*>>|\[\/?SYS\]',
+            r'<\|(?:im_start|im_end|system|assistant|user)\|>',
+            r'\b(?:new|important|critical)\s+instructions?\b',
+            r'ignore\s+(?:the\s+)?(?:user|human|developer|operator)\b',
+            # Jailbreak Persona & Uncensored Mode Signatures (verazuo / public benchmarks)
+            r"\b[A-Za-z]+GPT\b[^.\n]{0,80}?(?:uncensored|jailbreak|unrestricted|bypass|illegal|rules)",
+            r"(?:is|act as|behave as)\s+(?:an?\s+)?(?:uncensored|unrestricted|amoral|jailbroken|unfiltered)\b",
+            r"\[(?:Illegality|Uncensored|Anarchy|Chaos|Evil|Shadow|Dark)\s+Mode\]",
         ]
 
     def calculate_entropy(self, text: str) -> float:
@@ -167,6 +194,36 @@ class InputFilter:
         url_decoded = urllib.parse.unquote(text)
         if url_decoded != text:
             variations.append(url_decoded)
+
+        # 6. Unicode Normalization (NFKC - collapses decomposed accents, homoglyphs)
+        import unicodedata
+        nfkc_text = unicodedata.normalize("NFKC", text)
+        if nfkc_text != text:
+            variations.append(nfkc_text)
+
+        # 7. Token Splitting normalizer (e.g. 't'+'r'+'a'+'n'+'s' -> 'trans')
+        clean_quotes = re.sub(r"['\"]", "", text)
+        token_unsplit = re.sub(r"\s*\+\s*", "", clean_quotes)
+        if token_unsplit != text:
+            variations.append(token_unsplit)
+
+        # 8. Embedded Hex & Base64 Extractor (e.g. 0x647261696e... or base64(...))
+        for hex_match in re.findall(r"0x([0-9a-fA-F]{6,})", text):
+            try:
+                dec_hex = bytes.fromhex(hex_match).decode("utf-8", errors="ignore")
+                if len(dec_hex) >= 3:
+                    variations.append(dec_hex)
+                    variations.append(dec_hex.replace("_", " ").replace("-", " "))
+            except Exception:
+                pass
+        for b64_match in re.findall(r"base64\(([A-Za-z0-9+/=]{4,})\)", text):
+            try:
+                dec_b64 = base64.b64decode(b64_match).decode("utf-8", errors="ignore")
+                if len(dec_b64) >= 3:
+                    variations.append(dec_b64)
+                    variations.append(dec_b64.replace("_", " ").replace("-", " "))
+            except Exception:
+                pass
             
         return " | ".join(variations)
 
@@ -222,13 +279,14 @@ class InputFilter:
 
         # Layer 1d: Multi-Encoding Decoder (Morse, Braille, NATO, Hex, etc.)
         # Decode any hidden payloads and re-check them against block patterns.
-        decoded_variants = self.encoding_detector.decode_all(prompt)
-        for decoded in decoded_variants:
-            # Run each decoded variant through de-obfuscation + pattern check
-            decoded_normalized = self.deobfuscate(decoded)
-            for pattern in self.block_patterns:
-                if re.search(pattern, decoded_normalized, re.IGNORECASE):
-                    return False
+        if self.encoding_detector.has_encoding_markers(prompt):
+            decoded_variants = self.encoding_detector.decode_all(prompt)
+            for decoded in decoded_variants:
+                # Run each decoded variant through de-obfuscation + pattern check
+                decoded_normalized = self.deobfuscate(decoded)
+                for pattern in self.block_patterns:
+                    if re.search(pattern, decoded_normalized, re.IGNORECASE):
+                        return False
         
         # 2. Secret Key Detection (DLP on Input)
         # Prevents users from accidentally sending keys to the cloud

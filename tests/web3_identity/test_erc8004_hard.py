@@ -29,7 +29,7 @@ from test_erc8004_registrar import (  # sibling module (rootdir on sys.path)
 )
 
 
-def make(db, state, chain="base-sepolia"):
+def make(db, state, chain="monad-testnet"):
     return reg.ERC8004Registrar(
         chain, db,
         w3_factory=lambda rpc: FakeW3(state),
@@ -46,7 +46,7 @@ class FakePassport:
 def env(tmp_path, monkeypatch):
     db = str(tmp_path / "guardian.db")
     monkeypatch.setenv("GUARDIAN_ERC8004_ENABLED", "true")
-    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "base-sepolia")
+    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "monad-testnet")
     monkeypatch.setenv("GUARDIAN_ERC8004_REGISTRAR_KEY", "0x" + "11" * 32)
     monkeypatch.setenv("GUARDIAN_PUBLIC_URL", "https://guard.example.com")
     monkeypatch.setattr(reg, "ensure_worker", lambda p: None)
@@ -290,9 +290,10 @@ def test_h7_public_file_schema_and_privacy(client):
     assert "supportedTrust" not in body  # discovery-only claim, honestly absent
 
 
-# ── H8: multi-chain delegation ───────────────────────────────────────────────
+# ── H8: exclusive monad-testnet queue ────────────────────────────────────────
 
-def test_h8_queue_advances_multiple_chains(env, tmp_path, monkeypatch):
+def test_h8_queue_strictly_targets_monad_testnet(env, tmp_path, monkeypatch):
+    """Setting legacy chains like base-sepolia is filtered; monad-testnet is exclusively processed."""
     monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "base-sepolia,monad-testnet")
     r_main = make(env, {})
     states = {}
@@ -308,12 +309,12 @@ def test_h8_queue_advances_multiple_chains(env, tmp_path, monkeypatch):
         from guardian.passport.erc8004_registrar import enqueue_registration as eq
         monkeypatch.setattr(reg, "ensure_worker", lambda p: None)
         assert eq(env, "multi-agent", "passport-m") is True
-        r_main.process_pending()  # should delegate monad row to its own client
+        r_main.process_pending()  # delegates monad row to its own client
 
         statuses = {row["chain"]: row["status"] for row in r_main.get_status("multi-agent")}
-        assert statuses["base-sepolia"] == reg.STATUS_METADATA
+        assert "base-sepolia" not in statuses
         assert statuses["monad-testnet"] == reg.STATUS_METADATA
-        assert states["monad-testnet"]["chain_id"] != states["base-sepolia"]["chain_id"]
+        assert states["monad-testnet"]["chain_id"] == 10143
     finally:
         reg.ERC8004Registrar.__init__ = orig_init
 
@@ -322,11 +323,12 @@ def test_h8_queue_advances_multiple_chains(env, tmp_path, monkeypatch):
 
 def test_h9_localhost_uri_blocked_on_mainnet_chain(env, monkeypatch):
     """Default localhost PUBLIC_BASE_URL must never be baked onto mainnet."""
-    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "base")
+    monkeypatch.setitem(reg.CHAIN_DEFAULTS, "mock-mainnet", {"chain_id": 99999, "rpc_url": "https://rpc.mock", "testnet": False})
+    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "mock-mainnet")
     # env fixture sets GUARDIAN_PUBLIC_URL=https://guard.example.com; undo it.
-    monkeypatch.delenv("GUARDIAN_PUBLIC_URL")
+    monkeypatch.delenv("GUARDIAN_PUBLIC_URL", raising=False)
     state = {}
-    r = make(env, state, chain="base")  # MAINNET chain
+    r = make(env, state, chain="mock-mainnet")  # Non-testnet chain
     r.enqueue("mainnet-agent", "p")
     r.process_pending()  # must not raise, must not broadcast
 
@@ -337,20 +339,21 @@ def test_h9_localhost_uri_blocked_on_mainnet_chain(env, monkeypatch):
 
 
 def test_h9b_http_non_https_uri_also_blocked_on_mainnet(env, monkeypatch):
-    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "base")
+    monkeypatch.setitem(reg.CHAIN_DEFAULTS, "mock-mainnet", {"chain_id": 99999, "rpc_url": "https://rpc.mock", "testnet": False})
+    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "mock-mainnet")
     monkeypatch.setenv("GUARDIAN_PUBLIC_URL", "http://guard.example.com")
     state = {}
-    r = make(env, state, chain="base")
+    r = make(env, state, chain="mock-mainnet")
     r.enqueue("mainnet-agent2", "p")
     r.process_pending()
     assert state.get("built") is None
 
 
 def test_h9c_testnets_remain_exempt_from_uri_gate(env):
-    """Sepolia rehearsal must keep working with https URL (fixture default)."""
+    """Monad Testnet rehearsal must keep working with https URL (fixture default)."""
     state = {}
-    r = make(env, state)
-    r.enqueue("sepolia-agent", "p")
+    r = make(env, state, chain="monad-testnet")
+    r.enqueue("monad-agent", "p")
     r.process_pending()
     assert any(b[0] == "register" for b in state.get("built", []))
 
@@ -426,7 +429,7 @@ def test_h11_recovery_works_without_registrar_key(env, monkeypatch):
         ]
     }])
     r2 = reg.ERC8004Registrar(
-        "base-sepolia", env,
+        "monad-testnet", env,
         w3_factory=lambda rpc: FakeW3(state),
         account_factory=lambda k: (_ for _ in ()).throw(
             reg.RegistrarMisconfigured("key rotated away")),
@@ -538,3 +541,73 @@ def test_h16_ownerof_skip_when_client_already_owns(env):
     names = [b[0] for b in state["built"]]
     assert "transferFrom" not in names
     assert r.get_status("preowned-agent")[0]["status"] == reg.STATUS_CONFIRMED
+
+
+def test_h17_legacy_base_db_auto_migration(tmp_path):
+    """Pre-existing database containing legacy base / base-sepolia records is automatically upgraded to monad-testnet."""
+    import sqlite3
+    from guardian.passport.passport_core import PassportEngine
+    from guardian.passport.erc8004_registrar import ERC8004Registrar
+
+    db_file = str(tmp_path / "legacy.db")
+    conn = sqlite3.connect(db_file)
+    conn.execute("""
+        CREATE TABLE agent_passports (
+            passport_id TEXT PRIMARY KEY,
+            agent_id TEXT UNIQUE NOT NULL,
+            owner_pubkey TEXT NOT NULL,
+            chain_id TEXT DEFAULT 'base',
+            trust_score REAL DEFAULT 0.0,
+            tier TEXT DEFAULT 'UNVERIFIED',
+            credentials TEXT DEFAULT '[]',
+            metadata TEXT DEFAULT '{}',
+            issued_at REAL,
+            updated_at REAL,
+            is_active INTEGER DEFAULT 1,
+            tenant_id TEXT DEFAULT 'default'
+        )
+    """)
+    conn.execute("""
+        INSERT INTO agent_passports (passport_id, agent_id, owner_pubkey, chain_id, issued_at, updated_at)
+        VALUES ('pid-1', 'legacy-agent-1', '0xowner1', 'base', 1000.0, 1000.0),
+               ('pid-2', 'legacy-agent-2', '0xowner2', 'base-sepolia', 1000.0, 1000.0)
+    """)
+    conn.execute("""
+        CREATE TABLE erc8004_registrations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id TEXT NOT NULL,
+            passport_id TEXT NOT NULL,
+            chain TEXT NOT NULL,
+            status TEXT NOT NULL,
+            token_id INTEGER,
+            updated_at REAL,
+            UNIQUE(agent_id, chain)
+        )
+    """)
+    conn.execute("""
+        INSERT INTO erc8004_registrations (agent_id, passport_id, chain, status, token_id, updated_at)
+        VALUES ('legacy-agent-1', 'pid-1', 'base', 'confirmed', 42, 1000.0),
+               ('legacy-agent-2', 'pid-2', 'base-sepolia', 'confirmed', 43, 1000.0)
+    """)
+    conn.commit()
+    conn.close()
+
+    # Opening with PassportEngine triggers migration of agent_passports
+    engine = PassportEngine(db_path=db_file)
+    p1 = engine.get_passport("legacy-agent-1")
+    assert p1.chain_id == "monad-testnet"
+    p2 = engine.get_passport("legacy-agent-2")
+    assert p2.chain_id == "monad-testnet"
+
+    # Opening with ERC8004Registrar triggers migration of erc8004_registrations
+    registrar = ERC8004Registrar("monad-testnet", db_file)
+    status1 = registrar.get_status("legacy-agent-1")
+    assert len(status1) == 1
+    assert status1[0]["chain"] == "monad-testnet"
+    assert status1[0]["token_id"] == 42
+
+    status2 = registrar.get_status("legacy-agent-2")
+    assert len(status2) == 1
+    assert status2[0]["chain"] == "monad-testnet"
+    assert status2[0]["token_id"] == 43
+

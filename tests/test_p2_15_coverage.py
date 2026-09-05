@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from guardian.web3sec.rpc_relay import GuardianRPCRelay
 from guardian.web3sec.tx_analyzer import TransactionAnalyzer, AnalysisResult
 from flask import json, Response
@@ -20,7 +20,9 @@ def relay_config(tmp_path):
         }
     }, db_path
 
-def test_rpc_relay_management_auth_closed(relay_config):
+def test_rpc_relay_management_auth_closed(relay_config, monkeypatch):
+    monkeypatch.delenv("GUARDIAN_ADMIN_TOKEN", raising=False)
+    monkeypatch.delenv("GUARDIAN_ADMIN_BYPASS_TOKEN", raising=False)
     cfg, db_path = relay_config
     cfg["security_policies"]["admin_token"] = ""
     relay = GuardianRPCRelay(cfg)

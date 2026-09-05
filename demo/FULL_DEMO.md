@@ -33,7 +33,7 @@ run it once, then record the second run.
 | 3 | SHIELD | Real `runtime.interceptor` proxy: benign traffic passes, injection attack blocked HTTP 403, customer PII `[REDACTED_*]` before leaving the proxy, wallet untouched |
 | 4 | TRUST | Passport issued, Ed25519 Verifiable Credential signed + verified (tamper checked), trust score computed |
 | 5 | ASSURANCE | Cortex verifiable memory with live tamper-evidence proof, insurance certificate (off-chain signed), 10-day trial |
-| 6 | ON-CHAIN | ERC-8004 registration — LIVE dual-chain when `.env` carries the registrar key, honest preview otherwise |
+| 6 | ON-CHAIN | ERC-8004 registration — LIVE Monad Testnet when `.env` carries the registrar key, honest preview otherwise |
 
 Success looks like six `[OK]` rows in the SUMMARY table and `[LIVE] <chain> —
 agentId=N` lines with explorer links.
@@ -63,20 +63,20 @@ is busy — close the stale process and rerun; it never kills anything itself.
 
 ```
 GUARDIAN_ERC8004_ENABLED=true
-GUARDIAN_ERC8004_CHAINS=base-sepolia,monad-testnet
+GUARDIAN_ERC8004_CHAINS=monad-testnet
+GUARDIAN_IDENTITY_GATE_CHAIN=monad-testnet
 GUARDIAN_ERC8004_REGISTRAR_KEY=0x…            # testnet burner only
 GUARDIAN_ERC8004_IDENTITY_REGISTRY_OVERRIDE=0xB986…AfcE
 GUARDIAN_ERC8004_REGISTRY_MONAD_TESTNET=0xB986…AfcE
 GUARDIAN_MAX_GAS_PRICE_GWEI_MONAD_TESTNET=1000
 # Per-chain nominal spend caps (nominal gasPrice x gasUsed overstates real
 # testnet cost; sized generously on purpose)
-GUARDIAN_ERC8004_DAILY_BUDGET_WEI_BASE_SEPOLIA=10000000000000000000
 GUARDIAN_ERC8004_DAILY_BUDGET_WEI_MONAD_TESTNET=10000000000000000000
 ```
 
 Live registration is idempotent per agent: the registrar recognizes
 `nova-treasury` on later runs and reuses its existing identity, so the
-agentIds (Base Sepolia 5 / Monad testnet 3) and explorer links are **stable
+agentId (Monad testnet 3) and explorer link are **stable
 across takes** — record today or next week, same numbers.
 
 ## Exit codes and known variance

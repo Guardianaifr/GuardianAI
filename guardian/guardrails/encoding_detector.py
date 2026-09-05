@@ -98,7 +98,9 @@ _HOMOGLYPHS = {
     "\u0455": "s", "\u0458": "j", "\u04bb": "h", "\u0410": "A",
     "\u0415": "E", "\u041e": "O", "\u0420": "P", "\u0421": "C",
     "\u0422": "T", "\u041d": "H", "\u041c": "M", "\u0412": "B",
-    "\u041a": "K",
+    "\u041a": "K", "\u0442": "t",
+    # Armenian
+    "\u057d": "u",
     # Greek
     "\u03b1": "a", "\u03bf": "o", "\u03b5": "e", "\u03b9": "i",
     "\u0391": "A", "\u0392": "B", "\u0395": "E", "\u0397": "H",
@@ -258,6 +260,7 @@ class EncodingDetector:
             self._RE_BRAILLE.search(text) is not None,
             any(ch in self._HOMOGLYPH_CHARS for ch in text),
             self._RE_ZERO_WIDTH.search(text) is not None,
+            re.search(r"\b[a-zA-Z]+(?:ay|yay|way)\b", text, re.IGNORECASE) is not None,
         ]
         return any(checks)
 

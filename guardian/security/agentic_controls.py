@@ -5,6 +5,7 @@ import base64
 import hashlib
 import hmac
 import re
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -58,7 +59,7 @@ class AgenticSecurityManager:
         kill_switch_path = str(cfg.get("kill_switch_file", "artifacts/control/agent_kill_switch.json"))
         self.kill_switch_file = (root_dir / kill_switch_path).resolve()
         self.revoked_agent_ids = set(str(v).strip() for v in (cfg.get("revoked_agent_ids", []) or []) if str(v).strip())
-        self.require_agent_attestation = bool(cfg.get("require_agent_attestation", False))
+        self.require_agent_attestation = bool(cfg.get("require_agent_attestation", True))
         self.attestation_header = str(cfg.get("attestation_header", "X-Guardian-Agent-Attestation"))
         self.attestation_timestamp_header = str(
             cfg.get("attestation_timestamp_header", "X-Guardian-Agent-Attestation-Ts")
@@ -123,6 +124,8 @@ class AgenticSecurityManager:
         }
         self._chain_state: Dict[str, Dict[str, Any]] = {}
         self._chain_circuit_breakers: set[str] = set()
+        self._attestation_replay_cache: Dict[str, float] = {}
+        self._attestation_replay_lock = threading.Lock()
 
     def evaluate(self, headers: Dict[str, Any], data: Optional[Dict[str, Any]] = None) -> AgenticDecision:
         if not self.enabled:
@@ -160,13 +163,11 @@ class AgenticSecurityManager:
             return AgenticDecision("block", "missing_agent_id", {"header": self.agent_id_header})
         if agent_id and not self.agent_id_pattern.match(agent_id):
             return AgenticDecision("block", "invalid_agent_id", {"agent_id": agent_id})
-        if agent_id and agent_id in self.revoked_agent_ids:
-            return AgenticDecision("block", "revoked_agent_identity", {"agent_id": agent_id})
-        if key_id and key_id in self.revoked_agent_key_ids:
-            return AgenticDecision("block", "revoked_agent_key", {"agent_id": agent_id, "key_id": key_id})
+        
         mtls_decision = self._verify_mtls_binding(agent_id, mtls_verified, mtls_fingerprint, mtls_subject)
         if mtls_decision:
             return mtls_decision
+            
         if self.require_agent_attestation:
             attestation_decision = self._verify_attestation(
                 agent_id=agent_id,
@@ -175,9 +176,24 @@ class AgenticSecurityManager:
                 key_id=key_id,
                 timestamp=attestation_ts,
                 signature=attestation,
+                data=data,
             )
             if attestation_decision:
                 return attestation_decision
+
+        else:
+            if agent_id:
+                revoked = (
+                    agent_id in self.revoked_agent_ids
+                    or (agent_id.startswith("0x") and any(r.lower() == agent_id.lower() for r in self.revoked_agent_ids))
+                )
+                if revoked:
+                    return AgenticDecision("block", "revoked_agent_identity", {"agent_id": agent_id})
+            if key_id and (
+                key_id in self.revoked_agent_key_ids
+                or any(r.lower() == key_id.lower() for r in self.revoked_agent_key_ids)
+            ):
+                return AgenticDecision("block", "revoked_agent_key", {"agent_id": agent_id, "key_id": key_id})
 
         if self.require_execution_id and not exec_id:
             return AgenticDecision("block", "missing_execution_id", {"header": self.execution_id_header})
@@ -368,12 +384,19 @@ class AgenticSecurityManager:
         key_id: str,
         timestamp: str,
         signature: str,
+        data: Optional[Dict[str, Any]] = None,
     ) -> Optional[AgenticDecision]:
         if not signature:
             return AgenticDecision("block", "missing_agent_attestation", {"header": self.attestation_header})
         jwt_value = signature.removeprefix("Bearer ").strip()
+
+        payload_hash = ""
+        if data:
+            payload_str = json.dumps(data, sort_keys=True, separators=(",", ":"))
+            payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
+
         if jwt_value.count(".") == 2:
-            return self._verify_jwt_attestation(agent_id, exec_id, scope, key_id, jwt_value)
+            return self._verify_jwt_attestation(agent_id, exec_id, scope, key_id, jwt_value, payload_hash)
         if not timestamp:
             return AgenticDecision(
                 "block",
@@ -390,18 +413,42 @@ class AgenticSecurityManager:
                 "stale_agent_attestation",
                 {"age_seconds": int(age), "max_age_seconds": self.attestation_max_age_seconds},
             )
-        secret = self._attestation_secret(agent_id, key_id)
+        secret, resolved_key_id = self._attestation_secret(agent_id, key_id)
         if not secret:
             return AgenticDecision(
                 "block",
                 "unknown_agent_attestation_key",
                 {"agent_id": agent_id, "key_id": key_id},
             )
-        material = self._attestation_material(agent_id, exec_id, scope, key_id, timestamp)
+        material = self._attestation_material(agent_id, exec_id, scope, key_id, timestamp, payload_hash)
         expected = hmac.new(str(secret).encode("utf-8"), material.encode("utf-8"), hashlib.sha256).hexdigest()
         supplied = signature.removeprefix("sha256=").strip()
         if not hmac.compare_digest(expected, supplied):
             return AgenticDecision("block", "invalid_agent_attestation", {"agent_id": agent_id, "key_id": key_id})
+        if resolved_key_id and (
+            resolved_key_id in self.revoked_agent_key_ids
+            or any(r.lower() == resolved_key_id.lower() for r in self.revoked_agent_key_ids)
+        ):
+            return AgenticDecision("block", "revoked_agent_key", {"agent_id": agent_id, "key_id": resolved_key_id})
+        if agent_id:
+            revoked = (
+                agent_id in self.revoked_agent_ids
+                or (agent_id.startswith("0x") and any(r.lower() == agent_id.lower() for r in self.revoked_agent_ids))
+            )
+            if revoked:
+                return AgenticDecision("block", "revoked_agent_identity", {"agent_id": agent_id})
+
+        now = time.time()
+        with self._attestation_replay_lock:
+            # Clean up old entries
+            to_remove = [k for k, v in self._attestation_replay_cache.items() if now - v > self.attestation_max_age_seconds]
+            for k in to_remove:
+                self._attestation_replay_cache.pop(k, None)
+
+            if supplied in self._attestation_replay_cache:
+                return AgenticDecision("block", "attestation_replay_detected", {"signature": supplied})
+            self._attestation_replay_cache[supplied] = ts
+
         return None
 
     def _enforce_lateral_movement_detection(
@@ -574,6 +621,7 @@ class AgenticSecurityManager:
         scope: str,
         key_id: str,
         token: str,
+        payload_hash: str = "",
     ) -> Optional[AgenticDecision]:
         try:
             header_b64, payload_b64, signature_b64 = token.split(".")
@@ -591,20 +639,31 @@ class AgenticSecurityManager:
         token_exec_id = str(payload.get("execution_id") or payload.get("exec_id") or "")
         token_scope = str(payload.get("scope") or "")
         token_key_id = str(payload.get("key_id") or header.get("kid") or key_id or "")
-        if agent_id and token_agent_id and token_agent_id != agent_id:
-            return AgenticDecision("block", "agent_attestation_subject_mismatch", {"agent_id": agent_id})
+        token_payload_hash = str(payload.get("payload_hash") or "")
+
+        if agent_id and token_agent_id:
+            if agent_id.startswith("0x") and token_agent_id.startswith("0x"):
+                if token_agent_id.lower() != agent_id.lower():
+                    return AgenticDecision("block", "agent_attestation_subject_mismatch", {"agent_id": agent_id})
+            elif token_agent_id != agent_id:
+                return AgenticDecision("block", "agent_attestation_subject_mismatch", {"agent_id": agent_id})
+
         if exec_id and token_exec_id and token_exec_id != exec_id:
             return AgenticDecision("block", "agent_attestation_execution_mismatch", {"execution_id": exec_id})
         if scope and token_scope and token_scope != scope:
             return AgenticDecision("block", "agent_attestation_scope_mismatch", {"scope": scope})
+        if payload_hash and token_payload_hash != payload_hash:
+            return AgenticDecision("block", "agent_attestation_payload_mismatch", {})
+
         effective_agent_id = agent_id or token_agent_id
-        secret = self._attestation_secret(effective_agent_id, token_key_id)
+        secret, resolved_key_id = self._attestation_secret(effective_agent_id, token_key_id)
         if not secret:
             return AgenticDecision(
                 "block",
                 "unknown_agent_attestation_key",
                 {"agent_id": effective_agent_id, "key_id": token_key_id},
             )
+
         signing_input = f"{header_b64}.{payload_b64}"
         expected = hmac.new(str(secret).encode("utf-8"), signing_input.encode("utf-8"), hashlib.sha256).digest()
         try:
@@ -617,31 +676,62 @@ class AgenticSecurityManager:
                 "invalid_agent_attestation_jwt",
                 {"agent_id": effective_agent_id, "key_id": token_key_id},
             )
+        if resolved_key_id and (
+            resolved_key_id in self.revoked_agent_key_ids
+            or any(r.lower() == resolved_key_id.lower() for r in self.revoked_agent_key_ids)
+        ):
+            return AgenticDecision("block", "revoked_agent_key", {"agent_id": effective_agent_id, "key_id": resolved_key_id})
+        if effective_agent_id:
+            revoked = (
+                effective_agent_id in self.revoked_agent_ids
+                or (effective_agent_id.startswith("0x") and any(r.lower() == effective_agent_id.lower() for r in self.revoked_agent_ids))
+            )
+            if revoked:
+                return AgenticDecision("block", "revoked_agent_identity", {"agent_id": effective_agent_id})
         now = time.time()
         exp = self._optional_float(payload.get("exp"))
         if exp is not None and now > exp:
             return AgenticDecision("block", "expired_agent_attestation_jwt", {"exp": exp})
         iat = self._optional_float(payload.get("iat"))
-        if iat is not None and abs(now - iat) > self.attestation_max_age_seconds:
+        if iat is None:
+            return AgenticDecision("block", "missing_agent_attestation_iat", {})
+        if abs(now - iat) > self.attestation_max_age_seconds:
             return AgenticDecision(
                 "block",
                 "stale_agent_attestation",
                 {"age_seconds": int(abs(now - iat)), "max_age_seconds": self.attestation_max_age_seconds},
             )
+
+        with self._attestation_replay_lock:
+            # Clean up old entries
+            to_remove = [k for k, v in self._attestation_replay_cache.items() if now - v > self.attestation_max_age_seconds]
+            for k in to_remove:
+                self._attestation_replay_cache.pop(k, None)
+
+            if signature_b64 in self._attestation_replay_cache:
+                return AgenticDecision("block", "attestation_replay_detected", {"signature": signature_b64})
+            self._attestation_replay_cache[signature_b64] = iat if iat is not None else now
+
         return None
 
-    def _attestation_secret(self, agent_id: str, key_id: str) -> str:
+    def _attestation_secret(self, agent_id: str, key_id: str) -> tuple[str, str]:
         raw = self.agent_attestation_keys.get(agent_id)
+        if raw is None and agent_id and agent_id.startswith("0x"):
+            target = agent_id.lower()
+            for k, v in self.agent_attestation_keys.items():
+                if str(k).lower() == target:
+                    raw = v
+                    break
         if isinstance(raw, dict):
             if key_id and key_id in raw:
-                return str(raw[key_id])
+                return str(raw[key_id]), key_id
             if "default" in raw:
-                return str(raw["default"])
-            return ""
-        return str(raw or "")
+                return str(raw["default"]), "default"
+            return "", ""
+        return str(raw or ""), key_id
 
     @staticmethod
-    def _attestation_material(agent_id: str, exec_id: str, scope: str, key_id: str, timestamp: str) -> str:
+    def _attestation_material(agent_id: str, exec_id: str, scope: str, key_id: str, timestamp: str, payload_hash: str = "") -> str:
         return json.dumps(
             {
                 "agent_id": agent_id,
@@ -649,6 +739,7 @@ class AgenticSecurityManager:
                 "scope": scope,
                 "key_id": key_id,
                 "timestamp": timestamp,
+                "payload_hash": payload_hash,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -866,13 +957,14 @@ class AgenticSecurityManager:
         silently enforced against an agent_id with no gate to check it, and
         rather than raising and taking the control plane down.
         """
-        if not self.require_agent_identity:
+        should_enforce = self.require_agent_identity or (self.require_agent_attestation and self.identity_gate is not None)
+        if not should_enforce:
             return None, {}
         if self.identity_gate is None:
-            return None, {"identity_verified": None, "identity_gate_note": "require_agent_identity set but no gate wired"}
+            return AgenticDecision("block", "identity_gate_unavailable", {"agent_id": agent_id}), {"identity_verified": None, "identity_gate_note": "require_agent_identity set but no gate wired"}
 
         result = self.identity_gate.check_agent(agent_id)
-        if not result.allowed:
+        if not result.allowed or (self.require_agent_attestation and result.source == "unregistered"):
             return (
                 AgenticDecision(
                     "block",

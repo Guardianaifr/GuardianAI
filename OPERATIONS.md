@@ -63,7 +63,7 @@ If using the Guardian Dashboard/Backend:
 **Status:** disabled by default. Nothing runs unless `GUARDIAN_ERC8004_ENABLED=true`.
 
 ### Enablement checklist (in order)
-1. Set `GUARDIAN_ERC8004_CHAINS` (rollout order: `base-sepolia` → `base` → `monad-testnet`).
+1. Set `GUARDIAN_ERC8004_CHAINS=monad-testnet` (GuardianAI exclusively targets Monad Testnet).
 2. Provision a **dedicated** `GUARDIAN_ERC8004_REGISTRAR_KEY` (never reuse the deployer key). Fund it for gas.
 3. Set `GUARDIAN_PUBLIC_URL` to the production `https://` endpoint — on mainnet chains the registrar refuses localhost/plain-http URLs (fail-closed).
 4. Optionally set `GUARDIAN_ERC8004_DAILY_BUDGET_WEI` (recommended for mainnet; `0` = uncapped).
@@ -78,7 +78,7 @@ If using the Guardian Dashboard/Backend:
 - **Before mainnet:** validate the ABI subset in `erc8004_registrar.py` against the pinned audited release of `erc8004/erc-8004-contracts`; decide identity custody per the register-then-transfer policy (whitepaper Feature 39).
 
 ### Canonical registry availability (verified 2026-08-23)
-`eth_getCode` probes: canonical `0x8004A169…a432` is deployed on **Base mainnet and Polygon mainnet** but has **no bytecode on Base Sepolia or Ethereum Sepolia**. For testnet rehearsal, deploy the stand-in (`contracts/contracts/erc8004/IdentityRegistryTestnet.sol`, ABI-faithful, NOT the audited reference) via `npx hardhat run scripts/deploy-erc8004-testnet.ts --network base_sepolia` and set `GUARDIAN_ERC8004_IDENTITY_REGISTRY_OVERRIDE`. The registrar's fail-closed gate will refuse any chain where the target registry has no bytecode.
+`eth_getCode` probes: canonical `0x8004A169…a432` is deployed deterministically. For testnet rehearsal on Monad Testnet (`10143`), deploy the stand-in (`contracts/contracts/erc8004/IdentityRegistryTestnet.sol`, ABI-faithful, NOT the audited reference) via `npx hardhat run scripts/deploy-erc8004-testnet.ts --network monad_testnet` and set `GUARDIAN_ERC8004_IDENTITY_REGISTRY_OVERRIDE` or `GUARDIAN_ERC8004_REGISTRY_MONAD_TESTNET`. The registrar's fail-closed gate will refuse any chain where the target registry has no bytecode.
 
 ## Identity Gate & Point-of-Interaction Enforcement Runbook (added 2026-09-01)
 

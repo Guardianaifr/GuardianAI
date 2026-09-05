@@ -77,17 +77,19 @@ REGISTRATION_FILE_TYPE = "https://eips.ethereum.org/EIPS/eip-8004#registration-v
 # Canonical singleton deployed deterministically (CREATE2 vanity tooling).
 # Same address across chains; override only for local fork tests.
 CANONICAL_IDENTITY_REGISTRY = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+MONAD_TESTNET_REGISTRY = "0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE"
 
 # Best-known defaults; every value overridable via env. Chain IDs for Monad
 # are community-published — verify against official docs at enablement time.
 # 'testnet' chains are exempt from the production-URI safety gate.
+# Strictly targeting Monad Testnet only (Base network removed).
 CHAIN_DEFAULTS: Dict[str, Dict[str, Any]] = {
-    "base": {"chain_id": 8453, "rpc_url": "https://mainnet.base.org",
-             "testnet": False},
-    "base-sepolia": {"chain_id": 84532, "rpc_url": "https://sepolia.base.org",
-                     "testnet": True},
-    "monad-testnet": {"chain_id": 10143, "rpc_url": "https://testnet-rpc.monad.xyz",
-                      "testnet": True},
+    "monad-testnet": {
+        "chain_id": 10143,
+        "rpc_url": "https://testnet-rpc.monad.xyz",
+        "registry": MONAD_TESTNET_REGISTRY,
+        "testnet": True,
+    },
 }
 
 STATUS_PENDING = "pending"
@@ -265,9 +267,16 @@ def is_valid_agent_id(agent_id: str) -> bool:
 def _resolve_chain_config(chain: str) -> Dict[str, Any]:
     base = CHAIN_DEFAULTS.get(chain)
     if base is None:
-        raise RegistrarMisconfigured(f"Unsupported chain '{chain}'")
+        raise RegistrarMisconfigured(
+            f"Unsupported chain '{chain}'. System strictly targets monad-testnet only."
+        )
     cfg = dict(base)
-    rpc_override = _env(f"GUARDIAN_ERC8004_RPC_{chain.upper().replace('-', '_')}")
+    rpc_override = (
+        _env(f"GUARDIAN_ERC8004_RPC_{chain.upper().replace('-', '_')}")
+        or _env("GUARDIAN_UPSTREAM_RPC")
+        or _env("MONAD_TESTNET_RPC")
+        or _env("MONAD_RPC_URL")
+    )
     if rpc_override:
         cfg["rpc_url"] = rpc_override
     # Per-chain registry override first (multi-chain deployments register on
@@ -278,7 +287,7 @@ def _resolve_chain_config(chain: str) -> Dict[str, Any]:
     )
     registry_override = _env("GUARDIAN_ERC8004_IDENTITY_REGISTRY_OVERRIDE")
     cfg["registry"] = (
-        chain_registry or registry_override or CANONICAL_IDENTITY_REGISTRY
+        chain_registry or registry_override or base.get("registry") or CANONICAL_IDENTITY_REGISTRY
     )
     return cfg
 
@@ -498,10 +507,28 @@ class ERC8004Registrar:
         cols = {row[1] for row in conn.execute(
             "PRAGMA table_info(erc8004_registrations)"
         ).fetchall()}
-        if "owner_address" not in cols:
-            conn.execute(
-                "ALTER TABLE erc8004_registrations ADD COLUMN owner_address TEXT"
-            )
+        required_cols = {
+            "token_id": "INTEGER",
+            "tx_hash": "TEXT",
+            "retries": "INTEGER DEFAULT 0",
+            "last_error": "TEXT",
+            "updated_at": "REAL",
+            "owner_address": "TEXT",
+        }
+        for col, col_type in required_cols.items():
+            if col not in cols:
+                conn.execute(f"ALTER TABLE erc8004_registrations ADD COLUMN {col} {col_type}")
+        # In-place migration: migrate any legacy base chain rows to monad-testnet
+        conn.execute(
+            """
+            UPDATE OR IGNORE erc8004_registrations
+            SET chain = 'monad-testnet'
+            WHERE chain IN ('base', 'base-sepolia')
+              AND agent_id NOT IN (
+                  SELECT agent_id FROM erc8004_registrations WHERE chain = 'monad-testnet'
+              )
+            """
+        )
         conn.commit()
 
     def enqueue(
@@ -821,8 +848,16 @@ _worker_started = threading.Event()
 
 
 def configured_chains() -> List[str]:
-    raw = _env("GUARDIAN_ERC8004_CHAINS", "base-sepolia")
-    return [c.strip() for c in raw.split(",") if c.strip()]
+    raw = _env("GUARDIAN_ERC8004_CHAINS", "monad-testnet")
+    chains = [c.strip() for c in raw.split(",") if c.strip()]
+    valid = [c for c in chains if c == "monad-testnet"]
+    if not valid and chains:
+        logger.warning(
+            "Base and other non-Monad networks are no longer supported. "
+            "System is strictly targeting monad-testnet only. Ignoring: %s",
+            chains,
+        )
+    return valid or ["monad-testnet"]
 
 
 def chains_str_list() -> list:

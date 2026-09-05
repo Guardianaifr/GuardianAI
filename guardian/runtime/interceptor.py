@@ -142,8 +142,11 @@ class GuardianProxy:
             Path(__file__).resolve().parent.parent,
         )
         try:
+            from guardian.passport.passport_core import PassportEngine
+            from guardian.passport.erc8004_registrar import default_db_path
+            passport_engine = PassportEngine(db_path=default_db_path())
             from guardian.passport.identity_gate import IdentityGate
-            identity_gate_instance = IdentityGate()
+            identity_gate_instance = IdentityGate(passport_engine)
         except Exception as exc:
             logger.warning(f"Could not initialize IdentityGate for agentic security: {exc}")
             identity_gate_instance = None
@@ -1411,6 +1414,38 @@ class GuardianProxy:
         )
         if self.agentic_security.enforcement_mode == "audit":
             return None
+
+        # Return 401 Unauthorized with WWW-Authenticate on attestation authentication failures
+        _ATTESTATION_AUTH_FAILURES = {
+            "missing_agent_attestation",
+            "invalid_agent_attestation",
+            "stale_agent_attestation",
+            "missing_agent_attestation_timestamp",
+            "invalid_agent_attestation_timestamp",
+            "unknown_agent_attestation_key",
+            "invalid_agent_attestation_jwt",
+            "unsupported_agent_attestation_alg",
+            "expired_agent_attestation_jwt",
+            "missing_agent_attestation_iat",
+            "agent_attestation_subject_mismatch",
+            "agent_attestation_execution_mismatch",
+            "agent_attestation_scope_mismatch",
+            "agent_attestation_payload_mismatch",
+            "attestation_replay_detected",
+        }
+        if result.reason in _ATTESTATION_AUTH_FAILURES:
+            auth_challenge = (
+                "Bearer"
+                if result.reason == "missing_agent_attestation"
+                else f'Bearer error="invalid_token", error_description="{result.reason}"'
+            )
+            return Response(
+                f"Unauthorized: Agentic attestation failed ({result.reason}).",
+                status=401,
+                headers={"WWW-Authenticate": auth_challenge},
+            )
+
+        # Return 403 Forbidden on unregistered/low trust, revocation, or policy blocks
         return Response(f"Forbidden: Agentic policy blocked request ({result.reason}).", status=403)
 
     def _enforce_rag_controls(

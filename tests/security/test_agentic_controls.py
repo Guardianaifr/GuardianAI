@@ -24,14 +24,14 @@ class TestAgenticSecurityManager:
             yield Path(tmpdir)
 
     def test_disabled(self, root_dir):
-        manager = AgenticSecurityManager({"enabled": False}, root_dir)
+        manager = AgenticSecurityManager({"require_agent_attestation": False, "require_agent_attestation": False, "enabled": False}, root_dir)
         headers = {"X-Guardian-Agent-Id": "agent-a"}
         decision = manager.evaluate(headers)
         assert decision.action == "allow"
         assert decision.reason == "disabled"
 
     def test_require_agent_id(self, root_dir):
-        manager = AgenticSecurityManager({"enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": True}, root_dir)
+        manager = AgenticSecurityManager({"require_agent_attestation": False, "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": True}, root_dir)
 
         # Missing Agent ID
         decision = manager.evaluate({})
@@ -50,7 +50,7 @@ class TestAgenticSecurityManager:
 
     def test_require_execution_id(self, root_dir):
         manager = AgenticSecurityManager(
-            {"enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "require_execution_id": True}, root_dir
+            {"require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "require_execution_id": True}, root_dir
         )
 
         # Missing Execution ID
@@ -65,7 +65,7 @@ class TestAgenticSecurityManager:
 
     def test_require_scope(self, root_dir):
         manager = AgenticSecurityManager(
-            {"enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "require_scope": True}, root_dir
+            {"require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "require_scope": True}, root_dir
         )
 
         # Missing Scope
@@ -80,7 +80,7 @@ class TestAgenticSecurityManager:
 
     def test_hop_limit(self, root_dir):
         manager = AgenticSecurityManager(
-            {"enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "max_hops": 5}, root_dir
+            {"require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False, "require_agent_id": False, "max_hops": 5}, root_dir
         )
 
         # Exceeds max hops
@@ -102,13 +102,14 @@ class TestAgenticSecurityManager:
 
     def test_parent_child_routes(self, root_dir):
         config = {
-            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+            "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "allowed_parent_child": {
                 "parent-a": ["child-a1", "child-a2"],
                 "parent-b": ["child-b1"],
             },
         }
+        if isinstance(config, dict): config["require_agent_attestation"] = False
         manager = AgenticSecurityManager(config, root_dir)
 
         # Allowed hop parent-a -> child-a1
@@ -130,13 +131,14 @@ class TestAgenticSecurityManager:
 
     def test_scope_tool_allowlist(self, root_dir):
         config = {
-            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+            "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "scope_tool_allowlist": {
                 "read_only": ["search_docs", "view_profile"],
                 "privileged": ["wire_transfer"],
             },
         }
+        if isinstance(config, dict): config["require_agent_attestation"] = False
         manager = AgenticSecurityManager(config, root_dir)
 
         data = {
@@ -165,10 +167,11 @@ class TestAgenticSecurityManager:
 
     def test_require_mcp_server_for_tools(self, root_dir):
         config = {
-            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+            "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "require_mcp_server_for_tools": True,
         }
+        if isinstance(config, dict): config["require_agent_attestation"] = False
         manager = AgenticSecurityManager(config, root_dir)
         data = {"tools": [{"type": "function", "function": {"name": "search_docs"}}]}
 
@@ -183,10 +186,11 @@ class TestAgenticSecurityManager:
 
     def test_untrusted_mcp_server(self, root_dir):
         config = {
-            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+            "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "trusted_mcp_servers": ["mcp://trusted-a", "mcp://trusted-b"],
         }
+        if isinstance(config, dict): config["require_agent_attestation"] = False
         manager = AgenticSecurityManager(config, root_dir)
 
         # Untrusted server
@@ -200,12 +204,13 @@ class TestAgenticSecurityManager:
 
     def test_mcp_server_tool_allowlist(self, root_dir):
         config = {
-            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+            "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "mcp_server_tool_allowlist": {
                 "mcp://trusted-a": ["search_docs"],
             },
         }
+        if isinstance(config, dict): config["require_agent_attestation"] = False
         manager = AgenticSecurityManager(config, root_dir)
         data_allowed = {"tools": [{"type": "function", "function": {"name": "search_docs"}}]}
         data_denied = {"tools": [{"type": "function", "function": {"name": "wire_transfer"}}]}
@@ -221,11 +226,12 @@ class TestAgenticSecurityManager:
 
     def test_scope_escalation(self, root_dir):
         config = {
-            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+            "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "enforce_scope_non_escalation": True,
             "scope_hierarchy": {"read_only": 0, "standard": 1, "privileged": 2},
         }
+        if isinstance(config, dict): config["require_agent_attestation"] = False
         manager = AgenticSecurityManager(config, root_dir)
 
         # Escalation: child scope 'privileged' is higher than parent scope 'read_only'
@@ -249,12 +255,13 @@ class TestAgenticSecurityManager:
         kill_file = root_dir / "agent_kill_switch.json"
         
         config = {
-            "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+            "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
             "require_agent_id": False,
             "kill_switch_enabled": True,
             "kill_switch_file": str(kill_file.relative_to(root_dir)),
         }
         
+        if isinstance(config, dict): config["require_agent_attestation"] = False
         manager = AgenticSecurityManager(config, root_dir)
 
         # Scenario 1: Global Pause
@@ -294,9 +301,14 @@ class TestAgenticSecurityManager:
         sig = hmac.new(b"secret-a", material.encode("utf-8"), hashlib.sha256).hexdigest()
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "enabled": True,
+                "enforce_policy_graph": False,
+                "enforce_scope_non_escalation": False,
                 "require_agent_attestation": True,
-                "agent_attestation_keys": {"agent-a": {"key-1": "secret-a"}},
+                "agent_attestation_keys": {
+                    "agent-a": {"key-1": "secret-a", "key-revoked": "secret-revoked-key"},
+                    "agent-revoked": {"key-valid-agent": "secret-revoked-agent"},
+                },
                 "revoked_agent_ids": ["agent-revoked"],
                 "revoked_agent_key_ids": ["key-revoked"],
             },
@@ -319,12 +331,47 @@ class TestAgenticSecurityManager:
         assert decision.action == "block"
         assert decision.reason == "invalid_agent_attestation"
 
+        # Pre-auth enumeration defense: unauthenticated request does NOT leak revocation status
         decision = manager.evaluate({"X-Guardian-Agent-Id": "agent-revoked"})
+        assert decision.action == "block"
+        assert decision.reason == "missing_agent_attestation"
+
+        # Authenticated request from revoked agent blocked with revoked_agent_identity
+        ts_revoked = str(time.time())
+        mat_revoked = AgenticSecurityManager._attestation_material("agent-revoked", "exec-1", "standard", "key-valid-agent", ts_revoked)
+        sig_revoked = hmac.new(b"secret-revoked-agent", mat_revoked.encode("utf-8"), hashlib.sha256).hexdigest()
+        revoked_agent_headers = {
+            "X-Guardian-Agent-Id": "agent-revoked",
+            "X-Guardian-Exec-Id": "exec-1",
+            "X-Guardian-Agent-Scope": "standard",
+            "X-Guardian-Agent-Key-Id": "key-valid-agent",
+            "X-Guardian-Agent-Attestation-Ts": ts_revoked,
+            "X-Guardian-Agent-Attestation": f"sha256={sig_revoked}",
+        }
+        decision = manager.evaluate(revoked_agent_headers)
         assert decision.action == "block"
         assert decision.reason == "revoked_agent_identity"
 
-        revoked_key_headers = dict(headers)
-        revoked_key_headers["X-Guardian-Agent-Key-Id"] = "key-revoked"
+        # Pre-auth enumeration defense: invalid signature on revoked key does not leak key revocation
+        bad_revoked_key = dict(headers)
+        bad_revoked_key["X-Guardian-Agent-Key-Id"] = "key-revoked"
+        bad_revoked_key["X-Guardian-Agent-Attestation"] = "sha256=bad"
+        decision = manager.evaluate(bad_revoked_key)
+        assert decision.action == "block"
+        assert decision.reason == "invalid_agent_attestation"
+
+        # Authenticated request using revoked key blocked with revoked_agent_key
+        ts_rev_key = str(time.time())
+        mat_rev_key = AgenticSecurityManager._attestation_material("agent-a", "exec-1", "standard", "key-revoked", ts_rev_key)
+        sig_rev_key = hmac.new(b"secret-revoked-key", mat_rev_key.encode("utf-8"), hashlib.sha256).hexdigest()
+        revoked_key_headers = {
+            "X-Guardian-Agent-Id": "agent-a",
+            "X-Guardian-Exec-Id": "exec-1",
+            "X-Guardian-Agent-Scope": "standard",
+            "X-Guardian-Agent-Key-Id": "key-revoked",
+            "X-Guardian-Agent-Attestation-Ts": ts_rev_key,
+            "X-Guardian-Agent-Attestation": f"sha256={sig_rev_key}",
+        }
         decision = manager.evaluate(revoked_key_headers)
         assert decision.action == "block"
         assert decision.reason == "revoked_agent_key"
@@ -350,7 +397,7 @@ class TestAgenticSecurityManager:
         token = f"{signing_input}.{b64url(sig)}"
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_attestation": True,
                 "agent_attestation_keys": {"agent-a": {"key-1": "secret-a"}},
             },
@@ -375,7 +422,7 @@ class TestAgenticSecurityManager:
     def test_mtls_fingerprint_binding(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": True,
                 "require_mtls": True,
                 "agent_cert_fingerprints": {
@@ -406,7 +453,7 @@ class TestAgenticSecurityManager:
     def test_cross_agent_policy_graph_is_deny_by_default(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "enforce_policy_graph": True,
                 "cross_agent_policy_graph": {
@@ -446,7 +493,7 @@ class TestAgenticSecurityManager:
     def test_time_bounded_execution_grants(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "require_execution_grant": True,
                 "execution_grants": {
@@ -484,7 +531,7 @@ class TestAgenticSecurityManager:
         cache_file = root_dir / "trace_hashes.json"
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "require_trace_hash": True,
                 "trace_replay_cache_enabled": True,
@@ -524,7 +571,7 @@ class TestAgenticSecurityManager:
     def test_risk_adaptive_scope_tightening_and_kill_switch(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "risk_adaptive_enabled": True,
                 "risk_scope_thresholds": {"0.70": "read_only"},
@@ -548,7 +595,7 @@ class TestAgenticSecurityManager:
     def test_lateral_movement_detects_task_scope_drift(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "lateral_movement_detection_enabled": True,
                 "max_scope_rank_drift": 0,
@@ -581,7 +628,7 @@ class TestAgenticSecurityManager:
     def test_lateral_movement_detects_agent_parent_change(self, root_dir):
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "lateral_movement_detection_enabled": True,
                 "chain_circuit_breaker_threshold": 3,
@@ -608,7 +655,7 @@ class TestAgenticSecurityManager:
         kill_file = root_dir / "agent_kill_switch.json"
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "lateral_movement_detection_enabled": True,
                 "chain_circuit_breaker_threshold": 2,
@@ -670,7 +717,7 @@ class TestAgenticSecurityManager:
         )
         manager = AgenticSecurityManager(
             {
-                "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
+                "require_agent_attestation": False, "enabled": True, "enforce_policy_graph": False, "enforce_scope_non_escalation": False,
                 "require_agent_id": False,
                 "require_execution_grant": True,
                 "control_plane_file": str(control_file.relative_to(root_dir)),
@@ -689,3 +736,52 @@ class TestAgenticSecurityManager:
         revoked = manager.evaluate({"X-Guardian-Agent-Id": "agent-revoked"})
         assert revoked.action == "block"
         assert revoked.reason == "revoked_agent_identity"
+
+    def test_identity_enforcement_with_attestation(self, root_dir):
+        """Unregistered agent identities are rejected when attestation is required and identity gate is wired."""
+        from unittest.mock import MagicMock
+        mock_gate = MagicMock()
+        mock_gate.enabled = True
+
+        from guardian.passport.identity_gate import IdentityCheckResult
+        mock_gate.check_agent.return_value = IdentityCheckResult(True, "no_passport", "UNKNOWN", "unregistered")
+
+        manager = AgenticSecurityManager(
+            {
+                "enabled": True,
+                "require_agent_attestation": True,
+                "agent_attestation_keys": {"agent-unregistered": {"key-1": "secret-1"}},
+            },
+            root_dir,
+            identity_gate=mock_gate,
+        )
+
+        ts = str(time.time())
+        mat = AgenticSecurityManager._attestation_material("agent-unregistered", "", "", "key-1", ts)
+        sig = hmac.new(b"secret-1", mat.encode("utf-8"), hashlib.sha256).hexdigest()
+        headers = {
+            "X-Guardian-Agent-Id": "agent-unregistered",
+            "X-Guardian-Agent-Key-Id": "key-1",
+            "X-Guardian-Agent-Attestation-Ts": ts,
+            "X-Guardian-Agent-Attestation": f"sha256={sig}",
+        }
+
+        # Despite valid attestation HMAC, unregistered agent is blocked by identity enforcement
+        decision = manager.evaluate(headers)
+        assert decision.action == "block"
+        assert decision.reason == "unregistered_or_low_trust_agent"
+
+        # When agent is registered with SILVER tier in identity gate
+        mock_gate.check_agent.return_value = IdentityCheckResult(True, "ok", "SILVER", "local_db")
+        ts2 = str(time.time() + 1)
+        mat2 = AgenticSecurityManager._attestation_material("agent-unregistered", "", "", "key-1", ts2)
+        sig2 = hmac.new(b"secret-1", mat2.encode("utf-8"), hashlib.sha256).hexdigest()
+        headers2 = dict(headers)
+        headers2["X-Guardian-Agent-Attestation-Ts"] = ts2
+        headers2["X-Guardian-Agent-Attestation"] = f"sha256={sig2}"
+
+        decision = manager.evaluate(headers2)
+        assert decision.action == "allow"
+        assert decision.reason == "ok"
+        assert decision.details.get("erc8004_tier") == "SILVER"
+

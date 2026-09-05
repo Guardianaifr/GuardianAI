@@ -25,6 +25,7 @@ htmlcov/
 *.log
 scratch/
 tools/_*
+tools/.github_cache/
 tests/scratch_*
 /test_*.py
 /fix_*.py

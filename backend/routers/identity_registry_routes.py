@@ -135,7 +135,7 @@ def erc8004_status(
     from guardian.passport.erc8004_registrar import ERC8004Registrar
 
     rows = ERC8004Registrar(
-        configured_chains()[0] if configured_chains() else "base-sepolia",
+        configured_chains()[0] if configured_chains() else "monad-testnet",
         default_db_path(),
     ).get_status(agent_id) if configured_chains() else []
     return {"agent_id": agent_id, "enabled": True, "registrations": rows}
@@ -158,7 +158,7 @@ def erc8004_registration_file(agent_id: str):
         from guardian.passport.erc8004_registrar import ERC8004Registrar
 
         rows = ERC8004Registrar(
-            reg.configured_chains()[0] if reg.configured_chains() else "base-sepolia",
+            reg.configured_chains()[0] if reg.configured_chains() else "monad-testnet",
             default_db_path(),
         ).get_status(agent_id)
         confirmed = [r for r in rows if r["status"] == "confirmed" and r["token_id"]]
@@ -167,7 +167,7 @@ def erc8004_registration_file(agent_id: str):
     except Exception:  # noqa: BLE001 — file must serve even with queue trouble
         pass
 
-    chain = reg.configured_chains()[0] if reg.configured_chains() else "base-sepolia"
+    chain = reg.configured_chains()[0] if reg.configured_chains() else "monad-testnet"
     file_obj = build_registration_file(
         agent_id=agent_id,
         chain=chain,

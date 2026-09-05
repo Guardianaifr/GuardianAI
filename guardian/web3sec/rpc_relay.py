@@ -1,4 +1,4 @@
-from flask import Flask, request, Response
+from flask import Flask, request, Response, has_request_context
 import requests as http_requests
 import threading
 import logging
@@ -19,10 +19,12 @@ from guardian.passport.identity_gate import IdentityGate
 
 logger = logging.getLogger("guardian.web3sec.rpc_relay")
 
+TARGET_CHAIN_ID = 10143
+
 # ── Raw Transaction Decoder ──────────────────────────────────────────────────
 
 def decode_raw_transaction(raw_hex: str) -> Dict[str, Any]:
-    """Decode a signed raw transaction into {from, to, data, value}.
+    """Decode a signed raw transaction into {from, to, data, value, chainId}.
 
     Handles legacy (type 0), EIP-2930 (type 1), EIP-1559 (type 2),
     EIP-4844 blob (type 3), and EIP-7702 set-code (type 4).
@@ -40,6 +42,7 @@ def decode_raw_transaction(raw_hex: str) -> Dict[str, Any]:
     if first_byte in (1, 2, 3, 4):
         # Typed transaction: first byte is type, rest is RLP payload
         decoded = rlp.decode(raw_bytes[1:])
+        tx["chainId"] = int.from_bytes(decoded[0], "big") if decoded[0] else None
         if first_byte in (2, 3, 4):
             # EIP-1559 / 4844 / 7702 share the same base layout:
             #   [chainId, nonce, maxPriorityFee, maxFee, gas, to, value, data, accessList, ...]
@@ -59,6 +62,11 @@ def decode_raw_transaction(raw_hex: str) -> Dict[str, Any]:
         tx["to"] = "0x" + decoded[3].hex() if decoded[3] else None
         tx["value"] = int.from_bytes(decoded[4], "big") if decoded[4] else 0
         tx["data"] = "0x" + decoded[5].hex() if decoded[5] else "0x"
+        if len(decoded) > 6 and decoded[6]:
+            v = int.from_bytes(decoded[6], "big")
+            tx["chainId"] = (v - 35) // 2 if v >= 35 else None
+        else:
+            tx["chainId"] = None
     else:
         raise ValueError(f"Unknown transaction type byte: {first_byte:#x}")
 
@@ -78,7 +86,12 @@ class GuardianRPCRelay:
     def __init__(self, config: Dict[str, Any]):
         self.config = config.get("web3_security", {})
         self.port = self.config.get("listen_port", 8546)
-        self.upstream_rpc = self.config.get("upstream_rpc", "https://testnet.monad.xyz/v1")
+        self.upstream_rpc = (
+            os.environ.get("GUARDIAN_UPSTREAM_RPC")
+            or os.environ.get("MONAD_TESTNET_RPC")
+            or os.environ.get("MONAD_RPC_URL")
+            or self.config.get("upstream_rpc", "https://testnet-rpc.monad.xyz")
+        )
         self.fail_mode = self.config.get("fail_mode", "closed")
         self.enforce_simulation = self.config.get("enforce_simulation", True)
 
@@ -130,6 +143,22 @@ class GuardianRPCRelay:
 
         # Stats counters (thread-safe via GIL for simple increments)
         self.stats = {"intercepted": 0, "blocked": 0, "passed": 0, "errors": 0}
+
+        self.require_attestation = self.config.get(
+            "require_attestation",
+            os.environ.get("GUARDIAN_RPC_REQUIRE_ATTESTATION", "false").lower() == "true",
+        )
+        self.agentic_security = None
+        try:
+            from guardian.security.agentic_controls import AgenticSecurityManager
+            from pathlib import Path
+            self.agentic_security = AgenticSecurityManager(
+                self.config,
+                Path(__file__).resolve().parent.parent.parent,
+                identity_gate=self.identity_gate,
+            )
+        except Exception as e:
+            logger.warning(f"Agentic Security Manager unavailable: {e}")
 
         # SQLite persistence — absolute path so relay and backend read the same DB
         self.db_path = os.path.join(
@@ -193,7 +222,7 @@ class GuardianRPCRelay:
             # identity_check is NOT a live_rules-gated detector (the Identity
             # Gate has its own GUARDIAN_IDENTITY_GATE_ENABLED switch and is
             # checked unconditionally above) — seeded here only so the admin
-            gate_default = 1 if os.getenv("GUARDIAN_IDENTITY_GATE_ENABLED", "true").strip().lower() in ("true", "1") else 0
+            gate_default = 1 if os.getenv("GUARDIAN_IDENTITY_GATE_ENABLED", "false").strip().lower() in ("true", "1") else 0
             conn.execute(
                 "INSERT OR IGNORE INTO web3sec_rules (rule_name, enabled, updated_at) VALUES (?, ?, ?)",
                 ("identity_check", gate_default, now)
@@ -401,7 +430,7 @@ class GuardianRPCRelay:
             status=200, mimetype="application/json"
         )
 
-    def _handle_single_rpc(self, req_data: dict, client_ip: str) -> Optional[Response]:
+    def _handle_single_rpc(self, req_data: dict, client_ip: str, request_headers: Optional[Dict[str, str]] = None) -> Optional[Response]:
         """Process a single JSON-RPC request. Returns a Response if blocked,
         or None to signal pass-through to upstream."""
         method = req_data.get("method")
@@ -434,6 +463,31 @@ class GuardianRPCRelay:
                 return self._make_json_rpc_error(-32000, "Empty or missing transaction parameters", req_id)
             return None
 
+        # ── Chain ID validation (strictly targeting Monad Testnet 10143) ──
+        tx_chain_id = tx.get("chainId")
+        if tx_chain_id is not None:
+            if isinstance(tx_chain_id, str):
+                try:
+                    tx_chain_id = int(tx_chain_id, 16) if tx_chain_id.startswith("0x") else int(tx_chain_id)
+                except ValueError:
+                    pass
+            if tx_chain_id != TARGET_CHAIN_ID:
+                self.stats["blocked"] += 1
+                reason = f"Chain ID {tx_chain_id} rejected: GuardianAI exclusively targets Monad Testnet (Chain ID {TARGET_CHAIN_ID})"
+                self._log_blocked(
+                    client_ip, tx.get("from", ""), tx.get("to", ""),
+                    "network_check", reason, "HIGH", json.dumps(req_data),
+                )
+                return self._make_json_rpc_error(-32000, f"Guardian Network Block: {reason}", req_id)
+        elif method == "eth_sendRawTransaction":
+            self.stats["blocked"] += 1
+            reason = f"Raw transaction missing EIP-155 replay protection: GuardianAI exclusively targets Monad Testnet (Chain ID {TARGET_CHAIN_ID})"
+            self._log_blocked(
+                client_ip, tx.get("from", ""), tx.get("to", ""),
+                "network_check", reason, "HIGH", json.dumps(req_data),
+            )
+            return self._make_json_rpc_error(-32000, f"Guardian Network Block: {reason}", req_id)
+
         # Whitelist check
         whitelist = self._load_whitelist_from_db()
         to_addr = (tx.get("to") or "").lower()
@@ -443,13 +497,98 @@ class GuardianRPCRelay:
         # Apply live rule flags from DB
         live_rules = self._load_rules_from_db()
 
-        # ── Identity Gate: point-of-interaction ERC-8004/passport check ──
+        # ── 1. Attestation Check (Strict Fail-Closed) ─────────────────
+        # When require_attestation is True, enforce for both eth_sendTransaction and eth_sendRawTransaction.
+        # This runs strictly fail-closed regardless of whether identity_gate is None or disabled.
+        tx_from = tx.get("from", "")
+        if self.require_attestation and method in ("eth_sendTransaction", "eth_sendRawTransaction"):
+            if not self.agentic_security:
+                self.stats["blocked"] += 1
+                return self._make_json_rpc_error(
+                    -32000, "Guardian Attestation Block: AgenticSecurityManager unavailable", req_id
+                )
+
+            headers = request_headers if request_headers is not None else (dict(request.headers) if has_request_context() else {})
+            def _get_hdr(name: str) -> str:
+                target = name.lower()
+                for k, v in headers.items():
+                    if k.lower() == target:
+                        return str(v).strip()
+                return ""
+
+            attestation_header = _get_hdr("X-Guardian-Agent-Attestation")
+            timestamp_header = _get_hdr("X-Guardian-Agent-Attestation-Ts")
+            key_id_header = _get_hdr("X-Guardian-Agent-Key-Id")
+            agent_id_header = _get_hdr("X-Guardian-Agent-Id")
+
+            if not tx_from:
+                self.stats["blocked"] += 1
+                return self._make_json_rpc_error(
+                    -32000, "Guardian Attestation Block: Unable to recover sender address from transaction", req_id
+                )
+
+            target_agent_id = tx_from
+            if agent_id_header and agent_id_header.lower() != tx_from.lower():
+                is_owner = False
+                if self.identity_gate:
+                    reg_agent = self.identity_gate._agent_id_for_confirmed_owner_address(tx_from)
+                    if reg_agent and reg_agent.lower() == agent_id_header.lower():
+                        is_owner = True
+                    else:
+                        try:
+                            passport = self.identity_gate.passport_engine.get_passport(agent_id_header)
+                            if passport and getattr(passport, "owner_pubkey", "").lower() == tx_from.lower():
+                                is_owner = True
+                        except Exception:
+                            pass
+                if is_owner:
+                    target_agent_id = agent_id_header
+                else:
+                    self.stats["blocked"] += 1
+                    reason = f"Agent ID mismatch: attestation header indicates {agent_id_header}, but transaction from address is {tx_from}"
+                    self._log_blocked(
+                        client_ip, tx_from, tx.get("to", ""),
+                        "attestation_check", reason, "HIGH", json.dumps(req_data)
+                    )
+                    return self._make_json_rpc_error(-32000, f"Guardian Attestation Block: {reason}", req_id)
+
+            if self.agentic_security.agent_attestation_keys:
+                if target_agent_id not in self.agentic_security.agent_attestation_keys and not any(
+                    str(k).lower() == target_agent_id.lower() for k in self.agentic_security.agent_attestation_keys
+                ):
+                    if agent_id_header and (
+                        agent_id_header in self.agentic_security.agent_attestation_keys
+                        or any(str(k).lower() == agent_id_header.lower() for k in self.agentic_security.agent_attestation_keys)
+                    ):
+                        target_agent_id = agent_id_header
+
+            attestation_result = self.agentic_security._verify_attestation(
+                agent_id=target_agent_id,
+                exec_id="",
+                scope="",
+                key_id=key_id_header,
+                timestamp=timestamp_header,
+                signature=attestation_header,
+                data=tx
+            )
+
+            if attestation_result:
+                self.stats["blocked"] += 1
+                self._log_blocked(
+                    client_ip, tx_from, tx.get("to", ""),
+                    "attestation_check", attestation_result.reason, "HIGH", json.dumps(req_data)
+                )
+                return self._make_json_rpc_error(
+                    -32000, f"Guardian Attestation Block: {attestation_result.reason}", req_id
+                )
+
+        # ── 2. Identity Gate: point-of-interaction ERC-8004/passport check ──
         # Runs before the calldata detectors so an unregistered/revoked/
         # low-tier agent gets stopped without spending analyzer or
         # simulation cycles on it. No-ops immediately if disabled or toggled off in live_rules.
         identity_rule_enabled = live_rules.get("identity_check", True)
         if self.identity_gate is not None and identity_rule_enabled:
-            identity_result = self.identity_gate.check_address(tx.get("from", ""))
+            identity_result = self.identity_gate.check_address(tx_from)
             if not identity_result.allowed:
                 if is_whitelisted:
                     logger.warning(
@@ -514,11 +653,11 @@ class GuardianRPCRelay:
         if isinstance(req_data, list):
             for single_req in req_data:
                 if isinstance(single_req, dict):
-                    blocked = self._handle_single_rpc(single_req, client_ip)
+                    blocked = self._handle_single_rpc(single_req, client_ip, dict(request.headers))
                     if blocked is not None:
                         return blocked
         elif isinstance(req_data, dict):
-            blocked = self._handle_single_rpc(req_data, client_ip)
+            blocked = self._handle_single_rpc(req_data, client_ip, dict(request.headers))
             if blocked is not None:
                 return blocked
 

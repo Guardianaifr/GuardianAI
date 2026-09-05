@@ -21,24 +21,7 @@ const config: HardhatUserConfig = {
     monad_testnet: {
       url: process.env.MONAD_TESTNET_RPC || "https://testnet-rpc.monad.xyz",
       chainId: 10143,
-      // Same registrar-key fallback as base_sepolia so testnet rehearsal
-      // works from the shared .env.
-      accounts: [
-        process.env.GUARDIAN_DEPLOYER_PRIVATE_KEY ||
-        process.env.GUARDIAN_ERC8004_REGISTRAR_KEY ||
-        "0x" + "00".repeat(32),
-      ],
-    },
-    base: {
-      url: process.env.BASE_RPC || "https://mainnet.base.org",
-      chainId: 8453,
-      accounts: [DEPLOYER_KEY],
-    },
-    base_sepolia: {
-      url: process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org",
-      chainId: 84532,
-      // Falls back to the ERC-8004 registrar key so testnet rehearsal works
-      // with the same .env the demo uses.
+      // Registrar-key fallback so testnet rehearsal works from the shared .env.
       accounts: [
         process.env.GUARDIAN_DEPLOYER_PRIVATE_KEY ||
         process.env.GUARDIAN_ERC8004_REGISTRAR_KEY ||
@@ -54,7 +37,6 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       monad_testnet: process.env.MONADSCAN_API_KEY || "",
-      base: process.env.BASESCAN_API_KEY || "",
       mainnet: process.env.ETHERSCAN_API_KEY || "",
     },
     customChains: [

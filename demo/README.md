@@ -1,7 +1,7 @@
 # GuardianAI Demos
 
 **Flagship (all features):** `python demo/full_demo.py` — six scenes from
-provisioning to dual-chain ERC-8004 live registration. See [FULL_DEMO.md](FULL_DEMO.md).
+provisioning to Monad Testnet ERC-8004 live registration. See [FULL_DEMO.md](FULL_DEMO.md).
 
 ---
 
@@ -52,7 +52,7 @@ on the *canonical* Trustless Agents registry: passport issued, spec-compliant
 registration file served at its on-chain `agentURI`, and register-then-transfer
 ownership so the NFT lands with the client — not with us.
 
-Preview mode needs no wallet. Live registration on Base Sepolia is three env
+Preview mode needs no wallet. Live registration on Monad Testnet is three env
 lines (see output).
 
 ## Why this matters

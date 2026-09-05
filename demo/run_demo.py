@@ -316,7 +316,7 @@ def act3_identity():
     passport = engine.issue_passport(
         agent_id="demo-trading-agent",
         owner_pubkey=CLIENT_OWNER,
-        chain_id="base-sepolia",
+        chain_id="monad-testnet",
         metadata={"role": "treasury-bot"},
     )
     step(f"Passport issued: {passport.passport_id[:24]}… "
@@ -324,7 +324,7 @@ def act3_identity():
 
     # Simulated agentId for preview mode only; live mode uses the real mint.
     SIM_AGENT_ID = 771_502
-    chain = configured_chains()[0] if configured_chains() else "base-sepolia"
+    chain = configured_chains()[0] if configured_chains() else "monad-testnet"
     reg_file = build_registration_file(
         agent_id="demo-trading-agent",
         chain=chain,
@@ -362,8 +362,6 @@ def act3_identity():
         # Multi-chain: loop until EVERY configured chain reaches a terminal
         # state (confirmed, or exhausted-retries failure).
         explorers = {
-            "base-sepolia": "https://sepolia.basescan.org/token/{registry}?a={token}",
-            "base":         "https://basescan.org/token/{registry}?a={token}",
             "monad-testnet": "https://testnet.monadscan.com/token/{registry}?a={token}",
         }
         finals = {}
@@ -401,7 +399,7 @@ def act3_identity():
   PREVIEW MODE — flipping to live needs exactly three lines in .env:
 
       GUARDIAN_ERC8004_ENABLED=true
-      GUARDIAN_ERC8004_CHAINS=base-sepolia
+      GUARDIAN_ERC8004_CHAINS=monad-testnet
       GUARDIAN_ERC8004_REGISTRAR_KEY=0x…
 
   What gets broadcast then (in order, all fail-closed):

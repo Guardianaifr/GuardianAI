@@ -2,11 +2,11 @@ import { ethers } from "hardhat";
 
 /**
  * Deploys the GuardianAI TESTNET STAND-IN ERC-8004 Identity Registry to
- * Base Sepolia. See IdentityRegistryTestnet.sol for scope and honesty notes.
+ * Monad Testnet (Chain ID 10143). See IdentityRegistryTestnet.sol for scope and honesty notes.
  *
  * Usage (from contracts/):
  *   GUARDIAN_DEPLOYER_PRIVATE_KEY=0x... npx hardhat run \
- *     scripts/deploy-erc8004-testnet.ts --network base_sepolia
+ *     scripts/deploy-erc8004-testnet.ts --network monad_testnet
  */
 async function main() {
   const [deployer] = await ethers.getSigners();

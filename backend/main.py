@@ -4172,7 +4172,7 @@ def _get_passport_verifier():
 class PassportIssueRequest(BaseModel):
     agent_id: str
     owner_pubkey: str
-    chain_id: str = "base"
+    chain_id: str = "monad-testnet"
     metadata: Optional[Dict[str, Any]] = None
 
 

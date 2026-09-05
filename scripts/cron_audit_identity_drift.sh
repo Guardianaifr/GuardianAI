@@ -15,13 +15,13 @@ elif [ -d ".venv" ]; then
 fi
 
 # Run the audit script and capture the exit code
-python audit_identity_drift.py --chain base-sepolia
+python audit_identity_drift.py --chain monad-testnet
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
     echo "[ALERT] Identity drift detected! Exit code: $EXIT_CODE"
     # Emit a monitoring metric or alert webhook here
-    # e.g., curl -X POST -H "Content-Type: application/json" -d "{\"text\":\"Identity drift detected on base-sepolia!\"}" $SLACK_WEBHOOK_URL
+    # e.g., curl -X POST -H "Content-Type: application/json" -d "{\"text\":\"Identity drift detected on monad-testnet!\"}" $SLACK_WEBHOOK_URL
 else
     echo "[OK] No identity drift detected."
 fi

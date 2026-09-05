@@ -151,7 +151,7 @@ def env(tmp_path, monkeypatch):
     """Isolated env + DB; worker thread disabled for determinism."""
     db = str(tmp_path / "guardian.db")
     monkeypatch.setenv("GUARDIAN_ERC8004_ENABLED", "true")
-    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "base-sepolia")
+    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "monad-testnet")
     monkeypatch.setenv("GUARDIAN_ERC8004_REGISTRAR_KEY", "0x" + "11" * 32)
     monkeypatch.setenv("GUARDIAN_PUBLIC_URL", "https://guard.example.com")
     monkeypatch.setattr(reg, "ensure_worker", lambda db_path: None)
@@ -161,7 +161,7 @@ def env(tmp_path, monkeypatch):
 
 def make_registrar(db, state):
     return reg.ERC8004Registrar(
-        "base-sepolia",
+        "monad-testnet",
         db,
         w3_factory=lambda rpc: FakeW3(state),
         account_factory=lambda key: FakeAccount(key),
@@ -222,7 +222,7 @@ def test_happy_path_pending_to_confirmed(env):
 
 def test_registration_file_schema_shape():
     f = reg.build_registration_file(
-        agent_id="agent-a", chain="base-sepolia", token_id=77,
+        agent_id="agent-a", chain="monad-testnet", token_id=77,
         base_url="https://x",
     )
     assert f["type"] == "https://eips.ethereum.org/EIPS/eip-8004#registration-v1"
@@ -230,7 +230,7 @@ def test_registration_file_schema_shape():
     assert f["registrations"] == [
         {
             "agentId": 77,
-            "agentRegistry": "eip155:84532:" + reg.CANONICAL_IDENTITY_REGISTRY,
+            "agentRegistry": "eip155:10143:" + reg.CHAIN_DEFAULTS["monad-testnet"]["registry"],
         }
     ]
     assert "supportedTrust" not in f  # discovery-only until Reputation ships
@@ -305,3 +305,7 @@ def test_unsupported_chain_is_misconfigured(env):
     os.environ["GUARDIAN_ERC8004_IDENTITY_REGISTRY_OVERRIDE"] = ""
     with pytest.raises(reg.RegistrarMisconfigured):
         reg.ERC8004Registrar("solana-mainnet", env["db"])
+    with pytest.raises(reg.RegistrarMisconfigured):
+        reg.ERC8004Registrar("base", env["db"])
+    with pytest.raises(reg.RegistrarMisconfigured):
+        reg.ERC8004Registrar("base-sepolia", env["db"])

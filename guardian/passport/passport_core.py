@@ -48,7 +48,7 @@ class AgentPassport:
     passport_id: str
     agent_id: str
     owner_pubkey: str
-    chain_id: str = "base"
+    chain_id: str = "monad-testnet"
     trust_score: float = 0.0
     tier: str = "UNVERIFIED"
     credentials: List[Dict] = field(default_factory=list)
@@ -70,7 +70,7 @@ class AgentPassport:
             passport_id=row[0],
             agent_id=row[1],
             owner_pubkey=row[2],
-            chain_id=row[3] if row[3] else "base",
+            chain_id=row[3] if row[3] else "monad-testnet",
             trust_score=float(row[4]) if row[4] is not None else 0.0,
             tier=row[5] if row[5] else "UNVERIFIED",
             credentials=json.loads(row[6]) if row[6] else [],
@@ -100,7 +100,19 @@ class PassportEngine:
 
     def __init__(self, db_path: str = "guardian.db"):
         self.db_path = db_path
+        self._invalidation_callbacks = []
         self._init_passport_tables()
+
+    def register_invalidation_callback(self, cb) -> None:
+        if cb not in self._invalidation_callbacks:
+            self._invalidation_callbacks.append(cb)
+
+    def _notify_invalidation(self, agent_id: str) -> None:
+        for cb in self._invalidation_callbacks:
+            try:
+                cb(agent_id)
+            except Exception:
+                pass
 
     # ── Schema ────────────────────────────────────────────────
 
@@ -115,7 +127,7 @@ class PassportEngine:
                 passport_id   TEXT PRIMARY KEY,
                 agent_id      TEXT UNIQUE NOT NULL,
                 owner_pubkey  TEXT NOT NULL,
-                chain_id      TEXT DEFAULT 'base',
+                chain_id      TEXT DEFAULT 'monad-testnet',
                 trust_score   REAL DEFAULT 0.0,
                 tier          TEXT DEFAULT 'UNVERIFIED',
                 credentials   TEXT DEFAULT '[]',
@@ -145,6 +157,8 @@ class PassportEngine:
             for agent in existing_passports:
                 print(f"[PASSPORT MIGRATION AUDIT] Migrated passport {agent} to default tenant")
                 logger.info("[PASSPORT MIGRATION AUDIT] Migrated passport %s to default tenant", agent)
+        # Migrate any legacy 'base' or 'base-sepolia' chain_id rows to 'monad-testnet'
+        cur.execute("UPDATE agent_passports SET chain_id = 'monad-testnet' WHERE chain_id IN ('base', 'base-sepolia')")
         # Identity Gate (point-of-interaction enforcement) needs to resolve an
         # RPC tx `from` address back to an agent_id quickly. owner_pubkey is
         # not guaranteed to be a checksummed EVM address (it may hold other
@@ -190,7 +204,7 @@ class PassportEngine:
         self,
         agent_id: str,
         owner_pubkey: str,
-        chain_id: str = "base",
+        chain_id: str = "monad-testnet",
         metadata: Optional[Dict] = None,
         tenant_id: str = "default",
     ) -> AgentPassport:
@@ -482,6 +496,8 @@ class PassportEngine:
             )
         conn.commit()
         conn.close()
+        if updated:
+            self._notify_invalidation(agent_id)
         return updated
 
     def add_credential(self, agent_id: str, credential_data: Dict) -> bool:
@@ -543,6 +559,7 @@ class PassportEngine:
         conn.close()
         if revoked:
             logger.info("Passport revoked for agent %s", agent_id)
+            self._notify_invalidation(agent_id)
         return revoked
 
     def list_passports(self, limit: int = 50, active_only: bool = True) -> List[AgentPassport]:

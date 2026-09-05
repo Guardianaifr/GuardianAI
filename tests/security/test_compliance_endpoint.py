@@ -107,3 +107,8 @@ def test_compliance_evidence_endpoint(tmp_path: Path):
 
     finally:
         proxy.stop()
+        os.environ.pop("GUARDIAN_CONFIG", None)
+        os.environ.pop("GUARDIAN_ADMIN_TOKEN", None)
+        os.environ.pop("GUARDIAN_EVIDENCE_SIGNING_KEY", None)
+        os.environ.pop("GUARDIAN_ENV", None)
+

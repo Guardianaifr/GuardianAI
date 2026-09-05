@@ -23,10 +23,12 @@ from guardian.passport.identity_gate import IdentityGate
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
 class FakePassport:
-    def __init__(self, agent_id, tier="UNVERIFIED", is_active=True):
+    def __init__(self, agent_id, tier="UNVERIFIED", is_active=True, token_id=None, owner_pubkey=None):
         self.agent_id = agent_id
         self.tier = tier
         self.is_active = is_active
+        self.token_id = token_id
+        self.owner_pubkey = owner_pubkey
 
 
 class FakePassportEngine:
@@ -272,7 +274,7 @@ REAL_OWNER = "0x1d4549b95dccac8203393543187b25b3137d0bf6"
 def _insert_registration(db_path, agent_id, owner_address, updated_at, token_id):
     conn = sqlite3.connect(db_path)
     conn.execute(
-        "INSERT INTO erc8004_registrations VALUES (?,?,?,?,?)",
+        "INSERT INTO erc8004_registrations (agent_id, owner_address, status, updated_at, token_id) VALUES (?,?,?,?,?)",
         (agent_id, owner_address, "confirmed", updated_at, token_id),
     )
     conn.commit()
@@ -330,3 +332,33 @@ def test_address_resolution_still_blocks_lone_revoked_agent(real_db):
     result = gate.check_address(solo_owner)
     assert result.allowed is False
     assert result.reason == "revoked_passport"
+
+
+def test_onchain_verify_defaults_and_ownership_mismatch(engine, monkeypatch):
+    """Verify onchain_verify defaults to True in production and blocks on ownership mismatch."""
+    from unittest.mock import MagicMock, patch
+
+    # 1. Defaults to True in production
+    monkeypatch.setenv("GUARDIAN_ENV", "production")
+    gate_prod = ig_module.IdentityGate(engine)
+    assert gate_prod.onchain_verify is True
+
+    # 2. Ownership verification: match vs mismatch
+    passport = FakePassport("agent-onchain", tier="GOLD", is_active=True, token_id=42)
+    gate = ig_module.IdentityGate(engine, onchain_verify=True)
+
+    mock_contract = MagicMock()
+    mock_contract.functions.ownerOf(42).call.return_value = "0x2222222222222222222222222222222222222222"
+    with patch("web3.eth.Eth.contract", return_value=mock_contract):
+        # Claimed address matches ownerOf -> allowed
+        res_match = gate._verify_onchain(passport, claimed_address="0x2222222222222222222222222222222222222222")
+        assert res_match is not None
+        assert res_match.allowed is True
+        assert res_match.source == "onchain"
+
+        # Claimed address does NOT match ownerOf -> blocked
+        res_mismatch = gate._verify_onchain(passport, claimed_address="0x3333333333333333333333333333333333333333")
+        assert res_mismatch is not None
+        assert res_mismatch.allowed is False
+        assert res_mismatch.reason == "onchain_owner_mismatch"
+

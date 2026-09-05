@@ -18,7 +18,7 @@ lifecycle on the GuardianAI platform:
                        Credential signed and verified, trust score computed.
   SCENE 5  ASSURANCE   Cortex verifiable memory (tamper-evidence shown
                        live), insurance certificate, 10-day trial.
-  SCENE 6  ON-CHAIN    ERC-8004 identity registration. Live dual-chain mint
+  SCENE 6  ON-CHAIN    ERC-8004 identity registration. Live Monad Testnet mint
                        when .env carries the registrar key; honest preview
                        otherwise. --preview forces preview mode.
 
@@ -578,7 +578,7 @@ def scene_trust(ctx):
 
     engine = PassportEngine(db_path=db_path)
     passport = engine.issue_passport(agent_id=AGENT_ID, owner_pubkey=CLIENT_OWNER,
-                                     chain_id="base-sepolia",
+                                     chain_id="monad-testnet",
                                      metadata={"role": "treasury-bot"})
     ctx["passport"] = passport
     ok(f"Passport issued: {passport.passport_id[:20]}… tier={passport.tier}")
@@ -695,8 +695,6 @@ def scene_assurance(ctx):
 # ══════════════════════════════════════════════════════════════════════════════
 
 EXPLORERS = {
-    "base-sepolia": "https://sepolia.basescan.org/token/{registry}?a={token}",
-    "base": "https://basescan.org/token/{registry}?a={token}",
     "monad-testnet": "https://testnet.monadscan.com/token/{registry}?a={token}",
 }
 
@@ -724,7 +722,7 @@ def scene_onchain(ctx, force_preview=False):
         print(f"\n  PREVIEW MODE ({why}) — with these three lines in .env this act")
         print("  broadcasts for real, fail-closed at every step:\n")
         print("      GUARDIAN_ERC8004_ENABLED=true")
-        print("      GUARDIAN_ERC8004_CHAINS=base-sepolia,monad-testnet")
+        print("      GUARDIAN_ERC8004_CHAINS=monad-testnet")
         print("      GUARDIAN_ERC8004_REGISTRAR_KEY=0x…")
         print(f"""
       What gets broadcast then, in order:

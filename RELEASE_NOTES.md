@@ -4,6 +4,25 @@
 
 GuardianAI v1.0 is a production-ready security layer designed to protect LLM applications from Prompt Injection, PII Leaks, and unauthorized access. It operates on the philosophy of **"Protecting the AI from Blabbing, not the Database from Leaking."**
 
+## 🛡️ GuardianAI v1.2.0 Monad Testnet Hardening & ERC-8004 Identity Assurance (September 2026)
+
+GuardianAI v1.2.0 establishes dedicated on-chain trust and runtime security invariants:
+
+1. **Monad Testnet Dedicated Architecture (Chain ID 10143):**
+   - Refocused all smart contract deployments, registrar queues, and RPC relays exclusively on Monad Testnet.
+   - Integrated automated SQLite schema and row migration for backwards compatibility with legacy databases.
+   - Routed all on-chain identity checks, contract verification, and relay traffic to dedicated QuickNode Monad Testnet RPC endpoints.
+
+2. **RPC Relay Raw Transaction Attestation & EIP-155 Replay Protection:**
+   - Mandated attestation verification and sender address recovery for `eth_sendRawTransaction`.
+   - Enforced fail-closed EIP-155 replay protection, rejecting transactions lacking explicit Monad chain IDs.
+   - Cross-referenced transaction senders with on-chain ERC-8004 registry ownership (`ownerOf`).
+
+3. **RFC 6750 Status Code Semantics (401 vs 403):**
+   - Accurately distinguished authentication failures (HTTP 401 with `WWW-Authenticate: Bearer ...`) from authorization blocks (HTTP 403).
+   - Eliminated pre-authentication identity probing information leakage by validating attestations prior to querying revocation status.
+   - Enabled default on-chain `ownerOf` validation on Monad Testnet.
+
 ---
 
 ## 🛡️ GuardianAI v1.1.0 Enterprise Security & Cryptographic Architecture Hardening (September 2026)

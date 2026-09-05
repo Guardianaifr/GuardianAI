@@ -26,9 +26,10 @@ curl -X POST http://127.0.0.1:8081/v1/chat/completions \
 
 
 Notes:
-- Guardian returns `403` for blocked prompts (AI Firewall, SystemPromptGuard, InputFilter).
-- Guardian returns `413` if the request payload exceeds 10MB (`MAX_CONTENT_LENGTH`).
-- Guardian returns `429` for rate limit violations (atomic Redis token bucket).
+- Guardian returns `401 Unauthorized` with `WWW-Authenticate: Bearer error="invalid_token", error_description="..."` header (RFC 6750) when agent attestation is required but missing, invalid, expired, replayed, or payload-mismatched.
+- Guardian returns `403 Forbidden` for blocked prompts (AI Firewall, SystemPromptGuard, InputFilter) and for validly authenticated agents that are unregistered, revoked, or below required trust tier.
+- Guardian returns `413 Payload Too Large` if the request payload exceeds 10MB (`MAX_CONTENT_LENGTH`) or 1MB on backend endpoints.
+- Guardian returns `429 Too Many Requests` for rate limit violations (atomic Redis token bucket).
 - Guardian returns proxied upstream response when allowed.
 - RFC 9110 Hop-by-Hop headers (`Connection`, `Keep-Alive`, `Transfer-Encoding`, `TE`, `Upgrade`, etc.) are stripped before forwarding.
 - Real-time SSE streaming responses (`"stream": true`) are dynamically inspected for system prompt leaks (OWASP LLM07).
@@ -197,18 +198,41 @@ Evaluates agent prompt and transaction parameters using the deterministic rules 
 ```
 
 ## 7) Common Status Codes
-
+ 
 - `200`: success
-- `401`: backend auth failure (protected backend routes)
-- `403`: blocked by security policy / CSRF validation failure
-- `413`: request body exceeds maximum 1MB payload limit
+- `401`: unauthorized — missing, invalid, expired, or replayed agent attestation (with `WWW-Authenticate` header per RFC 6750), or backend auth failure
+- `403`: forbidden — blocked by security policy, unregistered/revoked agent, or CSRF validation failure
+- `413`: request body exceeds payload limit (10MB proxy / 1MB backend)
 - `429`: rate limit exceeded (fail-closed token bucket)
 - `502`: upstream connectivity failure
 - `503`: attestation service unavailable
 
-## 8) Current Behavior Notes
+## 8) Web3 JSON-RPC Security Relay API (Port 8546)
+
+The Web3 JSON-RPC relay sits between crypto wallets/agents and the Monad Testnet node (defaulting to the dedicated QuickNode RPC endpoint).
+
+### Supported Methods & Point-of-Interaction Enforcement:
+- `eth_sendRawTransaction`: Inspects signed RLP transaction calldata, recovers the `from` sender address, validates EIP-155 replay protection (`chainId == 10143`), verifies `X-Guardian-Agent-Attestation`, and cross-references against on-chain ERC-8004 identity registrations (`ownerOf` checks).
+- `eth_sendTransaction`: Intercepts transaction parameters, verifies EIP-712 / JWT agent attestations, and validates against active agent policies.
+- Other EVM RPC methods (`eth_call`, `eth_blockNumber`, `eth_getBalance`, etc.): Proxied upstream with fail-closed security guarantees.
+
+### Error Format:
+Blocked transactions return standard JSON-RPC 2.0 error responses:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32000,
+    "message": "Guardian Network Block: Raw transaction missing EIP-155 replay protection: GuardianAI exclusively targets Monad Testnet (Chain ID 10143)"
+  }
+}
+```
+
+## 9) Current Behavior Notes
 
 - Security mode is configured via YAML (`guardian/config/*.yaml`).
+- Exclusively targets **Monad Testnet (Chain ID 10143)** with automated SQLite schema/row migration for legacy databases.
 - Passwords are encrypted with Argon2id (`t=7, m=64MB, p=4`) with automatic legacy SHA-256 migration.
 - Runtime decisions are made by Input Filter, AI Firewall, Threat Feed, Base64 detector, AgentPolicy allowlists, OutflowTracker, and Output Validator.
 - Fail-Closed Policy: Middleware strictly rejects pre-wrapped calldata and blocks calls when relayer is unreachable.

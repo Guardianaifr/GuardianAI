@@ -504,7 +504,7 @@ Supported vulnerability classes (selected — IDs and severities from `VULN_RULE
 
 Supports analysis by: raw source upload (Solidity/Vyper) or on-chain contract address + chain ID (fetches verified source via Etherscan-compatible APIs).
 
-Supported chains: Ethereum, Monad, Base, Arbitrum, Optimism, Polygon, BSC, Avalanche (EVM-compatible only).
+Supported static analysis chains: Ethereum, Monad, Arbitrum, Optimism, Polygon, BSC, Avalanche (EVM-compatible only). Point-of-interaction identity enforcement and smart contract deployments exclusively target Monad Testnet (Chain ID 10143).
 
 Each finding includes: severity rating, description, remediation guidance, and SOC-2/ISO 27001 compliance control mapping.
 
@@ -598,8 +598,8 @@ Allows auditors or GuardianAI itself to publish cryptographic attestations of an
 
 **Feature 39 — ERC-8004 Identity Registration (Canonical Trustless Agents)**
 
-> Added August 2026. GuardianAI registers protected agents on the **canonical** ERC-8004 Identity Registry
-> (`0x8004A169…a432`, deterministic CREATE2 deployment shared across chains) instead of operating a competing identity standard.
+> Added August 2026, updated September 2026. GuardianAI registers protected agents on the **canonical** ERC-8004 Identity Registry
+> (deployed on Monad Testnet at `0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE` with dedicated QuickNode RPC routing) instead of operating a competing identity standard.
 
 - **What it does:** for each opted-in agent, GuardianAI calls `register()` on the canonical registry, writes
   `setMetadata(agentId, "guardianPassportId", <passport id>)` linking the standard identity to the
@@ -612,13 +612,13 @@ Allows auditors or GuardianAI itself to publish cryptographic attestations of an
 - **Safety design:** fail-closed `eth_getCode` verification before first send per chain; production-URI gate
   refusing localhost/non-https `GUARDIAN_PUBLIC_URL` on mainnet chains; gas-price ceiling reuse; daily on-chain
   spend budget; idempotent retries (broadcast-hash preservation + receipt recovery prevents double mints);
-  conditional-claim row locking against concurrent workers; exclusively targeting Monad Testnet (Chain ID 10143).
+  conditional-claim row locking against concurrent workers; exclusively targeting Monad Testnet (Chain ID 10143) with automatic legacy SQLite database migration.
 - **Honest scope:** discovery-only today — no Reputation emission and no Validation-Registry validator yet
   (the Validation portion of ERC-8004 is still marked unstable by its editors). Default disabled behind
   `GUARDIAN_ERC8004_ENABLED=false`; nothing changes at runtime until enabled.
 - **What it is in code:** `guardian/passport/erc8004_registrar.py`,
   `backend/routers/identity_registry_routes.py`, hook in `passport_core.issue_passport()`;
-  tests `tests/web3_identity/` (42 tests, offline fakes + failure injection).
+  tests in `tests/web3_identity/` (60 tests, offline fakes + failure injection + legacy migration).
 
 ---
 
@@ -626,11 +626,14 @@ Allows auditors or GuardianAI itself to publish cryptographic attestations of an
 
 Added September 2026. Bridges on-chain ERC-8004 identity registration to runtime execution by enforcing cryptographic agent identity and trust tiers at the point of interaction.
 
-- **What it does:** Pre-flight interception for both Web3 transactions in the RPC relay (`guardian/web3sec/rpc_relay.py`) and inter-agent communication in the agentic control plane (`guardian/security/agentic_controls.py`). Intercepts transaction `from` addresses and inter-agent headers, resolving them against canonical on-chain ERC-8004 registrations (`ownerOf` checks) and local passport records before any transaction or tool execution is permitted.
+- **What it does:** Pre-flight interception for both Web3 transactions in the RPC relay (`guardian/web3sec/rpc_relay.py`) and inter-agent communication in the agentic control plane (`guardian/security/agentic_controls.py`). Intercepts transaction `from` addresses (including RLP-recovered senders on `eth_sendRawTransaction`) and inter-agent headers, resolving them against canonical on-chain ERC-8004 registrations (`ownerOf` checks) and local passport records before any transaction or tool execution is permitted.
+- **HTTP Status Code Alignment (RFC 6750):** Distinguishes authentication failures from authorization blocks. Unauthenticated requests (missing, invalid, expired, replayed, or payload-mismatched attestations) receive **HTTP 401 Unauthorized** with a standard `WWW-Authenticate: Bearer ...` challenge header. Requests with valid attestations that are unregistered, revoked, or below the required trust tier receive **HTTP 403 Forbidden**.
+- **Information Leakage Defense:** Attestation verification is strictly executed *prior* to querying agent revocation or identity tables, ensuring that unauthenticated external attackers cannot probe whether target agent IDs exist or have been revoked.
+- **RPC Relay Raw Transaction Protection:** Mandates attestation verification and EIP-155 replay protection on `eth_sendRawTransaction` and `eth_sendTransaction`. Transactions missing attestations or targeting non-Monad networks are rejected with JSON-RPC error `-32000` fail-closed, even if the identity gate is offline.
 - **Identity Resolution & Collision Defense:** Implements case-insensitive address-to-identity resolution backed by a structural database partial unique index (`ON agent_passports(owner_pubkey COLLATE NOCASE) WHERE is_active = 1`) and active-first `LEFT JOIN` resolution on `erc8004_registrations`. This guarantees deterministic resolution, strictly preventing revoked or orphaned identities from causing false-positive blocks or permission hijacking on shared hot-wallets.
-- **Fail-Open / Fail-Closed Resiliency:** Operates with configurable failure semantics (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false` by default). In the event of an RPC endpoint failure or testnet timeout, the gate fails open to local database state rather than dropping legitimate agent traffic, while logging full on-chain error telemetry.
-- **Zero-Disruption Shadow Mode:** Ships with `GUARDIAN_IDENTITY_GATE_MODE=shadow` as the default posture, allowing operators to observe identity validation verdicts and drift without risk of blocking live traffic. Supported by automated reconciliation scripts (`audit_identity_drift.py` and cron wrappers).
-- **What it is in code:** `guardian/passport/identity_gate.py`, `guardian/passport/passport_core.py`, `guardian/web3sec/rpc_relay.py`, `guardian/security/agentic_controls.py`, `audit_identity_drift.py`; tests in `tests/web3_identity/test_identity_gate.py` (17 tests covering local DB, live on-chain fallback, revoked status, and collision tie-breaking).
+- **On-Chain Verification:** Defaults `GUARDIAN_IDENTITY_GATE_ONCHAIN_VERIFY=true` on Monad Testnet, querying `ownerOf` directly via dedicated QuickNode RPC to ensure token ownership matches claimed identity before access is granted.
+- **Zero-Disruption Shadow Mode:** Ships with `GUARDIAN_IDENTITY_GATE_MODE=shadow` as the initial evaluation posture, allowing operators to observe identity validation verdicts and drift without risk of blocking live traffic. Supported by automated reconciliation scripts (`audit_identity_drift.py` and cron wrappers).
+- **What it is in code:** `guardian/passport/identity_gate.py`, `guardian/passport/passport_core.py`, `guardian/web3sec/rpc_relay.py`, `guardian/security/agentic_controls.py`, `audit_identity_drift.py`; tests in `tests/web3_identity/test_identity_gate.py` and `tests/test_rpc_relay.py`.
 
 ---
 
@@ -709,8 +712,8 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Python test suites (targeted runs, September 2026) | 107 passing tests across security, audit chain, web3 identity, relay, and security headers suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 42/42 · passport 24/24 |
-| Smart contract unit tests (Hardhat, September 2026) | **160 passing test cases across 10 contract suites in-repo (100% pass rate)** |
+| Python test suites (targeted runs, September 2026) | **176 passing test cases (100% pass rate)** across security, web3 identity, runtime interceptor, and RPC relay suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 60/60 · passport 24/24 |
+| Smart contract unit tests (Hardhat, September 2026) | **183 passing test cases across 11 contract suites in-repo (100% pass rate, 11s runtime)** |
 | Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, per definitive_benchmark_v4.json)†† | **97.6%** (949/972) |
 | Security-gate block rate — Tier 1+2 (balanced mode)†† | **90.7%** (882/972) |
 | HarmBench Official block rate (400 prompts, strict mode)†† | **72.8%** (291/400) |
@@ -730,7 +733,7 @@ All metrics are sourced from actual test runs and are reproducible.
 | IaC findings | 0 |
 | Internal security audit — critical/high findings (July 2026, off-chain proxy) | 4 identified and remediated\*\* |
 | On-chain contract audit — HIGH/MED findings (August 2026) | 5 identified and remediated\*\*\* |
-| Senior systems & cryptographic audit (September 2026) | 6 identified and remediated (ARCH-01 through ARCH-06)\*\*\*\* |
+| Senior systems & cryptographic audit (September 2026) | 6 identified and remediated (ARCH-01 through ARCH-06) · ERC-8004 identity gate, RPC relay attestation, status code semantics (401/403), and Monad Testnet exclusively validated\*\*\*\* |
 
 \* SAST flagged a call to `secrets.token_urlsafe()` as a potential hardcoded secret; confirmed as a false positive — the call generates random tokens, not a hardcoded value.
 

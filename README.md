@@ -80,7 +80,7 @@ mount a volume for `guardian.db` and `artifacts/`. See `DEPLOYMENT.md` and
 Numbers below are sourced directly from reproducible test runs and live on-chain Monad Testnet RPC queries:
 
 - **Smart contracts (Hardhat, September 2026):** **183 passing test cases across 11 contract suites in-repo (100% pass rate, 6s runtime)**. Covers `GuardianPolicyGuard`, `GuardianThreatFeedRegistry`, `GuardianPassportSBT`, `GuardianTimelock`, `GuardianCircuitBreaker`, etc.
-- **Python Core & Middleware (September 2026):** **43 passing test cases (0 failures)** across attestation engine, extended security, agent policies, and SDK middleware.
+- **Python Security & Relay Suites (September 2026):** **176 passing test cases (100% pass rate, 0 failures)** across RPC relay, agentic controls, web3 identity, and runtime interceptor.
 - **Real-World Exploit Defense Harness:** **5 / 5 exploits neutralized (100%)** (`tools/reproduce_realworld_exploits.py`):
   - Bankrbot ($204k Morse-code injection)
   - Freysa ($47k calldata redefinition & transfer)
@@ -103,6 +103,7 @@ Numbers below are sourced directly from reproducible test runs and live on-chain
   - Added permanent revocation tombstone enforcement (`AgentPermanentlyRevoked`) in `GuardianPassportSBT.sol`.
   - Neutralized `is_wrapped` client-side bypass in both Python and TypeScript agent middleware.
   - Implemented zero-trust function selector allowlists (RBAC) and rolling 24-hour spending caps.
+  - Hardened ERC-8004 identity gate and RPC relay: enforced RFC 6750 HTTP 401 vs 403 status code semantics, required attestation and EIP-155 replay protection on `eth_sendRawTransaction`, eliminated pre-auth revocation information leakage, and routed on-chain verification through dedicated QuickNode Monad Testnet RPC.
 
 ---
 

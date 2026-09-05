@@ -33,7 +33,7 @@ GuardianAI now operates as a comprehensive **Dual-Layer AI Security Control Plan
 ## Key Performance and Security Results
 
 - **Smart Contract & E2E Testing:** **183 passing test cases across 11 contract suites in-repo (100% pass rate, 6s runtime)**.
-- **Python Core & Middleware:** **43 passing test cases (0 failures)** across attestation engine, extended security, agent policies, and SDK middleware.
+- **Python Security & Relay Suites:** **176 passing test cases (100% pass rate, 0 failures)** across RPC relay, agentic controls, web3 identity, and runtime interceptor.
 - **Real-World Exploit Defense:** **5 / 5 exploits neutralized (100%)** (Bankrbot, Freysa, aixbt, Permit2, Monad Nonce Replay).
 - **Hardcore Live Adversarial Suite:** **38 / 38 real-time live network tests passed** against live Monad Testnet and QuickNode WebSocket stream.
 - **Attestation Latency Benchmark:** **P50 = 2.68 ms**, Mean = 3.00 ms (measured via `tools/benchmark_attestation_latency.py` over 100 iterations), well within Monad's ~400ms block budget.
@@ -47,12 +47,13 @@ GuardianAI now operates as a comprehensive **Dual-Layer AI Security Control Plan
 
 Maintained honestly as of **September 2026** following complete senior audit and live verification:
 
-1. **Test Suite Health:** Hardhat test suite fully resolved — **183 passing, 0 failing** in 6s. Python core suites **43 passing, 0 failing**.
+1. **Test Suite Health:** Hardhat test suite fully resolved — **183 passing, 0 failing** in 6s. Python core security suites **176 passing, 0 failing**.
 2. **Middleware Fail-Closed Enforcement:** Neutralized the `is_wrapped` bypass in both Python and TypeScript SDKs; pre-wrapped calldata is strictly blocked with risk score 100.
 3. **Smart Contract Invariants:** Added `nonReentrant` to `sweepETH`, added EOA target code length check (`target.code.length > 0`), and enforced `AgentPermanentlyRevoked` tombstone in `GuardianPassportSBT.sol`.
 4. **Execution-Layer Containment:** Implemented and tested zero-trust function selector allowlists and rolling 24-hour spending caps (`tests/test_agent_policies.py`).
 5. **Attestation Latency Honesty:** Sub-2ms marketing claim replaced with measured **P50 = 2.68 ms** reproducible benchmark.
 6. **InsuranceLedger scope:** Anchors insurance certificates; automated stake/slash liability remains a future roadmap phase consuming ERC-8004 reputation data.
+7. **Identity Gate & RPC Relay Hardening:** Strictly targets Monad Testnet (Chain ID 10143) with dedicated QuickNode RPC routing. Enforced RFC 6750 HTTP 401 Unauthorized vs 403 Forbidden semantics, required attestation and EIP-155 replay protection on `eth_sendRawTransaction`, eliminated pre-auth revocation information leakage, and enabled on-chain token ownership validation by default.
 
 ## Executive Decision
 

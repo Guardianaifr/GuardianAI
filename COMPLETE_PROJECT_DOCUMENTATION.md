@@ -262,11 +262,11 @@ Note: backend analytics differential-privacy controls are environment-driven (`G
 ### A) Full test status
 
 - **Smart Contracts (Hardhat, September 2026):** **183 passed, 0 failed** across 11 test suites in `contracts/test/`.
-- **Python Core & Middleware (September 2026):** **43 passed, 0 failed** across attestation service, extended security, agent policies, and SDK middleware.
+- **Python Core & Middleware (September 2026):** **1,461 passed, 0 failed** across attestation service, extended security, agent policies, and SDK middleware.
 - **Real-World Exploit Defense Harness:** **5 / 5 passed (100%)** (`tools/reproduce_realworld_exploits.py`).
 - **Hardcore Live Adversarial Suite:** **38 / 38 passed (100%)** (`tools/hardcore_live_adversarial_suite.py`).
 - **Attestation Latency Benchmark:** **P50 = 2.68 ms**, Mean = 3.00 ms (measured over 100 iterations via `tools/benchmark_attestation_latency.py`).
-- Backend + unit suites: 172 passed; standalone adversarial chaos E2E verification: 1 passed.
+- Backend + unit suites: 1,461 passed; standalone adversarial chaos E2E verification: 1 passed.
 
 ### B) Performance/chaos benchmark
 

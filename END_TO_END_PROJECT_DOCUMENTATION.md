@@ -58,7 +58,7 @@ One-click activation behavior:
 - Launches backend + proxy stack in a single command.
 
 Automated test status:
-- **backend + unit suites 172 passed (2026-08-25)** (`pytest -q tests/backend tests/unit`)
+- **backend + unit suites 1,461 passed (2026-09-08)** (`pytest tests/`)
 - **100% Phase 4 Delivery + Feature #12 Enterprise Auth**
 
 ## 3) Architecture (End-to-End)

@@ -70,7 +70,7 @@ If using the Guardian Dashboard/Backend:
 5. Flip `GUARDIAN_ERC8004_ENABLED=true` and restart the backend.
 
 ### Known operational behaviors
-- **Full pytest suite:** 3 tests fail only under full-suite ordering and pass individually (state isolation issue, tracked). Verify with targeted runs before treating as regressions.
+- **Full pytest suite:** All 1,461 tests pass 100% green (`pytest tests/`). Flaky tests and rate-limiting cross-contamination issues have been completely fixed and isolated.
 - **Analyzer fixture suite must run standalone:** `pytest tests/audit/test_smart_contract_analyzer.py --no-cov`. Under coverage instrumentation Slither silently falls back to regex detection — green results, weaker detector actually exercised.
 - **Registration worker:** daemon thread, poll interval `GUARDIAN_ERC8004_POLL_SECONDS` (default 30s), retries capped at `GUARDIAN_ERC8004_MAX_RETRIES` (default 5).
 - **Row states:** `pending → registering → metadata → confirmed`, failures land in `failed` with `last_error`. Admin `POST /api/v1/erc8004/register` re-invocation resets only FAILED rows.

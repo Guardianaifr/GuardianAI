@@ -108,6 +108,9 @@ def test_f20_purple_hot_reload_end_to_end(tmp_path: Path):
             "show_block_reason": True,
             "admin_token": secrets.token_hex(32),
         },
+        "rate_limiting": {
+            "enabled": False
+        },
         "brain": {
             "enabled": False,  # Disable background thread to prevent race conditions before Step 5
             "auto_heal": True,

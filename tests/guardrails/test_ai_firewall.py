@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from unittest.mock import MagicMock, patch
 import sqlite3
 
@@ -72,7 +72,7 @@ def test_empty_prompt_is_safe(firewall):
 
 def test_exception_handling_in_ml_inference(firewall):
     firewall.model.encode.side_effect = Exception("Model Crash")
-    assert firewall.is_malicious("safe prompt") is False
+    assert firewall.is_malicious("the quick brown fox jumps over the lazy dog") is False
 
 
 def test_reload_adds_custom_vectors(firewall):

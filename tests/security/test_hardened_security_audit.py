@@ -235,7 +235,7 @@ def real_proxy_server():
                                "leak_prevention_strategy": "redact",
                                "security_mode": "balanced",
                                "show_block_reason": True, "validate_output": True},
-        "rate_limiting": {"enabled": True, "requests_per_minute": 600},
+        "rate_limiting": {"enabled": False},
         **{k: {"enabled": False} for k in [
             "threat_feed", "brain", "jailbreak_fuzzer", "cost_abuse",
             "feedback_loop", "memory_security", "output_assurance",

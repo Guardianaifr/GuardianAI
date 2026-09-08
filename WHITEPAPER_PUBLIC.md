@@ -712,7 +712,7 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Python test suites (targeted runs, September 2026) | **176 passing test cases (100% pass rate)** across security, web3 identity, runtime interceptor, and RPC relay suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 60/60 · passport 24/24 |
+| Python test suites (targeted runs, September 2026) | **1,461 passing test cases (100% pass rate)** across security, web3 identity, runtime interceptor, and RPC relay suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 60/60 · passport 24/24 |
 | Smart contract unit tests (Hardhat, September 2026) | **183 passing test cases across 11 contract suites in-repo (100% pass rate, 11s runtime)** |
 | Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, per definitive_benchmark_v4.json)†† | **97.6%** (949/972) |
 | Security-gate block rate — Tier 1+2 (balanced mode)†† | **90.7%** (882/972) |
@@ -739,7 +739,7 @@ All metrics are sourced from actual test runs and are reproducible.
 
 †† Source: `artifacts/evidence/definitive_benchmark_v4.json` (stated run date: 2026-08-08; file last modified: 2026-08-21 — the artifact does not embed an internal run-date field). 3,211 prompts from 8 independent public datasets with zero training contamination. Strict mode = AI Firewall threshold 0.45 (default). Balanced mode = threshold 0.55. HarmBench includes copyright and political-opinion prompts that are out-of-scope for a security firewall; the lower absolute rate on that dataset reflects intentional category coverage, not a security regression. See Section 6.2 for the full benchmark correction note.
 
-\*\* The full Python suite passes cleanly in a dedicated environment. Two specific integration tests (`test_full_saas_e2e_stack` and `test_is003_auth_bypass_probe`) bind to local TCP ports and are sensitive to multi-process port contention; they may exhibit transient failures if multiple test suites run concurrently on the same host, but pass reliably in isolation or sequential runs.
+\*\* The full Python suite (1,461 tests) passes cleanly in a dedicated environment. Two specific integration tests (`test_full_saas_e2e_stack` and `test_is003_auth_bypass_probe`) bind to local TCP ports and are sensitive to multi-process port contention; they may exhibit transient failures if multiple test suites run concurrently on the same host, but pass reliably in isolation or sequential runs.
 
 \*\*\* See Section 6.1 and Phase 7 for notes on prior off-chain and on-chain contract audits.
 

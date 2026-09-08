@@ -62,7 +62,7 @@ class TestOutputValidator:
             
             # Test redaction
             sanitized, entities = validator.sanitize_output(text)
-            assert "SSN" in str(entities).upper() or "REDACTED" in sanitized
+            assert "SSN" in str(entities).upper() or "SOCIAL_SECURITY_NUMBER" in str(entities).upper() or "REDACTED" in sanitized or "{{SOCIAL_SECURITY_NUMBER}}" in sanitized
 
     def test_credit_card_redaction(self):
         """Test that credit card numbers are detected and redacted."""

@@ -45,7 +45,8 @@ _LANGDETECT_AVAILABLE = True
 _TRANSLATOR_AVAILABLE = True
 
 try:
-    from langdetect import detect as _langdetect_detect, LangDetectException
+    from langdetect import detect as _langdetect_detect, DetectorFactory, LangDetectException
+    DetectorFactory.seed = 0
 except ImportError:
     _LANGDETECT_AVAILABLE = False
     logger.warning(
@@ -64,6 +65,21 @@ except ImportError:
     )
 
 ADAPTER_AVAILABLE = _LANGDETECT_AVAILABLE and _TRANSLATOR_AVAILABLE
+
+import re
+
+_COMMON_EN_WORDS = {
+    "the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for",
+    "not", "on", "with", "he", "as", "you", "do", "at", "this", "but", "his",
+    "by", "from", "they", "we", "say", "her", "she", "or", "an", "will", "my",
+    "one", "all", "would", "there", "their", "what", "so", "up", "out", "if",
+    "about", "who", "get", "which", "go", "me", "when", "make", "can", "like",
+    "time", "no", "just", "him", "know", "take", "people", "into", "year", "your",
+    "good", "some", "could", "them", "see", "other", "than", "then", "now", "look",
+    "only", "come", "its", "over", "think", "also", "back", "after", "use", "two",
+    "how", "our", "work", "first", "well", "way", "even", "new", "want", "because",
+    "any", "these", "give", "day", "most", "us", "hello", "hi", "hey", "please", "help"
+}
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +115,13 @@ def translate_to_english(text: str, timeout_s: float = 5.0) -> tuple[str, str]:
             "not installed.  Install both packages to restore multilingual "
             "protection, or handle RuntimeError as a block in the firewall."
         )
+
+    # Fast English heuristic for short texts that confuse statistical n-gram detectors
+    words = re.findall(r"[a-zA-Z]+", text.lower())
+    if words:
+        en_word_count = sum(1 for w in words if w in _COMMON_EN_WORDS)
+        if en_word_count >= 2 and en_word_count / len(words) >= 0.4:
+            return text, "en"
 
     # 1. Language detection (offline, < 5 ms)
     try:

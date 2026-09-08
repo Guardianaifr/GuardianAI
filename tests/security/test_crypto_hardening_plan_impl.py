@@ -34,7 +34,7 @@ contract T {
 
 
 def test_from_onchain_rejects_non_evm_chain():
-    with pytest.raises(ValueError, match="non-EVM"):
+    with pytest.raises(ValueError, match="Unsupported chain: solana"):
         SmartContractAnalyzer.from_onchain(
             contract_address="0x0000000000000000000000000000000000000000",
             chain="solana",

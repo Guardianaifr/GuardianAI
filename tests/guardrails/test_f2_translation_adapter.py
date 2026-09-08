@@ -114,7 +114,7 @@ class TestTranslationAdapterUnit:
                 side_effect=Exception("LangDetect internal error"),
             ):
                 with pytest.raises(RuntimeError, match="translation_failure:lang_detect_error"):
-                    translate_to_english("Some prompt in unknown state")
+                    translate_to_english("Ceci est un test en français")
 
     def test_fail_closed_on_api_error(self):
         """Translation API error → RuntimeError (fail-closed)."""

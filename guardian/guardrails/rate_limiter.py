@@ -510,10 +510,20 @@ class RateLimiter:
             payload = json.dumps({"tokens": tokens, "last_time": last_time})
             self.redis.setex(key, 120, payload)
 
+    def _clear_offline_delta(self, ip: str, delta: int):
+        if delta <= 0:
+            return
+        with self._lock:
+            current = self._local_recovery_deltas.get(ip, 0)
+            if current > delta:
+                self._local_recovery_deltas[ip] = current - delta
+            else:
+                self._local_recovery_deltas.pop(ip, None)
+
     def _is_allowed_redis(self, ip: str) -> bool:
         current_time = self._time_fn()
         with self._lock:
-            offline_delta = self._local_recovery_deltas.pop(ip, 0)
+            offline_delta = self._local_recovery_deltas.get(ip, 0)
         if offline_delta > 0:
             logger.info(
                 f"[RateLimiter] Lazy sync for {ip}: deducted {offline_delta} offline token(s) "
@@ -531,6 +541,7 @@ class RateLimiter:
                     keys=[key],
                     args=[effective_capacity, effective_refill, current_time, offline_delta],
                 )
+                self._clear_offline_delta(ip, offline_delta)
                 allowed = bool(res == 1)
                 if not allowed:
                     logger.warning(f"Rate limit exceeded for IP: {ip} (Bucket empty, redis)")
@@ -549,6 +560,7 @@ class RateLimiter:
                 current_time,
                 offline_delta,
             )
+            self._clear_offline_delta(ip, offline_delta)
             allowed = bool(res == 1)
             if not allowed:
                 logger.warning(f"Rate limit exceeded for IP: {ip} (Bucket empty, redis)")
@@ -566,8 +578,10 @@ class RateLimiter:
 
         if tokens >= 1.0:
             self._write_redis_bucket(ip, tokens - 1.0, current_time)
+            self._clear_offline_delta(ip, offline_delta)
             return True
         self._write_redis_bucket(ip, tokens, current_time)
+        self._clear_offline_delta(ip, offline_delta)
         logger.warning(f"Rate limit exceeded for IP: {ip} (Bucket empty, redis)")
         return False
 

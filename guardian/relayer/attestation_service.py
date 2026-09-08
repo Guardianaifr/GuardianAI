@@ -84,6 +84,7 @@ class AttestationResult:
             "attestation": self.attestation.to_dict() if self.attestation else None,
             "signature": self.signature,
             "policy_guard": self.policy_guard,
+            "verifying_contract": self.policy_guard,
             "wrapped_calldata": self.wrapped_calldata,
         }
 

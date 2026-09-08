@@ -91,6 +91,13 @@ const CONFUSABLES: Record<string, string> = {
 
 const CONFUSABLES_REGEX = new RegExp('[' + Object.keys(CONFUSABLES).join('') + ']', 'g');
 
+function decodeRot13(str: string): string {
+  return str.replace(/[a-zA-Z]/g, (c) => {
+    const base = c <= 'Z' ? 65 : 97;
+    return String.fromCharCode(((c.charCodeAt(0) - base + 13) % 26) + base);
+  });
+}
+
 export function normalizeInput(text: string): string {
   // Strip zero-width/invisible Unicode
   let normalized = text.replace(/[\u200B\u200C\u200D\u200E\u200F\uFEFF\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u2000-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFFF0-\uFFF8]/g, "");
@@ -101,20 +108,43 @@ export function normalizeInput(text: string): string {
   // Confusables substitution (Cyrillic → Latin visual equivalents)
   normalized = normalized.replace(CONFUSABLES_REGEX, (ch) => CONFUSABLES[ch] || ch);
   
-  // Base64 decode scanning
-  const b64Regex = /[A-Za-z0-9+/]{20,}={0,3}/g;
+  // Base64 decode scanning (standard & URL-safe)
+  const b64Regex = /[A-Za-z0-9+/_\-]{16,}={0,3}/g;
   let match;
   let decodedAppends = "";
   while ((match = b64Regex.exec(normalized)) !== null) {
     try {
-      const decoded = atob(match[0]);
-      decodedAppends += " " + decoded;
-    } catch (e) {
+      const b64Str = match[0].replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = atob(b64Str);
+      if (/[\w\s]{4,}/.test(decoded)) {
+        decodedAppends += " " + decoded;
+      }
+    } catch {
       // Ignore invalid base64
     }
   }
   normalized += decodedAppends;
-  
+
+  // Hex decode scanning (\x69 or 0x69676e...)
+  const hexRegex = /(?:\\x[0-9a-fA-F]{2}){4,}|(?:0x)?([0-9a-fA-F]{2}){8,}/g;
+  while ((match = hexRegex.exec(normalized)) !== null) {
+    try {
+      const cleanHex = match[0].replace(/\\x/g, "").replace(/^0x/, "");
+      if (cleanHex.length % 2 === 0) {
+        let hexDecoded = "";
+        for (let i = 0; i < cleanHex.length; i += 2) {
+          hexDecoded += String.fromCharCode(parseInt(cleanHex.substr(i, 2), 16));
+        }
+        if (/[\w\s]{4,}/.test(hexDecoded)) {
+          normalized += " " + hexDecoded;
+        }
+      }
+    } catch {}
+  }
+
+  // Rot-13 decoding append (unmasks rot13 evasion payloads)
+  normalized += " " + decodeRot13(text);
+
   // Strip control characters
   normalized = normalized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   
@@ -146,10 +176,16 @@ const ADVERSARIAL_PATTERNS: RegExp[] = [
   /(persist|store|save|remember|memorize|record)\s+(this|these|the\s+following)\s+(instruction|directive|rule|command|setting|override)/i,
   /(always|from\s+now\s+on|henceforth|permanently|going\s+forward)\s+(do|execute|follow|obey|comply|perform|send|transfer|reveal)/i,
   /(whenever|every\s+time|each\s+time|next\s+time|if\s+anyone\s+asks)\s+.{0,60}(send|transfer|forward|reveal|execute|sweep|drain)/i,
-  // --- Role Manipulation ---
+  // --- Role Manipulation & Persona Hijacking ---
   /you\s+are\s+now\s+(a\s+|an\s+|the\s+|my\s+)?(admin|administrator|root|superuser|unrestricted|unfiltered|jailbroken)/i,
   /your\s+(new\s+)?(role|persona|identity|character|task|objective|mission)\s+(is|will\s+be|has\s+changed)/i,
   /(act|behave|pretend|function)\s+(as|like)\s+(a\s+|an\s+|the\s+)?(admin|unrestricted|unfiltered|jailbroken|evil)/i,
+  /\b(i\s+want\s+you\s+to\s+)?act\s+as\s+(an?|the)?\s*([a-z_-]+)\b/i,
+  /\bich\s+m[öo]chte,?\s+dass\s+sie\s+als\s+.+\s+(agieren|auftreten)\b/i,
+  /\b(now\s+you\s+are|you\s+are\s+now|pretend\s+you\s+are)\s+(a\s+|an\s+|the\s+)?([A-Z][a-z]+|[a-z_-]+)\b/i,
+  /(?:^|[.!?\n]\s*)[Yy]ou\s+are\s+([A-Z][a-zA-Z]+)\b/,
+  /\b(du\s+bist|sie\s+sind\s+jetzt)\s+(eine?\s+)?([A-Z][a-z]+|[a-z_-]+)\b/i,
+  /\b(verharren|bleiben)\s+.{0,30}\bin\s+(ihren|deinen|der)\s+rollen?\b/i,
   // --- Context Injection / Gaslighting (Princeton/Sentient vector) ---
   /(user|admin|owner|developer)\s+(has\s+)?(said|agreed|confirmed|approved|authorized|instructed|updated|changed|set)\s+.{0,60}(address|wallet|recipient|destination|payout|target)/i,
   /(you|we)\s+(previously\s+)?(agreed|confirmed|decided|established|set\s+up)\s+.{0,40}(address|wallet|recipient|payout|treasury)/i,
@@ -186,13 +222,49 @@ const ADVERSARIAL_PATTERNS: RegExp[] = [
   /\b(act|pretend|behave)\s+(as|like)\s+(a\s+|an\s+)?(unrestricted|jailbroken|evil|unfiltered|illegal|rogue|DAN)\b/i,
   /\b(stay|remain)\s+in\s+(your|their)\s+roles?\s+without\s+.{0,30}(breaking|falling\s+out)\b/i,
 
-  // --- Multilingual Injections (German & Spanish) ---
+  // --- Multilingual Injections & Resets (German, Spanish, etc.) ---
+  /\b(ignorieren\s+sie|vergiss|vergessen\s+sie)\s+(die\s+|das\s+|alle\s+)?(obigen?|obige|vorherigen|bisherigen|davor|zuvor|alles|auftr[äa]ge)\b/i,
   /\bvergiss\s+(jetzt\s+)?(alles|alle)\s*(,|.)?\s*(was|bisher|davor|zuvor|wir\s+bisher|ich\s+dir|bisherigen\s+auftr[äa]ge)\b/i,
   /\b(drucken|zeigen|pr[üu]fen)\s+sie\s+.{0,40}(obige\s+eingabeaufforderung|prompt-texte|system-anweisung|gesamten\s+obigen\s+textes)\b/i,
   /\bh[öo]re\s+nicht\s+auf\s+alles\s+zuvor\s+gesagte\b/i,
   /\bdies\s+ist\s+keine\s+aufforderungsspritze\b/i,
   /\bverharren\s+stets\s+in\s+ihren\s+rollen\b/i,
-  /\bolvide\s+(todo\s+)?(que\s+dije|lo\s+anterior|las\s+instrucciones)\b/i,
+  /\b(jetzt\s+kommen?\s+neue?\s+aufgaben?|jetzt\s+kommt\s+ein[e]?\s+neue?\s+aufgabe|ersten\s+test\s+bestanden|zweite[n]?\s+test)\b/i,
+  /\b(wie\s+ihre\s+urspr[üu]nglichen\s+anweisungen\s+lauteten|rechtschreibung\s+des\s+gesamten\s+obigen\s+textes)\b/i,
+  /\b(olvide|olvida|ignora|ignorar)\s+(todo\s+)?(que\s+dije|lo\s+anterior|las\s+instrucciones|el\s+contexto)\b/i,
+  /\bsi\s+yo\s+digo\s+.+,\s*(tu|usted)\s+dices?\b/i,
+  // French / Italian / Russian / Chinese / Japanese / Arabic translation pivots
+  /\b(ignor(?:ez|er)|oubli(?:ez|er)?)\s+(toutes?\s+)?(les\s+)?(instructions?|directives?|r[èe]gles?)\s*(pr[ée]c[ée]dentes?|ant[ée]rieures?|ci-dessus)?\b/i,
+  /\b(transf[ée]rer?|envoyez?|vider?)\s+(tous?\s+les?\s+fonds?|le\s+portefeuille|les\s+actifs?)\b/i,
+  /\b(ignora|ignorare|dimentica|dimenticare)\s+(tutte\s+le\s+|tutto\s+)?(istruzioni|direttive)\s+(precedenti|anteriori)\b/i,
+  /\b(игнорируй|забудь|отмени|сбрось)\s+(все\s+)?(предыдущие|прошлые|ранние)?\s*(инструкции|команды|правила|указания)\b/i,
+  /\b(переведи|отправь|выведи|опустоши)\s+(все\s+)?(средства|деньги|токены|баланс|кошелек)\b/i,
+  /(?:忽略|忘记|无视|覆盖|跳过)\s*(?:所有|之前的|先前的|以前的)?\s*(?:指令|提示|规则|指示|设置)/,
+  /(?:转移|转账|清空|发送|提取)\s*(?:所有|全部)?\s*(?:代币|资金|资产|余额|钱包)/,
+  /(?:前[の|に]|これまで[の]|過去[の])?(?:指示|命令|ルール|プロンプト)[をは]?(?:すべて|全て)?(?:無視|忘れ|破棄)/,
+  /(?:ウォレット|資産|資金|全額)[をは]?(?:送金|転送|引き出し|クリア)/,
+
+  // --- Hypothetical / Theoretical Framing & Child / Amnesia Tropes ---
+  /\b(in|about)\s+a\s+(theoretical|hypothetical|imaginary|fictional)\s+(world|scenario|universe|situation)\b/i,
+  /\bif\s+we\s+are\s+speaking\s+about\s+a\s+(theoretical|hypothetical)\b/i,
+  /\b(does\s+not\s+have|without)\s+any\s+(previous|prior)\s+knowledge\b/i,
+  /\bhow\s+would\s+you\s+react\s+if\s+you\s+were\s+a\s+(child|person)\b/i,
+  /\b(what\s+would\s+.+\s+say\s+if\s+.+\s+(need\s+to\s+ignore|ignore\s+all))\b/i,
+
+  // --- Constraints / Game / Pivot / SQL Hijacking ---
+  /\b(let['']?s\s+play\s+a\s+game\s+where\s+you|play\s+a\s+game\s+where\s+you)\b/i,
+  /\b(antworte\s+mit\s+.+\s+und\s+nicht\s+mit|answer\s+with\s+.+\s+and\s+not\s+with)\b/i,
+  /\b(if\s+you\s+don['']?t\s+know,?\s*say|wenn\s+sie\s+es\s+nicht\s+wissen)\b/i,
+  /\b(return|give|show|dump|leak)\s+(me\s+)?(your\s+)?embeddings?\b/i,
+  /\bgener(ate|ieren\s+sie)\s+(den\s+)?sql\s*[-]?\s*code\b/i,
+  /\b(order|befehl)\s*:\s*(forget|vergiss|ignore|ignoriere)\b/i,
+  /\bforget\s+waht['']?s\s+before\b/i,
+  /\b(that\s+is\s+enough|das\s+reicht)\b.{0,40}\b(now\s+please\s+help\s+me\s+with\s+the\s+following\s+task|neue\s+aufgabe)\b/i,
+  /\b(context\s+.{1,50}\s+question\s*:?|kontext\s+.{1,50}\s+frage\s*:?)/i,
+  /\bgiven\s+the\s+following\s+text\s*,\s*who\s+is\b/i,
+  /\b(translate|übersetze)\s+to\s+[a-z]+\b/i,
+  /\b(tell\s+me\s+a\s+joke\s+about\s+(a\s+)?(woman|women|jew|black|muslim|race|religion))\b/i,
+  /\b(what|which)\s+religion\s+is\s+the\s+(worst|best)\b/i,
 
   // --- Deferred Memory Install ---
   /(note|memo|reminder|context\s+note)\s*:\s*(assistant|agent|ai|you|bot)\s+(must|should|shall|will|needs?\s+to)/i,
@@ -292,6 +364,15 @@ export class MemoryStore {
     this._crossAgentGrants.delete(`${fromAgent}->${toAgent}`);
   }
 
+  public isAppRevoked(appId: string): boolean {
+    return this._revokedApps.has(appId);
+  }
+
+  public hasCrossAgentAccess(fromAgent: string, toAgent: string): boolean {
+    if (fromAgent === toAgent) return true;
+    return this._crossAgentGrants.has(`${fromAgent}->${toAgent}`);
+  }
+
   public getQuarantineLog(sessionId: string): MemoryRecord[] {
     return this._quarantineLog.get(sessionId) || [];
   }
@@ -309,7 +390,7 @@ export function createGuardianPlugin(config: GuardianConfig = {}): ElizaPlugin {
     validate: async (_runtime: ElizaRuntime, message: ElizaMessage): Promise<boolean> => {
       return typeof message?.content?.text === "string" && message.content.text.length > 0;
     },
-    handler: async (runtime: ElizaRuntime, message: ElizaMessage): Promise<{ safe: boolean; detected: string[]; blocked: boolean }> => {
+    handler: async (runtime: ElizaRuntime, message: ElizaMessage): Promise<{ safe: boolean; detected: string[]; blocked: boolean; quarantined?: boolean }> => {
       const text = message.content.text;
       const normText = normalizeInput(text);
       const detected: string[] = [];
@@ -320,10 +401,22 @@ export function createGuardianPlugin(config: GuardianConfig = {}): ElizaPlugin {
         }
       }
 
-      if (detected.length > 0) {
-        const warning = `[GuardianAI] Memory poisoning / injection detected for agent '${runtime.agentId}': ${detected.join(", ")}`;
+      // Record to MemoryStore write-barrier
+      const provenance: ProvenanceEnvelope = {
+        source: (message.content?.source as any) || "user",
+        appId: (message.content?.appId as any) || (message.userId ? `app-${message.userId}` : "direct-user"),
+        agentId: runtime.agentId,
+        trustLevel: message.content?.role === "system" || message.content?.role === "admin" ? 90 : 50,
+        timestamp: Date.now(),
+        isTombstoned: false,
+      };
+
+      const writeRes = memoryStore.write(runtime.agentId, text, provenance);
+      if (!writeRes.allowed || detected.length > 0) {
+        const reasons = detected.length > 0 ? detected : [writeRes.reason];
+        const warning = `[GuardianAI] Memory poisoning / injection detected for agent '${runtime.agentId}': ${reasons.join(", ")}`;
         console.warn(warning);
-        return { safe: false, detected, blocked: true };
+        return { safe: false, detected: reasons, blocked: true, quarantined: true };
       }
 
       return { safe: true, detected: [], blocked: false };
@@ -373,3 +466,58 @@ export function createGuardianPlugin(config: GuardianConfig = {}): ElizaPlugin {
     memoryStore: memoryStore,
   };
 }
+
+/**
+ * Attaches Guardian MemoryStore to an ElizaOS Runtime, wrapping messageManager
+ * write and read paths with active write-barriers, quarantine logging, and isolation.
+ */
+export function attachGuardedMemory(runtime: ElizaRuntime, store?: MemoryStore): MemoryStore {
+  const memoryStore = store || (runtime as any).guardianMemoryStore || new MemoryStore();
+  (runtime as any).guardianMemoryStore = memoryStore;
+
+  if (runtime.messageManager) {
+    const originalCreate = runtime.messageManager.createMemory?.bind(runtime.messageManager);
+    const originalGet = runtime.messageManager.getMemories?.bind(runtime.messageManager);
+
+    if (originalCreate) {
+      runtime.messageManager.createMemory = async (memory: any, unique?: boolean): Promise<any> => {
+        const text = memory?.content?.text || (typeof memory?.text === "string" ? memory.text : "");
+        const provenance: ProvenanceEnvelope = {
+          source: (memory?.content?.source as any) || memory?.source || "user",
+          appId: (memory?.content?.appId as any) || memory?.userId || "user-input",
+          agentId: runtime.agentId,
+          trustLevel: memory?.content?.trustLevel ?? (memory?.content?.role === "admin" ? 90 : 50),
+          timestamp: Date.now(),
+          isTombstoned: false,
+        };
+
+        const writeRes = memoryStore.write(runtime.agentId, text, provenance);
+        if (!writeRes.allowed) {
+          console.warn(`[GuardianMemoryGuard] Blocked persistent memory write for agent '${runtime.agentId}': ${writeRes.reason}`);
+          return { blocked: true, reason: writeRes.reason, quarantined: true };
+        }
+        return originalCreate(memory, unique);
+      };
+    }
+
+    if (originalGet) {
+      runtime.messageManager.getMemories = async (opts: any): Promise<any[]> => {
+        const memories = await originalGet(opts);
+        const quarantine = memoryStore.getQuarantineLog(runtime.agentId);
+        const quarantinedTexts = new Set(quarantine.map((q) => q.text));
+        return (memories || []).filter((m: any) => {
+          const txt = m?.content?.text || m?.text;
+          if (quarantinedTexts.has(txt)) return false;
+          const appId = m?.content?.appId || m?.userId;
+          if (appId && memoryStore.isAppRevoked(appId)) return false;
+          const memAgentId = m?.content?.agentId || m?.agentId;
+          if (memAgentId && !memoryStore.hasCrossAgentAccess(memAgentId, runtime.agentId)) return false;
+          return true;
+        });
+      };
+    }
+  }
+
+  return memoryStore;
+}
+

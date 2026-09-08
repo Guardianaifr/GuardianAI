@@ -87,7 +87,7 @@ def test_bypass(tmp_path: Path):
     config_path = tmp_path / "multipart_test_config.yaml"
     config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
 
-    python_exe = str(ROOT / ".venv312" / "Scripts" / "python.exe")
+    python_exe = sys.executable
     guardian_cmd = [python_exe, str(ROOT / "guardian" / "main.py")]
     
     guardian_env = os.environ.copy()

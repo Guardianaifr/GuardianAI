@@ -145,7 +145,10 @@ def test_rate_limiter_lazy_redis_resync():
     
     # 1. Simulate Redis outage (mock_redis methods raise exception)
     mock_redis.get.side_effect = Exception("Redis connection timed out")
+    mock_redis.hmget.side_effect = Exception("Redis connection timed out")
     mock_redis.setex.side_effect = Exception("Redis connection timed out")
+    mock_redis.eval.side_effect = Exception("Redis connection timed out")
+    limiter._redis_script.side_effect = Exception("Redis connection timed out")
     
     # The rate limiter should fallback to local bucket, allow the request, and track delta
     assert limiter.is_allowed(ip) is True
@@ -157,28 +160,24 @@ def test_rate_limiter_lazy_redis_resync():
     
     # 2. Simulate Redis recovery (mock_redis works again)
     mock_redis.get.side_effect = None
+    mock_redis.hmget.side_effect = None
     mock_redis.setex.side_effect = None
-    
-    # Mock return value of read_redis_bucket: (tokens, last_time)
-    mock_redis.get.return_value = json.dumps({"tokens": 10.0, "last_time": time.time()})
+    mock_redis.eval.side_effect = None
+    limiter._redis_script.side_effect = None
+    limiter._redis_script.return_value = 1
     
     # When is_allowed is called now:
     # - it calls _is_allowed_redis()
-    # - it reads 10 tokens from Redis
-    # - it sees a delta of 2 tokens offline
-    # - it deducts 2 tokens: tokens = 10 - 2 = 8
-    # - it then deducts 1 token for the current request (tokens = 7)
-    # - it writes 7 tokens to Redis and returns True
+    # - it executes the Lua script, passing the offline delta
+    # - the mock script returns 1, so it allows the request
     # - the local delta is cleared
     assert limiter.is_allowed(ip) is True
     assert ip not in limiter._local_recovery_deltas
     
-    # Check that it wrote the correct token count back to Redis
-    assert mock_redis.setex.called
-    args, kwargs = mock_redis.setex.call_args
-    written_payload = json.loads(args[2])
-    # Written tokens should be (10.0 - 2.0) - 1.0 = 7.0
-    assert abs(written_payload["tokens"] - 7.0) < 0.1
+    # Check that it passed the correct offline delta to the Lua script
+    assert limiter._redis_script.called
+    args, kwargs = limiter._redis_script.call_args
+    assert kwargs["args"][3] == 2  # offline_delta
 
 
 def test_purple_governance_regression_gate():

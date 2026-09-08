@@ -5,8 +5,12 @@ from web3 import Web3
 from dotenv import load_dotenv
 from guardian.web3sec.simulation import SimulationEngine, SimulationResult
 
-def test_tenderly_simulation_live():
-    load_dotenv()
+def test_tenderly_simulation_live(monkeypatch):
+    from dotenv import dotenv_values
+    env = dotenv_values()
+    if env.get("TENDERLY_ACCESS_KEY"):
+        monkeypatch.setenv("TENDERLY_ACCESS_KEY", env["TENDERLY_ACCESS_KEY"])
+        
     access_key = os.getenv("TENDERLY_ACCESS_KEY")
     if not access_key:
         pytest.skip("TENDERLY_ACCESS_KEY not configured in environment")

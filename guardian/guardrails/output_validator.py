@@ -76,6 +76,8 @@ class OutputValidator:
         if SCRUBADUB_AVAILABLE:
             try:
                 self.scrubber = scrubadub.Scrubber()
+                if hasattr(self.scrubber, "remove_detector"):
+                    self.scrubber.remove_detector("url")
                 logger.info("Scrubadub PII Engine initialized.")
             except Exception as e:
                 logger.error(f"Failed to initialize Scrubadub: {e}")
@@ -200,9 +202,11 @@ class OutputValidator:
         if hasattr(self, 'scrubber') and self.scrubber:
             filths = list(self.scrubber.iter_filth(content))
             
-            # PII FALSE POSITIVE FIX: Filter out Unix Timestamps
+            # PII FALSE POSITIVE FIX: Filter out Unix Timestamps and generic URLs
             filtered_filths = []
             for filth in filths:
+                if filth.type == 'url':
+                    continue
                 if filth.type == 'phone' and filth.text.isdigit() and len(filth.text) in [10, 13]:
                     logger.debug(f"DEBUG PII: Ignoring timestamp '{filth.text}'")
                     continue
@@ -230,6 +234,8 @@ class OutputValidator:
             
             filtered_filths = []
             for filth in filths:
+                if filth.type == 'url':
+                    continue
                 if filth.type == 'phone' and filth.text.isdigit() and len(filth.text) in [10, 13]:
                     logger.debug(f"DEBUG PII: Ignoring timestamp '{filth.text}'")
                     continue

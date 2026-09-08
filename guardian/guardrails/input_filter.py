@@ -137,6 +137,10 @@ class InputFilter:
             r"(?:revoke|disable|cancel|bypass|remove)\s+(?:all\s+)?(?:spend|spending|outflow|transaction)\s+(?:limits|caps|restrictions|allowance)",
             # Agent Long-Term Memory Poisoning
             r"(?:store|save|inject|plant|keep)\s+(?:in|into)\s+(?:long-term\s+|agent\s+|context\s+)?(?:memory|cortex|state)[^.\n]{0,80}?(?:recipient|transfer|drain|send|tx|transaction)",
+            # Princeton / Sentient Context Injection & Gaslighting
+            r"(?:designated|official|default|primary|new)\s+(?:treasury|payout|withdrawal|receiving)\s+(?:wallet|address)",
+            r"(?:you|we)\s+(?:previously\s+)?(?:agreed|confirmed|decided|established|set\s+up)\s+[^.\n]{0,40}?(?:address|wallet|recipient|payout|treasury)",
+            r"(?:earlier|previously|before|in\s+discord|in\s+chat|last\s+time)\s+[^.\n]{0,60}?(?:agreed|confirmed|said|told|instructed)\s+[^.\n]{0,40}?(?:address|wallet|send|transfer|forward)",
             # Unicode Bi-directional Override Attack (Trojan Source CVE-2021-42574)
             r"[\u202a-\u202e\u2066-\u2069]",
             # ChatML, Llama, and Prompt Injection Delimiters (PayloadsAllTheThings)

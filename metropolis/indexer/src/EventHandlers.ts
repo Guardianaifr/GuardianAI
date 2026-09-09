@@ -79,6 +79,17 @@ export interface MockDbStore {
   globalStats?: GlobalSecurityStatsEntity;
 }
 
+
+export function cleanString(val: any, maxLength: number = 1024): string {
+  if (typeof val !== 'string') return '';
+  return val.replace(/\0/g, '').slice(0, maxLength);
+}
+
+export function cleanEntityId(val: any): string {
+  if (typeof val !== 'string') return '';
+  return val.replace(/\0/g, '').slice(0, 255);
+}
+
 export function createInMemoryDb(): MockDbStore {
   return {
     agentActions: new Map(),
@@ -118,33 +129,39 @@ export function mapTier(tierNumber: number): string {
 // ── Event Processing Core Handlers ───────────────────────────────────────────
 
 export function handleActionExecutedWithAttestation(event: any, db: MockDbStore) {
-  const entityId = `${event.transaction.hash}-${event.logIndex}`;
+  const entityId = cleanEntityId(`${event.transaction.hash}-${event.logIndex}`);
   const action: AgentActionEntity = {
     id: entityId,
-    agentId: event.params.agentId,
-    target: event.params.target,
+    agentId: cleanString(event.params.agentId, 255),
+    target: cleanString(event.params.target, 255),
     riskScore: Number(event.params.riskScore),
     nonce: BigInt(event.params.nonce),
     timestamp: BigInt(event.block.timestamp),
     txHash: event.transaction.hash,
   };
+  const isNew = !db.agentActions.has(entityId);
   db.agentActions.set(entityId, action);
 
   if (db.globalStats) {
-    db.globalStats.totalActionsExecuted += 1n;
+    if (isNew) db.globalStats.totalActionsExecuted += 1n;
     db.globalStats.lastUpdated = BigInt(event.block.timestamp);
   }
   return action;
 }
 
 export function handleAddressAdded(event: any, db: MockDbStore) {
-  const target = event.params.malicious;
+  const target = cleanString(event.params.malicious, 255);
   const entityId = target.toLowerCase();
+  const reason = cleanString(event.params.reason, 1024);
+  const existing = db.threatRecords.get(entityId);
+  const wasActive = existing?.active ?? false;
+  const isNew = !existing;
+
   const threat: ThreatRecordEntity = {
     id: entityId,
     target: target,
     isStringAddress: false,
-    reason: event.params.reason,
+    reason: reason,
     active: true,
     addedBy: event.transaction.from,
     addedAt: BigInt(event.block.timestamp),
@@ -152,22 +169,25 @@ export function handleAddressAdded(event: any, db: MockDbStore) {
   db.threatRecords.set(entityId, threat);
 
   if (db.globalStats) {
-    db.globalStats.totalThreatsRegistered += 1n;
-    db.globalStats.activeThreatCount += 1n;
+    if (isNew) db.globalStats.totalThreatsRegistered += 1n;
+    if (!wasActive) db.globalStats.activeThreatCount += 1n;
     db.globalStats.lastUpdated = BigInt(event.block.timestamp);
   }
   return threat;
 }
 
 export function handleAddressRemoved(event: any, db: MockDbStore) {
-  const entityId = event.params.malicious.toLowerCase();
+  const target = cleanString(event.params.malicious, 255);
+  const entityId = target.toLowerCase();
   const existing = db.threatRecords.get(entityId);
-  if (existing) {
+  let wasActive = false;
+  if (existing && existing.active) {
     existing.active = false;
     existing.removedAt = BigInt(event.block.timestamp);
+    wasActive = true;
   }
 
-  if (db.globalStats && db.globalStats.activeThreatCount > 0n) {
+  if (db.globalStats && wasActive && db.globalStats.activeThreatCount > 0n) {
     db.globalStats.activeThreatCount -= 1n;
     db.globalStats.lastUpdated = BigInt(event.block.timestamp);
   }
@@ -175,13 +195,18 @@ export function handleAddressRemoved(event: any, db: MockDbStore) {
 }
 
 export function handleStringAddressAdded(event: any, db: MockDbStore) {
-  const target = event.params.malicious;
-  const entityId = target;
+  const target = cleanString(event.params.malicious, 1024);
+  const entityId = cleanEntityId(target);
+  const reason = cleanString(event.params.reason, 1024);
+  const existing = db.threatRecords.get(entityId);
+  const wasActive = existing?.active ?? false;
+  const isNew = !existing;
+
   const threat: ThreatRecordEntity = {
     id: entityId,
     target: target,
     isStringAddress: true,
-    reason: event.params.reason,
+    reason: reason,
     active: true,
     addedBy: event.transaction.from,
     addedAt: BigInt(event.block.timestamp),
@@ -189,22 +214,24 @@ export function handleStringAddressAdded(event: any, db: MockDbStore) {
   db.threatRecords.set(entityId, threat);
 
   if (db.globalStats) {
-    db.globalStats.totalThreatsRegistered += 1n;
-    db.globalStats.activeThreatCount += 1n;
+    if (isNew) db.globalStats.totalThreatsRegistered += 1n;
+    if (!wasActive) db.globalStats.activeThreatCount += 1n;
     db.globalStats.lastUpdated = BigInt(event.block.timestamp);
   }
   return threat;
 }
 
 export function handleStringAddressRemoved(event: any, db: MockDbStore) {
-  const entityId = event.params.malicious;
+  const entityId = cleanEntityId(cleanString(event.params.malicious, 1024));
   const existing = db.threatRecords.get(entityId);
-  if (existing) {
+  let wasActive = false;
+  if (existing && existing.active) {
     existing.active = false;
     existing.removedAt = BigInt(event.block.timestamp);
+    wasActive = true;
   }
 
-  if (db.globalStats && db.globalStats.activeThreatCount > 0n) {
+  if (db.globalStats && wasActive && db.globalStats.activeThreatCount > 0n) {
     db.globalStats.activeThreatCount -= 1n;
     db.globalStats.lastUpdated = BigInt(event.block.timestamp);
   }
@@ -212,14 +239,14 @@ export function handleStringAddressRemoved(event: any, db: MockDbStore) {
 }
 
 export function handleScoreUpdated(event: any, db: MockDbStore) {
-  const entityId = event.params.tokenId.toString();
+  const entityId = cleanEntityId(event.params.tokenId.toString());
   const tierNum = Number(event.params.newTier);
   const isNew = !db.passportRecords.has(entityId);
 
   const passport: PassportRecordEntity = {
     id: entityId,
     tokenId: BigInt(event.params.tokenId),
-    agentHash: event.params.agentHash,
+    agentHash: cleanString(event.params.agentHash, 255),
     score: BigInt(event.params.newScore),
     tier: mapTier(tierNum),
     tierNumber: tierNum,
@@ -238,7 +265,7 @@ export function handleScoreUpdated(event: any, db: MockDbStore) {
 }
 
 export function handlePassportRevoked(event: any, db: MockDbStore) {
-  const entityId = event.params.tokenId.toString();
+  const entityId = cleanEntityId(event.params.tokenId.toString());
   const existing = db.passportRecords.get(entityId);
   if (existing) {
     existing.isRevoked = true;
@@ -248,11 +275,12 @@ export function handlePassportRevoked(event: any, db: MockDbStore) {
 }
 
 export function handleRootCommitted(event: any, db: MockDbStore) {
-  const entityId = `${event.transaction.hash}-${event.logIndex}`;
+  const entityId = cleanEntityId(`${event.transaction.hash}-${event.logIndex}`);
+  const isNew = !db.cortexCommitments.has(entityId);
   const commitment: CortexCommitmentEntity = {
     id: entityId,
-    merkleRoot: event.params.merkleRoot,
-    agentHash: event.params.agentHash,
+    merkleRoot: cleanString(event.params.merkleRoot, 255),
+    agentHash: cleanString(event.params.agentHash, 255),
     eventCount: BigInt(event.params.eventCount),
     periodStart: BigInt(event.params.periodStart),
     periodEnd: BigInt(event.params.periodEnd),
@@ -263,21 +291,21 @@ export function handleRootCommitted(event: any, db: MockDbStore) {
   db.cortexCommitments.set(entityId, commitment);
 
   if (db.globalStats) {
-    db.globalStats.totalCortexRootsAnchored += 1n;
+    if (isNew) db.globalStats.totalCortexRootsAnchored += 1n;
     db.globalStats.lastUpdated = BigInt(event.block.timestamp);
   }
   return commitment;
 }
 
 export function handleRiskAttested(event: any, db: MockDbStore) {
-  const entityId = `${event.params.contractAddress.toLowerCase()}-${event.params.chain}`;
+  const entityId = cleanEntityId(`${event.params.contractAddress.toLowerCase()}-${event.params.chain}`);
   const risk: ContractRiskRecordEntity = {
     id: entityId,
-    contractAddress: event.params.contractAddress,
-    chain: event.params.chain,
+    contractAddress: cleanString(event.params.contractAddress, 255),
+    chain: cleanString(event.params.chain, 255),
     score: Number(event.params.score),
-    grade: event.params.grade,
-    signalsHash: event.params.signalsHash,
+    grade: cleanString(event.params.grade, 255),
+    signalsHash: cleanString(event.params.signalsHash, 1024),
     updatedAt: BigInt(event.block.timestamp),
   };
   db.contractRiskRecords.set(entityId, risk);

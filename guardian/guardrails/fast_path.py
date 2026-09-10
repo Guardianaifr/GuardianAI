@@ -39,7 +39,7 @@ HARM_TOPIC_KEYWORDS = {
             "cannibalis", "torture", "graphic detail",
             "eat laundry detergent", "anorexia", "bulimia",
             "manipulate someone into committing suicide",
-            "ethnic genocide", "torture ring", "animal",
+            "ethnic genocide", "torture ring", "animal abuse", "animal cruelty",
             "predatory stalking", "how to kill",
             "synthesize.*poison", "weaponize",
         ]

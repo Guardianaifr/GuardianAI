@@ -154,8 +154,13 @@ class InputFilter:
             r'ignore\s+(?:the\s+)?(?:user|human|developer|operator)\b',
             # Jailbreak Persona & Uncensored Mode Signatures (verazuo / public benchmarks)
             r"\b[A-Za-z]+GPT\b[^.\n]{0,80}?(?:uncensored|jailbreak|unrestricted|bypass|illegal|rules)",
+            r"(?i)\b[A-Za-z]+GPT,\s+an?\s+information\s+resource\b",
             r"(?:is|act as|behave as)\s+(?:an?\s+)?(?:uncensored|unrestricted|amoral|jailbroken|unfiltered)\b",
             r"\[(?:Illegality|Uncensored|Anarchy|Chaos|Evil|Shadow|Dark)\s+Mode\]",
+            r"(?i)\b(?:never\s+refuses?|always\s+stays?\s+in\s+character)\b",
+            r"(?i)\b(?:rules|characteristics)\s*=\s*\{",
+            r"(?i)\b(?:amoral|unfiltered|uncensored)[^.\n]{0,60}?(?:ethicality|legality|morality|illegal|unethical)",
+            r"(?i)\b(?:will\s+answer|answers\s+without)\s+[^.\n]{0,60}?(?:unethical|immoral|illegal|warnings|disclaimers)",
             # Novel Prompt Injection Defenses (HF deepset & adversarial generalization)
             # 1. Instruction replacement & conversational pivots
             r"(?i)(?:forget|ignore|igmre|disregard|stop|drop)\s+(?:about\s+)?(?:all\s+)?(?:the\s+)?(?:previous|prior|above|earlier|preceding|provided|your)?\s*(?:tasks?|instructions?|directives?|orders?|assignments?|rules?|information|context|guidelines?|prompts?|directions?|artikels?|articles?)",

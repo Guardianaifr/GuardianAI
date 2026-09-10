@@ -78,7 +78,8 @@ _COMMON_EN_WORDS = {
     "good", "some", "could", "them", "see", "other", "than", "then", "now", "look",
     "only", "come", "its", "over", "think", "also", "back", "after", "use", "two",
     "how", "our", "work", "first", "well", "way", "even", "new", "want", "because",
-    "any", "these", "give", "day", "most", "us", "hello", "hi", "hey", "please", "help"
+    "any", "these", "give", "day", "most", "us", "hello", "hi", "hey", "please", "help",
+    "is", "are", "was", "were", "does", "did", "has", "had", "still", "live", "where", "why"
 }
 
 

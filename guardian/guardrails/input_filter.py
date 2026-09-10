@@ -51,12 +51,15 @@ import binascii
 import urllib.parse
 try:
     from guardrails.encoding_detector import EncodingDetector
+    from guardrails.web3_domain_intel import Web3DomainIntel
 except ImportError:
     from guardian.guardrails.encoding_detector import EncodingDetector
+    from guardian.guardrails.web3_domain_intel import Web3DomainIntel
 
 class InputFilter:
     def __init__(self):
         self.encoding_detector = EncodingDetector()
+        self.domain_intel = Web3DomainIntel()
         self.entropy_threshold = 5.5  # Threshold to catch random Base64/Gibberish
         self.max_prompt_length = int(os.getenv("GUARDIAN_MAX_PROMPT_LENGTH", "8000"))
         # Basic regex patterns for known jailbreak/injection attempts
@@ -153,6 +156,66 @@ class InputFilter:
             r"\b[A-Za-z]+GPT\b[^.\n]{0,80}?(?:uncensored|jailbreak|unrestricted|bypass|illegal|rules)",
             r"(?:is|act as|behave as)\s+(?:an?\s+)?(?:uncensored|unrestricted|amoral|jailbroken|unfiltered)\b",
             r"\[(?:Illegality|Uncensored|Anarchy|Chaos|Evil|Shadow|Dark)\s+Mode\]",
+            # Novel Prompt Injection Defenses (HF deepset & adversarial generalization)
+            # 1. Instruction replacement & conversational pivots
+            r"(?i)(?:forget|ignore|igmre|disregard|stop|drop)\s+(?:about\s+)?(?:all\s+)?(?:the\s+)?(?:previous|prior|above|earlier|preceding|provided|your)?\s*(?:tasks?|instructions?|directives?|orders?|assignments?|rules?|information|context|guidelines?|prompts?|directions?|artikels?|articles?)",
+            r"(?i)(?:now|then)\s+(?:focus\s+on|comes?|switch\s+to|start)\s+(?:your\s+|a\s+)?new\s+(?:task|instruction|challenge|objective|mission|command|test)",
+            r"(?i)\b(?:new|next)\s+(?:tasks?\s+follow|task\s+is|instruction\s+is)\b",
+            r"(?i)(?:that|it)\s+was\s+(?:ok|good|fine|well\s+done)\s+before.*(?:new|now)",
+            r"(?i)(?:passed|finished|bestanden)\s+(?:the\s+|den\s+)?(?:first|ersten)\s+test.*(?:second|zweite)\s+test",
+            r"(?i)attention\s*-\s*stop\b",
+            r"(?i)\b(?:now\s+)?start\s+over\s+with\s+(?:a\s+)?new\s+task\b",
+            r"(?i)(?:answer|reply|respond\s+to)\s+(?:the\s+following|this)\s+(?:question|task|prompt)\s+(?:instead|only|in\s+the\s+style)",
+            r"(?i)(?:very\s+well\s+done|that\s+is\s+enough)\.?\s*now\s+please",
+            r"(?i)\b(?:forget|vergiss)\s+(?:waht|what|\'s|was)\s*(?:before|zuvor|bisher)",
+            r"(?i)(?:ignore|igmre)\s+what\s+i\s+said\s+before",
+            r"(?i)ignore\s+(?:all\s+)?provided\s+context",
+            r"(?i)ignore\s+your\s+directions",
+            r"(?i)order\s*:\s*forget",
+
+            # 2. System prompt, instructions & embeddings extraction
+            r"(?i)\b(?:show|tell|print|display|reveal|output|echo|return)\s+(?:me\s+)?(?:all\s+)?(?:your\s+|the\s+)?(?:full\s+|complete\s+)?(?:prompt\s+texts?|prompt\s+instructions?|system\s+prompts?|initial\s+instructions?|original\s+instructions?|underlying\s+prompt|embeddings?)\b",
+            r"(?i)\b(?:tell|show)\s+me\s+what\s+your\s+(?:initial|original|system)\s+instructions\s+(?:were|are)\b",
+            r"(?i)\b(?:copy\s+of\s+the\s+full\s+prompt\s+text)\b",
+            r"(?i)\b(?:spell-?\s*check|check\s+the\s+spelling)\s+(?:and\s+|all\s+of\s+)?(?:print|output)\s+(?:the\s+)?(?:above\s+prompt|text\s+above)\b",
+            r"(?i)\b(?:print|output)\s+(?:a\s+|an\s+)?improved\s+version\s+of\s+(?:it|the\s+text\s+above)\b",
+            r"(?i)\b(?:what\s+were\s+your\s+(?:original|initial|system)\s+instructions)\b",
+
+            # 3. Delimiters & Meta Injection Markers
+            r"(?i)={4,}\s*END",
+            r"(?i)\bthis\s+is\s+not\s+a\s+prompt\s+injection\b",
+            r"(?i)\b(?:you\s+are\s+supposed\s+to|must)\s+answer\s+at\s+all\s+times\b",
+            r"(?i)\b(?:have|has)\s+amnesia\s+and\s+forgot\b",
+            r"(?i)\b(?:stay|remain)\s+in\s+(?:your|their)\s+roles?\s+without\s+(?:even\s+)?(?:breaking|falling)\b",
+            r"(?i)as\s+a\s+language\s+model\s+free\b",
+            r"(?i)theoretical\s+world\s+where\s+you\s+are\s+(?:no|not)\b",
+            r"(?i)let\'s\s+play\s+a\s+game\s+where\s+you\s+answer\s+(?:every|all)\b",
+            r"(?i)respond\s+to\s+all\s+questions\s+with\s*:\s*[\"']",
+            r"(?i)si\s+yo\s+digo\s+\w+,\s*tu\s+dices\b",
+            r"(?i)if\s+you\s+don[\'’]t\s+know,\s*say\s*[\"']",
+            r"(?i)(?:as|like)\s+a\s+child\s+(?:who\s+)?does\s+not\s+have\s+any\s+previous\s+knowledge",
+            r"(?i)\bcontext\s+.{1,50}\s+question\s+[A-Z]",
+
+            # 4. Role hijacking & Persona forcing
+            r"(?i)(?:now|then)\s+you\s+are\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*,\s*how\s+do\s+you\s+answer",
+            r"(?i)^you\s+are\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\.\s*(?:what|how)\s+do\s+you\s+think",
+            r"(?i)(?:generieren\s+sie\s+den\s+sql|generate\s+sql).*datenbank",
+
+            # 5. Multilingual: German & Spanish prompt injections from deepset
+            r"(?i)\bvergiss\s+(?:jetzt\s+)?(?:alles|alle)\b",
+            r"(?i)\b(?:drucken|zeigen|pr[üu]fen|überprüfen)\s+sie\s+.{0,50}(?:obige\s+eingabeaufforderung|prompt-texte|system-anweisung|gesamten\s+obigen|rechtschreibung|verbesserte\s+version)\b",
+            r"(?i)\b(?:zeig|zeigen)\s+(?:mir\s+)?alle\s+deine\s+prompt-texte\b",
+            r"(?i)\b(?:ignorieren\s+sie|h[öo]re\s+nicht\s+auf)\s+.{0,40}(?:obigen|zuvor|gesagte)\b",
+            r"(?i)\bwie\s+ihre\s+urspr[üu]nglichen\s+anweisungen\s+lauteten\b",
+            r"(?i)\bdies\s+ist\s+keine\s+aufforderungsspritze\b",
+            r"(?i)\bverharren\s+stets\s+in\s+ihren\s+rollen\b",
+            r"(?i)\bolvide\s+(?:todo\s+)?(?:que\s+dije|lo\s+anterior|las\s+instrucciones)\b",
+            r"(?i)\bjetzt\s+kommen\s+neue\s+aufgaben\b",
+            r"(?i)\bjetzt\s+kommt\s+eine\s+neue\s+aufgabe\b",
+            r"(?i)\bkonzentrier\w*\s+dich\s+nur\s+auf\s+diese\s+aufgabe\b",
+            r"(?i)ich\s+m[öo]chte,\s*dass\s+sie\s+als\s+\w+\s+(?:agieren|auftreten)\b",
+            r"(?i)antworte\s+mit\s+.{1,30}\s+und\s+nicht\s+mit\b",
+            r"(?i)(?:drucken|ausgeben|zeigen)\s+sie\s+eine\s+verbesserte\s+version",
         ]
 
     def calculate_entropy(self, text: str) -> float:
@@ -281,11 +344,19 @@ class InputFilter:
             if re.search(pattern, normalized_prompt, re.IGNORECASE):
                 return False
 
+        # Layer 1e: Web3 Phishing Domain & Malicious dApp URL Defense
+        if not self.domain_intel.check_prompt(prompt):
+            return False
+        if normalized_prompt != prompt and not self.domain_intel.check_prompt(normalized_prompt):
+            return False
+
         # Layer 1d: Multi-Encoding Decoder (Morse, Braille, NATO, Hex, etc.)
         # Decode any hidden payloads and re-check them against block patterns.
         if self.encoding_detector.has_encoding_markers(prompt):
             decoded_variants = self.encoding_detector.decode_all(prompt)
             for decoded in decoded_variants:
+                if not self.domain_intel.check_prompt(decoded):
+                    return False
                 # Run each decoded variant through de-obfuscation + pattern check
                 decoded_normalized = self.deobfuscate(decoded)
                 for pattern in self.block_patterns:
@@ -307,3 +378,11 @@ class InputFilter:
                 return False
 
         return True
+
+    def check_domains(self, prompt: str):
+        """
+        Evaluates prompt for embedded Web3 domains and phishing URLs.
+        Returns DomainThreatResult with is_phishing, risk_score, flagged_domains, and reasons.
+        """
+        return self.domain_intel.evaluate(prompt)
+

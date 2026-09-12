@@ -82,7 +82,7 @@ MONAD_TESTNET_REGISTRY = "0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE"
 # Best-known defaults; every value overridable via env. Chain IDs for Monad
 # are community-published — verify against official docs at enablement time.
 # 'testnet' chains are exempt from the production-URI safety gate.
-# Strictly targeting Monad Testnet only (Base network removed).
+# Strictly targeting Monad Testnet only.
 CHAIN_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "monad-testnet": {
         "chain_id": 10143,
@@ -518,12 +518,12 @@ class ERC8004Registrar:
         for col, col_type in required_cols.items():
             if col not in cols:
                 conn.execute(f"ALTER TABLE erc8004_registrations ADD COLUMN {col} {col_type}")
-        # In-place migration: migrate any legacy base chain rows to monad-testnet
+        # In-place migration: ensure all rows point to monad-testnet (if there was any old test data)
         conn.execute(
             """
             UPDATE OR IGNORE erc8004_registrations
             SET chain = 'monad-testnet'
-            WHERE chain IN ('base', 'base-sepolia')
+            WHERE chain IN ('legacy-chain', 'legacy-chain-2', 'ethereum')
               AND agent_id NOT IN (
                   SELECT agent_id FROM erc8004_registrations WHERE chain = 'monad-testnet'
               )
@@ -853,8 +853,8 @@ def configured_chains() -> List[str]:
     valid = [c for c in chains if c == "monad-testnet"]
     if not valid and chains:
         logger.warning(
-            "Base and other non-Monad networks are no longer supported. "
-            "System is strictly targeting monad-testnet only. Ignoring: %s",
+            "Non-Monad networks are no longer supported. "
+            "Please configure GUARDIAN_ERC8004_CHAINS to use 'monad-testnet'. Ignoring: %s",
             chains,
         )
     return valid or ["monad-testnet"]

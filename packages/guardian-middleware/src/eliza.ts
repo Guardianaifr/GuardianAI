@@ -376,6 +376,28 @@ export class MemoryStore {
   public getQuarantineLog(sessionId: string): MemoryRecord[] {
     return this._quarantineLog.get(sessionId) || [];
   }
+
+  /**
+   * Records a cryptographic tamper event detected by Mera Passkey PRF unseal failure.
+   * Quarantines the affected session and freezes further memory reads.
+   */
+  public recordCryptographicTamper(sessionId: string, agentId: string, errorReason: string = "MEMORY_POISONING_DETECTED"): void {
+    const record: MemoryRecord = {
+      text: `[CRYPTOGRAPHIC INTEGRITY VIOLATION] AES-256-GCM authentication tag failed for agent ${agentId}: ${errorReason}`,
+      provenance: {
+        appId: "mera-passkey-enclave",
+        agentId: agentId,
+        source: "agent",
+        trustLevel: 0,
+        timestamp: Date.now(),
+        isTombstoned: true
+      }
+    };
+    if (!this._quarantineLog.has(sessionId)) {
+      this._quarantineLog.set(sessionId, []);
+    }
+    this._quarantineLog.get(sessionId)!.push(record);
+  }
 }
 
 export function createGuardianPlugin(config: GuardianConfig = {}): ElizaPlugin {

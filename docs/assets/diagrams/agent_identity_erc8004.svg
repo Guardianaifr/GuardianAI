@@ -93,7 +93,7 @@
 
   <!-- Benchmark stats -->
   <text x="500" y="775" font-size="15.5" font-weight="600" fill="#495057" text-anchor="middle">
-    <tspan font-weight="800" fill="#212529">Live on Base Sepolia &amp; Monad Testnet</tspan>   ·   <tspan font-weight="800" fill="#212529">Non-Custodial Ownership</tspan>   ·   Fail-Closed Minting
+    <tspan font-weight="800" fill="#212529">Live on Monad Testnet</tspan>   ·   <tspan font-weight="800" fill="#212529">Non-Custodial Ownership</tspan>   ·   Fail-Closed Minting
   </text>
 
   <!-- CTA -->

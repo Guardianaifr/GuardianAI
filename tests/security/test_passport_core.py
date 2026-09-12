@@ -219,3 +219,65 @@ class TestPassportEngine:
         assert passport.cortex_events_count == 42
         assert passport.last_anchor_tx == "0xabc123"
         assert passport.trust_score == 72.5
+
+
+class TestMeraEncryptedMemory:
+    def test_store_and_get_encrypted_memory(self, engine):
+        """Test storing ciphertext blob and retrieving it."""
+        ciphertext = b"\x01\x02\x03\x04\x05\x06\x07\x08"
+        iv = b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b"
+        aad = "agent-1:sess-1:1:1234567890"
+
+        res = engine.store_encrypted_memory(
+            agent_id="agent-1",
+            session_id="sess-1",
+            seq_no=1,
+            ciphertext=ciphertext,
+            iv=iv,
+            aad=aad,
+            timestamp=1234567890.0,
+        )
+        assert res["agent_id"] == "agent-1"
+        assert res["ciphertext_size"] == 8
+
+        memories = engine.get_encrypted_memories("agent-1")
+        assert len(memories) == 1
+        assert memories[0]["agent_id"] == "agent-1"
+        assert memories[0]["session_id"] == "sess-1"
+        assert memories[0]["seq_no"] == 1
+        assert memories[0]["aad"] == aad
+
+        import base64
+        assert base64.b64decode(memories[0]["ciphertext_b64"]) == ciphertext
+        assert base64.b64decode(memories[0]["iv_b64"]) == iv
+
+    def test_tamper_memory(self, engine):
+        """Test tampering with the stored ciphertext flips a byte."""
+        ciphertext = bytearray(b"\xaa\xbb\xcc\xdd")
+        iv = b"\x00" * 12
+        aad = "agent-1:sess-1:1:100"
+
+        engine.store_encrypted_memory(
+            agent_id="agent-1",
+            session_id="sess-1",
+            seq_no=1,
+            ciphertext=bytes(ciphertext),
+            iv=iv,
+            aad=aad,
+            timestamp=100.0,
+        )
+
+        tamper_res = engine.tamper_memory("agent-1")
+        assert tamper_res["tampered"] is True
+
+        # Check that ciphertext was modified
+        memories = engine.get_encrypted_memories("agent-1")
+        import base64
+        tampered_cipher = base64.b64decode(memories[0]["ciphertext_b64"])
+        assert tampered_cipher[0] == ciphertext[0] ^ 0xFF
+
+    def test_tamper_memory_nonexistent(self, engine):
+        """Tampering non-existent agent returns tampered: False."""
+        res = engine.tamper_memory("non-existent-agent")
+        assert res["tampered"] is False
+

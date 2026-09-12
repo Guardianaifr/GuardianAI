@@ -306,6 +306,6 @@ def test_unsupported_chain_is_misconfigured(env):
     with pytest.raises(reg.RegistrarMisconfigured):
         reg.ERC8004Registrar("solana-mainnet", env["db"])
     with pytest.raises(reg.RegistrarMisconfigured):
-        reg.ERC8004Registrar("base", env["db"])
+        reg.ERC8004Registrar("ethereum", env["db"])
     with pytest.raises(reg.RegistrarMisconfigured):
-        reg.ERC8004Registrar("base-sepolia", env["db"])
+        reg.ERC8004Registrar("arbitrum", env["db"])

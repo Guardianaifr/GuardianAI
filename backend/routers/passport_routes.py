@@ -218,3 +218,83 @@ async def revoke_passport(agent_id: str, principal: Dict[str, Any] = Depends(get
     if not revoked:
         raise HTTPException(status_code=404, detail=f"No active passport found for agent: {agent_id}")
     return {"revoked": True, "agent_id": agent_id}
+
+
+# ── Mera Passkey-Sealed Memory (blind storage) ──────────────
+
+@router.post("/api/v1/passport/memory", tags=["Mera Passkey Enclave"])
+async def store_encrypted_memory(request: Request, principal: Dict[str, Any] = Depends(get_current_principal)):
+    """
+    Blind-store an AES-256-GCM encrypted memory blob.
+
+    The server never sees plaintext. Decryption requires the human
+    operator's passkey PRF output (client-side only).
+    """
+    import base64
+
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+
+    body = await request.json()
+    required = ["agent_id", "session_id", "seq_no", "ciphertext_b64", "iv_b64", "aad", "timestamp"]
+    for field in required:
+        if field not in body:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+    try:
+        ciphertext = base64.b64decode(body["ciphertext_b64"])
+        iv = base64.b64decode(body["iv_b64"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid base64 encoding")
+
+    if len(iv) != 12:
+        raise HTTPException(status_code=400, detail="IV must be exactly 12 bytes (AES-GCM)")
+
+    engine = _get_passport_engine()
+    try:
+        result = engine.store_encrypted_memory(
+            agent_id=body["agent_id"],
+            session_id=body["session_id"],
+            seq_no=int(body["seq_no"]),
+            ciphertext=ciphertext,
+            iv=iv,
+            aad=body["aad"],
+            timestamp=float(body["timestamp"]),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return {"stored": True, **result}
+
+
+@router.get("/api/v1/passport/memory/{agent_id}", tags=["Mera Passkey Enclave"])
+async def get_encrypted_memories(agent_id: str, principal: Dict[str, Any] = Depends(get_current_principal)):
+    """
+    Retrieve all encrypted memory blobs for an agent.
+
+    Returns ciphertext + IV + AAD. The client decrypts locally with passkey PRF.
+    """
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+
+    engine = _get_passport_engine()
+    memories = engine.get_encrypted_memories(agent_id)
+    return {"agent_id": agent_id, "memories": memories, "count": len(memories)}
+
+
+@router.post("/api/v1/passport/memory/{agent_id}/tamper", tags=["Mera Passkey Enclave"])
+async def tamper_memory(agent_id: str, principal: Dict[str, Any] = Depends(get_current_principal)):
+    """
+    [DEMO ONLY] Flip 1 byte of ciphertext to simulate a database poisoning attack.
+
+    When the client tries to decrypt, AES-256-GCM tag verification fails,
+    triggering MEMORY_POISONING_DETECTED and agent quarantine.
+    """
+    username = principal["username"]
+    _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
+
+    engine = _get_passport_engine()
+    result = engine.tamper_memory(agent_id)
+    if not result.get("tampered"):
+        raise HTTPException(status_code=404, detail=result.get("error", "No memories found"))
+    return result
+

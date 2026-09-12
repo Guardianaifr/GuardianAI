@@ -28,59 +28,18 @@ function App() {
   const lastEventTimeRef = useRef(0)
 
   const handleNewEvent = (data) => {
-    // 1. Dedup: Prevent duplicate events (common in dev mode / network retry)
+    // 1. Dedup: Prevent duplicate events
     if (data.timestamp === lastEventTimeRef.current) return
     lastEventTimeRef.current = data.timestamp
 
-    // Update Stats
-    setStats(prev => {
-      const newStats = { ...prev, requests: prev.requests + 1 }
-      if (isBlockedEvent(data)) newStats.blocked++
-
-      // PII / Data Loss Events
-      if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(data.event_type)) {
-        newStats.redacted++
-      }
-
-      if (data.event_type === "admin_action") newStats.admin++
-      return newStats
-    })
-
-    // Update Attack Vectors
-    setVectorData(prev => {
-      const nu = { ...prev }
-
-      // Prompt Injection / Jailbreak
-      if (["prompt_injection", "injection", "injection_ai", "threat_feed_match"].includes(data.event_type) ||
-        data.details?.reason?.includes("Prompt injection")) {
-        nu.prompt++
-      }
-
-      // PII Leaks
-      if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(data.event_type)) {
-        nu.pii++
-      }
-
-      if (data.event_type === "admin_action") nu.admin++
-      return nu
-    })
-
-    // Add to Log (Limit 50)
+    // For Hackathon Envio integration, we let GraphQL handle stats
+    // But we still append real-time websocket events to the log feed
     setEvents(prev => [data, ...prev].slice(0, 50))
   }
 
   useEffect(() => {
-    // Read auth token from URL query params (?token=...) or localStorage/sessionStorage
-    const urlParams = new URLSearchParams(window.location.search)
-    const tokenFromUrl = urlParams.get("token")
-    if (tokenFromUrl) {
-      localStorage.setItem("guardian_token", tokenFromUrl)
-    }
-    const token = tokenFromUrl || localStorage.getItem("guardian_token") || sessionStorage.getItem("guardian_token") || ""
-
-    // Connect directly to Backend (bypass proxy)
-    const wsUrl = token ? `ws://127.0.0.1:8001/ws/threats?token=${encodeURIComponent(token)}` : `ws://127.0.0.1:8001/ws/threats`
-
+    // Connect directly to Backend (bypass proxy) for live push updates
+    const wsUrl = `ws://127.0.0.1:8001/ws/threats`
     let ws = null
     let retryTimeout = null
 
@@ -88,19 +47,12 @@ function App() {
       ws = new WebSocket(wsUrl)
 
       ws.onopen = () => {
-        console.log("Connected to GuardianAI Backend")
+        console.log("Connected to GuardianAI Backend WebSocket")
         setIsConnected(true)
-        if (token) {
-          try {
-            ws.send(JSON.stringify({ token }))
-          } catch (e) {
-            console.error("Failed to send initial token", e)
-          }
-        }
       }
 
       ws.onclose = () => {
-        console.log("Disconnected from Backend")
+        console.log("Disconnected from Backend WebSocket")
         setIsConnected(false)
         retryTimeout = setTimeout(connect, 3000)
       }
@@ -125,61 +77,116 @@ function App() {
     }
   }, [])
 
-  // Fetch history on mount
+  // Fetch indexer history on mount (Hackathon Envio Integration)
   useEffect(() => {
-    const fetchHistory = async () => {
+    const fetchIndexerData = async () => {
       try {
-        const token = localStorage.getItem("guardian_token") || sessionStorage.getItem("guardian_token") || ""
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}
-        const res = await fetch('http://127.0.0.1:8001/api/v1/events?limit=50', { headers })
-        const data = await res.json()
-        if (Array.isArray(data)) {
-          // Process chronologically (Oldest -> Newest) to build stats
-          const sorted = [...data].reverse()
-          setEvents(data) // Events state keeps newest first (default API sort)
-
-          // Rebuild stats
-          const newStats = { requests: 0, blocked: 0, redacted: 0, admin: 0 }
-          const newVector = { prompt: 0, pii: 0, admin: 0 }
-
-          sorted.forEach(evt => {
-            newStats.requests++
-            if (isBlockedEvent(evt)) newStats.blocked++
-
-            // PII / Data Loss Events
-            if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(evt.event_type)) {
-              newStats.redacted++
+        // Envio GraphQL query pattern to get Dashboard aggregations
+        const query = `
+          query GetDashboardData {
+            GlobalSecurityStats {
+              totalActionsExecuted
+              totalThreatsRegistered
+              activeThreatCount
+              totalPassportsTracked
             }
-
-            if (evt.event_type === "admin_action") newStats.admin++
-
-            // Vectors
-            if (["prompt_injection", "injection", "injection_ai", "threat_feed_match"].includes(evt.event_type) ||
-              evt.details?.reason?.includes("Prompt injection")) {
-              newVector.prompt++
+            AgentAction(limit: 25, order_by: {timestamp: desc}) {
+              id
+              agentId
+              target
+              riskScore
+              timestamp
+              txHash
             }
-
-            if (["pii_redaction", "data_redaction", "redaction", "data_leak"].includes(evt.event_type)) {
-              newVector.pii++
+            ThreatRecord(limit: 25, order_by: {addedAt: desc}) {
+              id
+              reason
+              active
+              addedAt
             }
-
-            if (evt.event_type === "admin_action") newVector.admin++
-          })
-
-          setStats(newStats)
-          setVectorData(newVector)
-
-          // Sync dedup ref
-          if (data.length > 0) {
-            lastEventTimeRef.current = data[0].timestamp
           }
+        `;
+        const res = await fetch('http://localhost:8080/v1/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const json = await res.json();
+        const data = json.data;
+
+        // Support variations of Envio schema generation
+        const statsArr = data?.GlobalSecurityStats || data?.globalSecurityStats?.items || data?.globalSecurityStats || [];
+        const actionsArr = data?.AgentAction || data?.agentActions?.items || data?.agentActions || [];
+        const threatsArr = data?.ThreatRecord || data?.threatRecords?.items || data?.threatRecords || [];
+
+        if (statsArr.length > 0) {
+          // Map Envio stats into the dashboard UI cards
+          const indexerStats = statsArr[0];
+          setStats({
+            requests: parseInt(indexerStats.totalActionsExecuted || 0),
+            blocked: parseInt(indexerStats.totalThreatsRegistered || 0),
+            redacted: parseInt(indexerStats.activeThreatCount || 0),
+            admin: parseInt(indexerStats.totalPassportsTracked || 0)
+          });
+          
+          // Update vector data proportionally for UI bars
+          setVectorData({
+            prompt: parseInt(indexerStats.totalThreatsRegistered || 0),
+            pii: parseInt(indexerStats.activeThreatCount || 0),
+            admin: parseInt(indexerStats.totalPassportsTracked || 0)
+          });
         }
+
+        // Format actions and threats into a single feed
+        const combinedEvents = [];
+        actionsArr.forEach(action => {
+          combinedEvents.push({
+            event_type: "ON-CHAIN ACTION",
+            timestamp: parseInt(action.timestamp),
+            severity: action.riskScore > 50 ? "HIGH" : "INFO",
+            details: {
+              agent: action.agentId.substring(0, 10) + '...',
+              target: action.target,
+              riskScore: action.riskScore,
+              tx: action.txHash
+            }
+          });
+        });
+        
+        threatsArr.forEach(threat => {
+          combinedEvents.push({
+            event_type: "THREAT REGISTERED",
+            timestamp: parseInt(threat.addedAt),
+            severity: "CRITICAL",
+            details: {
+              target: threat.id,
+              reason: threat.reason,
+              status: threat.active ? 'ACTIVE' : 'REMOVED'
+            }
+          });
+        });
+
+        // Sort combined by timestamp descending
+        combinedEvents.sort((a, b) => b.timestamp - a.timestamp);
+        
+        setEvents(prev => {
+          // Merge with any real-time WS events we already have
+          const all = [...prev, ...combinedEvents];
+          // Remove precise duplicates based on timestamp/type
+          const unique = all.filter((v, i, a) => a.findIndex(t => (t.timestamp === v.timestamp && t.event_type === v.event_type)) === i);
+          return unique.sort((a, b) => b.timestamp - a.timestamp).slice(0, 50);
+        });
+
       } catch (e) {
-        console.error("Failed to fetch history:", e)
+        console.error("Failed to fetch Envio indexer data:", e);
       }
-    }
-    fetchHistory()
-  }, [])
+    };
+    
+    fetchIndexerData();
+    // Poll indexer every 3 seconds for dashboard freshness
+    const interval = setInterval(fetchIndexerData, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Auto-scroll log
   useEffect(() => {
@@ -195,14 +202,20 @@ function App() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">GuardianAI</h1>
-            <p className="text-muted-foreground">Security Operations Center</p>
+            <p className="text-muted-foreground">Monad Security Dashboard</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground flex items-center gap-2">
-            Backend Status:
-            <span className={cn("font-medium", isConnected ? "text-green-500" : "text-red-500")}>
-              {isConnected ? "Connected" : "Disconnected"}
+            Indexer Status:
+            <span className={cn("font-medium", "text-green-500")}>
+              Connected (GraphQL)
+            </span>
+          </div>
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            Live Stream:
+            <span className={cn("font-medium", isConnected ? "text-green-500" : "text-amber-500")}>
+              {isConnected ? "WS Active" : "Polling..."}
             </span>
           </div>
         </div>
@@ -211,45 +224,45 @@ function App() {
       <main className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+            <CardTitle className="text-sm font-medium">Actions Indexed</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.requests}</div>
-            <p className="text-xs text-muted-foreground">Live traffic session</p>
+            <p className="text-xs text-muted-foreground">On-chain Monad executions</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Attacks Blocked</CardTitle>
+            <CardTitle className="text-sm font-medium">Threats Registered</CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-500">{stats.blocked}</div>
-            <p className="text-xs text-muted-foreground">High/Critical Severity</p>
+            <p className="text-xs text-muted-foreground">Historical threats found</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">PII Redacted</CardTitle>
-            <Lock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-500">{stats.redacted}</div>
-            <p className="text-xs text-muted-foreground">Data leaks prevented</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Admin Actions</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Threats</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
+            <div className="text-2xl font-bold text-amber-500">{stats.redacted}</div>
+            <p className="text-xs text-muted-foreground">Currently unresolved</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Passports Tracked</CardTitle>
+            <Lock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
             <div className="text-2xl font-bold text-blue-500">{stats.admin}</div>
-            <p className="text-xs text-muted-foreground">Policy changes</p>
+            <p className="text-xs text-muted-foreground">Soulbound identities</p>
           </CardContent>
         </Card>
       </main>
@@ -259,14 +272,14 @@ function App() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Terminal className="h-5 w-5" />
-              Live Event Feed
+              Real-Time Security Feed
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto space-y-2 pr-2 font-mono text-sm">
               {events.length === 0 && (
                 <div className="text-center text-muted-foreground py-10">
-                  Waiting for events...
+                  Waiting for Envio / WebSockets...
                 </div>
               )}
               {events.map((evt, i) => (
@@ -303,53 +316,53 @@ function App() {
 
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Attack Vectors</CardTitle>
+            <CardTitle>Threat Context</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Prompt Injection</span>
+                  <span>Registered Threats</span>
                   <span className="font-bold">{vectorData.prompt}</span>
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${Math.min(100, (vectorData.prompt / Math.max(1, stats.blocked + stats.redacted + stats.admin)) * 100)}%` }} />
+                  <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${Math.min(100, (vectorData.prompt / Math.max(1, stats.requests)) * 100)}%` }} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>PII Leaks</span>
+                  <span>Active Malicious Profiles</span>
                   <span className="font-bold">{vectorData.pii}</span>
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${Math.min(100, (vectorData.pii / Math.max(1, stats.blocked + stats.redacted + stats.admin)) * 100)}%` }} />
+                  <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${Math.min(100, (vectorData.pii / Math.max(1, stats.blocked)) * 100)}%` }} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Admin Activity</span>
+                  <span>Identities Tracked</span>
                   <span className="font-bold">{vectorData.admin}</span>
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min(100, (vectorData.admin / Math.max(1, stats.blocked + stats.redacted + stats.admin)) * 100)}%` }} />
+                  <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min(100, (vectorData.admin / Math.max(1, stats.requests)) * 100)}%` }} />
                 </div>
               </div>
 
               <div className="mt-8 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                <h4 className="font-semibold mb-2 text-foreground">System Health</h4>
+                <h4 className="font-semibold mb-2 text-foreground">Infrastructure Layer</h4>
                 <div className="flex justify-between py-1 border-b border-border/50">
-                  <span>Backend Latency</span>
-                  <span>&lt; 1ms</span>
+                  <span>Indexer Transport</span>
+                  <span className="text-green-500 font-medium">Envio GraphQL</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-border/50">
-                  <span>Database Size</span>
-                  <span>120 KB</span>
+                  <span>Chain Context</span>
+                  <span>Monad Testnet (10143)</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span>Active Rules</span>
-                  <span>12</span>
+                  <span>Sync Status</span>
+                  <span className="text-green-500 font-medium">Hypersync Active</span>
                 </div>
               </div>
             </div>

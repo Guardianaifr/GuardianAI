@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
  *      github.com/erc-8004/erc-8004-contracts — it is an ABI-faithful minimal
  *      stand-in for testnet rehearsal only. The canonical CREATE2 deployment
  *      (0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) is mainnet-only today and
- *      absent from Base/Ethereum Sepolia (verified on-chain 2026-08-23 via
+ *      absent from Ethereum Sepolia (verified on-chain 2026-08-23 via
  *      eth_getCode). Mainnet integrations MUST target the canonical address.
  */
 contract IdentityRegistryTestnet is ERC721 {

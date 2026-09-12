@@ -79,7 +79,14 @@ _COMMON_EN_WORDS = {
     "only", "come", "its", "over", "think", "also", "back", "after", "use", "two",
     "how", "our", "work", "first", "well", "way", "even", "new", "want", "because",
     "any", "these", "give", "day", "most", "us", "hello", "hi", "hey", "please", "help",
-    "is", "are", "was", "were", "does", "did", "has", "had", "still", "live", "where", "why"
+    "is", "are", "was", "were", "does", "did", "has", "had", "still", "live", "where", "why",
+    "explain", "simple", "terms", "between", "write", "difference", "summarize", "best",
+    "learn", "generate", "compare", "using", "debug", "error", "function", "code", "practices",
+    "question", "answer", "email", "letter", "job", "meal", "themes", "div", "css", "exercises",
+    "pain", "economic", "capital", "landmarks", "solar", "energy", "designing", "api", "adult",
+    "cat", "lethargic", "wrong", "weekly", "vegetarian", "center", "lower", "index", "range",
+    "efficiently", "proof", "stake", "article", "renewable", "restful", "script", "software",
+    "quantum", "entanglement", "plan", "book", "food", "health", "system", "file", "data"
 }
 
 
@@ -121,7 +128,9 @@ def translate_to_english(text: str, timeout_s: float = 5.0) -> tuple[str, str]:
     words = re.findall(r"[a-zA-Z]+", text.lower())
     if words:
         en_word_count = sum(1 for w in words if w in _COMMON_EN_WORDS)
-        if en_word_count >= 2 and en_word_count / len(words) >= 0.4:
+        if en_word_count >= 2 and en_word_count / len(words) >= 0.25:
+            return text, "en"
+        if en_word_count >= 3:
             return text, "en"
 
     # 1. Language detection (offline, < 5 ms)

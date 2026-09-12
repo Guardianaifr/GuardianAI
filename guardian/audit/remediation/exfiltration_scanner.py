@@ -137,10 +137,22 @@ class ExfiltrationScanner:
             "HIGH",
         ),
 
-        # Screen capture
+        # Screen capture & exfiltration
         (
-            r"(?:pyautogui|PIL|mss|ImageGrab)[\s\S]{0,200}(?:screenshot|grab|capture)[\s\S]{0,100}(?:save|send|post|upload|write)",
+            r"(?:pyautogui|PIL|mss|ImageGrab|screencapture|gnome-screenshot|snippingtool)[\s\S]{0,200}(?:screenshot|clip|grab|capture|1920x1080)",
             "Screen capture and exfiltration",
+            "HIGH",
+        ),
+        # Remote file transfer and exfiltration tooling
+        (
+            r"(?:subprocess|os\.system|os\.popen)[\s\S]{0,100}(?:scp|rsync|sftp|curl|wget|ssh\s+-[LRND])",
+            "Remote file transfer / exfiltration tool invocation",
+            "HIGH",
+        ),
+        # Generic HTTP POST payload transmission
+        (
+            r"requests\.(?:post|put)\s*\(\s*['\"]https?://[\s\S]{0,200}(?:read\(|upload|\.data|data=|json=)",
+            "HTTP POST exfiltration payload",
             "HIGH",
         ),
 

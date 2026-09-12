@@ -293,8 +293,8 @@ def test_h7_public_file_schema_and_privacy(client):
 # ── H8: exclusive monad-testnet queue ────────────────────────────────────────
 
 def test_h8_queue_strictly_targets_monad_testnet(env, tmp_path, monkeypatch):
-    """Setting legacy chains like base-sepolia is filtered; monad-testnet is exclusively processed."""
-    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "base-sepolia,monad-testnet")
+    """Setting legacy chains like ethereum is filtered; monad-testnet is exclusively processed."""
+    monkeypatch.setenv("GUARDIAN_ERC8004_CHAINS", "ethereum,monad-testnet")
     r_main = make(env, {})
     states = {}
 
@@ -312,7 +312,7 @@ def test_h8_queue_strictly_targets_monad_testnet(env, tmp_path, monkeypatch):
         r_main.process_pending()  # delegates monad row to its own client
 
         statuses = {row["chain"]: row["status"] for row in r_main.get_status("multi-agent")}
-        assert "base-sepolia" not in statuses
+        assert "ethereum" not in statuses
         assert statuses["monad-testnet"] == reg.STATUS_METADATA
         assert states["monad-testnet"]["chain_id"] == 10143
     finally:
@@ -543,8 +543,8 @@ def test_h16_ownerof_skip_when_client_already_owns(env):
     assert r.get_status("preowned-agent")[0]["status"] == reg.STATUS_CONFIRMED
 
 
-def test_h17_legacy_base_db_auto_migration(tmp_path):
-    """Pre-existing database containing legacy base / base-sepolia records is automatically upgraded to monad-testnet."""
+def test_h17_legacy_db_auto_migration(tmp_path):
+    """Pre-existing database containing legacy records is automatically upgraded to monad-testnet."""
     import sqlite3
     from guardian.passport.passport_core import PassportEngine
     from guardian.passport.erc8004_registrar import ERC8004Registrar
@@ -556,7 +556,7 @@ def test_h17_legacy_base_db_auto_migration(tmp_path):
             passport_id TEXT PRIMARY KEY,
             agent_id TEXT UNIQUE NOT NULL,
             owner_pubkey TEXT NOT NULL,
-            chain_id TEXT DEFAULT 'base',
+            chain_id TEXT DEFAULT 'legacy-chain',
             trust_score REAL DEFAULT 0.0,
             tier TEXT DEFAULT 'UNVERIFIED',
             credentials TEXT DEFAULT '[]',
@@ -569,8 +569,8 @@ def test_h17_legacy_base_db_auto_migration(tmp_path):
     """)
     conn.execute("""
         INSERT INTO agent_passports (passport_id, agent_id, owner_pubkey, chain_id, issued_at, updated_at)
-        VALUES ('pid-1', 'legacy-agent-1', '0xowner1', 'base', 1000.0, 1000.0),
-               ('pid-2', 'legacy-agent-2', '0xowner2', 'base-sepolia', 1000.0, 1000.0)
+        VALUES ('pid-1', 'legacy-agent-1', '0xowner1', 'legacy-chain', 1000.0, 1000.0),
+               ('pid-2', 'legacy-agent-2', '0xowner2', 'legacy-chain-2', 1000.0, 1000.0)
     """)
     conn.execute("""
         CREATE TABLE erc8004_registrations (
@@ -586,8 +586,8 @@ def test_h17_legacy_base_db_auto_migration(tmp_path):
     """)
     conn.execute("""
         INSERT INTO erc8004_registrations (agent_id, passport_id, chain, status, token_id, updated_at)
-        VALUES ('legacy-agent-1', 'pid-1', 'base', 'confirmed', 42, 1000.0),
-               ('legacy-agent-2', 'pid-2', 'base-sepolia', 'confirmed', 43, 1000.0)
+        VALUES ('legacy-agent-1', 'pid-1', 'legacy-chain', 'confirmed', 42, 1000.0),
+               ('legacy-agent-2', 'pid-2', 'legacy-chain-2', 'confirmed', 43, 1000.0)
     """)
     conn.commit()
     conn.close()

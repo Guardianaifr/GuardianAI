@@ -50,5 +50,6 @@ files (1)/
 *.sql
 *.patch
 guardian/config/one_click_runtime.yaml
+hack/
 
 

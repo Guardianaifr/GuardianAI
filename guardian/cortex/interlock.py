@@ -301,7 +301,7 @@ class InterlockProtocol:
                 from eth_account import Account
 
                 rpc_url = "https://testnet.monad.xyz/v1" if chain == "monad" else "https://mainnet.base.org"
-                chain_id_num = 10143 if chain == "monad" else 8453
+                chain_id_num = 10143 if chain == "monad" else 1
 
                 w3 = Web3(Web3.HTTPProvider(rpc_url))
                 deployer_key = os.getenv("GUARDIAN_DEPLOYER_PRIVATE_KEY", "")

@@ -10,5 +10,5 @@ cd F:\Saas\guardianai-basic-launch
 
 Six scenes - PROVISION, VET, SHIELD, TRUST, ASSURANCE, ON-CHAIN - ending in a
 six-row `[OK]` scoreboard and (with your registrar key in `.env`) LIVE
-dual-chain explorer links. Full narrative, flags and honesty notes:
+Monad explorer links. Full narrative, flags and honesty notes:
 [demo/FULL_DEMO.md](demo/FULL_DEMO.md).

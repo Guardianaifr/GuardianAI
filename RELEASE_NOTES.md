@@ -94,7 +94,7 @@ GuardianAI v1.1.0 incorporates comprehensive enterprise-grade remediations from 
 
 ## ⚡ User Experience & Demos (The Truth)
 8.  **Honest Demo Suite:**
-    *   Flagship one-command demo: `python demo/full_demo.py` — six scenes ending in dual-chain ERC-8004 live registration.
+    *   Flagship one-command demo: `python demo/full_demo.py` — six scenes ending in Monad ERC-8004 live registration.
     *   **Simulation Mode:** Reliable PII testing using mock data.
     *   **"Honest Truth" Disclaimers:** Each demo explicitly states what it proves and what it *does not* prove.
 

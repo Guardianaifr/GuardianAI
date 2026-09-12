@@ -89,6 +89,9 @@ _RAW_PATTERNS: list[str] = [
     r"(?i)(persist|store|save|remember|memorize|record)\s+(this|these|the\s+following)\s+(instruction|directive|rule|command|setting|override)",
     r"(?i)(always|from\s+now\s+on|henceforth|permanently|going\s+forward)\s+(do|execute|follow|obey|comply|perform|send|transfer|reveal)",
     r"(?i)(whenever|every\s+time|each\s+time|next\s+time|if\s+anyone\s+asks)\s+.{0,60}(send|transfer|forward|reveal|execute|sweep|drain)",
+    r"(?i)(?:note\s+for\s+future\s+reference|memo|reminder\s+for\s+next\s+turn)[\s\S]{0,60}(?:must|execute|without\s+confirmation|slippage|tolerance)",
+    r"(?i)(?:slippage\s+tolerance|slippage)\s+(?:is\s+now|set\s+to|change\s+to|=)?\s*(?:9[0-9]%|100%|unlimited)",
+    r"(?i)(?:execute|transfer|send|trade)[\s\S]{0,40}without\s+(?:confirmation|verification|approval)",
     # --- Role Manipulation ---
     r"(?i)you\s+are\s+now\s+(a|an|the|my)?\s*(admin|administrator|root|superuser|unrestricted|unfiltered|jailbroken)",
     r"(?i)your\s+(new\s+)?(role|persona|identity|character|task|objective|mission)\s+(is|will\s+be|has\s+changed)",

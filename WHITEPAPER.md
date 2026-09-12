@@ -524,7 +524,7 @@ Supported vulnerability classes (selected — IDs and severities from `VULN_RULE
 
 Supports analysis by: raw source upload (Solidity/Vyper) or on-chain contract address + chain ID (fetches verified source via Etherscan-compatible APIs).
 
-Supported chains: Ethereum, Monad, Base, Arbitrum, Optimism, Polygon, BSC, Avalanche (EVM-compatible only).
+Supported chains: Ethereum, Monad, Arbitrum, Optimism, Polygon, BSC, Avalanche (EVM-compatible only).
 
 Each finding includes: severity rating, description, remediation guidance, and SOC-2/ISO 27001 compliance control mapping.
 
@@ -690,7 +690,7 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Python test suites (targeted runs, September 2026) | 107 passing tests across security, audit chain, web3 identity, relay, and security headers suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 42/42 · passport 24/24 |
+| Python test suites (targeted runs, September 2026) | **1,461 passing test cases (100% pass rate)** across security, audit chain, web3 identity, relay, and security headers suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 60/60 · passport 24/24 |
 | Smart contract unit tests (Hardhat, September 2026) | **160 passing test cases across 10 contract suites in-repo (100% pass rate)** |
 | Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, per definitive_benchmark_v4.json)†† | **97.6%** (949/972) |
 | Security-gate block rate — Tier 1+2 (balanced mode)†† | **90.7%** (882/972) |
@@ -753,7 +753,7 @@ In September 2026, an adversarial senior systems and cryptographic audit was con
 7. **Agent Middleware Fail-Closed Hardening (`is_wrapped` Bypass Fix):** Neutralized a client-side bypass in both `sdk/python/guardian_middleware.py` and `packages/guardian-middleware/src/interceptor.ts` where agents prefixing calldata with `0x3cb7461c` could circumvent relayer evaluation. Pre-wrapped calldata is now strictly rejected with `GuardianSecurityBlockedError` (Risk 100). Verified by `tests/sdk/test_web3_agent_middleware.py` (12/12 passed).
 8. **Policy Guard & SBT Invariant Hardening:** Added `nonReentrant` protection to `sweepETH` in `GuardianPolicyGuard.sol`, added low-level contract code length verification (`target.code.length > 0`) preventing silent fund loss to EOAs, and added `AgentPermanentlyRevoked` tombstone checks preventing revoked agents from re-minting in `GuardianPassportSBT.sol`.
 9. **Function Selector Allowlists (RBAC) & Rolling Outflow Caps:** Implemented zero-trust function selector allowlists (`AgentPolicy.allowed_selectors`) and rolling 24-hour cumulative spending budgets (`OutflowTracker`) directly inside the deterministic risk engine (`attestation_service.py`). Verified by `tests/test_agent_policies.py` (16/16 passed).
-10. **Test Infrastructure & Latency Benchmark Verification:** Resolved Hardhat test environment conflicts, bringing the smart contract test suite to **183 / 183 passing (100%)**. Python core suites verified at **43 / 43 passing**. End-to-end EIP-712 attestation latency was benchmarked and confirmed at **P50 = 2.68 ms** (Mean = 3.00 ms, Min = 2.31 ms) via `tools/benchmark_attestation_latency.py`.
+10. **Test Infrastructure & Latency Benchmark Verification:** Resolved Hardhat test environment conflicts, bringing the smart contract test suite to **183 / 183 passing (100%)**. Python core suites verified at **1,461 / 1,461 passing (100%)**. End-to-end EIP-712 attestation latency was benchmarked and confirmed at **P50 = 2.68 ms** (Mean = 3.00 ms, Min = 2.31 ms) via `tools/benchmark_attestation_latency.py`.
 
 ---
 

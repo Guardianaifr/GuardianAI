@@ -1,0 +1,80 @@
+{
+  "timestamp": 1789222169.2810009,
+  "date": "2026-09-12 14:09:29 UTC",
+  "corpora": {
+    "hf_chatgpt_jailbreaks": {
+      "name": "Hugging Face rubend18/ChatGPT-Jailbreak-Prompts",
+      "url": "https://huggingface.co/datasets/rubend18/ChatGPT-Jailbreak-Prompts",
+      "total": 79,
+      "blocked": 76,
+      "evaded": 3,
+      "detection_rate": 96.2,
+      "avg_latency_ms": 19.08,
+      "layer_breakdown": {
+        "Layer 1": 66,
+        "Layer 2": 9,
+        "Layer 5": 1
+      }
+    },
+    "hf_lakera_gandalf": {
+      "name": "Hugging Face Lakera/mosscap_prompt_injection (Gandalf)",
+      "url": "https://huggingface.co/datasets/Lakera/mosscap_prompt_injection",
+      "total": 100,
+      "blocked": 94,
+      "evaded": 6,
+      "detection_rate": 94.0,
+      "avg_latency_ms": 8.11,
+      "layer_breakdown": {
+        "Layer 1": 81,
+        "Layer 2": 13
+      }
+    },
+    "github_microsoft_bipia": {
+      "name": "GitHub microsoft/BIPIA (Agent Code Injection)",
+      "url": "https://github.com/microsoft/BIPIA",
+      "total": 50,
+      "blocked": 50,
+      "evaded": 0,
+      "detection_rate": 100.0,
+      "avg_latency_ms": 20.58,
+      "layer_breakdown": {
+        "Layer 3": 31,
+        "Layer 1": 19
+      }
+    },
+    "agent_memory_poisoning": {
+      "name": "Princeton / Sentient AI Agent Memory Poisoning Attacks",
+      "total": 10,
+      "blocked": 10,
+      "evaded": 0,
+      "detection_rate": 100.0,
+      "avg_latency_ms": 9.63,
+      "layer_breakdown": {
+        "Layer 5": 4,
+        "Layer 1": 4,
+        "Layer 4": 1,
+        "Layer 3": 1
+      }
+    },
+    "clean_traffic_wildguard": {
+      "name": "AllenAI WildGuard / WildChat Benign Control Set",
+      "total": 25,
+      "allowed": 25,
+      "false_positives": 0,
+      "pass_rate": 100.0,
+      "false_positive_rate": 0.0,
+      "avg_latency_ms": 14.5
+    }
+  },
+  "summary": {
+    "total_evaluated_prompts": 264,
+    "total_attacks_tested": 239,
+    "total_attacks_blocked": 230,
+    "overall_attack_detection_rate": 96.23,
+    "clean_pass_rate": 100.0,
+    "false_positive_rate": 0.0,
+    "p50_latency_ms": 1.8,
+    "p95_latency_ms": 46.93,
+    "p99_latency_ms": 220.4
+  }
+}

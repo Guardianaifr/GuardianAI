@@ -34,7 +34,7 @@ from guardian.audit.vyper_engine import run_vyper_ast_analysis
 
 class Chain(Enum):
     ETHEREUM   = "ethereum"
-    BASE       = "base"
+
     ARBITRUM   = "arbitrum"
     OPTIMISM   = "optimism"
     POLYGON    = "polygon"
@@ -1279,7 +1279,6 @@ class SmartContractAnalyzer:
             "binance-smart-chain": {"id": 56, "legacy_api": "https://api.bscscan.com/api"},
             "polygon": {"id": 137, "legacy_api": "https://api.polygonscan.com/api"},
             "arbitrum": {"id": 42161, "legacy_api": "https://api.arbiscan.io/api"},
-            "base": {"id": 8453, "legacy_api": "https://api.basescan.org/api"},
             "optimism": {"id": 10, "legacy_api": "https://api-optimistic.etherscan.io/api"},
             "avalanche": {"id": 43114, "legacy_api": "https://api.snowtrace.io/api"},
             # Monad target for launch readiness (EVM path may vary by environment)

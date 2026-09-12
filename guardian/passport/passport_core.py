@@ -157,8 +157,8 @@ class PassportEngine:
             for agent in existing_passports:
                 print(f"[PASSPORT MIGRATION AUDIT] Migrated passport {agent} to default tenant")
                 logger.info("[PASSPORT MIGRATION AUDIT] Migrated passport %s to default tenant", agent)
-        # Migrate any legacy 'base' or 'base-sepolia' chain_id rows to 'monad-testnet'
-        cur.execute("UPDATE agent_passports SET chain_id = 'monad-testnet' WHERE chain_id IN ('base', 'base-sepolia')")
+        # Migrate any legacy 'legacy-chain' chain_id rows to 'monad-testnet'
+        cur.execute("UPDATE agent_passports SET chain_id = 'monad-testnet' WHERE chain_id IN ('legacy-chain', 'legacy-chain-2', 'ethereum')")
         # Identity Gate (point-of-interaction enforcement) needs to resolve an
         # RPC tx `from` address back to an agent_id quickly. owner_pubkey is
         # not guaranteed to be a checksummed EVM address (it may hold other
@@ -194,6 +194,27 @@ class PassportEngine:
                 recorded_at REAL
             )
         """)
+        # Mera Passkey-Sealed Memory: stores ONLY ciphertext blobs.
+        # Zero plaintext secrets touch the server. Decryption requires
+        # the human operator's passkey PRF output (AES-256-GCM).
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS agent_encrypted_memories (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_id    TEXT NOT NULL,
+                session_id  TEXT NOT NULL,
+                seq_no      INTEGER NOT NULL,
+                ciphertext  BLOB NOT NULL,
+                iv          BLOB NOT NULL,
+                aad         TEXT NOT NULL,
+                timestamp   REAL NOT NULL,
+                created_at  REAL NOT NULL,
+                UNIQUE(agent_id, session_id, seq_no)
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_encrypted_memories_agent "
+            "ON agent_encrypted_memories (agent_id)"
+        )
         conn.commit()
         conn.close()
         logger.info("Passport tables initialized at %s", self.db_path)
@@ -613,3 +634,125 @@ class PassportEngine:
         rows = cur.fetchall()
         conn.close()
         return [AgentPassport.from_row(r) for r in rows]
+
+    # ── Mera Passkey-Sealed Memory (blind storage) ────────────
+
+    def store_encrypted_memory(
+        self,
+        agent_id: str,
+        session_id: str,
+        seq_no: int,
+        ciphertext: bytes,
+        iv: bytes,
+        aad: str,
+        timestamp: float,
+    ) -> Dict:
+        """
+        Blind-store an encrypted memory blob.
+
+        The server never sees plaintext — only AES-256-GCM ciphertext.
+        Decryption requires the human operator's passkey PRF output.
+        """
+        import time as _time
+
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                INSERT INTO agent_encrypted_memories
+                    (agent_id, session_id, seq_no, ciphertext, iv, aad, timestamp, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (agent_id, session_id, seq_no, ciphertext, iv, aad, timestamp, _time.time()),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError as e:
+            conn.close()
+            raise ValueError(f"Replay detected: memory sequence {seq_no} already exists for agent {agent_id} session {session_id}") from e
+        conn.close()
+        logger.info(
+            "[MERA] Stored encrypted memory for agent=%s session=%s seq=%d (%d bytes ciphertext)",
+            agent_id, session_id, seq_no, len(ciphertext),
+        )
+        return {
+            "agent_id": agent_id,
+            "session_id": session_id,
+            "seq_no": seq_no,
+            "ciphertext_size": len(ciphertext),
+            "timestamp": timestamp,
+        }
+
+    def get_encrypted_memories(self, agent_id: str) -> List[Dict]:
+        """
+        Retrieve all encrypted memory blobs for an agent.
+
+        Returns ciphertext + IV + AAD — the client must decrypt with passkey PRF.
+        """
+        import base64
+
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT agent_id, session_id, seq_no, ciphertext, iv, aad, timestamp
+            FROM agent_encrypted_memories
+            WHERE agent_id = ?
+            ORDER BY seq_no ASC
+            """,
+            (agent_id,),
+        )
+        rows = cur.fetchall()
+        conn.close()
+        return [
+            {
+                "agent_id": r[0],
+                "session_id": r[1],
+                "seq_no": r[2],
+                "ciphertext_b64": base64.b64encode(r[3]).decode(),
+                "iv_b64": base64.b64encode(r[4]).decode(),
+                "aad": r[5],
+                "timestamp": r[6],
+            }
+            for r in rows
+        ]
+
+    def tamper_memory(self, agent_id: str) -> Dict:
+        """
+        Flip 1 byte of the first encrypted memory blob for demo purposes.
+
+        This simulates a database-level poisoning attack. When the client
+        tries to decrypt with AES-256-GCM, the authentication tag will fail,
+        triggering the MEMORY_POISONING_DETECTED quarantine.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT id, ciphertext FROM agent_encrypted_memories
+            WHERE agent_id = ?
+            ORDER BY seq_no ASC LIMIT 1
+            """,
+            (agent_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return {"tampered": False, "error": "No encrypted memories found"}
+
+        record_id, original = row
+        tampered = bytearray(original)
+        # Flip the first byte
+        tampered[0] = tampered[0] ^ 0xFF
+        cur.execute(
+            "UPDATE agent_encrypted_memories SET ciphertext = ? WHERE id = ?",
+            (bytes(tampered), record_id),
+        )
+        conn.commit()
+        conn.close()
+        logger.warning(
+            "[MERA] TAMPERED memory for agent=%s record=%d (demo poisoning attack)",
+            agent_id, record_id,
+        )
+        return {"tampered": True, "agent_id": agent_id, "record_id": record_id}
+

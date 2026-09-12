@@ -18,6 +18,7 @@ import {
   createGuardianPlugin,
   attachGuardedMemory,
   withGuardianSecurity,
+  MemoryStore,
 } from "../src/index.ts";
 import type { RawTransaction } from "../src/types.ts";
 
@@ -347,6 +348,43 @@ export async function runTests() {
       rawBypassCaught = err instanceof GuardianSecurityError && err.reasons.includes("raw_transaction_bypass_attempt");
     }
     assert(rawBypassCaught, "Unmonitored raw transaction bypass rejected at transport level");
+  }
+
+  // ── Test 6: Mera Passkey Cryptographic Tamper Tripwire ────────────────────
+  console.log("\n[Test 6] Mera Passkey cryptographic tamper tripwire (MemoryStore)...");
+  {
+    const store = new MemoryStore();
+    const sessionId = "session-mera-test";
+    const agentId = "sentinel-alpha";
+
+    // Simulate normal memory write
+    const writeRes = store.write(sessionId, "Safe strategy context", {
+      appId: "agent-runner",
+      agentId: agentId,
+      source: "agent",
+      trustLevel: 70,
+      timestamp: Date.now(),
+    });
+    assert(writeRes.allowed, "Legitimate agent memory write allowed");
+
+    // Before tamper, quarantine log is empty
+    assert(store.getQuarantineLog(sessionId).length === 0, "Quarantine log empty initially");
+
+    // Simulate Mera unseal failure (AES-GCM tag verification mismatch)
+    store.recordCryptographicTamper(sessionId, agentId, "MEMORY_POISONING_DETECTED");
+
+    // Verify tamper logged in quarantine
+    const quarantine = store.getQuarantineLog(sessionId);
+    assert(quarantine.length === 1, "Mera tamper event successfully recorded in quarantine log");
+    assert(
+      quarantine[0].text.includes("[CRYPTOGRAPHIC INTEGRITY VIOLATION]"),
+      "Quarantine entry contains cryptographic integrity violation flag"
+    );
+    assert(
+      quarantine[0].text.includes("MEMORY_POISONING_DETECTED"),
+      "Quarantine entry references MEMORY_POISONING_DETECTED"
+    );
+    assert(quarantine[0].provenance.isTombstoned === true, "Tampered memory record is tombstoned");
   }
 
   console.log("\n================================================================");

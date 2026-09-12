@@ -120,25 +120,25 @@ def test_fail_mode_open(relay_config):
                 assert "result" in data
 
 
-def test_base_network_rejected_monad_testnet_allowed(relay):
-    """Base network (84532/8453) transactions are blocked; Monad Testnet (10143) is accepted."""
+def test_ethereum_network_rejected_monad_testnet_allowed(relay):
+    """Ethereum network (11155111/1) transactions are blocked; Monad Testnet (10143) is accepted."""
     with relay.app.test_client() as client:
-        # Base Sepolia (84532) must be rejected
+        # Ethereum Sepolia (11155111) must be rejected
         resp = client.post('/', json={
             "jsonrpc": "2.0",
             "method": "eth_sendTransaction",
-            "params": [{"to": "0xtarget", "data": "0x", "chainId": 84532}],
+            "params": [{"to": "0xtarget", "data": "0x", "chainId": 11155111}],
             "id": 6
         })
         data = json.loads(resp.data)
         assert "error" in data
         assert "monad testnet" in data["error"]["message"].lower()
 
-        # Base mainnet (8453 / 0x2105) must be rejected
+        # Ethereum mainnet (1 / 0x1) must be rejected
         resp = client.post('/', json={
             "jsonrpc": "2.0",
             "method": "eth_sendTransaction",
-            "params": [{"to": "0xtarget", "data": "0x", "chainId": "0x2105"}],
+            "params": [{"to": "0xtarget", "data": "0x", "chainId": "0x1"}],
             "id": 7
         })
         data = json.loads(resp.data)
@@ -162,51 +162,51 @@ def test_base_network_rejected_monad_testnet_allowed(relay):
                 assert data["result"] == "0xmonadtx"
 
 
-def test_raw_transaction_base_rejected_monad_testnet_allowed(relay):
-    """Raw transactions (eth_sendRawTransaction) targeting Base or missing EIP-155 are blocked; Monad Testnet raw tx is allowed."""
+def test_raw_transaction_ethereum_rejected_monad_testnet_allowed(relay):
+    """Raw transactions (eth_sendRawTransaction) targeting Ethereum or missing EIP-155 are blocked; Monad Testnet raw tx is allowed."""
     from eth_account import Account
 
     acc = Account.create()
 
-    # 1. Base Sepolia (84532) EIP-1559 raw tx -> rejected
-    tx_base_sepolia = {
+    # 1. Ethereum Sepolia (11155111) EIP-1559 raw tx -> rejected
+    tx_eth_sepolia = {
         "to": "0x0000000000000000000000000000000000000001",
         "value": 0,
         "gas": 21000,
         "maxFeePerGas": 10**9,
         "maxPriorityFeePerGas": 10**9,
         "nonce": 0,
-        "chainId": 84532,
+        "chainId": 11155111,
         "type": 2,
         "data": b"",
     }
-    raw_base_sepolia = acc.sign_transaction(tx_base_sepolia).raw_transaction.hex()
+    raw_eth_sepolia = acc.sign_transaction(tx_eth_sepolia).raw_transaction.hex()
 
     with relay.app.test_client() as client:
         resp = client.post('/', json={
             "jsonrpc": "2.0",
             "method": "eth_sendRawTransaction",
-            "params": [raw_base_sepolia],
+            "params": [raw_eth_sepolia],
             "id": 101
         })
         data = json.loads(resp.data)
         assert "error" in data
         assert "monad testnet" in data["error"]["message"].lower()
 
-        # 2. Base Mainnet (8453) legacy EIP-155 raw tx -> rejected
-        tx_base_mainnet = {
+        # 2. Ethereum Mainnet (1) legacy EIP-155 raw tx -> rejected
+        tx_eth_mainnet = {
             "to": "0x0000000000000000000000000000000000000001",
             "value": 0,
             "gas": 21000,
             "gasPrice": 10**9,
             "nonce": 0,
-            "chainId": 8453,
+            "chainId": 1,
         }
-        raw_base_mainnet = acc.sign_transaction(tx_base_mainnet).raw_transaction.hex()
+        raw_eth_mainnet = acc.sign_transaction(tx_eth_mainnet).raw_transaction.hex()
         resp = client.post('/', json={
             "jsonrpc": "2.0",
             "method": "eth_sendRawTransaction",
-            "params": [raw_base_mainnet],
+            "params": [raw_eth_mainnet],
             "id": 102
         })
         data = json.loads(resp.data)

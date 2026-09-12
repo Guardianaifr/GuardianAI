@@ -353,6 +353,71 @@
     <div class="verify-result" id="verifyResult"></div>
   </div>
 
+  <!-- ═══ MERA PASSKEY ENCLAVE ═══ -->
+  <h2 class="section-title">🔐 Sovereign Passkey Enclave <span style="font-size:.6rem;color:var(--cyan);background:rgba(0,242,254,.1);padding:2px 10px;border-radius:10px;margin-left:8px;font-weight:500">Powered by Mera PRF</span></h2>
+  <div class="verify-panel" id="meraPanel" style="border-color:rgba(0,242,254,.25)">
+
+    <!-- PRF Support Detection -->
+    <div id="prfStatus" style="padding:12px;border-radius:var(--radius-sm);margin-bottom:16px;font-size:.8rem;background:var(--surface2);border:1px solid var(--border)">
+      🔍 Checking WebAuthn PRF support…
+    </div>
+
+    <!-- Agent ID Input -->
+    <div class="form-group" style="margin-bottom:12px">
+      <label style="font-size:.75rem;color:var(--text2)">Agent ID</label>
+      <input class="verify-input" type="text" id="meraAgentId" value="sentinel-alpha" placeholder="e.g. sentinel-alpha" style="font-size:.85rem">
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      <button class="verify-btn" onclick="meraMintIdentity()" id="btnMintId" style="background:linear-gradient(135deg,#8b5cf6,#d946ef);flex:1;min-width:140px">
+        🪪 Mint Agent Identity
+      </button>
+      <button class="verify-btn" onclick="meraSealMemory()" id="btnSeal" style="background:linear-gradient(135deg,#00f2fe,#0ea5e9);flex:1;min-width:140px">
+        🔒 Seal Memory
+      </button>
+      <button class="verify-btn" onclick="meraUnsealMemory()" id="btnUnseal" style="background:linear-gradient(135deg,#10b981,#059669);flex:1;min-width:140px">
+        🔓 Unseal Memory
+      </button>
+      <button class="verify-btn" onclick="meraTamper()" id="btnTamper" style="background:linear-gradient(135deg,#ef4444,#dc2626);flex:1;min-width:140px">
+        💀 Simulate DB Tampering
+      </button>
+    </div>
+
+    <!-- Memory Input -->
+    <div class="form-group" style="margin-bottom:12px">
+      <label style="font-size:.75rem;color:var(--text2)">Agent Memory / Strategy (plaintext)</label>
+      <textarea id="meraMemoryInput" rows="3" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;font-family:'JetBrains Mono',monospace;outline:none;resize:vertical" placeholder="e.g. Rebalance portfolio if price divergence exceeds 0.15%">Rebalance portfolio if price divergence exceeds 0.15%</textarea>
+    </div>
+
+    <!-- Results Console -->
+    <div id="meraConsole" style="background:#0a0a0f;border:1px solid rgba(0,242,254,.2);border-radius:var(--radius-sm);padding:16px;font-family:'JetBrains Mono',monospace;font-size:.75rem;line-height:1.8;max-height:400px;overflow-y:auto;color:var(--text2)">
+      <div style="color:var(--cyan)">// Mera Passkey Enclave Console</div>
+      <div style="color:var(--text3)">// Touch your passkey to begin…</div>
+    </div>
+
+    <!-- Identity Card (hidden until minted) -->
+    <div id="meraIdentityCard" style="display:none;margin-top:16px;padding:16px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);border-radius:var(--radius-sm)">
+      <div style="font-size:.65rem;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🪪 Agent Identity (Ed25519)</div>
+      <div style="font-size:.75rem;color:var(--text);word-break:break-all" id="meraIdentityDid">—</div>
+      <div style="margin-top:8px;font-size:.65rem;color:var(--text3)">Derived from passkey PRF • Zero keys stored</div>
+    </div>
+
+    <!-- Quarantine Alert (hidden until tamper detected) -->
+    <div id="meraQuarantineAlert" style="display:none;margin-top:16px;padding:16px;background:rgba(239,68,68,.12);border:2px solid rgba(239,68,68,.5);border-radius:var(--radius-sm);animation:quarantinePulse 1s ease-in-out infinite">
+      <div style="font-size:1.1rem;font-weight:700;color:var(--red);margin-bottom:4px">🚨 MEMORY POISONING DETECTED</div>
+      <div style="font-size:.8rem;color:var(--red)">Agent quarantined. AES-256-GCM authentication tag failed.</div>
+      <div style="font-size:.7rem;color:var(--text3);margin-top:8px">Tampered ciphertext rejected — cryptographic integrity violation.</div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes quarantinePulse {
+      0%, 100% { box-shadow: 0 0 15px rgba(239,68,68,.2); }
+      50% { box-shadow: 0 0 30px rgba(239,68,68,.4); }
+    }
+  </style>
+
 </div>
 
 <script>
@@ -692,6 +757,205 @@ function animateValue(elementId, start, end, duration) {
   requestAnimationFrame(update);
 }
 
+// ── Mera Passkey Enclave ─────────────────────────────
+
+let meraState = {
+  identity: null,
+  sealedMemory: null,
+  sessionId: 'session-' + Date.now().toString(36),
+  seqNo: 0,
+};
+
+function meraLog(msg, color = 'var(--text2)') {
+  const console = document.getElementById('meraConsole');
+  const line = document.createElement('div');
+  line.style.color = color;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  console.appendChild(line);
+  console.scrollTop = console.scrollHeight;
+}
+
+function toHex(buf) {
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function sha256(str) {
+  const data = new TextEncoder().encode(str);
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+}
+
+// Derive a simulated agent identity using WebCrypto (browser-side demo)
+async function meraMintIdentity() {
+  const agentId = document.getElementById('meraAgentId').value.trim();
+  if (!agentId) { meraLog('⚠ Enter an agent ID first', 'var(--amber)'); return; }
+
+  meraLog(`🪪 Minting identity for "${agentId}"…`, 'var(--accent)');
+  document.getElementById('meraQuarantineAlert').style.display = 'none';
+
+  try {
+    // Simulate PRF: SHA-256 of identity salt (in real Mera, this comes from passkey hardware)
+    const salt = await sha256('guardianai:v1:agent:identity:' + agentId);
+    // Derive an Ed25519-like fingerprint (simulated — real derivation uses Mera's createEd25519SigningSession)
+    const identityKey = await crypto.subtle.importKey('raw', salt, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const publicKeyBuf = await crypto.subtle.sign('HMAC', identityKey, new TextEncoder().encode('ed25519:public'));
+    const publicKey = new Uint8Array(publicKeyBuf);
+    const did = `did:guardian:ed25519:${toHex(publicKey)}`;
+
+    meraState.identity = { publicKey, did, agentId };
+
+    meraLog(`✔ Identity derived!`, 'var(--green)');
+    meraLog(`  DID: ${did}`, 'var(--cyan)');
+    meraLog(`  Public Key: ${toHex(publicKey).slice(0, 32)}…`, 'var(--cyan)');
+    meraLog(`  Zero private keys stored — session zeroed`, 'var(--text3)');
+
+    // Show identity card
+    document.getElementById('meraIdentityCard').style.display = 'block';
+    document.getElementById('meraIdentityDid').textContent = did;
+  } catch (e) {
+    meraLog(`✖ Error: ${e.message}`, 'var(--red)');
+  }
+}
+
+// Seal memory with AES-256-GCM
+async function meraSealMemory() {
+  const agentId = document.getElementById('meraAgentId').value.trim();
+  const plaintext = document.getElementById('meraMemoryInput').value.trim();
+  if (!agentId || !plaintext) { meraLog('⚠ Enter agent ID and memory text', 'var(--amber)'); return; }
+
+  meraLog(`🔒 Sealing memory for "${agentId}"…`, 'var(--accent2)');
+  document.getElementById('meraQuarantineAlert').style.display = 'none';
+
+  try {
+    // Derive encryption key from PRF output (simulated)
+    const memorySalt = await sha256('guardianai:v1:agent:memory:' + agentId);
+    const baseKey = await crypto.subtle.importKey('raw', memorySalt, 'HKDF', false, ['deriveKey']);
+    const aesKey = await crypto.subtle.deriveKey(
+      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: new TextEncoder().encode('guardianai:v1:encrypt:memory') },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const timestamp = Date.now();
+    meraState.seqNo++;
+    const aadString = `${agentId}:${meraState.sessionId}:${meraState.seqNo}:${timestamp}`;
+    const aad = new TextEncoder().encode(aadString);
+
+    const ciphertextBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad }, aesKey, new TextEncoder().encode(plaintext));
+    const ciphertext = new Uint8Array(ciphertextBuf);
+
+    meraState.sealedMemory = { ciphertext, iv, aad: aadString, timestamp, aesKey };
+
+    meraLog(`✔ Memory sealed! (${ciphertext.length} bytes ciphertext)`, 'var(--green)');
+    meraLog(`  IV: ${toHex(iv)}`, 'var(--cyan)');
+    meraLog(`  AAD: ${aadString}`, 'var(--cyan)');
+    meraLog(`  Ciphertext: ${toHex(ciphertext).slice(0, 48)}…`, 'var(--cyan)');
+    meraLog(`  ⚡ Server stores ONLY ciphertext — zero plaintext anywhere`, 'var(--text3)');
+
+    // Also store to backend
+    try {
+      const b64 = btoa(String.fromCharCode(...ciphertext));
+      const ivB64 = btoa(String.fromCharCode(...iv));
+      await apiPost('/api/v1/passport/memory', {
+        agent_id: agentId, session_id: meraState.sessionId, seq_no: meraState.seqNo,
+        ciphertext_b64: b64, iv_b64: ivB64, aad: aadString, timestamp
+      });
+      meraLog(`  📡 Blind-stored to backend SQLite`, 'var(--text3)');
+    } catch (e) { /* Backend optional for demo */ }
+  } catch (e) {
+    meraLog(`✖ Error: ${e.message}`, 'var(--red)');
+  }
+}
+
+// Unseal memory — will fail if tampered
+async function meraUnsealMemory() {
+  if (!meraState.sealedMemory) { meraLog('⚠ No sealed memory. Seal first.', 'var(--amber)'); return; }
+  const agentId = document.getElementById('meraAgentId').value.trim();
+
+  meraLog(`🔓 Unsealing memory for "${agentId}"…`, 'var(--green)');
+
+  try {
+    const { ciphertext, iv, aad, aesKey } = meraState.sealedMemory;
+
+    // Re-derive key (simulating cross-device: same PRF salt → same key)
+    const memorySalt = await sha256('guardianai:v1:agent:memory:' + agentId);
+    const baseKey = await crypto.subtle.importKey('raw', memorySalt, 'HKDF', false, ['deriveKey']);
+    const decryptKey = await crypto.subtle.deriveKey(
+      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: new TextEncoder().encode('guardianai:v1:encrypt:memory') },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+
+    const plaintextBuf = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(aad) },
+      decryptKey, ciphertext
+    );
+    const plaintext = new TextDecoder().decode(plaintextBuf);
+
+    meraLog(`✔ Memory unsealed successfully!`, 'var(--green)');
+    meraLog(`  Plaintext: "${plaintext}"`, 'var(--cyan)');
+    meraLog(`  ✔ Cross-device proof: same PRF salt → identical key → decryption succeeds`, 'var(--green)');
+    document.getElementById('meraQuarantineAlert').style.display = 'none';
+  } catch (e) {
+    // AES-GCM tag verification failed = tampered!
+    meraLog(`🚨 MEMORY POISONING DETECTED!`, 'var(--red)');
+    meraLog(`  AES-256-GCM authentication tag failed`, 'var(--red)');
+    meraLog(`  Agent "${agentId}" QUARANTINED — transactions frozen`, 'var(--red)');
+    document.getElementById('meraQuarantineAlert').style.display = 'block';
+  }
+}
+
+// Simulate DB tampering — flip 1 byte
+async function meraTamper() {
+  if (!meraState.sealedMemory) { meraLog('⚠ No sealed memory to tamper', 'var(--amber)'); return; }
+
+  meraLog(`💀 Simulating database poisoning attack…`, 'var(--red)');
+  meraLog(`  Flipping byte 0 of ciphertext: 0x${meraState.sealedMemory.ciphertext[0].toString(16)} → 0x${(meraState.sealedMemory.ciphertext[0] ^ 0xFF).toString(16)}`, 'var(--red)');
+
+  // Flip the first byte
+  meraState.sealedMemory.ciphertext[0] ^= 0xFF;
+
+  meraLog(`  ✔ Ciphertext tampered. Now try "Unseal Memory"…`, 'var(--amber)');
+
+  // Also tamper via backend API if available
+  const agentId = document.getElementById('meraAgentId').value.trim();
+  try {
+    await apiPost(`/api/v1/passport/memory/${agentId}/tamper`, {});
+    meraLog(`  📡 Backend SQLite also tampered`, 'var(--text3)');
+  } catch (e) { /* Backend optional */ }
+}
+
+// Check WebAuthn PRF support on page load
+async function checkPrfSupport() {
+  const el = document.getElementById('prfStatus');
+  if (!window.PublicKeyCredential) {
+    el.innerHTML = '❌ <strong>WebAuthn not supported</strong> in this browser. Use Chrome, Safari, or Edge.';
+    el.style.background = 'var(--red-bg)';
+    el.style.borderColor = 'rgba(239,68,68,.3)';
+    el.style.color = 'var(--red)';
+    return;
+  }
+
+  // Check if PRF extension is available (heuristic — full check requires credential creation)
+  const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent);
+  const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+  const isEdge = /Edg\//.test(navigator.userAgent);
+
+  let platform = 'Unknown';
+  if (isSafari) platform = 'Safari (iCloud Keychain — PRF ✓)';
+  else if (isChrome) platform = 'Chrome (requires Google Password Manager signed in for PRF)';
+  else if (isEdge) platform = 'Edge (Windows Hello PRF ✓ on Win 11 25H2+)';
+
+  el.innerHTML = `✅ <strong>WebAuthn available</strong> — ${platform}<br><span style="font-size:.7rem;color:var(--text3)">Demo uses browser WebCrypto simulation. Production uses Mera's @category-labs/mera SDK with real passkey hardware.</span>`;
+  el.style.background = 'var(--green-bg)';
+  el.style.borderColor = 'rgba(16,185,129,.3)';
+  el.style.color = 'var(--green)';
+}
+
 // ── Init ──────────────────────────────────────────────
 (function init() {
   const token = localStorage.getItem('guardian_token');
@@ -704,6 +968,8 @@ function animateValue(elementId, start, end, duration) {
   document.getElementById('login-pass').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
   });
+  // Check PRF support after DOM ready
+  setTimeout(checkPrfSupport, 500);
 })();
 </script>
 </body>

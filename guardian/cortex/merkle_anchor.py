@@ -34,14 +34,7 @@ CHAIN_CONFIGS: Dict[str, Dict[str, Any]] = {
         "priority": 1,
         "gas_estimate_gwei": 0.01,  # Extremely cheap on Monad
     },
-    "base": {
-        "chain_id": 8453,
-        "rpc_url": "https://mainnet.base.org",
-        "explorer": "https://basescan.org/tx/",
-        "name": "Base",
-        "priority": 2,
-        "gas_estimate_gwei": 0.05,
-    },
+
     "ethereum": {
         "chain_id": 1,
         "rpc_url": "https://eth.llamarpc.com",

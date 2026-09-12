@@ -1,0 +1,58 @@
+{
+  "timestamp": 1789229198898,
+  "date": "Sat, 12 Sep 2026 16:06:38 GMT",
+  "framework": "@guardianai/mera-enclave",
+  "version": "1.0.0",
+  "target": "Category Labs Mera Passkey PRF (WebAuthn PRF)",
+  "corporaIngested": [
+    {
+      "name": "Big List of Naughty Strings (BLNS)",
+      "source": "minimaxir/big-list-of-naughty-strings",
+      "samplesTested": 100
+    },
+    {
+      "name": "Freqtrade Quantitative Bot Config",
+      "source": "freqtrade/freqtrade",
+      "sizeBytes": 6080
+    },
+    {
+      "name": "SecLists Fuzzing Markers",
+      "source": "danielmiessler/SecLists",
+      "sizeBytes": 64
+    },
+    {
+      "name": "Monad Deployed Contract Telemetry",
+      "source": "GuardianPolicyGuard.sol ABI (Chain ID 10143)",
+      "sizeBytes": 37335
+    }
+  ],
+  "scorecard": {
+    "totalTests": 166,
+    "passed": 166,
+    "failed": 0,
+    "successRate": 100,
+    "tamperAttacksTested": 8,
+    "tamperAttacksIntercepted": 8,
+    "tamperInterceptionRate": 100
+  },
+  "latencyPercentiles": {
+    "identityMint": {
+      "p50": "0.464",
+      "p90": "0.515",
+      "p95": "0.558",
+      "p99": "0.924"
+    },
+    "memorySeal": {
+      "p50": "0.337",
+      "p90": "0.400",
+      "p95": "0.452",
+      "p99": "1.608"
+    },
+    "memoryUnseal": {
+      "p50": "0.326",
+      "p90": "0.373",
+      "p95": "0.398",
+      "p99": "0.819"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@guardianai/mera-enclave",
+  "version": "1.0.0",
+  "description": "Sovereign AI Agent Identity & Memory Enclave powered by Mera Passkey PRF",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "tsx scripts/cross_device_demo.ts",
+    "audit": "tsx scripts/realtime_audit.ts",
+    "test:hard": "tsx scripts/hard_testing_unseen_data.ts"
+  },
+  "dependencies": {
+    "@category-labs/mera": "^0.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "tsx": "^4.0.0"
+  }
+}

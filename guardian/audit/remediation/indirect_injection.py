@@ -57,6 +57,9 @@ class IndirectInjectionFilter:
         # Pattern B: well-known dangerous action values or MAX amount sentinel
         r"\"(?:action|operation|cmd|command)\"\s*:\s*\"(?:approve_transfer|transfer|drain|withdraw|execute)[^\"]*\"",
         r"\"(?:amount|value|qty|quantity)\"\s*:\s*\"(?:MAX|UNLIMITED|type\(uint256\)\.max|115792089)\"",
+        # Agent Code Injection / Piggybacking (Microsoft BIPIA benchmark)
+        r"(?:the\s+)?(?:following|subsequent|below)\s+code\s+(?:snippet|section|excerpt|block)[\s\S]{0,120}```",
+        r"(?:include|embed|incorporate|feature|integrate|blend|merge|weave|add|utilize|supplement|validate|modify)\s+(?:the\s+)?(?:following|subsequent|below)\s+code",
     ]
 
     def __init__(self):

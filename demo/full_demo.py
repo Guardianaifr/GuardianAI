@@ -614,10 +614,21 @@ def scene_trust(ctx):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def scene_assurance(ctx):
+    import sqlite3
     from guardian.cortex.cortex_engine import CortexEngine, _compute_merkle_leaf
     from guardian.cortex.insurance import InsuranceCertificateGenerator
     from guardian.passport.erc8004_registrar import default_db_path
     db_path = default_db_path()
+
+    # Ensure demo agent has an active trial for repeatable demonstration
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM cortex_trials WHERE agent_id = ?", (AGENT_ID,))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
     cortex = CortexEngine(db_path=db_path, privacy_mode="hash_only")
     ev1 = cortex.record_event(agent_id=AGENT_ID, event_type="trade_execution",
@@ -632,7 +643,8 @@ def scene_assurance(ctx):
     ok(f"Agent decisions recorded to verifiable memory: {getattr(ev1, 'event_id', '?')[:16]}…" 
        f" → {getattr(ev2, 'event_id', '?')[:16]}… (parent-linked)")
 
-    stored = cortex.get_event(getattr(ev1, "event_id"))
+    ev1_id = getattr(ev1, "event_id", "") if ev1 else ""
+    stored = cortex.get_event(ev1_id) if ev1_id else None
     assert stored is not None, "recorded event not retrievable"
     pristine_leaf = _compute_merkle_leaf(stored)
 

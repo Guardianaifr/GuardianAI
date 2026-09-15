@@ -385,6 +385,8 @@ def act3_identity():
             time.sleep(4)
 
         for ch, x in finals.items():
+            if ch not in configured_chains():
+                continue
             if x["status"] == "confirmed":
                 registry = ERC8004Registrar(ch, default_db_path()).cfg["registry"]
                 url = explorers.get(ch, "").format(registry=registry,

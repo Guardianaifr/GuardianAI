@@ -18,6 +18,17 @@
   {
     "inputs": [
       {
+        "internalType": "bytes32",
+        "name": "agentHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "AgentPermanentlyRevoked",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "sender",
         "type": "address"

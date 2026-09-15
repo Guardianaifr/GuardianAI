@@ -149,17 +149,29 @@ Major implemented feature groups: **38** (32 Off-Chain Security Controls + 6 On-
 35. GuardianInterlockRegistry (Agent-to-Agent Authorization)
    - Decentralized registry where AI agents request, approve, and verify communication permissions dynamically.
 36. GuardianInsuranceLedger (Insurance Certificate Anchoring)
-   - On-chain registry anchoring signed insurance certificates (integrity hash, validity period, risk level). Correction (Aug 2026): the stake/slash/payout behavior described in earlier revisions was never implemented — see whitepaper Feature 36 for the honest scope.
+   - On-chain registry anchoring signed insurance certificates (integrity hash, validity period, risk level). Correction (Aug 2026): the stake/slash/payout behavior described in earlier revisions was never implemented — see WHITEPAPER_PUBLIC.md Feature 36 for the honest scope.
 37. GuardianThreatFeedRegistry (Decentralized Intelligence)
    - On-chain repository where security nodes publish and subscribe to zero-day threat patterns.
 38. GuardianRiskAttestation (Verifiable Trust)
    - Allows trusted auditors or GuardianAI to publish cryptographic attestations about an AI agent's real-time risk score.
 
 39. ERC-8004 Identity Registration (Canonical Trustless Agents, Aug 2026)
-   - Registers protected agents on the canonical ERC-8004 Identity Registry (register-then-transfer ownership), links each agentId to its GuardianPassportSBT, serves the spec registration JSON, and enforces fail-closed safety gates. Disabled by default — see `GUARDIAN_ERC8004_ENABLED` in `.env.example` and whitepaper Feature 39.
+   - Registers protected agents on the canonical ERC-8004 Identity Registry (register-then-transfer ownership), links each agentId to its GuardianPassportSBT, serves the spec registration JSON, and enforces fail-closed safety gates. Disabled by default — see `GUARDIAN_ERC8004_ENABLED` in `.env.example` and WHITEPAPER_PUBLIC.md Feature 39.
 
 40. Identity Gate & Point-of-Interaction Enforcement (ERC-8004 Live Enforcement & Hot-Wallet Collision Defense, Sep 2026)
    - Enforces verified ERC-8004 identities and trust tiers pre-flight across RPC relay transactions (`rpc_relay.py`) and inter-agent messages (`agentic_controls.py`). Features case-insensitive address-to-passport resolution with structural active-wallet unique indexing, fail-open RPC fallback resiliency, and zero-downtime shadow observation mode (`GUARDIAN_IDENTITY_GATE_MODE=shadow`).
+
+41. GuardianPolicyGuard & Monad Parallel EVM Execution Gateway (Sep 2026)
+   - On-chain EIP-712 execution gateway deployed to Monad Testnet (`0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101`) enforcing 10 Solidity invariants, function selector allowlists (RBAC), 24h cumulative outflow limits, and unordered namespaced nonces preventing parallel storage collisions up to 10,000 TPS.
+
+42. Agent Middleware SDK (`@guardianai/middleware`) & ElizaOS Memory Poisoning Guard (Sep 2026)
+   - Drop-in client interceptors for ElizaOS (ai16z) runtime and Viem Web3 clients. Scans agent memories pre-prompt to stop RAG/context corruption and wraps transactions with pre-flight attestations with fail-closed error handling.
+
+43. Envio HyperIndex Multi-Contract Real-Time Indexer (Sep 2026)
+   - High-speed event indexing pipeline streaming logs across 5 Monad contracts via HyperSync to GraphQL endpoints for real-time dashboard observability.
+
+44. Category Labs Mera Passkey PRF Enclave (Sep 2026)
+   - Sovereign, non-wallet agent identity minting (Ed25519 DIDs) and zero-knowledge memory encryption (AES-256-GCM + HKDF) derived deterministically from hardware biometric WebAuthn PRF salts. Includes active tamper tripwires (`MEMORY_POISONING_DETECTED`) and verified cross-device state restoration with zero secrets on disk or servers.
 
 ## 7) Roadmap Delivery (What Was Built Beyond Basic Version)
 

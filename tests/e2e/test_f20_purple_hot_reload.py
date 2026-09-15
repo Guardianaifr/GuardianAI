@@ -74,12 +74,14 @@ class _MockUpstreamHandler(BaseHTTPRequestHandler):
 
 
 @pytest.mark.e2e
-def test_f20_purple_hot_reload_end_to_end(tmp_path: Path):
+def test_f20_purple_hot_reload_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """
     Proves F20: A red-team finding that produces OUTCOME_FULL_BYPASS goes through
     the purple-heal governance gate and successfully hot-patches the live GuardianProxy
     input filter without requiring a restart.
     """
+    import guardian.guardrails.translation_adapter as ta
+    monkeypatch.setattr(ta, "translate_to_english", lambda text: text)
     upstream_port = _free_port()
     proxy_port = _free_port()
 

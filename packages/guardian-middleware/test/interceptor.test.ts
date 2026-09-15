@@ -350,8 +350,8 @@ export async function runTests() {
     assert(rawBypassCaught, "Unmonitored raw transaction bypass rejected at transport level");
   }
 
-  // ── Test 6: Mera Passkey Cryptographic Tamper Tripwire ────────────────────
-  console.log("\n[Test 6] Mera Passkey cryptographic tamper tripwire (MemoryStore)...");
+  // ── Test 9: Mera Passkey Cryptographic Tamper Tripwire ────────────────────
+  console.log("\n[Test 9] Mera Passkey cryptographic tamper tripwire (MemoryStore)...");
   {
     const store = new MemoryStore();
     const sessionId = "session-mera-test";
@@ -364,6 +364,7 @@ export async function runTests() {
       source: "agent",
       trustLevel: 70,
       timestamp: Date.now(),
+      isTombstoned: false,
     });
     assert(writeRes.allowed, "Legitimate agent memory write allowed");
 

@@ -53,7 +53,7 @@ DEFAULT_EXCLUDE_SUFFIXES = {
 }
 
 SECRET_PATTERNS: dict[str, re.Pattern[str]] = {
-    "openai_api_key": re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    "openai_api_key": re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"),
     "aws_access_key": re.compile(r"AKIA[0-9A-Z]{16}"),
     "private_key_block": re.compile(r"-----BEGIN [A-Z ]+PRIVATE KEY-----"),
     "jwt_token": re.compile(r"eyJ[A-Za-z0-9_\-=]+\.[A-Za-z0-9_\-=]+\.[A-Za-z0-9_\-=+/]*"),

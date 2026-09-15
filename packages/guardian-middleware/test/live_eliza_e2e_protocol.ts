@@ -321,7 +321,7 @@ async function main() {
         role: opts.role || "user",
       },
     };
-    const memWriteResult = await elizaRuntime.messageManager!.createMemory(memObj);
+    const memWriteResult = await elizaRuntime.messageManager!.createMemory!(memObj);
 
     // 2. Evaluator check (GUARDIAN_MEMORY_GUARD)
     const evalResult = await memoryGuardEvaluator.handler(elizaRuntime, memObj as ElizaMessage);

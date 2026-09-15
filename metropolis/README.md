@@ -100,13 +100,16 @@ GuardianAI is custom-engineered to exploit the unique properties of **Category L
 - [x] Python agent middleware (`sdk/python/guardian_middleware.py`) with LangChain callback, Web3.py middleware, and tool wrapper.
 - [x] ElizaOS `guardianMemoryGuard` evaluator countering Princeton/Sentient memory-poisoning drain attacks.
 - [x] Pre-flight interception wrapping transactions into Monad `GuardianPolicyGuard` (`0x3cb7461c`) with strict fail-closed security.
-- [x] 100% test coverage (12 Python unit tests + 26 TypeScript unit tests passing).
+- [x] 100% test coverage (12 Python unit tests + 49 standalone TypeScript unit tests passing).
 
-### D. Chainlink CRE Workflow (metropolis/chainlink/)
-- [ ] Implement a verifiable TypeScript workflow via @chainlink/cre-sdk.
-- [ ] Query Guardian's off-chain /api/v1/stats endpoint and commit verified threat roots to GuardianThreatFeedRegistry.sol.
+### D. Chainlink CRE Workflow (metropolis/chainlink/) [COMPLETED ✅]
+- [x] Decentralized Threat Oracle: CRE TypeScript workflow using `@chainlink/cre-sdk` (CronCapability, HTTPClient, EVMClient, runtime.runInNodeMode, runtime.report, writeReport).
+- [x] Cron-triggered pipeline: DON nodes independently fetch `/api/v1/stats` → median consensus → signed report → EVM write to Monad Testnet.
+- [x] `GuardianThreatConsumer.sol`: On-chain consumer contract receiving CRE Forwarder reports with historical tracking and block-rate analytics.
+- [x] Full CRE project scaffold: `project.yaml`, `workflow.yaml`, `config.staging.json`, `config.production.json`, mock API fixtures for simulation.
+- [x] Ready for `cre workflow simulate guardian-threat-sync --target staging-settings`.
 
-### D. Final Submission Assets
+### E. Final Submission Assets
 - [ ] 3-to-5 minute video demo highlighting Track 04 problem & solution.
 - [ ] Public GitHub repository clean link.
 - [ ] Live deployment on Monad Testnet (Chain ID: 10143).

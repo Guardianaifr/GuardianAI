@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_INPUT    = ROOT / "artifacts" / "evidence" / "latest_benchmark.json"
 WHITEPAPERS      = [
-    ROOT / "WHITEPAPER.md",
     ROOT / "WHITEPAPER_PUBLIC.md",
 ]
 

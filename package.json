@@ -1,4 +1,11 @@
 {
+  "name": "guardianai",
+  "private": true,
+  "scripts": {
+    "demo": "npx tsx demo/privy_agent_demo.ts",
+    "setup-policy": "npx tsx scripts/setup_privy_policy.ts",
+    "test:privy": "npx tsx tools/test_privy_realtime_stress.ts"
+  },
   "devDependencies": {
     "autoprefixer": "^10.4.24",
     "postcss": "^8.5.6",

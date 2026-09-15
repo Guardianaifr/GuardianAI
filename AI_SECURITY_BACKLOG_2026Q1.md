@@ -511,10 +511,8 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 | Block throughput | 223.20 rps | **494.01 rps** | `perf_chaos_report.json` (April 2026) |
 | Attack latency p95 | 96.44 ms | **41.88 ms** | `perf_chaos_report.json` (April 2026) |
 
-**Files changed:**
-- `WHITEPAPER.md` — Section 6 table + added Section 6.2 correction note
+**Files changed (August 2026; note: in September 2026, `WHITEPAPER.md` and `WHITEPAPER Update.md` were retired in favor of canonical `WHITEPAPER_PUBLIC.md`):**
 - `WHITEPAPER_PUBLIC.md` — Section 6 table + added Section 6.2 correction note
-- `WHITEPAPER Update.md` — Section 6 table + added Section 6.2 correction note
 
 ---
 

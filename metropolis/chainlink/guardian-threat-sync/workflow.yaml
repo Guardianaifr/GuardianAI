@@ -1,0 +1,21 @@
+# ==========================================================================
+# GuardianAI Threat Sync — Workflow Configuration
+# ==========================================================================
+# Tells the CRE CLI where to find workflow source, config, and secrets.
+# ==========================================================================
+
+staging-settings:
+  user-workflow:
+    workflow-name: "guardian-threat-sync-staging"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.staging.json"
+    secrets-path: ""
+
+production-settings:
+  user-workflow:
+    workflow-name: "guardian-threat-sync-production"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.production.json"
+    secrets-path: ""

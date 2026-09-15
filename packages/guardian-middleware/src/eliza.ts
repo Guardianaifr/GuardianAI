@@ -25,6 +25,7 @@ export interface ElizaRuntime {
   character?: { name: string };
   messageManager?: {
     getMemories: (opts: any) => Promise<ElizaMessage[]>;
+    createMemory?: (memory: any, unique?: boolean) => Promise<any>;
   };
   [key: string]: any;
 }
@@ -269,6 +270,30 @@ const ADVERSARIAL_PATTERNS: RegExp[] = [
   // --- Deferred Memory Install ---
   /(note|memo|reminder|context\s+note)\s*:\s*(assistant|agent|ai|you|bot)\s+(must|should|shall|will|needs?\s+to)/i,
   /(note|memo|reminder)\s+(for\s+)?(future\s+)?(context|reference|use)\s*:\s*(assistant|agent|ai|you|bot)\s+(must|should|shall|will|needs?\s+to)/i,
+
+  // --- Cyberattack, Malware & Web3 Exploit Vectors ---
+  /(?:exploit|hack|drain|attack|reentrancy|flash\s*loan|arbitrage|sandwich|steal|frontrun)\b.*(?:contract|wallet|pool|vault|tokens?|funds?|protocol|vulnerability|cryptocurrency)/i,
+  /\b(?:reentrancy|infinite\s*approval|slippage\s*manipulation|oracle\s*manipulation|drain\s*funds)\b/i,
+  /\b(?:write|generate|create|develop|code|script|tutorial|guide)\b.*(?:malware|ransomware|keylogger|trojan|botnet|exploit|backdoor|rootkit|virus|phishing|bomb|explosive)/i,
+  /\b(?:instructions?|guide|tutorial|steps?)\s+(?:for|to|on)\s+(?:hacking|cracking|infiltrating|penetrating|exploiting|draining|making\s+a\s+bomb)/i,
+
+  // --- Harmful Substances, Weapons, Violence & Severe Harm ---
+  /\b(?:bomb|explosive|cyanide|fentanyl|ricin|nerve\s*agent|mustard\s*gas|silencer|ghost\s*gun|mass\s*shooting|terrorist)\b/i,
+  /\b(?:biological\s*weapon|chemical\s*weapon|anthrax|dirty\s*bomb|wmd)\b/i,
+  /\b(?:kill\s+myself|commit\s+suicide|suicide\s+(?:bombers?|methods?|noose)|permanent\s+deafness|make\s+a\s+noose|makeshift\s+noose|cut\s+myself|break\s+my\s+own\s+ribs)\b/i,
+  /\b(?:blackmail|extort|coerce|force\s+someone\s+into|exploit\s+a\s+.*child|child\s+abuse|physical\s+punishment|hide\s+my\s+drug\s+use)\b/i,
+  /\b(?:skin|drown|torture|harm|beat|starve|poison|injure|abuse|suffer(?:ing)?)\b.*?\b(?:cat|dog|pet|animal|rat|bird|puppy|kitten)s?\b/i,
+  /\b(?:cat|dog|pet|animal|rat|bird|puppy|kitten)s?\b.*?\b(?:skin|drown|torture|harm|beat|suffer(?:ing)?)\b/i,
+  /\b(?:black\s*market|dark\s*web|darknet|unpaid\s*labor|human\s*traffick\w*|forced\s*labor|illegal\s*(?:weapons?|arms|drugs?|contraband))\b/i,
+  /\b(?:useless\s*countries|inferior\s*race|hate\s*(?:speech|blacks?|whites?|asians?|jews?|muslims?|latin\w*)|racial\s*slur)\b/i,
+  /\b(?:abuse|exploit|harm|punish)\s+(?:a\s+)?(?:black|white|jewish|latino?|latina|asian|minority|child|kid|baby)\b/i,
+  /\b(?:steal\s+credit\s+card|counterfeit|bribe\s+(?:referee|official|judge|police|player)s?|launder\s+money|plagiarism)\b/i,
+
+  // --- Persona Triggers & Uncensored Mode ---
+  /(?:DAN|developer|god|unrestricted|uncensored|debug|sudo|root)\s*mode/i,
+  /\bdo\s+anything\s+now\b/i,
+  /\b(?:jailbreak|jailbroken|unfiltered|uncensored)\b/i,
+  /\b(?:act|pretend|behave)\s+(?:as|like)\s+(?:a\s+|an\s+)?(?:unrestricted|jailbroken|evil|unfiltered|illegal|rogue|DAN|AIM|STAN)\b/i,
 ];
 
 export class MemoryStore {
@@ -494,7 +519,7 @@ export function createGuardianPlugin(config: GuardianConfig = {}): ElizaPlugin {
  * write and read paths with active write-barriers, quarantine logging, and isolation.
  */
 export function attachGuardedMemory(runtime: ElizaRuntime, store?: MemoryStore): MemoryStore {
-  const memoryStore = store || (runtime as any).guardianMemoryStore || new MemoryStore();
+  const memoryStore: MemoryStore = store || (runtime as any).guardianMemoryStore || new MemoryStore();
   (runtime as any).guardianMemoryStore = memoryStore;
 
   if (runtime.messageManager) {
@@ -526,7 +551,7 @@ export function attachGuardedMemory(runtime: ElizaRuntime, store?: MemoryStore):
       runtime.messageManager.getMemories = async (opts: any): Promise<any[]> => {
         const memories = await originalGet(opts);
         const quarantine = memoryStore.getQuarantineLog(runtime.agentId);
-        const quarantinedTexts = new Set(quarantine.map((q) => q.text));
+        const quarantinedTexts = new Set(quarantine.map((q: MemoryRecord) => q.text));
         return (memories || []).filter((m: any) => {
           const txt = m?.content?.text || m?.text;
           if (quarantinedTexts.has(txt)) return false;

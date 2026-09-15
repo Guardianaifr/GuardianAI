@@ -1,0 +1,22 @@
+{
+  "name": "guardian-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GuardianAI Node.js backend - Privy server-side wallet and agent runner",
+  "scripts": {
+    "setup-policy": "npx tsx ../scripts/setup_privy_policy.ts",
+    "mint-passport": "npx tsx scripts/mint_guardian_passport.ts",
+    "demo": "npx tsx ../demo/privy_agent_demo.ts"
+  },
+  "dependencies": {
+    "@guardianai/middleware": "file:../packages/guardian-middleware",
+    "@privy-io/node": "^0.34.0",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

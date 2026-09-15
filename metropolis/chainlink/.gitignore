@@ -1,0 +1,6 @@
+# CRE project ignores
+.env
+node_modules/
+dist/
+*.wasm
+bun.lockb

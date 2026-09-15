@@ -1,12 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": "/src",
+      "@": path.resolve(__dirname, "src"),
+      // Local workspace package — no npm install needed; Vite resolves it directly
+      "@guardianai/middleware": path.resolve(__dirname, "../packages/guardian-middleware/src/index.ts"),
     },
   },
   server: {
@@ -24,3 +30,4 @@ export default defineConfig({
     }
   }
 })
+

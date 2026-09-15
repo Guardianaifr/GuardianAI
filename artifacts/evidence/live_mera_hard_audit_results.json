@@ -1,6 +1,6 @@
 {
-  "timestamp": 1789229198898,
-  "date": "Sat, 12 Sep 2026 16:06:38 GMT",
+  "timestamp": 1789296358803,
+  "date": "Sun, 13 Sep 2026 10:45:58 GMT",
   "framework": "@guardianai/mera-enclave",
   "version": "1.0.0",
   "target": "Category Labs Mera Passkey PRF (WebAuthn PRF)",
@@ -13,7 +13,7 @@
     {
       "name": "Freqtrade Quantitative Bot Config",
       "source": "freqtrade/freqtrade",
-      "sizeBytes": 6080
+      "sizeBytes": 6188
     },
     {
       "name": "SecLists Fuzzing Markers",
@@ -37,22 +37,22 @@
   },
   "latencyPercentiles": {
     "identityMint": {
-      "p50": "0.464",
-      "p90": "0.515",
-      "p95": "0.558",
-      "p99": "0.924"
+      "p50": "0.489",
+      "p90": "0.655",
+      "p95": "0.904",
+      "p99": "1.466"
     },
     "memorySeal": {
-      "p50": "0.337",
-      "p90": "0.400",
-      "p95": "0.452",
-      "p99": "1.608"
+      "p50": "0.393",
+      "p90": "0.647",
+      "p95": "0.803",
+      "p99": "1.419"
     },
     "memoryUnseal": {
-      "p50": "0.326",
-      "p90": "0.373",
-      "p95": "0.398",
-      "p99": "0.819"
+      "p50": "0.373",
+      "p90": "0.504",
+      "p95": "0.575",
+      "p99": "0.886"
     }
   }
 }

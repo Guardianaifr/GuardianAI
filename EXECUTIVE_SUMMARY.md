@@ -20,9 +20,12 @@ GuardianAI now operates as a comprehensive **Dual-Layer AI Security Control Plan
 - **Dynamic Threat Intel:** Blue/Purple/CyberOps Brain orchestrator with auto-patching and live session revoke capabilities.
 - **Analytics & Watermarking:** Differential privacy analytics, output watermarking, and public benchmark alignment (HarmBench/AdvBench).
 
-### Layer 2: On-Chain Web3 Integrity & Execution Containment (Decentralized Trust)
+### Layer 2: On-Chain Web3 Integrity, Execution Containment & Sovereign Enclave (Decentralized Trust)
 - **GuardianPolicyGuard (Monad Native):** Hard cryptographic execution gateway enforcing EIP-712 safety attestations, unordered namespaced nonces for conflict-free parallel execution up to 10,000 TPS, and 10 on-chain invariants.
 - **Function Selector Allowlists (RBAC) & Outflow Caps:** Zero-trust selector restriction (`AgentPolicy.allowed_selectors`), per-transaction value limits (`max_value_per_tx`), and 24-hour rolling cumulative outflow budgets (`OutflowTracker`) that prevent treasury drains even if an agent's LLM reasoning is fully hijacked.
+- **Category Labs Mera Passkey PRF Enclave (`metropolis/mera/`):** Sovereign, non-wallet agent identity minting (Ed25519 DIDs) and zero-knowledge memory encryption (AES-256-GCM + HKDF) derived deterministically from hardware biometric WebAuthn PRF salts. Includes active tamper tripwires (`MEMORY_POISONING_DETECTED`) with 100% tamper interception precision and sub-0.5ms P50 latency.
+- **Envio HyperIndex Real-Time Event Stream (`metropolis/indexer/`):** High-speed event indexing pipeline streaming logs across 5 Monad contracts via HyperSync to GraphQL endpoints for real-time dashboard observability.
+- **Agent Middleware SDK (`packages/guardian-middleware/`):** Drop-in client interceptors for ElizaOS (ai16z) runtime and Viem Web3 clients. Scans agent memories pre-prompt to stop context poisoning and wraps transactions with pre-flight attestations with fail-closed error handling.
 - **GuardianCortexAnchor:** Merkle root state anchoring on Monad for cryptographic auditability.
 - **GuardianPassportSBT:** Soulbound NFTs (ERC-5192) providing verifiable cryptographic identities and permanent revocation tombstones.
 - **GuardianInterlockRegistry:** Decentralized permissions management for Agent-to-Agent communication.
@@ -34,6 +37,10 @@ GuardianAI now operates as a comprehensive **Dual-Layer AI Security Control Plan
 
 - **Smart Contract & E2E Testing:** **183 passing test cases across 11 contract suites in-repo (100% pass rate, 6s runtime)**.
 - **Python Security & Relay Suites:** **176 passing test cases (100% pass rate, 0 failures)** across RPC relay, agentic controls, web3 identity, and runtime interceptor.
+- **Category Labs Mera Passkey PRF Enclave:** **18/18 Vitest unit tests** and **166/166 hard audit assertions (`npm run test:hard`)** passing (100% green). 100% tamper detection precision, P50 latency = 0.355 ms.
+- **Envio HyperIndex Event Stream:** **36/36 passing unit & adversarial reorg test cases (100% green)** across 5 Monad Testnet contracts.
+- **Agent Middleware SDK:** **49 standalone TypeScript tests passing (100% green)** for ElizaOS memory guard and Viem client wrappers.
+- **Empirical Threat Corpus Benchmark:** **1,061 live attack vectors** tested across Lakera Gandalf, BIPIA benchmark, and GitHub corpora — **96.23% attack catch rate**.
 - **Real-World Exploit Defense:** **5 / 5 exploits neutralized (100%)** (Bankrbot, Freysa, aixbt, Permit2, Monad Nonce Replay).
 - **Hardcore Live Adversarial Suite:** **38 / 38 real-time live network tests passed** against live Monad Testnet and QuickNode WebSocket stream.
 - **Attestation Latency Benchmark:** **P50 = 2.68 ms**, Mean = 3.00 ms (measured via `tools/benchmark_attestation_latency.py` over 100 iterations), well within Monad's ~400ms block budget.

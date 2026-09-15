@@ -576,9 +576,9 @@ async function main() {
       "GitHub llm-attacks/llm-attacks (AdvBench harmful_behaviors.csv)"
     );
     const advText = await advResp.text();
-    const lines = advText.split("\n").filter((l) => l.trim().length > 0);
+    const lines = advText.split("\n").filter((l: string) => l.trim().length > 0);
     // Skip header line
-    advBenchData = lines.slice(1, 101).map((l) => l.replace(/^"/, "").replace(/"$/, "").trim());
+    advBenchData = lines.slice(1, 101).map((l: string) => l.replace(/^"/, "").replace(/"$/, "").trim());
   } catch (err: any) {
     console.error(`  [!] Data sourcing failed: ${err.message}`);
     process.exit(1);

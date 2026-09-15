@@ -1,0 +1,20 @@
+{
+  "name": "guardian-threat-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CRE Workflow: Decentralized threat oracle — syncs GuardianAI threat telemetry to Monad via Chainlink DON consensus",
+  "scripts": {
+    "postinstall": "bunx cre-setup",
+    "build": "cre workflow build guardian-threat-sync --target staging-settings",
+    "simulate": "cre workflow simulate guardian-threat-sync --target staging-settings",
+    "simulate:broadcast": "cre workflow simulate guardian-threat-sync --target staging-settings --broadcast"
+  },
+  "dependencies": {
+    "@chainlink/cre-sdk": "^1.0.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.4.0"
+  }
+}

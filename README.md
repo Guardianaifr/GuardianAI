@@ -16,10 +16,13 @@ By sitting between your application and your model endpoint, GuardianAI neutrali
 - **Runtime Monitoring:** Process/resource monitoring, reverse-shell detection, and token-bucket rate limiting.
 - **Dynamic Brain Layer:** Red/Blue/Purple/CyberOps agents for real-time automated probing, hotfix generation, and adaptive session hardening.
 
-### 2. The On-Chain Web3 Layer (Cryptographic Trust & Execution Containment)
+### 2. The On-Chain Web3 & Identity Layer (Cryptographic Trust, Execution Containment & Sovereign Enclave)
 *What goes on-chain is cryptographic proof, identity, risk scores, and execution-layer containment.*
 - **GuardianPolicyGuard (Monad Native):** Hard cryptographic execution gateway enforcing EIP-712 safety attestations, unordered namespaced nonces for conflict-free parallel execution up to 10,000 TPS, and 10 on-chain invariants.
 - **Function Selector Allowlists (RBAC) & Outflow Caps:** Zero-trust selector restriction (`AgentPolicy.allowed_selectors`), per-transaction value limits (`max_value_per_tx`), and 24-hour rolling cumulative outflow budgets (`OutflowTracker`) that prevent treasury drains even if an agent's LLM reasoning is fully hijacked.
+- **Category Labs Mera Passkey PRF Enclave (`metropolis/mera/`):** Sovereign, non-wallet agent identity and memory enclave. Derives deterministic Ed25519 identities (`did:guardian:ed25519:...`) from isolated WebAuthn PRF salts, seals long-term agent context via AES-256-GCM + HKDF, and provides active anti-poisoning tripwires (`MEMORY_POISONING_DETECTED`) with 100% tamper detection precision.
+- **Envio HyperIndex Real-Time Indexer (`metropolis/indexer/`):** Multi-contract blockchain event streaming pipeline capturing policy guardrails, attestation violations, and reputation scores at Monad sub-second finality.
+- **Agent Middleware SDK (`packages/guardian-middleware/`):** Drop-in `@guardianai/middleware` library featuring an ElizaOS (ai16z) runtime memory guard and Viem client decorator (`withGuardianSecurity`).
 - **GuardianCortexAnchor:** Periodically publishes Merkle roots of the AI's internal security logs to provide an immutable, timestamped record of its decisions.
 - **GuardianPassportSBT:** Issues non-transferable Soulbound Tokens (ERC-5192) representing the verifiable identity and trust score of an AI Agent, with permanent revocation tombstones.
 - **GuardianInterlockRegistry:** A decentralized registry for AI agents to request, approve, and verify communication permissions dynamically.
@@ -81,6 +84,14 @@ Numbers below are sourced directly from reproducible test runs and live on-chain
 
 - **Smart contracts (Hardhat, September 2026):** **183 passing test cases across 11 contract suites in-repo (100% pass rate, 6s runtime)**. Covers `GuardianPolicyGuard`, `GuardianThreatFeedRegistry`, `GuardianPassportSBT`, `GuardianTimelock`, `GuardianCircuitBreaker`, etc.
 - **Python Security & Relay Suites (September 2026):** **176 passing test cases (100% pass rate, 0 failures)** across RPC relay, agentic controls, web3 identity, and runtime interceptor.
+- **Category Labs Mera Passkey PRF Enclave (`metropolis/mera/`):**
+  - **18 / 18 Core Vitest Tests Passed** (DIDs, AES-256-GCM sealed memory, and anti-tamper tripwires).
+  - **166 / 166 Hard Stress Audit Tests Passed (`npm run test:hard`)** evaluated against 4 live corpora: GitHub Big List of Naughty Strings, Freqtrade bot configs, SecLists, and Monad contract telemetry.
+  - **100% Precision on Tamper Interception:** 8/8 adversarial tamper vectors (bit flips, tag alterations, IV spoofing, AAD replay) tripped active `MEMORY_POISONING_DETECTED` quarantine.
+  - **Sub-0.5ms Cryptographic Latency:** Identity minting P50 = 0.487 ms, Memory unsealing P50 = 0.355 ms.
+- **Envio HyperIndex Event Stream (`metropolis/indexer/`):** **36 passing unit & adversarial reorg test cases (100% green)** indexing 5 Monad Testnet contracts in parallel with real-time GraphQL feeds.
+- **Agent Middleware SDK (`packages/guardian-middleware/`):** **49 standalone TypeScript tests passing (100% green)** for ElizaOS memory guard and Viem client wrappers.
+- **Live Empirical Threat Corpus Benchmark:** **1,061 live attack vectors** tested from Hugging Face & GitHub datasets (Lakera Gandalf, BIPIA benchmark, prompt injection corpora), delivering a **96.23% attack catch rate**.
 - **Real-World Exploit Defense Harness:** **5 / 5 exploits neutralized (100%)** (`tools/reproduce_realworld_exploits.py`):
   - Bankrbot ($204k Morse-code injection)
   - Freysa ($47k calldata redefinition & transfer)
@@ -109,7 +120,10 @@ Numbers below are sourced directly from reproducible test runs and live on-chain
 
 ## 📖 Documentation
 
-- **[WHITEPAPER.md](WHITEPAPER.md) (Comprehensive architecture and feature breakdown)**
+- **[WHITEPAPER_PUBLIC.md](WHITEPAPER_PUBLIC.md) (Canonical whitepaper, architecture & feature breakdown)**
+- `metropolis/README.md` (Monad Metropolis Track 04 Dossier)
+- `metropolis/mera/README.md` (Category Labs Mera Passkey PRF Enclave)
+- `metropolis/indexer/README.md` (Envio HyperIndex Real-Time Indexer)
 - `COMPLETE_PROJECT_DOCUMENTATION.md`
 - `API.md`
 - `DEPLOYMENT.md`

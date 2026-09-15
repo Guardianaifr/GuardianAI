@@ -91,7 +91,7 @@ export function withGuardianSecurity<TClient extends { sendTransaction?: (args: 
             `Transaction aborted before RPC dispatch: Agent security state is BLOCKED (${state.reason || "blocked by memory guard"})`,
             95,
             ["agent_security_state_blocked"],
-            typeof rawTx === "object" && rawTx !== null ? rawTx.to : undefined,
+            typeof rawTx === "object" && rawTx !== null && rawTx.to ? String(rawTx.to) : (typeof rawTx === "string" ? "raw_tx" : "unknown"),
             typeof rawTx === "object" && rawTx !== null ? (rawTx.data || "0x") : String(rawTx)
           );
         }
@@ -104,7 +104,7 @@ export function withGuardianSecurity<TClient extends { sendTransaction?: (args: 
           "Direct raw transaction dispatch rejected: transactions must be routed through GuardianInterceptor prior to signature",
           95,
           ["raw_transaction_bypass_attempt"],
-          undefined,
+          "raw_tx",
           typeof rawTx === "string" ? rawTx : "0x"
         );
       }

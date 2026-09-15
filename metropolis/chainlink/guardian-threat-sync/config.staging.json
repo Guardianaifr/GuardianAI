@@ -1,0 +1,11 @@
+{
+  "schedule": "*/30 * * * * *",
+  "apiUrl": "https://api.guardianai.xyz/api/v1/stats",
+  "evms": [
+    {
+      "chainName": "monad-testnet",
+      "consumerAddress": "0x0000000000000000000000000000000000000000",
+      "gasLimit": "500000"
+    }
+  ]
+}

@@ -1,19 +1,24 @@
 # GuardianAI Roadmap
 
-**Updated**: September 1, 2026  
+**Updated**: September 12, 2026  
 **Vision**: Expand from an LLM firewall into the industry's most complete AI security control plane.  
-**Current**: 40 features shipped · canonical ERC-8004 identity integration & live Identity Gate enforcement live · Production Go  
+**Current**: 44 features shipped · Monad Metropolis Track 04 & Sponsor Bounties Delivered (Envio HyperIndex, Category Labs Mera Passkey Enclave, Agent Middleware SDK, 166 Hard Audit Suite) · Production Go  
 
 ---
 
-## Completed Milestones (v1.0 - v1.1)
+## Completed Milestones (v1.0 - v1.2)
 
 - ✅ 33 major security feature groups
 - ✅ 29 roadmap topics delivered
 - ✅ Full OWASP LLM Top 10 (2025) coverage — **10/10**
-- ✅ Benchmark alignment on real datasets (3,211 prompts, 8 datasets): AdvBench 99.0% strict, HarmBench 72.8% strict — see whitepaper §6 and `artifacts/evidence/definitive_benchmark_v4.json`
-- ✅ **ERC-8004 Identity Registration (Aug 2026):** canonical Trustless Agents registry integration, register-then-transfer ownership handoff, fail-closed safety gates, 42-test offline suite (whitepaper Feature 39)
-- ✅ **Identity Gate & Point-of-Interaction Enforcement (Sep 2026):** pre-flight RPC relay & agentic control plane enforcement, on-chain `ownerOf` validation, database-level hot-wallet collision defense, and shadow observation mode (whitepaper Feature 40)
+- ✅ Benchmark alignment on real datasets (3,211 prompts, 8 datasets): AdvBench 99.0% strict, HarmBench 72.8% strict — see WHITEPAPER_PUBLIC.md §6 and `artifacts/evidence/definitive_benchmark_v4.json`
+- ✅ **ERC-8004 Identity Registration (Aug 2026):** canonical Trustless Agents registry integration, register-then-transfer ownership handoff, fail-closed safety gates, 42-test offline suite (WHITEPAPER_PUBLIC.md Feature 39)
+- ✅ **Identity Gate & Point-of-Interaction Enforcement (Sep 2026):** pre-flight RPC relay & agentic control plane enforcement, on-chain `ownerOf` validation, database-level hot-wallet collision defense, and shadow observation mode (WHITEPAPER_PUBLIC.md Feature 40)
+- ✅ **GuardianPolicyGuard & Monad Parallel EVM Guardrails (Sep 2026):** 10 Solidity invariants, EIP-712 cryptographic verification, zero-trust function selector allowlists (RBAC), rolling 24h outflow caps, and conflict-free namespaced nonces scaling to 10,000 TPS on Monad Testnet (Feature 41)
+- ✅ **Agent Middleware SDK (@guardianai/middleware) (Sep 2026):** Drop-in ElizaOS memory-poisoning prevention plugin and Viem security decorator (49 TS unit tests passing) (Feature 42)
+- ✅ **Envio HyperIndex Real-Time Indexer (Sep 2026):** Multi-contract blockchain event streaming across 5 Monad contracts with sub-second GraphQL feeds and 36 passing tests (Feature 43)
+- ✅ **Category Labs Mera Passkey PRF Enclave (Sep 2026):** Sovereign, non-wallet agent identity minting (Ed25519) and zero-knowledge memory encryption (AES-256-GCM + HKDF) with active tamper tripwires (`MEMORY_POISONING_DETECTED`) (Feature 44)
+- ✅ **Empirical Hard Audits on Real-World Datasets (Sep 2026):** 166/166 hard test assertions passing (`npm run test:hard`); 1,061 live attack vectors tested across Lakera Gandalf, BIPIA, SecLists, and BLNS corpora (96.23% catch rate, 100% tamper precision, sub-0.5ms P50 latency)
 - ✅ SLO verdict: all_passed = true
 
 ---

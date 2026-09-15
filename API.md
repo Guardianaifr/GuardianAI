@@ -116,7 +116,7 @@ Retrieve cryptographic compliance evidence package with HMAC-SHA256 signature ve
 
 ## 5) ERC-8004 Identity Registry API
 
-All three endpoints are inactive unless `GUARDIAN_ERC8004_ENABLED=true`. See whitepaper Feature 39 and `.env.example`.
+All three endpoints are inactive unless `GUARDIAN_ERC8004_ENABLED=true`. See WHITEPAPER_PUBLIC.md Feature 39 and `.env.example`.
 
 ### POST `/api/v1/erc8004/register`
 
@@ -197,7 +197,40 @@ Evaluates agent prompt and transaction parameters using the deterministic rules 
 }
 ```
 
-## 7) Common Status Codes
+## 7) Category Labs Mera Passkey Memory Enclave API
+
+Blind-storage and cryptographic integrity endpoints for client-side WebAuthn PRF encrypted agent memories. Server persists only AES-256-GCM ciphertext blobs with zero knowledge of plaintext or keys.
+
+### POST `/api/v1/passport/memory`
+
+Blind-stores an encrypted memory record.
+
+**Request Body:**
+```json
+{
+  "agent_id": "sentinel-alpha",
+  "session_id": "session-101",
+  "seq_no": 1,
+  "ciphertext_b64": "vA7G4...",
+  "iv_b64": "123456789012",
+  "aad": "sentinel-alpha:session-101:1:1789220000",
+  "timestamp": 1789220000.0
+}
+```
+
+### GET `/api/v1/passport/memory/{agent_id}`
+
+Retrieves all blind-stored ciphertext records for an agent ordered by sequence number.
+
+### POST `/api/v1/passport/memory/{agent_id}/tamper`
+
+Adversarial audit endpoint simulating active database tampering (flips ciphertext bits or corrupts AAD) to verify client-side tripwires.
+
+### GET `/api/v1/passport/tamper-alerts`
+
+Returns cryptographic tamper violation logs and quarantined agent records.
+
+## 8) Common Status Codes
  
 - `200`: success
 - `401`: unauthorized — missing, invalid, expired, or replayed agent attestation (with `WWW-Authenticate` header per RFC 6750), or backend auth failure

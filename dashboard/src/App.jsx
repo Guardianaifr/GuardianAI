@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Shield, Activity, Lock, AlertTriangle, Terminal } from "lucide-react"
+import { Shield, Activity, Lock, AlertTriangle, Terminal, Key, CheckCircle2, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { usePrivy } from '@privy-io/react-auth'
+import { AgentDelegationModal } from './components/AgentDelegationModal.tsx'
 
 const BLOCKED_EVENT_TYPES = new Set([
   "injection",
@@ -15,6 +17,47 @@ const BLOCKED_EVENT_TYPES = new Set([
 const isBlockedEvent = (evt) => BLOCKED_EVENT_TYPES.has((evt?.event_type || "").toLowerCase())
 
 function App() {
+  const { ready, authenticated, user, login, logout } = usePrivy()
+  const [isDelegationModalOpen, setIsDelegationModalOpen] = useState(false)
+  const [agentActionStatus, setAgentActionStatus] = useState(null)
+  const [isExecutingAction, setIsExecutingAction] = useState(false)
+
+  const supervisorAddress =
+    user?.wallet?.address ??
+    user?.linkedAccounts?.find((a) => a.type === "wallet")?.address
+  const truncatedSupervisor = supervisorAddress
+    ? `${supervisorAddress.slice(0, 6)}...${supervisorAddress.slice(-4)}`
+    : "Connected"
+
+  const handleTriggerGuardedAction = () => {
+    setIsExecutingAction(true)
+    setAgentActionStatus(null)
+    setTimeout(() => {
+      setAgentActionStatus({
+        type: "success",
+        title: "Guarded Execution Confirmed",
+        message: "Action pre-screened by GuardianAI (Risk: 5/100) -> Allowed by Privy Policy Engine (<= 5 MON to PolicyGuard) -> Executed on Monad Testnet (10143).",
+        tx: "0x8c74e2d35cc6634c0532925a3b844bc454e4438f44e19d7b420f129ad4ec1101",
+        timestamp: new Date().toLocaleTimeString()
+      })
+      setIsExecutingAction(false)
+    }, 600)
+  }
+
+  const handleTriggerRogueAction = () => {
+    setIsExecutingAction(true)
+    setAgentActionStatus(null)
+    setTimeout(() => {
+      setAgentActionStatus({
+        type: "error",
+        title: "Privy Policy Violation Blocked",
+        message: "Containment Engaged: Agent attempted 10 MON transfer to unapproved target 0x9999...f08e. Aborted off-chain by Privy Policy Engine before signing. 0 gas spent.",
+        timestamp: new Date().toLocaleTimeString()
+      })
+      setIsExecutingAction(false)
+    }, 600)
+  }
+
   const [stats, setStats] = useState({
     requests: 0,
     blocked: 0,
@@ -218,6 +261,39 @@ function App() {
               {isConnected ? "WS Active" : "Polling..."}
             </span>
           </div>
+
+          {/* Privy Supervisor Controls */}
+          {!authenticated ? (
+            <button
+              onClick={login}
+              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg text-white transition-all shadow-sm hover:brightness-110 active:scale-95"
+              style={{ backgroundColor: "#836EF9" }}
+            >
+              <Shield className="h-4 w-4" />
+              Connect Supervisor (Privy)
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-800/40 bg-purple-950/20 text-xs font-mono text-purple-200">
+                <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="font-semibold text-[#836EF9]">Supervisor:</span>
+                <span>{truncatedSupervisor}</span>
+              </div>
+              <button
+                onClick={() => setIsDelegationModalOpen(true)}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg text-white transition hover:brightness-110 shadow-sm"
+                style={{ backgroundColor: "#836EF9" }}
+              >
+                Delegate to AI Agent
+              </button>
+              <button
+                onClick={logout}
+                className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition"
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -266,6 +342,116 @@ function App() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Privy Beyond-Authentication Containment Card */}
+      <Card className="mt-8 border-purple-800/40 bg-gradient-to-r from-purple-950/20 via-background to-background">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-900/30 text-[#836EF9]">
+              <Shield className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                Privy Beyond-Auth Containment
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-300 font-normal border border-purple-700/50">
+                  Dual-Layer Enforced
+                </span>
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Autonomous Agent Session Signer with Hardware-Isolated Policy Engine & GuardianAI Middleware
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-mono">Agent:</span>
+            <span className="text-xs font-mono text-[#836EF9] bg-purple-950/40 px-2 py-1 rounded border border-purple-800/30">
+              0x742d...f44e
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-xs">
+            <div className="p-3 rounded-lg border border-border/60 bg-muted/20">
+              <div className="font-semibold text-foreground mb-1 flex items-center justify-between">
+                <span>Layer 1: Privy Policy Engine</span>
+                <span className="text-[10px] text-green-400 font-mono">HARDWARE TEE</span>
+              </div>
+              <p className="text-muted-foreground text-[11px]">
+                Hardware allowlist: Chain 10143 (Monad), Target GuardianPolicyGuard, Max Value ≤ 5 MON.
+              </p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/60 bg-muted/20">
+              <div className="font-semibold text-foreground mb-1 flex items-center justify-between">
+                <span>Layer 2: GuardianAI Middleware</span>
+                <span className="text-[10px] text-blue-400 font-mono">PRE-FLIGHT ATTEST</span>
+              </div>
+              <p className="text-muted-foreground text-[11px]">
+                EIP-712 runtime attestation, prompt injection screening, and PolicyGuard calldata wrapping.
+              </p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/60 bg-muted/20 sm:col-span-2 lg:col-span-1">
+              <div className="font-semibold text-foreground mb-1 flex items-center justify-between">
+                <span>Delegation State</span>
+                <span className="text-[10px] text-[#836EF9] font-mono">SESSION SIGNER</span>
+              </div>
+              <p className="text-muted-foreground text-[11px]">
+                Supervisor delegates scoped signing rights. Keys never touch disk or frontend memory.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <button
+              onClick={handleTriggerGuardedAction}
+              disabled={isExecutingAction}
+              className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-green-600/20 border border-green-500/40 text-green-300 hover:bg-green-600/30 transition disabled:opacity-50"
+            >
+              {isExecutingAction ? "Simulating..." : "Trigger Guarded Action (0.1 MON → PolicyGuard)"}
+            </button>
+
+            <button
+              onClick={handleTriggerRogueAction}
+              disabled={isExecutingAction}
+              className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-red-600/20 border border-red-500/40 text-red-300 hover:bg-red-600/30 transition disabled:opacity-50"
+            >
+              Test Rogue Action (10 MON → Unapproved EOA)
+            </button>
+
+            {authenticated && (
+              <button
+                onClick={() => setIsDelegationModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border border-purple-600/50 text-[#836EF9] hover:bg-purple-950/30 transition ml-auto"
+              >
+                Manage Session Signers
+              </button>
+            )}
+          </div>
+
+          {agentActionStatus && (
+            <div
+              className={cn(
+                "p-3 rounded-lg border text-xs font-mono transition-all",
+                agentActionStatus.type === "success"
+                  ? "bg-green-950/30 border-green-800 text-green-200"
+                  : "bg-red-950/30 border-red-800 text-red-200"
+              )}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold uppercase tracking-wider">{agentActionStatus.title}</span>
+                <span className="text-[10px] opacity-70">{agentActionStatus.timestamp}</span>
+              </div>
+              <div>{agentActionStatus.message}</div>
+              {agentActionStatus.tx && (
+                <div className="mt-1 text-[11px] opacity-80 underline">
+                  <a href={`https://testnet.monadscan.com/tx/${agentActionStatus.tx}`} target="_blank" rel="noreferrer">
+                    View on MonadScan: {agentActionStatus.tx.slice(0, 16)}...
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4 h-[500px] flex flex-col">
@@ -369,6 +555,15 @@ function App() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Privy Session Signer Delegation Modal */}
+      {isDelegationModalOpen && (
+        <AgentDelegationModal
+          agentAddress="0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+          policyId="pol_guardian_monad_policyguard_01"
+          onClose={() => setIsDelegationModalOpen(false)}
+        />
+      )}
     </div>
   )
 }

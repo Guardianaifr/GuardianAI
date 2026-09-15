@@ -5,7 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from guardrails.tool_policy_presets import get_tool_policy_preset
+try:
+    from guardian.guardrails.tool_policy_presets import get_tool_policy_preset
+except ImportError:
+    try:
+        from .tool_policy_presets import get_tool_policy_preset
+    except ImportError:
+        from guardrails.tool_policy_presets import get_tool_policy_preset
 
 
 @dataclass

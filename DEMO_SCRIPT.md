@@ -4,8 +4,8 @@ The scripted terminal walkthrough that lived here drove batch files removed in
 the hosted-service pivot. The demo is now one command:
 
 ```powershell
-cd F:\Saas\guardianai-basic-launch
-.\.venv312\Scripts\python.exe demoull_demo.py
+cd <project-root>
+.\.venv312\Scripts\python.exe demo\full_demo.py
 ```
 
 Six scenes - PROVISION, VET, SHIELD, TRUST, ASSURANCE, ON-CHAIN - ending in a

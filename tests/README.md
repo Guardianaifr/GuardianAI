@@ -2,7 +2,7 @@
 
 ## Installation Commands
 
-Run these commands in your terminal at `f:\Saas\guardianai-basic-launch`:
+Run these commands in your terminal at `<project-root>` (e.g. `cd <project-root>`):
 
 ```powershell
 # Create Python 3.12 virtual environment (once)

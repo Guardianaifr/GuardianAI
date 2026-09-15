@@ -40,10 +40,18 @@ import threading
 import time
 from pathlib import Path
 
+# ── Windows console UTF-8 ────────────────────────────────────────────────────
+if sys.platform.startswith("win"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        pass
+
 # ── Friendly runtime note for non-3.12 interpreters ─────────────────────────
 if sys.version_info >= (3, 13):
-    print(f"ℹ Python {sys.version_info.major}.{sys.version_info.minor} detected. "
-          "The demo runs, but the Presidio PII engine needs Python ≤3.13 — "
+    print(f"[i] Python {sys.version_info.major}.{sys.version_info.minor} detected. "
+          "The demo runs, but the Presidio PII engine needs Python <=3.13 — "
           "PII redaction falls back to basic regex mode. "
           "Use the repo's .venv312 for the full stack.\n", flush=True)
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -61,14 +69,6 @@ for _noisy in ("werkzeug", "guardian_backend", "output_validator",
                "GuardianAI.ai_firewall", "presidio-analyzer",
                "presidio-logger", "urllib3", "httpx"):
     logging.getLogger(_noisy).setLevel(logging.CRITICAL)
-
-# ── Windows console UTF-8 ────────────────────────────────────────────────────
-if sys.platform.startswith("win"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except AttributeError:
-        pass
 
 # ── Project paths ─────────────────────────────────────────────────────────────
 REPO_ROOT = Path(__file__).resolve().parent.parent

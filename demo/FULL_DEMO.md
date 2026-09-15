@@ -9,7 +9,7 @@ end to end, no third-party API keys.
 PowerShell:
 
 ```powershell
-cd F:\Saas\guardianai-basic-launch
+cd <project-root>
 .\.venv312\Scripts\python.exe demo\full_demo.py
 ```
 

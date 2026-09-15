@@ -11,12 +11,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from brain.blue_adapt import BlueAdaptAgent
-from brain.cyberops_intel import CyberOpsIntel
-from brain.purple_heal import PurpleHealAgent
-from brain.red_probe import RedProbeAgent
-from security.idp_revocation import IdpRevocationClient, build_subject
-from security.purple_governance import PurplePatchGovernance
+try:
+    from guardian.brain.blue_adapt import BlueAdaptAgent
+    from guardian.brain.cyberops_intel import CyberOpsIntel
+    from guardian.brain.purple_heal import PurpleHealAgent
+    from guardian.brain.red_probe import RedProbeAgent
+    from guardian.security.idp_revocation import IdpRevocationClient, build_subject
+    from guardian.security.purple_governance import PurplePatchGovernance
+except ImportError:
+    from brain.blue_adapt import BlueAdaptAgent
+    from brain.cyberops_intel import CyberOpsIntel
+    from brain.purple_heal import PurpleHealAgent
+    from brain.red_probe import RedProbeAgent
+    from security.idp_revocation import IdpRevocationClient, build_subject
+    from security.purple_governance import PurplePatchGovernance
 
 
 class CyberBrain:
@@ -187,10 +195,16 @@ class CyberBrain:
         # the brain loop.  scan_training_data_for_poisoning is offline-only (no
         # live training-data path exists in the current runtime).
         try:
-            from security.hardening_checks import (
-                check_excessive_agency,
-                check_grounded_response,
-            )
+            try:
+                from guardian.security.hardening_checks import (
+                    check_excessive_agency,
+                    check_grounded_response,
+                )
+            except ImportError:
+                from security.hardening_checks import (
+                    check_excessive_agency,
+                    check_grounded_response,
+                )
 
             _hardening_findings = []
             for _finding in self.last_probe_findings:

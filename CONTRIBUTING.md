@@ -7,7 +7,7 @@ Welcome! We are thrilled that you want to help make AI agents safer.
 1. **Fork the repository** on GitHub.
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/your-username/guardianai.git
+   git clone https://github.com/Guardianaifr/GuardianAI.git
    ```
 3. **Install dependencies**:
    ```bash

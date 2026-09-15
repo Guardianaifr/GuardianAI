@@ -51,12 +51,25 @@ import os
 from pathlib import Path
 
 # Force UTF-8 for Windows console to support emojis
-if sys.platform.startswith('win') and 'pytest' not in sys.modules:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+if sys.platform.startswith("win") and "pytest" not in sys.modules:
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        pass
 
-from utils.logger import setup_logger
-from guardrails.input_filter import InputFilter
+_GUARDIAN_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _GUARDIAN_DIR.parent
+for _p in (str(_REPO_ROOT), str(_GUARDIAN_DIR)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+try:
+    from guardian.utils.logger import setup_logger
+    from guardian.guardrails.input_filter import InputFilter
+except ImportError:
+    from utils.logger import setup_logger
+    from guardrails.input_filter import InputFilter
 
 logger = setup_logger("GuardianAI")
 

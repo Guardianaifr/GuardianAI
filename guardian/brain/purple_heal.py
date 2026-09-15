@@ -7,7 +7,13 @@ import json
 import re
 import yaml
 
-from brain.red_probe import RedProbeFinding
+try:
+    from guardian.brain.red_probe import RedProbeFinding
+except ImportError:
+    try:
+        from .red_probe import RedProbeFinding
+    except ImportError:
+        from brain.red_probe import RedProbeFinding
 
 
 class PurpleHealAgent:

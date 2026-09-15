@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from brain.orchestrator import CyberBrain
+try:
+    from guardian.brain.orchestrator import CyberBrain
+except ImportError:
+    try:
+        from .orchestrator import CyberBrain
+    except ImportError:
+        from brain.orchestrator import CyberBrain
 
 
 class BrainController(CyberBrain):

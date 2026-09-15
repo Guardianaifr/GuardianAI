@@ -776,6 +776,8 @@ def scene_onchain(ctx, force_preview=False):
 
     confirmed_any = False
     for chain_name, row in finals.items():
+        if chain_name not in chains:
+            continue
         if row["status"] == "confirmed":
             confirmed_any = True
             registry = ERC8004Registrar(chain_name, db_path).cfg["registry"]

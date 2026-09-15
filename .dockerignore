@@ -19,5 +19,10 @@ scratch/
 __pycache__/
 *.exe
 *.mp4
+demo.mp4
 *.png
-
+contracts/
+*.md
+!README.md
+!DEPLOYMENT.md
+*.spec

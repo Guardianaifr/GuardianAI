@@ -16,7 +16,8 @@ htmlcov/
 # Binaries & Media
 *.exe
 *.mp4
-*.png
+demo.mp4
+/*.png
 !frontend/public/*.png
 !website/assets/*.png
 
@@ -24,8 +25,13 @@ htmlcov/
 *.db
 *.log
 scratch/
-tools/_*
+tools/_*.txt
+tools/_*_scratch/
+tools/rl_out.txt
+tools/rl_output.txt
+tools/unseen_results.txt
 tools/.github_cache/
+payload.json
 tests/scratch_*
 /test_*.py
 /fix_*.py

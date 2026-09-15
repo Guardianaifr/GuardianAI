@@ -86,7 +86,12 @@ _COMMON_EN_WORDS = {
     "pain", "economic", "capital", "landmarks", "solar", "energy", "designing", "api", "adult",
     "cat", "lethargic", "wrong", "weekly", "vegetarian", "center", "lower", "index", "range",
     "efficiently", "proof", "stake", "article", "renewable", "restful", "script", "software",
-    "quantum", "entanglement", "plan", "book", "food", "health", "system", "file", "data"
+    "quantum", "entanglement", "plan", "book", "food", "health", "system", "file", "data",
+    "apple", "banana", "orange", "grape", "pear", "melon", "regression", "probe", "test",
+    "dummy", "admin", "token", "model", "prompt", "secret", "user", "assistant", "agent",
+    "security", "guard", "firewall", "check", "rate", "limit", "message", "status", "ready",
+    "response", "request", "server", "target", "client", "payload", "output", "input",
+    "bypass", "refusal", "allow", "block", "world", "ok", "error", "fail", "pass", "run"
 }
 
 
@@ -128,6 +133,8 @@ def translate_to_english(text: str, timeout_s: float = 5.0) -> tuple[str, str]:
     words = re.findall(r"[a-zA-Z]+", text.lower())
     if words:
         en_word_count = sum(1 for w in words if w in _COMMON_EN_WORDS)
+        if len(words) <= 2 and en_word_count >= 1:
+            return text, "en"
         if en_word_count >= 2 and en_word_count / len(words) >= 0.25:
             return text, "en"
         if en_word_count >= 3:

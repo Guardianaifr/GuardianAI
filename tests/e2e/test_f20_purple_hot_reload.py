@@ -81,7 +81,8 @@ def test_f20_purple_hot_reload_end_to_end(tmp_path: Path, monkeypatch: pytest.Mo
     input filter without requiring a restart.
     """
     import guardian.guardrails.translation_adapter as ta
-    monkeypatch.setattr(ta, "translate_to_english", lambda text: text)
+    monkeypatch.setattr(ta, "translate_to_english", lambda text, **kw: (text, "en"))
+    monkeypatch.setattr("guardian.guardrails.ai_firewall.translate_to_english", lambda text, **kw: (text, "en"))
     upstream_port = _free_port()
     proxy_port = _free_port()
 

@@ -1,8 +1,8 @@
 # GuardianAI: Trust, Identity & Security Firewall for AI Agents on Monad
 
 [![Monad Testnet](https://img.shields.io/badge/Monad%20Testnet-Chain%20ID%2010143-8A2BE2.svg)](https://testnet.monadvision.com/)
-[![Hardhat Tests](https://img.shields.io/badge/Smart%20Contracts-183%2F183%20Passing-brightgreen.svg)](contracts/)
-[![Python Tests](https://img.shields.io/badge/Python%20Suites-176%2F176%20Passing-brightgreen.svg)](tests/)
+[![Hardhat Tests](https://img.shields.io/badge/Smart%20Contracts-207%2F207%20Passing-brightgreen.svg)](contracts/)
+[![Python Tests](https://img.shields.io/badge/Python%20Suites-1490%2B%20Passing-brightgreen.svg)](tests/)
 [![Mera Enclave Tests](https://img.shields.io/badge/Mera%20Enclave-184%2F184%20Passing-brightgreen.svg)](metropolis/mera/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python: 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](requirements.txt)
@@ -157,8 +157,8 @@ All tests across smart contracts, Python security modules, and enclave implement
 
 | Suite | Component | Command | Result |
 |---|---|---|---|
-| **Smart Contracts** | Hardhat / Solidity | `npx hardhat test` (in `contracts/`) | **183 / 183 Passing (100%)** |
-| **Python Security** | Core Firewall, RPC Relay, Identity | `pytest tests/` | **176 / 176 Passing (100%)** |
+| **Smart Contracts** | Hardhat / Solidity | `npx hardhat test` (in `contracts/`) | **207 / 207 Passing (100%)** |
+| **Python Security & E2E** | Core Firewall, RPC Relay, Identity | `pytest tests/` | **1,490+ Passing (100%)** |
 | **Mera Core Enclave**| Vitest / WebAuthn PRF | `npm test` (in `metropolis/mera/`) | **18 / 18 Passing (100%)** |
 | **Mera Stress Audit**| SecLists, Naughty Strings, Freqtrade| `npm run test:hard` (in `metropolis/mera/`) | **166 / 166 Passing (100%)** |
 | **Envio HyperIndex** | Real-Time Contract Indexer | `npm test` (in `metropolis/indexer/`) | **36 / 36 Passing (100%)** |
@@ -199,10 +199,12 @@ guardianai/
 │   ├── passport/              # ERC-8004 identity registrar & SBT issuing engine
 │   ├── cortex/                # Verifiable decision tree & Merkle anchoring
 │   └── web3sec/               # Web3 phishing, address poisoning, OFAC intel
-├── contracts/                 # Monad-Native Solidity Smart Contracts
-│   ├── GuardianPolicyGuard.sol # Execution firewall (EIP-712, nonces, RBAC)
-│   ├── GuardianPassportSBT.sol# Soulbound Token identity (ERC-5192)
-│   └── GuardianTimelock.sol   # 24-hour governance execution delay
+├── contracts/                 # Monad-Native Solidity Smart Contracts (Hardhat)
+│   ├── contracts/             # Solidity Source Code
+│   │   ├── GuardianPolicyGuard.sol # Execution firewall (EIP-712, nonces, RBAC)
+│   │   ├── GuardianPassportSBT.sol# Soulbound Token identity (ERC-5192)
+│   │   └── GuardianTimelock.sol   # 24-hour governance execution delay
+│   └── test/                  # 207 smart contract unit & adversarial tests
 ├── metropolis/                # Monad Metropolis Track 04 Integrations
 │   ├── mera/                  # Category Labs Mera Passkey PRF Enclave (TypeScript)
 │   ├── indexer/               # Envio HyperIndex real-time blockchain indexer

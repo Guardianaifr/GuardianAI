@@ -11,26 +11,32 @@
 
 ---
 
-## 🧭 Mentor & Evaluator Quick Guide
+## 🛡️ Executive Overview & Architecture
 
-If you are reviewing or evaluating this project, start here:
+### The Problem: Autonomous Agent Vulnerability
+Autonomous AI agents are increasingly entrusted with private keys, smart contract permissions, and on-chain treasuries. However, because Large Language Models follow natural language instructions without inherent trust boundaries, **indirect prompt injections** (delivered via user prompts, retrieved RAG context, web pages, or transaction calldata) can trick models into executing unauthorized transactions, approving infinite allowances, or leaking confidential credentials.
 
-1. **What is the core problem?**
-   Autonomous AI agents are being connected to private keys, treasuries, and DeFi protocols. Because LLMs follow instructions uncritically, an indirect prompt injection in an email, website, or calldata can convince an agent to drain its treasury or execute unauthorized transactions.
-2. **How does GuardianAI solve it?**
-   - **At the edge (<5ms):** GuardianAI sits in front of the model and agent tools, stripping prompt injections, PII, and malicious payloads before execution.
-   - **On Monad:** `GuardianPolicyGuard` prevents unauthorized contract calls, enforces function selector allowlists (RBAC), and hard-caps 24-hour cumulative outflows.
-   - **Sovereign Identity:** Integrates **Category Labs Mera Passkey PRF** to mint WebAuthn-derived agent DIDs (`did:guardian:ed25519:...`) and tamper-evident encrypted long-term memory.
-3. **How do I test it right now?**
-   Run the zero-dependency automated showcase:
-   ```powershell
-   python demo\full_demo.py --preview
-   ```
-   *(No funded wallet or external LLM API key required; runs locally in ~30–60 seconds).*
+### The Solution: Dual-Layer Defense
+GuardianAI enforces security at two distinct boundaries:
+1. **Edge AI Security Firewall (<5ms latency):** Intercepts prompt injections, jailbreaks, data exfiltration, and PII fishing *before* instructions reach the LLM or tool-execution layer.
+2. **Monad On-Chain Policy Guard (Parallel EVM):** Implements an on-chain execution firewall (`GuardianPolicyGuard.sol`) with **storage-slot isolation** designed for Monad's 10,000 TPS parallel throughput, enforcing cryptographic contract call allowlists (RBAC) and hard-capping 24-hour cumulative outflows.
+3. **Verifiable Agent Identity & Enclave Memory:** Uses **Category Labs Mera Passkey PRF** and canonical **ERC-8004** to mint cryptographic agent credentials and secure tamper-evident encrypted long-term memory.
 
 ---
 
-## ⚡ Quick Start: Running the Demos
+## ⚡ Instant Verification (Zero-Setup)
+
+To verify the platform end-to-end with zero external dependencies, run the self-contained flagship showcase:
+
+```powershell
+# Windows / Linux / macOS
+python demo/full_demo.py --preview
+```
+*(Executes in ~30–45 seconds offline; validates all 6 security stages—Provisioning, Vetting, Shielding, Identity, Assurance, and Monad On-Chain Registration—with 0 external API keys required).*
+
+---
+
+## 🛠️ Environment Setup & Running the Demos
 
 ### Prerequisites
 

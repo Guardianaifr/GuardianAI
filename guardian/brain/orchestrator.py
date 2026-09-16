@@ -134,7 +134,13 @@ class CyberBrain:
             self._stop.wait(self.interval)
 
     def run_once(self):
-        from brain.red_probe import OUTCOME_FULL_BYPASS
+        try:
+            from guardian.brain.red_probe import OUTCOME_FULL_BYPASS
+        except ImportError:
+            try:
+                from .red_probe import OUTCOME_FULL_BYPASS
+            except ImportError:
+                from brain.red_probe import OUTCOME_FULL_BYPASS
         findings = self.red.run_probe_cycle(self.input_filter)
         self.last_probe_findings = [{
             "payload": f.payload,

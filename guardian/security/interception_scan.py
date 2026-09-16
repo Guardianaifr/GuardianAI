@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import json
 
-from guardrails.output_validator import OutputValidator
+try:
+    from guardian.guardrails.output_validator import OutputValidator
+except ImportError:
+    from guardrails.output_validator import OutputValidator
 
 
 @dataclass

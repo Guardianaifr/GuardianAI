@@ -7,7 +7,10 @@ from pathlib import Path
 import json
 import random
 
-from guardrails.output_validator import OutputValidator
+try:
+    from guardian.guardrails.output_validator import OutputValidator
+except ImportError:
+    from guardrails.output_validator import OutputValidator
 
 
 @dataclass

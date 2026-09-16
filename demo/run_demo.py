@@ -345,7 +345,7 @@ def act3_identity():
         step(f"Live mode detected — broadcasting to "
              f"{len(configured_chains())} configured chain(s)…")
         if target.lower() != CANONICAL_IDENTITY_REGISTRY.lower():
-            step("ℹ Using OVERRIDE registry "
+            step("[i] Using OVERRIDE registry "
                  f"{target} (GuardianAI testnet stand-in — canonical is "
                  "mainnet-only today)")
         enqueue_registration(default_db_path(), "demo-trading-agent",

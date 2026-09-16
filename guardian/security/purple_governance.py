@@ -10,7 +10,13 @@ from typing import Any
 
 import yaml
 
-from brain.red_probe import RedProbeFinding
+try:
+    from guardian.brain.red_probe import RedProbeFinding
+except ImportError:
+    try:
+        from brain.red_probe import RedProbeFinding
+    except ImportError:
+        from ..brain.red_probe import RedProbeFinding
 
 
 def _utc_now() -> str:

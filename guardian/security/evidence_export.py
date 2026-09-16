@@ -15,7 +15,13 @@ from typing import Any
 
 import yaml
 
-from security.policy_governance import compute_config_integrity_hash
+try:
+    from guardian.security.policy_governance import compute_config_integrity_hash
+except ImportError:
+    try:
+        from .policy_governance import compute_config_integrity_hash
+    except ImportError:
+        from security.policy_governance import compute_config_integrity_hash
 
 
 @dataclass

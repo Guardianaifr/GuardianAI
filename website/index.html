@@ -13,8 +13,8 @@
   <meta property="og:title" content="GuardianAI — Your agent holds a wallet. One bad prompt shouldn't empty it.">
   <meta property="og:description" content="Millisecond prompt-injection firewalls off-chain. Verifiable identity and tamper-evident evidence on-chain. Run the live demo.">
   <meta property="og:type" content="website">
-  <link rel="canonical" href="./">
-  <meta property="og:url" content="./">
+  <link rel="canonical" href="https://aiguardian.dev/">
+  <meta property="og:url" content="https://aiguardian.dev/">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -31,8 +31,8 @@
       <ul class="nav-links" id="nav-links">
         <li><a href="/how-it-works">How it works</a></li>
         <li><a href="/pricing">Pricing</a></li>
+        <li><a href="/docs">Docs &amp; API</a></li>
         <li><a href="/proof">Proof</a></li>
-        <li><a href="/docs">Docs</a></li>
         <li><a class="btn btn-primary btn-sm" href="#demo">Run the demo</a></li>
       </ul>
     </div>
@@ -53,14 +53,14 @@
       <canvas id="hero-canvas" aria-hidden="true"></canvas>
       <div class="wrap hero-inner">
         <div>
-          <span class="eyebrow rise d1">AI agent security · Dual-layer control plane</span>
+          <span class="eyebrow rise d1">AI agent security · 3-Layer Defense-in-Depth</span>
           <h1 id="hero-title" class="rise d1">Your agent holds a wallet.<br>One bad prompt <span class="verdict-word">shouldn't empty it.</span></h1>
-          <p class="hero-sub rise d2">Millisecond prompt-injection firewalls off-chain. Verifiable identity and tamper-evident evidence on-chain.</p>
+          <p class="hero-sub rise d2">Sub-millisecond Edge AI Firewall, Mera Passkey PRF hardware-bound sealed memory enclave, and Monad PolicyGuard execution containment on Parallel EVM.</p>
           <div class="hero-actions rise d3">
             <a class="btn btn-primary" href="#demo">Run the live demo</a>
             <a class="btn btn-ghost" href="/proof">See the proof</a>
           </div>
-          <p class="hero-proofline rise d4"><b>99.0%</b> AdvBench strict<span class="sep">|</span><b>41.88 ms</b> p95 under attack<span class="sep">|</span><b>10/10</b> OWASP LLM</p>
+          <p class="hero-proofline rise d4"><b>99.0%</b> AdvBench strict<span class="sep">|</span><b>41.88 ms</b> p95 under attack<span class="sep">|</span><b>207/207</b> Hardhat tests<span class="sep">|</span><b>1,490+</b> Python suites</p>
         </div>
 
         <!-- Live verdict widget -->
@@ -134,7 +134,7 @@
     <!-- Prominent statutory / assessment disclosure -->
     <div class="wrap" style="padding-bottom:48px;">
       <p class="stat-disclosure">
-        <span style="color:var(--green);font-weight:600;">DISCLOSURE:</span> Compliance and audit artifacts are internally verified empirical test suites (3,211 prompts across 8 corpora), not third-party statutory certifications.
+        <span style="color:var(--green);font-weight:600;">DISCLOSURE:</span> Compliance and audit artifacts are internally verified empirical test suites (3,211 prompts across 8 corpora, 1,490+ Python &amp; 207 Hardhat tests, 184 Mera Passkey PRF assertions), not third-party statutory certifications.
       </p>
     </div>
     <!-- ================= THREAT MODEL PILLARS ================= -->
@@ -145,7 +145,7 @@
           <h2 class="section-title" id="tm-title">Four layers between your agent and a bad day.</h2>
           <p class="section-lede">Each layer is independently tested and artifact-documented. Together they close the attack classes that ship in the wild today.</p>
         </div>
-        <div class="grid-2" style="grid-template-columns:repeat(2,1fr);">
+        <div class="grid-2">
           <article class="card reveal">
             <span class="card-index">[01]</span>
             <h3>Injection firewall</h3>
@@ -200,6 +200,7 @@
             <div class="term-body">
               <ul>
                 <li><b>ERC-8004 identity &amp; Identity Gate</b> — portable agent registry and pre-flight point-of-interaction enforcement with hot-wallet collision guards</li>
+                <li><b>PolicyGuard &amp; ThreatConsumer</b> — Monad Parallel EVM execution containment &amp; Chainlink oracle threat consumer</li>
                 <li><b>Soulbound passport</b> — ERC-5192 reputation score (0–10000) derived from verified scan history</li>
                 <li><b>Evidence anchoring</b> — Merkle roots over security-event logs (simulated default; Monad testnet opt-in)</li>
                 <li><b>Insurance certificates</b> — cryptographic evidence packages for underwriters and compliance audits</li>
@@ -232,12 +233,12 @@
           <article class="card reveal">
             <span class="card-index">[B]</span>
             <h3><a href="/proof#audits" style="color:var(--green)">Audit status →</a></h3>
-            <p>External pentest completed March 2026 (<a href="/proof#audits" style="color:var(--green);text-decoration:underline;">Independent Security Review</a>, zero open critical/high findings). Internal off-chain, contract, and senior architecture audits remediated July–September 2026. Next third-party external review scheduled for Q3 2026.</p>
+            <p>External pentest completed March 2026 (<a href="/proof#audits" style="color:var(--green);text-decoration:underline;">Independent Security Review</a>, zero open critical/high findings). Internal off-chain, contract, and senior architecture audits remediated July–September 2026, including September 2026 Metropolis &amp; Mera Passkey PRF enclave hard audit (166/166 assertions, 0 collisions).</p>
           </article>
           <article class="card reveal">
             <span class="card-index">[C]</span>
             <h3><a href="/proof#chains" style="color:var(--green)">Chains &amp; identity →</a></h3>
-            <p>Nine-contract suite deployed on <a href="https://testnet.monadexplorer.com/address/0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. State anchoring runs simulated-by-default. Zero mainnet claims — verifiable directly on block explorers.</p>
+            <p>Eleven-contract suite deployed on <a href="https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. State anchoring runs simulated-by-default. Zero mainnet claims — verifiable directly on block explorers.</p>
           </article>
         </div>
       </div>
@@ -275,6 +276,7 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                 DM on X for Design Partner Access (@noob_nad)
               </a>
+              <p class="mono" style="font-size:0.8rem;color:var(--dim);margin-top:4px;">CLI Quickstart: <code style="color:var(--green)">python demo/full_demo.py --preview</code></p>
             </div>
           </article>
         </div>

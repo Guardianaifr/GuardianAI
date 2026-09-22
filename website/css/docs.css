@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    GuardianAI Docs — Curvance / GitBook-style Documentation Portal CSS
    ========================================================================== */
 
@@ -34,6 +34,7 @@ body.docs-page {
   color: var(--docs-text);
   font-family: var(--font-body, 'Inter', -apple-system, sans-serif);
   line-height: 1.6;
+  overflow-x: hidden;
 }
 
 /* Header */
@@ -578,9 +579,13 @@ body.docs-page {
 }
 @media (max-width: 1100px) {
   .docs-toc { display: none; }
+  .docs-top-links { gap: 12px; font-size: 0.8rem; }
+  .docs-search-btn { width: 200px; }
 }
 
 @media (max-width: 800px) {
+  .docs-top-links { display: none; }
+  .docs-search-btn { display: none; }
   #docs-sidebar-toggle { display: inline-flex; }
   .docs-sidebar {
     position: fixed;
@@ -595,9 +600,13 @@ body.docs-page {
   }
   .docs-content {
     padding: 16px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
-  .docs-search-btn {
-    width: auto;
-    padding: 6px 10px;
+  .docs-layout {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 }

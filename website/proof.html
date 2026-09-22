@@ -13,8 +13,8 @@
   <meta property="og:title" content="GuardianAI — proof, with sources">
   <meta property="og:description" content="Benchmarks, performance, tests, and audit status cited to dated artifacts — including the unflattering numbers.">
   <meta property="og:type" content="website">
-  <link rel="canonical" href="./proof">
-  <meta property="og:url" content="./proof">
+  <link rel="canonical" href="https://aiguardian.dev/proof">
+  <meta property="og:url" content="https://aiguardian.dev/proof">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -148,15 +148,19 @@
               <tr><th scope="col">Suite</th><th scope="col" class="num">Result</th><th scope="col">Notes</th></tr>
             </thead>
             <tbody>
+              <tr><td>Smart contracts (Hardhat)</td><td class="num"><b style="color:var(--green)">207 / 207 cases</b> (11 suites)</td><td>100% pass rate in Hardhat (including GuardianPolicyGuard, GuardianThreatConsumer, Timelock)</td></tr>
+              <tr><td>Python suites (targeted &amp; security)</td><td class="num"><b style="color:var(--green)">1,490+ passing</b></td><td>Merkle tests, audit chain, relay, blind storage, and security headers</td></tr>
+              <tr><td>Mera Passkey PRF Enclave</td><td class="num"><b style="color:var(--green)">184 / 184</b></td><td>18 core Vitest + 166 hard audit assertions on 4 live GitHub corpora</td></tr>
+              <tr><td>Envio HyperIndex Real-time Stream</td><td class="num"><b style="color:var(--green)">36 / 36</b></td><td>Unit &amp; adversarial reorg tests across 5 Monad Testnet contracts</td></tr>
+              <tr><td>Agent Middleware SDK (@guardianai/middleware)</td><td class="num"><b style="color:var(--green)">49 / 49</b></td><td>ElizaOS memory poisoning guard &amp; Viem client security decorator</td></tr>
               <tr><td>ERC-8004 identity integration</td><td class="num"><b style="color:var(--green)">42 / 42</b></td><td>Including fail-closed safety gates and transfer handoff</td></tr>
               <tr><td>Identity Gate &amp; Point-of-Interaction</td><td class="num"><b style="color:var(--green)">17 / 17</b></td><td>Pre-flight RPC relay &amp; agentic channel gate, collision tiebreaking</td></tr>
-              <tr><td>Targeted Security, Identity, &amp; Relay</td><td class="num"><b style="color:var(--green)">107 / 107</b></td><td>Cryptographic Merkle tests, audit chain, relay, and security headers</td></tr>
               <tr><td>Heavy Rate Limiter Stress Suite</td><td class="num"><b style="color:var(--green)">33 / 33</b></td><td>Concurrent access, Redis failover, burst and capacity stress</td></tr>
-              <tr><td>Smart contracts (Hardhat)</td><td class="num"><b style="color:var(--green)">160 / 160 cases</b> (10 suites)</td><td>100% pass rate in Hardhat (5s runtime)</td></tr>
+              <tr><td>Live Empirical Threat Benchmark</td><td class="num"><b style="color:var(--green)">1,061 vectors</b> (96.2%)</td><td>Hugging Face &amp; GitHub datasets (Lakera Gandalf, BIPIA benchmark)</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="table-note reveal">All suites verified under Python 3.12 and Hardhat / Cancun EVM with zero regressions.</p>
+        <p class="table-note reveal">All suites verified under Python 3.12, Node.js 18+, and Hardhat / Cancun EVM with zero regressions.</p>
       </div>
     </section>
 
@@ -196,6 +200,13 @@
               <p>Six architectural findings remediated (ARCH-01 to ARCH-06): Merkle RFC 6962 second-preimage &amp; CVE-2012-2459 duplicate leaf collision fix, atomic Redis Lua token bucket rate limiter, on-chain SBT <code>isAgentRevoked</code> tombstone mapping, 60s memory janitor daemon, RFC 9110 hop-by-hop stripping &amp; 10MB payload limit, and two-sided geometric noise DP.</p>
             </div>
           </div>
+          <div class="step">
+            <span class="step-id">SEP '26<small>ENCLAVE</small></span>
+            <div>
+              <h3>Metropolis &amp; Mera Passkey PRF hard audit</h3>
+              <p>166 hard audit assertions evaluated across 4 live GitHub corpora. Verified bit-for-bit SHA-256 round-trip fidelity, 100% tamper interception precision (<code>MEMORY_POISONING_DETECTED</code>), and sub-0.5ms P50 latency. Report artifact: <code>artifacts/evidence/live_mera_hard_audit_results.json</code>.</p>
+            </div>
+          </div>
         </div>
         <div class="callout warn reveal">
           <h3>No current third-party certification.</h3>
@@ -217,6 +228,7 @@
             <h3>Contract suite &amp; explorers</h3>
             <ul class="fact-list">
               <li><b>GuardianPolicyGuard (Monad):</b> <a href="https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">0x32fa...1101 (Verified) ↗</a></li>
+              <li><b>GuardianThreatConsumer (Chainlink):</b> <a href="https://testnet.monadvision.com/contracts/full_match/10143/0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8/" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">0xF8B2...44F8 (Verified) ↗</a></li>
               <li><b>GuardianThreatFeedRegistry:</b> <a href="https://testnet.monadvision.com/contracts/full_match/10143/0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8/" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">0xF8B2...44F8 (Verified) ↗</a></li>
               <li><b>GuardianPassportSBT:</b> <a href="https://testnet.monadvision.com/contracts/full_match/10143/0x65e081101a08F8c1C2df1cB9D008b3f988fF147f/" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">0x65e0...147f (Verified) ↗</a></li>
               <li><b>Confirmed Broadcast Tx:</b> <a href="https://testnet.monadvision.com/tx/0x2ac9f4eea0e9b918bf915f62e9763e9b67c48aa53425eff90c318106fb04d33a" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Block #59,420,050 ↗</a></li>
@@ -274,8 +286,9 @@
             <tbody>
               <tr><td>Benchmark block rates, subset &amp; false-positive figures</td><td><code>artifacts/evidence/definitive_benchmark_v4.json</code></td><td>2026-08-08</td></tr>
               <tr><td>Throughput, latency, chaos outcomes, SLOs</td><td><code>artifacts/performance/perf_chaos_report.json</code></td><td>2026-08-08</td></tr>
-              <tr><td>Python/Hardhat test counts &amp; caveats</td><td><code>README.md</code> validation snapshot</td><td>September 2026</td></tr>
-              <tr><td>Audit history &amp; status</td><td><code>artifacts/evidence/security_signoff.md</code>, <code>external_pentest_status.md</code>, <code>WHITEPAPER.md §6.3</code></td><td>Mar / Jul / Aug / Sep 2026</td></tr>
+              <tr><td>Python (1,490+) and Hardhat (207 cases / 11 suites) test counts</td><td><code>README.md</code> validation snapshot</td><td>September 2026</td></tr>
+              <tr><td>Mera Passkey PRF enclave hard audit (166/166 assertions, 0 collisions)</td><td><code>artifacts/evidence/live_mera_hard_audit_results.json</code></td><td>September 2026</td></tr>
+              <tr><td>Audit history &amp; status</td><td><code>artifacts/evidence/security_signoff.md</code>, <code>external_pentest_status.md</code>, <code>WHITEPAPER_PUBLIC.md §6.3</code></td><td>Mar / Jul / Aug / Sep 2026</td></tr>
               <tr><td>Anchoring modes &amp; chain disclosures</td><td><code>guardian/cortex/merkle_anchor.py</code>, whitepaper §6–7</td><td>current code</td></tr>
             </tbody>
           </table>

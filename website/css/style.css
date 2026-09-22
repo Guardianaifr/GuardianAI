@@ -36,7 +36,7 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
 
 body {
   background: var(--bg);
@@ -376,6 +376,8 @@ section { padding: 96px 0; }
   border-radius: var(--radius);
   padding: 30px 28px;
   transition: border-color 0.18s ease, transform 0.18s ease;
+  display: flex;
+  flex-direction: column;
 }
 .card:hover { border-color: var(--green-line); transform: translateY(-2px); }
 
@@ -605,6 +607,45 @@ footer li a:hover { color: var(--green); }
 .waitlist-status.success { color: var(--green); }
 .waitlist-status.error { color: var(--coral); }
 
+.card-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.card-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--faint);
+  letter-spacing: 0.1em;
+}
+
+.card-action-box {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.action-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 8px;
+}
+
+.action-meta {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--faint);
+  margin-top: 10px;
+}
+
 .partner-badge {
   display: inline-flex;
   align-items: center;
@@ -618,7 +659,8 @@ footer li a:hover { color: var(--green); }
   border: 1px solid var(--green-line);
   padding: 4px 10px;
   border-radius: 999px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
+  white-space: nowrap;
 }
 
 .term-buyer-note {

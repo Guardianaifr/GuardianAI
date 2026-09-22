@@ -1,6 +1,5 @@
 # Agentic Security V2 Roadmap
-
-Date: 2026-03-18
+ 
 Status: Phase 2 implementation started
 
 ## Delivered in Phase 1

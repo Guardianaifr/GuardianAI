@@ -11,8 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/docs.css">
-  <link rel="canonical" href="./docs">
-  <meta property="og:url" content="./docs">
+  <link rel="canonical" href="https://aiguardian.dev/docs">
+  <meta property="og:url" content="https://aiguardian.dev/docs">
   <meta property="og:title" content="GuardianAI Documentation - Dual-Layer Agent Security">
   <meta property="og:description" content="The comprehensive technical guide to GuardianAI: architecture, 10-layer AI firewall, on-chain ERC-8004 identity, Cortex anchoring, and API reference.">
 </head>
@@ -67,25 +67,35 @@
       <div class="docs-nav-group">
         <div class="docs-nav-title">GETTING STARTED</div>
         <ul class="docs-nav-links">
-          <li><a href="#overview" class="active">Overview & Vision</a></li>
+          <li><a href="#overview" class="active">Overview &amp; Vision</a></li>
           <li><a href="#quickstart">Quickstart (5-Min Setup)</a></li>
-          <li><a href="#architecture">Dual-Plane Architecture</a></li>
+          <li><a href="#architecture">3-Layer Defense-in-Depth</a></li>
         </ul>
       </div>
 
       <div class="docs-nav-group">
-        <div class="docs-nav-title">OFF-CHAIN DEFENSE (LAYER 1)</div>
+        <div class="docs-nav-title">EDGE AI FIREWALL (LAYER 1)</div>
         <ul class="docs-nav-links">
           <li><a href="#firewall">10-Layer AI Prompt Firewall</a></li>
-          <li><a href="#dlp-scanner">Output DLP & Secret Scanner</a></li>
-          <li><a href="#honeypot-threats">Honeypots & Threat Intel Feed</a></li>
+          <li><a href="#dlp-scanner">Output DLP &amp; Secret Scanner</a></li>
+          <li><a href="#honeypot-threats">Honeypots &amp; Threat Intel Feed</a></li>
           <li><a href="#rate-limiting">Fail-Closed Rate Limiter</a></li>
         </ul>
       </div>
 
       <div class="docs-nav-group">
-        <div class="docs-nav-title">ON-CHAIN TRUST (LAYER 2)</div>
+        <div class="docs-nav-title">SOVEREIGN ENCLAVE (LAYER 2)</div>
         <ul class="docs-nav-links">
+          <li><a href="#mera-enclave">Mera Passkey PRF Enclave</a></li>
+          <li><a href="#memory-poisoning">Memory Poisoning Guard</a></li>
+        </ul>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="docs-nav-title">EXECUTION CONTAINMENT (LAYER 3)</div>
+        <ul class="docs-nav-links">
+          <li><a href="#policy-guard">Monad PolicyGuard (Parallel EVM)</a></li>
+          <li><a href="#threat-consumer">Chainlink Threat Consumer</a></li>
           <li><a href="#erc8004">ERC-8004 Agent Registries</a></li>
           <li><a href="#cortex-anchoring">Merkle Cortex State Anchoring</a></li>
           <li><a href="#insurance-certificates">Insurance Certificates</a></li>
@@ -94,20 +104,21 @@
       </div>
 
       <div class="docs-nav-group">
-        <div class="docs-nav-title">INTEGRATIONS & SDK</div>
+        <div class="docs-nav-title">INTEGRATIONS &amp; SDK</div>
         <ul class="docs-nav-links">
-          <li><a href="#python-sdk">Python SDK & Decorators</a></li>
+          <li><a href="#middleware-sdk">@guardianai/middleware SDK (TS)</a></li>
+          <li><a href="#python-sdk">Python SDK &amp; Decorators</a></li>
           <li><a href="#proxy-gateway">OpenAI-Compatible Proxy</a></li>
-          <li><a href="#telemetry-siem">Telemetry & Event Pipeline</a></li>
+          <li><a href="#telemetry-siem">Telemetry &amp; Event Pipeline</a></li>
         </ul>
       </div>
 
       <div class="docs-nav-group">
-        <div class="docs-nav-title">COMPLIANCE & API</div>
+        <div class="docs-nav-title">COMPLIANCE &amp; API</div>
         <ul class="docs-nav-links">
-          <li><a href="#compliance">EU AI Act & Article 15</a></li>
+          <li><a href="#compliance">EU AI Act &amp; Article 15</a></li>
           <li><a href="#proxy-api">Proxy API Reference</a></li>
-          <li><a href="#telemetry-api">Backend Telemetry & WS</a></li>
+          <li><a href="#telemetry-api">Backend Telemetry &amp; WS</a></li>
         </ul>
       </div>
     </aside>
@@ -230,35 +241,56 @@ if not verdict.allowed:
 response = agent.run(user_prompt)
 sanitized_output = guard.inspect_output(response)</code></pre>
         </div>
+
+        <h3>Option C: Interactive CLI Walkthroughs</h3>
+        <p>Run the 6-stage interactive walkthrough or 3-act attack simulation locally in your terminal:</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Terminal Quickstart</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code># 1. Six-stage interactive CLI preview (Firewall, Enclave, PolicyGuard)
+python demo/full_demo.py --preview
+
+# 2. Three-act adversarial attack simulation
+python demo/run_demo.py</code></pre>
+        </div>
       </section>
 
-      <!-- SECTION: Dual-Plane Architecture -->
+      <!-- SECTION: 3-Layer Defense-in-Depth Architecture -->
       <section id="architecture" class="docs-section">
-        <h2>Dual-Plane Architecture</h2>
-        <p>GuardianAI separates security concerns into two distinct execution planes to balance extreme performance with permanent cryptographic auditability.</p>
+        <h2>3-Layer Defense-in-Depth Architecture</h2>
+        <p>GuardianAI separates agent security into three coordinated defense layers to deliver sub-millisecond threat filtering, hardware-bound sovereign memory isolation, and deterministic on-chain execution containment.</p>
 
         <div class="docs-table-wrap">
           <table class="docs-table">
             <thead>
               <tr>
-                <th>Plane</th>
+                <th>Defense Layer</th>
                 <th>Target Execution</th>
                 <th>Core Responsibilities</th>
-                <th>Performance & SLA</th>
+                <th>Performance &amp; SLA</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><strong>Layer 1 (Off-Chain)</strong></td>
-                <td>Ingress Proxy & Runtime Guard</td>
-                <td>Prompt injection firewall, de-obfuscation pipeline, PII/credential scrubber, honeypot traps</td>
-                <td><code>&lt; 42 ms</code> p95 latency, 494 req/s attack blocking</td>
+                <td><strong>Layer 1: Edge AI Firewall</strong></td>
+                <td>Off-Chain Ingress Proxy &amp; Gateway</td>
+                <td>10-layer prompt firewall, de-obfuscation pipeline, PII/secret DLP scrubber, honeypot canary tripwires, fail-closed token bucket</td>
+                <td><code>&lt; 42 ms</code> p95 under attack, 494 req/s blocking capacity</td>
               </tr>
               <tr>
-                <td><strong>Layer 2 (On-Chain)</strong></td>
-                <td>EVM Smart Contracts (Monad)</td>
-                <td>ERC-8004 Agent identity, Merkle state anchoring, signed insurance certificate registry</td>
-                <td>Verifiable roots, immutable audit trail, decentralized validation</td>
+                <td><strong>Layer 2: Sovereign Agent Enclave</strong></td>
+                <td>WebAuthn PRF &amp; Hardware Memory Sealing</td>
+                <td>Category Labs Mera Passkey PRF key derivation, AES-256-GCM sealed memory with replay-protected AAD, active <code>MEMORY_POISONING_DETECTED</code> tamper tripwire</td>
+                <td>Sub-0.5ms P50 latency, 184/184 tests, 0 collisions across 4 GitHub corpora</td>
+              </tr>
+              <tr>
+                <td><strong>Layer 3: Execution Containment</strong></td>
+                <td>Monad Parallel EVM Smart Contracts</td>
+                <td><code>GuardianPolicyGuard.sol</code> pre-flight execution firewall, <code>GuardianThreatConsumer.sol</code> Chainlink oracle sync, ERC-8004 identity, Merkle Cortex state anchoring</td>
+                <td>207/207 Hardhat tests (11 suites), zero-contention parallel execution up to 10k TPS</td>
               </tr>
             </tbody>
           </table>
@@ -351,6 +383,7 @@ sanitized_output = guard.inspect_output(response)</code></pre>
               </tr>
             </tbody>
           </table>
+        </div>
       </section>
 
       <!-- SECTION: Honeypots & Threat Intel Feed -->
@@ -412,6 +445,95 @@ if honeypot.is_tripped(response_text):
             </tbody>
           </table>
         </div>
+      </section>
+
+      <!-- SECTION: Mera Passkey PRF Sovereign Enclave -->
+      <section id="mera-enclave" class="docs-section">
+        <h2>Mera Passkey PRF Sovereign Enclave (Layer 2)</h2>
+        <p>Built in collaboration with Category Labs, GuardianAI’s Sovereign Agent Enclave harnesses client-side <strong>WebAuthn Pseudo-Random Functions (PRF)</strong> (FaceID, TouchID, and FIDO2 hardware authenticators) to generate deterministic, unlinkable agent identities without storing raw private keys or master secrets on any server.</p>
+
+        <div class="docs-grid">
+          <div class="docs-card">
+            <h4>Hardware-Bound PRF Keys</h4>
+            <p>Master seed derived within local device Secure Enclave; never leaves client RAM and cannot be exfiltrated via server-side compromise.</p>
+          </div>
+          <div class="docs-card">
+            <h4>AES-256-GCM Memory Sealing</h4>
+            <p>Agent episodic memory vectors and tool credentials encrypted with HKDF-derived keys and replay-protected Additional Authenticated Data (AAD).</p>
+          </div>
+          <div class="docs-card">
+            <h4>Cross-Device Determinism</h4>
+            <p>Same physical human authenticator generates identical agent DIDs and decrypts sealed state across independent devices.</p>
+          </div>
+          <div class="docs-card">
+            <h4>Live Benchmark Receipts</h4>
+            <p>184/184 tests passing (18 core Vitest + 166 hard audit assertions on 4 live GitHub corpora), sub-0.5ms P50 latency, 0 collisions.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: Memory Poisoning Guard -->
+      <section id="memory-poisoning" class="docs-section">
+        <h2>Memory Poisoning Guard &amp; Tamper Tripwire</h2>
+        <p>Autonomous agents that consume external web data, pull requests, or Discord messages risk context injection and persistent memory poisoning. GuardianAI embeds an active cryptographic tamper tripwire directly into the memory retrieval path.</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">Tamper Detection &amp; Quarantine Flow</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>// Memory retrieval verification in @guardianai/middleware
+try {
+  const decryptedContext = await enclave.unsealMemory(agentId, sealedRecord);
+  return decryptedContext;
+} catch (err) {
+  if (err.code === "ERR_GCM_AUTH_FAILED" || err.message.includes("tag mismatch")) {
+    // Single-bit ciphertext flip trips immediate fail-closed quarantine
+    await securityPipeline.quarantineAgent(agentId, {
+      code: "MEMORY_POISONING_DETECTED",
+      incidentSeverity: "CRITICAL",
+      action: "REVOKE_HOT_WALLET_PERMISSIONS"
+    });
+    throw new SecurityException("Agent context compromised: Memory poisoning tripwire fired.");
+  }
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- SECTION: Monad PolicyGuard EVM Execution Containment -->
+      <section id="policy-guard" class="docs-section">
+        <h2>Monad PolicyGuard (Layer 3 Execution Containment)</h2>
+        <p>GuardianAI deploys native smart contracts to the <strong>Monad Parallel EVM</strong> (Chain ID <code>10143</code>). The flagship execution firewall, <code>GuardianPolicyGuard.sol</code>, enforces 10 deterministic on-chain invariants before autonomous agent transactions are broadcast.</p>
+
+        <div class="docs-callout tip">
+          <div class="docs-callout-title">&#128279; Full-Match Verified on MonadVision</div>
+          <code>GuardianPolicyGuard</code> is deployed and verified at <a href="https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0x32fa...1101 ↗</a>. Verified test suite: 207 Hardhat unit, stress, and reorg tests (100% passing across 11 suites).
+        </div>
+
+        <div class="docs-grid">
+          <div class="docs-card">
+            <h4>Storage Slot Isolation</h4>
+            <p>Nonces keyed by <code>keccak256(agentId, nonce)</code> ensure independent agents execute concurrently on Monad with zero storage slot contention (up to 10k TPS).</p>
+          </div>
+          <div class="docs-card">
+            <h4>128 KB Bytecode Capacity</h4>
+            <p>Leverages Monad's 128 KB bytecode limit to bundle complete policy matrices, parameter checks, and signature verifications without proxy fragmentation.</p>
+          </div>
+          <div class="docs-card">
+            <h4>24h Outflow Volume Caps</h4>
+            <p>Enforces strict per-agent rolling expenditure thresholds; blocks automated wallet drains if an agent is tricked into over-spending.</p>
+          </div>
+          <div class="docs-card">
+            <h4>Sub-Second EIP-712 Attestation</h4>
+            <p>Python relayer signs EIP-712 security tickets in P50 = 2.68 ms, aligning perfectly within Monad's ~400ms block intervals.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: Chainlink Threat Consumer -->
+      <section id="threat-consumer" class="docs-section">
+        <h2>Chainlink Threat Consumer (GuardianThreatConsumer)</h2>
+        <p><code>GuardianThreatConsumer.sol</code> is verified on Monad Testnet (<a href="https://testnet.monadvision.com/contracts/full_match/10143/0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8/" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0xF8B2...44F8 ↗</a>). Using Chainlink Functions consensus, it bridges off-chain global threat intelligence feeds onto Monad, allowing smart contracts to pause compromised agent credentials autonomously.</p>
       </section>
 
       <!-- SECTION: ERC-8004 Agent Registries -->
@@ -529,6 +651,44 @@ interface IGuardianInsuranceLedger {
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- SECTION: @guardianai/middleware SDK -->
+      <section id="middleware-sdk" class="docs-section">
+        <h2>@guardianai/middleware TypeScript SDK</h2>
+        <p>Drop-in middleware for TypeScript and JavaScript autonomous agent frameworks including <strong>ElizaOS</strong> and <strong>Viem</strong> wallet clients. Enforces pre-flight calldata decoding, memory poisoning defense, and policy compliance.</p>
+
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">ElizaOS Plugin &amp; Viem Client Decorator</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>import { createGuardianSecurityPlugin, wrapViemWalletClient } from "@guardianai/middleware";
+import { createWalletClient, http } from "viem";
+import { monadTestnet } from "viem/chains";
+
+// 1. ElizaOS Agent Plugin integration
+export const agentConfig = {
+  plugins: [
+    createGuardianSecurityPlugin({
+      enclavePreset: "mera-passkey-prf",
+      failClosed: true,
+      policyGuardAddress: "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101"
+    })
+  ]
+};
+
+// 2. Viem Web3 Wallet Client wrapper
+const rawClient = createWalletClient({
+  chain: monadTestnet,
+  transport: http("https://testnet-rpc.monad.xyz")
+});
+
+export const secureWallet = wrapViemWalletClient(rawClient, {
+  agentId: "0xagent_482c",
+  relayerUrl: "https://aiguardian.dev/api/v1/attest"
+});</code></pre>
         </div>
       </section>
 
@@ -671,20 +831,25 @@ firewall:
     <aside class="docs-toc">
       <div class="docs-toc-title">ON THIS PAGE</div>
       <ul class="docs-toc-list">
-        <li><a href="#overview" class="active">Overview & Vision</a></li>
+        <li><a href="#overview" class="active">Overview &amp; Vision</a></li>
         <li><a href="#quickstart">Quickstart Setup</a></li>
-        <li><a href="#architecture">Dual-Plane Architecture</a></li>
+        <li><a href="#architecture">3-Layer Defense-in-Depth</a></li>
         <li><a href="#firewall">10-Layer AI Firewall</a></li>
         <li><a href="#dlp-scanner">Output DLP Scanner</a></li>
-        <li><a href="#honeypot-threats">Honeypots & Threats</a></li>
+        <li><a href="#honeypot-threats">Honeypots &amp; Threats</a></li>
         <li><a href="#rate-limiting">Fail-Closed Rate Limiter</a></li>
+        <li><a href="#mera-enclave">Mera Passkey PRF Enclave</a></li>
+        <li><a href="#memory-poisoning">Memory Poisoning Guard</a></li>
+        <li><a href="#policy-guard">Monad PolicyGuard EVM</a></li>
+        <li><a href="#threat-consumer">Chainlink Threat Consumer</a></li>
         <li><a href="#erc8004">ERC-8004 Registries</a></li>
         <li><a href="#cortex-anchoring">Merkle Cortex Anchoring</a></li>
         <li><a href="#insurance-certificates">Insurance Certificates</a></li>
         <li><a href="#contract-analyzer">Contract Analyzer</a></li>
+        <li><a href="#middleware-sdk">@guardianai/middleware SDK</a></li>
         <li><a href="#python-sdk">Python SDK</a></li>
         <li><a href="#proxy-gateway">Proxy Gateway</a></li>
-        <li><a href="#telemetry-siem">Telemetry & Events</a></li>
+        <li><a href="#telemetry-siem">Telemetry &amp; Events</a></li>
         <li><a href="#proxy-api">Proxy API Reference</a></li>
         <li><a href="#compliance">EU AI Act Compliance</a></li>
       </ul>

@@ -24,7 +24,7 @@ from guardian.onchain_safety import OwnershipNotTransferredError
 logger = logging.getLogger("guardian.cortex.merkle")
 
 # ── Chain Configuration ────────────────────────────────────────
-# Monad is primary launch chain; Base is secondary.
+# Monad is dedicated primary chain.
 CHAIN_CONFIGS: Dict[str, Dict[str, Any]] = {
     "monad": {
         "chain_id": 10143,
@@ -41,14 +41,6 @@ CHAIN_CONFIGS: Dict[str, Dict[str, Any]] = {
         "name": "Polygon PoS",
         "priority": 3,
         "gas_estimate_gwei": 30.0,
-    },
-    "base": {
-        "chain_id": 8453,
-        "rpc_url": "https://mainnet.base.org",
-        "explorer": "https://basescan.org/tx/",
-        "name": "Base",
-        "priority": 2,
-        "gas_estimate_gwei": 0.1,
     },
     "ethereum": {
         "chain_id": 1,

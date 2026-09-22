@@ -32,13 +32,24 @@
   if ('IntersectionObserver' in window && !reduceMotion) {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting || entry.intersectionRatio > 0) {
           entry.target.classList.add('visible');
           io.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.12 });
-    reveals.forEach(function (el) { io.observe(el); });
+    }, { threshold: 0.01, rootMargin: '100px 0px 350px 0px' });
+    reveals.forEach(function (el) {
+      var rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight + 350 && rect.bottom > -100) {
+        el.classList.add('visible');
+      } else {
+        io.observe(el);
+      }
+    });
+    // Safety fallback: reveal any remaining elements after 2.5s
+    setTimeout(function () {
+      reveals.forEach(function (el) { el.classList.add('visible'); });
+    }, 2500);
   } else {
     reveals.forEach(function (el) { el.classList.add('visible'); });
   }

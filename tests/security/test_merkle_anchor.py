@@ -181,15 +181,6 @@ class TestMerkleAnchor:
         assert result.simulated is True
         assert "monadscan.com" in result.explorer_url
 
-    def test_anchor_to_base(self):
-        anchor = MerkleAnchor(primary_chain="base")
-        result = anchor.anchor_to_chain(
-            merkle_root=_sha256_hex("root"), event_count=3,
-        )
-        assert result.success is True
-        assert result.chain_id == "base"
-        assert "basescan.org" in result.explorer_url
-
     def test_anchor_unknown_chain(self):
         anchor = MerkleAnchor()
         result = anchor.anchor_to_chain(
@@ -203,11 +194,9 @@ class TestMerkleAnchor:
         chains = anchor.get_supported_chains()
         chain_names = [c["chain_id_name"] for c in chains]
         assert "monad" in chain_names
-        assert "base" in chain_names
         assert "ethereum" in chain_names
 
     def test_monad_priority(self):
         """Monad should have highest priority (1)."""
         assert CHAIN_CONFIGS["monad"]["priority"] == 1
-        assert CHAIN_CONFIGS["base"]["priority"] == 2
         assert CHAIN_CONFIGS["ethereum"]["priority"] == 3

@@ -13,8 +13,8 @@
   <meta property="og:title" content="How GuardianAI works">
   <meta property="og:description" content="Security off-chain in milliseconds. Trust on-chain, independently verifiable.">
   <meta property="og:type" content="website">
-  <link rel="canonical" href="./how-it-works">
-  <meta property="og:url" content="./how-it-works">
+  <link rel="canonical" href="https://aiguardian.dev/how-it-works">
+  <meta property="og:url" content="https://aiguardian.dev/how-it-works">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -31,8 +31,8 @@
       <ul class="nav-links" id="nav-links">
         <li><a href="/how-it-works" aria-current="page">How it works</a></li>
         <li><a href="/pricing">Pricing</a></li>
+        <li><a href="/docs">Docs &amp; API</a></li>
         <li><a href="/proof">Proof</a></li>
-        <li><a href="/docs">Docs</a></li>
         <li><a class="btn btn-primary btn-sm" href="/#demo">Run the demo</a></li>
       </ul>
     </div>
@@ -145,7 +145,7 @@
 
         <div class="callout warn reveal">
           <h3>What's real today — stated plainly.</h3>
-          <p>Merkle anchoring defaults to <b>simulated mode</b>; live testnet submission is active on <a href="https://testnet.monadexplorer.com/address/0xB98644392B035a4bA7207a6EcBfF0Ba82a57AfcE" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. The canonical ERC-8004 registries are mainnet ecosystem infrastructure — testnet registrations use an ABI-faithful stand-in registry. The insurance ledger anchors certificates only; no payout or slashing automation exists. We'd rather lose the hype than the trust this page asks you to place in us.</p>
+          <p>Merkle anchoring defaults to <b>simulated mode</b>; live testnet submission is active on <a href="https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. The canonical ERC-8004 registries are mainnet ecosystem infrastructure — testnet registrations use an ABI-faithful stand-in registry. The insurance ledger anchors certificates only; no payout or slashing automation exists. We'd rather lose the hype than the trust this page asks you to place in us.</p>
         </div>
       </div>
     </section>
@@ -155,18 +155,20 @@
       <div class="wrap">
         <div class="section-head reveal">
           <span class="eyebrow">The trust suite</span>
-          <h2 class="section-title" id="cs-title">Nine contracts. Each one job.</h2>
+          <h2 class="section-title" id="cs-title">Eleven contracts. Each one job.</h2>
         </div>
         <div class="grid-3">
-          <article class="card reveal"><span class="card-index">[01]</span><h3>CortexAnchor</h3><p>Batches security-event hashes into Merkle roots and anchors them as tamper-evident timestamps.</p></article>
-          <article class="card reveal"><span class="card-index">[02]</span><h3>PassportSBT</h3><p>ERC-5192 soulbound agent identity with trust tiers and score.</p></article>
-          <article class="card reveal"><span class="card-index">[03]</span><h3>InterlockRegistry</h3><p>Explicit agent-to-agent authorization — no silent handshakes between machines.</p></article>
-          <article class="card reveal"><span class="card-index">[04]</span><h3>InsuranceLedger</h3><p>Anchors signed insurance evidence certificates for underwriters.</p></article>
-          <article class="card reveal"><span class="card-index">[05]</span><h3>ThreatFeedRegistry</h3><p>Publishes threat intelligence on-chain for cross-organization consumption.</p></article>
-          <article class="card reveal"><span class="card-index">[06]</span><h3>RiskAttestation</h3><p>Records third-party risk attestations against registered agents.</p></article>
-          <article class="card reveal"><span class="card-index">[07]</span><h3>Timelock</h3><p>Administrative changes wait out a public delay before taking effect.</p></article>
-          <article class="card reveal"><span class="card-index">[08]</span><h3>CircuitBreaker</h3><p>A kill switch that can halt the trust suite when something goes wrong.</p></article>
-          <article class="card reveal"><span class="card-index">[09]</span><h3>ProtectedVault</h3><p>Escrow-style custody for value touching the trust suite.</p></article>
+          <article class="card reveal"><span class="card-index">[01]</span><h3>PolicyGuard</h3><p>Monad Parallel EVM execution containment &amp; real-time pre-flight policy firewall.</p></article>
+          <article class="card reveal"><span class="card-index">[02]</span><h3>ThreatConsumer</h3><p>Chainlink Functions consumer bridging verified off-chain threat intel feeds onto Monad.</p></article>
+          <article class="card reveal"><span class="card-index">[03]</span><h3>CortexAnchor</h3><p>Batches security-event hashes into Merkle roots and anchors them as tamper-evident timestamps.</p></article>
+          <article class="card reveal"><span class="card-index">[04]</span><h3>PassportSBT</h3><p>ERC-5192 soulbound agent identity with trust tiers and score.</p></article>
+          <article class="card reveal"><span class="card-index">[05]</span><h3>InterlockRegistry</h3><p>Explicit agent-to-agent authorization — no silent handshakes between machines.</p></article>
+          <article class="card reveal"><span class="card-index">[06]</span><h3>InsuranceLedger</h3><p>Anchors signed insurance evidence certificates for underwriters (100k cap).</p></article>
+          <article class="card reveal"><span class="card-index">[07]</span><h3>ThreatFeedRegistry</h3><p>Publishes threat intelligence on-chain for cross-organization consumption.</p></article>
+          <article class="card reveal"><span class="card-index">[08]</span><h3>RiskAttestation</h3><p>Records third-party risk attestations against registered agents.</p></article>
+          <article class="card reveal"><span class="card-index">[09]</span><h3>Timelock</h3><p>24-hour OpenZeppelin delay controller before administrative changes execute.</p></article>
+          <article class="card reveal"><span class="card-index">[10]</span><h3>CircuitBreaker</h3><p>A kill switch that can halt the trust suite when anomalous activity is detected.</p></article>
+          <article class="card reveal"><span class="card-index">[11]</span><h3>ProtectedVault</h3><p>Escrow-style custody for value touching the trust suite.</p></article>
         </div>
       </div>
     </section>

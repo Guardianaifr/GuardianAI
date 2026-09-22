@@ -68,11 +68,17 @@ class ExecutionResult:
 
 # Imports that are never allowed inside the sandbox
 BLOCKED_IMPORTS: Set[str] = {
+    # System & Execution
     "os", "sys", "subprocess", "shutil", "socket", "ctypes",
-    "signal", "multiprocessing", "threading", "importlib",
+    "signal", "multiprocessing", "threading", "_thread", "importlib",
     "code", "codeop", "compileall", "py_compile",
+    "platform", "pathlib", "inspect", "gc", "io", "tempfile",
+    "posix", "nt", "genericpath", "posixpath", "ntpath",
+    "linecache", "traceback", "runpy", "zipimport", "pkgutil",
+    "types", "typing_extensions", "_posixsubprocess",
+    # Network & Serialization
     "webbrowser", "http", "urllib", "requests", "httpx",
-    "ftplib", "smtplib", "telnetlib", "xmlrpc",
+    "ftplib", "smtplib", "telnetlib", "xmlrpc", "selectors", "asyncio",
     "pickle", "shelve", "marshal",
 }
 
@@ -81,6 +87,16 @@ BLOCKED_BUILTINS: Set[str] = {
     "eval", "exec", "compile", "globals", "locals",
     "getattr", "setattr", "delattr", "vars", "dir",
     "open", "input", "breakpoint", "exit", "quit",
+}
+
+# Dangerous attribute names that allow class-hierarchy and frame escapes
+BLOCKED_ATTRIBUTES: Set[str] = {
+    "__subclasses__", "__bases__", "__base__", "__mro__",
+    "__globals__", "__builtins__", "__code__", "__reduce__", "__reduce_ex__",
+    "__closure__", "__func__", "__self__",
+    "f_back", "f_globals", "f_builtins", "f_locals", "f_code",
+    "gi_frame", "cr_frame", "ag_frame",
+    "tb_frame", "tb_next",
 }
 
 # AST node types that indicate dangerous operations
@@ -111,14 +127,31 @@ def _static_analyze(code: str) -> List[str]:
                         f"Blocked import: '{name}' (line {node.lineno})"
                     )
 
-        # Block dangerous built-in calls
+        # Block dangerous attribute access
+        if isinstance(node, ast.Attribute) and node.attr in BLOCKED_ATTRIBUTES:
+            violations.append(
+                f"Blocked attribute access: '.{node.attr}' (line {node.lineno})"
+            )
+
+        # Block direct access to __builtins__ or __import__ names
+        if isinstance(node, ast.Name) and node.id in ("__builtins__", "__import__"):
+            violations.append(
+                f"Blocked access to '{node.id}' (line {node.lineno})"
+            )
+
+        # Block dangerous built-in calls and direct __import__
         if isinstance(node, ast.Call):
             func = node.func
-            if isinstance(func, ast.Name) and func.id in BLOCKED_BUILTINS:
-                violations.append(
-                    f"Blocked builtin call: '{func.id}()' (line {node.lineno})"
-                )
-            elif isinstance(func, ast.Attribute) and func.attr in ("system", "popen", "exec"):
+            if isinstance(func, ast.Name):
+                if func.id == "__import__":
+                    violations.append(
+                        f"Blocked direct __import__() call (line {node.lineno})"
+                    )
+                elif func.id in BLOCKED_BUILTINS:
+                    violations.append(
+                        f"Blocked builtin call: '{func.id}()' (line {node.lineno})"
+                    )
+            elif isinstance(func, ast.Attribute) and func.attr in ("system", "popen", "exec", "spawn", "fork"):
                 violations.append(
                     f"Blocked method call: '.{func.attr}()' (line {node.lineno})"
                 )
@@ -140,14 +173,32 @@ _SANDBOX_WRAPPER = textwrap.dedent('''\
     if _cpu_secs > 0:
         _res.setrlimit(_res.RLIMIT_CPU, (_cpu_secs, _cpu_secs))
 
-    # Strip dangerous builtins
+    # Strip dangerous builtins and install guarded import
     _bi = __builtins__ if isinstance(__builtins__, dict) else __builtins__.__dict__
     _blocked = {BLOCKED_SET}
     _safe_builtins = {k: v for k, v in _bi.items() if k not in _blocked}
+    _blocked_imports = {BLOCKED_IMPORTS_SET}
+    _orig_import = _bi.get("__import__")
+
+    def _safe_import(name, *args, _orig=_orig_import, _blocked_set=_blocked_imports, **kwargs):
+        root = name.split(".")[0]
+        if root in _blocked_set:
+            raise ImportError(f"Prohibited import '{name}' in sandbox")
+        return _orig(name, *args, **kwargs)
+
+    _safe_builtins["__import__"] = _safe_import
     _globals = {"__builtins__": _safe_builtins}
 
+    # Scrub sys.modules of dangerous modules
+    for _mod in list(sys.modules.keys()):
+        _root = _mod.split(".")[0]
+        if _root in _blocked_imports:
+            sys.modules.pop(_mod, None)
+
+    _code = sys.stdin.read()
+    del _bi, _blocked, _blocked_imports, _orig_import
+
     try:
-        _code = sys.stdin.read()
         exec(compile(_code, "<sandbox>", "exec"), _globals)
     except MemoryError:
         print("SANDBOX_RESOURCE_EXCEEDED: memory limit", file=sys.stderr)
@@ -160,15 +211,32 @@ _SANDBOX_WRAPPER = textwrap.dedent('''\
 _SANDBOX_WRAPPER_WIN = textwrap.dedent('''\
     import sys, json, traceback
 
-    # Strip dangerous builtins
+    # Strip dangerous builtins and install guarded import
     _bi = __builtins__ if isinstance(__builtins__, dict) else __builtins__.__dict__
     _blocked = {BLOCKED_SET}
     _safe_builtins = {k: v for k, v in _bi.items() if k not in _blocked}
+    _blocked_imports = {BLOCKED_IMPORTS_SET}
+    _orig_import = _bi.get("__import__")
+
+    def _safe_import(name, *args, _orig=_orig_import, _blocked_set=_blocked_imports, **kwargs):
+        root = name.split(".")[0]
+        if root in _blocked_set:
+            raise ImportError(f"Prohibited import '{name}' in sandbox")
+        return _orig(name, *args, **kwargs)
+
+    _safe_builtins["__import__"] = _safe_import
     _globals = {"__builtins__": _safe_builtins}
 
+    # Scrub sys.modules of dangerous modules
+    for _mod in list(sys.modules.keys()):
+        _root = _mod.split(".")[0]
+        if _root in _blocked_imports:
+            sys.modules.pop(_mod, None)
+
+    _code = sys.stdin.read()
+    del _bi, _blocked, _blocked_imports, _orig_import
 
     try:
-        _code = sys.stdin.read()
         exec(compile(_code, "<sandbox>", "exec"), _globals)
     except MemoryError:
         print("SANDBOX_RESOURCE_EXCEEDED: memory limit", file=sys.stderr)
@@ -225,11 +293,16 @@ class ExecutionSandbox:
     def _run_in_subprocess(self, code: str) -> ExecutionResult:
         """Run code in an isolated subprocess with resource limits."""
         blocked_set_repr = repr(self.config.blocked_builtins)
+        blocked_imports_repr = repr(self.config.blocked_imports)
 
         if self._is_unix:
-            wrapper = _SANDBOX_WRAPPER.replace("{BLOCKED_SET}", blocked_set_repr)
+            wrapper = _SANDBOX_WRAPPER.replace(
+                "{BLOCKED_SET}", blocked_set_repr
+            ).replace("{BLOCKED_IMPORTS_SET}", blocked_imports_repr)
         else:
-            wrapper = _SANDBOX_WRAPPER_WIN.replace("{BLOCKED_SET}", blocked_set_repr)
+            wrapper = _SANDBOX_WRAPPER_WIN.replace(
+                "{BLOCKED_SET}", blocked_set_repr
+            ).replace("{BLOCKED_IMPORTS_SET}", blocked_imports_repr)
 
         # Write wrapper to temp file
         with tempfile.NamedTemporaryFile(

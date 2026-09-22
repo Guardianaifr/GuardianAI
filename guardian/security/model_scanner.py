@@ -21,6 +21,7 @@ import io
 import json
 import os
 import pickle
+import pickletools
 import struct
 import zipfile
 from dataclasses import dataclass, field
@@ -109,70 +110,239 @@ DANGEROUS_OPCODES: Dict[int, str] = {
 
 # Known dangerous module.callable patterns in pickle GLOBAL/STACK_GLOBAL
 DANGEROUS_CALLABLES: Set[str] = {
-    "os.system", "os.popen", "os.execve", "os.execvp",
+    # System execution
+    "os.system", "os.popen", "os.popen2", "os.popen3", "os.popen4",
+    "os.execv", "os.execve", "os.execvp", "os.execvpe", "os.execl", "os.execle", "os.execlp", "os.execlpe",
+    "os.spawnl", "os.spawnle", "os.spawnlp", "os.spawnlpe", "os.spawnv", "os.spawnve", "os.spawnvp", "os.spawnvpe",
+    "os.posix_spawn", "os.posix_spawnp", "os.startfile",
+    "posix.system", "nt.system", "posix.popen", "nt.popen",
+    # Subprocess execution
     "subprocess.call", "subprocess.Popen", "subprocess.run",
     "subprocess.check_output", "subprocess.check_call",
+    # Evaluation and code execution
     "builtins.eval", "builtins.exec", "builtins.compile",
-    "builtins.__import__", "builtins.getattr",
-    "nt.system", "posix.system",
-    "webbrowser.open",
-    "shutil.rmtree", "shutil.move",
-    "ctypes.cdll", "ctypes.windll",
-    "code.InteractiveConsole",
-    "pickle.loads",
-    "marshal.loads",
+    "builtins.__import__", "builtins.getattr", "builtins.open",
+    "code.InteractiveConsole", "code.interact",
+    # Network / exfiltration
+    "urllib.request.urlopen", "urllib.request.urlretrieve",
+    "requests.get", "requests.post", "requests.request",
+    "httpx.get", "httpx.post", "httpx.request",
+    "socket.socket", "socket.create_connection",
+    "http.client.HTTPConnection", "http.client.HTTPSConnection",
+    "webbrowser.open", "webbrowser.open_new", "webbrowser.open_new_tab",
+    # Filesystem and libraries
+    "shutil.rmtree", "shutil.move", "shutil.copy", "shutil.copy2",
+    "ctypes.cdll", "ctypes.windll", "ctypes.CDLL",
+    # Serialization chains
+    "pickle.loads", "pickle.load",
+    "marshal.loads", "marshal.load",
     "importlib.import_module",
+    "platform.popen", "pty.spawn",
+    "torch.ops.load_library",
 }
 
 
-def _scan_pickle_bytes(data: bytes, source_label: str = "") -> List[ScanFinding]:
-    """Scan raw pickle bytes for dangerous opcodes."""
+# Safe callables commonly found in PyTorch model checkpoints
+SAFE_PYTORCH_GLOBALS: Set[str] = {
+    "torch._utils._rebuild_tensor_v2",
+    "torch._utils._rebuild_tensor",
+    "torch._utils._rebuild_parameter",
+    "torch.FloatStorage",
+    "torch.HalfStorage",
+    "torch.DoubleStorage",
+    "torch.IntStorage",
+    "torch.LongStorage",
+    "torch.ByteStorage",
+    "torch.BoolStorage",
+    "torch.BFloat16Storage",
+    "torch.ShortStorage",
+    "torch.CharStorage",
+    "collections.OrderedDict",
+    "torch.Tensor",
+    "torch.nn.parameter.Parameter",
+    "torch.Size",
+    "torch.device",
+    "torch.dtype",
+    "numpy.core.multiarray._reconstruct",
+    "numpy.ndarray",
+    "numpy.dtype",
+}
+
+
+def _scan_pickle_bytes(
+    data: bytes, source_label: str = "", is_pytorch: bool = False
+) -> List[ScanFinding]:
+    """Scan raw pickle bytes for dangerous opcodes and callables."""
     findings: List[ScanFinding] = []
-    i = 0
-    length = len(data)
 
-    while i < length:
-        op = data[i]
+    # First attempt: structured opcode parsing via pickletools
+    used_genops = False
+    try:
+        ops = list(pickletools.genops(data))
+        used_genops = True
+        stack: List[Any] = []
+        memo: Dict[Any, Any] = {}
 
-        if op in DANGEROUS_OPCODES:
-            opcode_name = DANGEROUS_OPCODES[op]
-            findings.append(ScanFinding(
-                severity=FindingSeverity.CRITICAL,
-                category="pickle_dangerous_opcode",
-                description=(
-                    f"Dangerous pickle opcode {opcode_name} (0x{op:02x}) "
-                    f"detected at offset {i}{' in ' + source_label if source_label else ''}. "
-                    f"This opcode enables arbitrary code execution during deserialization."
-                ),
-                offset=i,
-                opcode=opcode_name,
-            ))
+        for opcode, arg, pos in ops:
+            op_name = opcode.name
 
-        # Check for GLOBAL opcode content (module.callable string)
-        if op == 0x63:  # GLOBAL
-            # Read the module\ncallable string
-            end = data.find(b"\n", i + 1)
-            if end != -1:
-                end2 = data.find(b"\n", end + 1)
-                if end2 != -1:
-                    module = data[i + 1:end].decode("ascii", errors="replace")
-                    name = data[end + 1:end2].decode("ascii", errors="replace")
-                    full_name = f"{module}.{name}"
-                    if full_name in DANGEROUS_CALLABLES:
-                        findings.append(ScanFinding(
-                            severity=FindingSeverity.CRITICAL,
-                            category="pickle_dangerous_callable",
-                            description=(
-                                f"Pickle GLOBAL references dangerous callable "
-                                f"'{full_name}' at offset {i}. "
-                                f"This will execute code during deserialization."
-                            ),
-                            offset=i,
-                            opcode="GLOBAL",
-                            metadata={"callable": full_name},
-                        ))
+            # Track stack and memo values for STACK_GLOBAL argument extraction
+            if op_name in (
+                "SHORT_BINUNICODE", "BINUNICODE", "BINUNICODE8",
+                "UNICODE", "STRING", "BINSTRING", "SHORT_BINSTRING",
+                "NONE", "BININT", "BININT1", "BININT2", "INT", "LONG",
+            ):
+                stack.append(arg)
+            elif op_name == "MEMOIZE":
+                if stack:
+                    memo[len(memo)] = stack[-1]
+            elif op_name in ("PUT", "BINPUT", "LONG_BINPUT"):
+                if stack:
+                    memo[arg] = stack[-1]
+            elif op_name in ("GET", "BINGET", "LONG_BINGET"):
+                stack.append(memo.get(arg, ""))
+            elif op_name == "POP":
+                if stack:
+                    stack.pop()
+            elif op_name == "DUP":
+                if stack:
+                    stack.append(stack[-1])
 
-        i += 1
+            # Resolve global callables from GLOBAL or STACK_GLOBAL
+            callable_name = None
+            if op_name == "GLOBAL" and arg:
+                callable_name = str(arg).replace(" ", ".")
+            elif op_name == "STACK_GLOBAL":
+                name = stack.pop() if stack else ""
+                module = stack.pop() if stack else ""
+                if module or name:
+                    callable_name = f"{module}.{name}"
+                else:
+                    callable_name = "<unknown_stack_global>"
+
+            if callable_name:
+                is_dangerous = (
+                    callable_name in DANGEROUS_CALLABLES or any(
+                        callable_name.startswith(bad + ".")
+                        for bad in (
+                            "os", "subprocess", "posix", "nt", "ctypes",
+                            "socket", "urllib", "requests", "httpx", "http",
+                            "shutil", "pty", "platform"
+                        )
+                    )
+                )
+
+                if is_dangerous:
+                    findings.append(ScanFinding(
+                        severity=FindingSeverity.CRITICAL,
+                        category="pickle_dangerous_callable",
+                        description=(
+                            f"Pickle {op_name} references dangerous callable "
+                            f"'{callable_name}' at offset {pos}. "
+                            f"This will execute code during deserialization."
+                        ),
+                        offset=pos,
+                        opcode=op_name,
+                        metadata={"callable": callable_name},
+                    ))
+                elif is_pytorch and callable_name not in SAFE_PYTORCH_GLOBALS:
+                    findings.append(ScanFinding(
+                        severity=FindingSeverity.HIGH,
+                        category="pickle_untrusted_global",
+                        description=(
+                            f"PyTorch pickle references unexpected global callable "
+                            f"'{callable_name}' at offset {pos}."
+                        ),
+                        offset=pos,
+                        opcode=op_name,
+                        metadata={"callable": callable_name},
+                    ))
+
+            # Dangerous opcode detection
+            if op_name in ("REDUCE", "GLOBAL", "INST", "BUILD", "STACK_GLOBAL", "NEWOBJ", "NEWOBJ_EX", "OBJ"):
+                # In PyTorch checkpoints, standard tensor reconstruction opcodes are normal
+                if is_pytorch:
+                    continue
+
+                findings.append(ScanFinding(
+                    severity=FindingSeverity.CRITICAL,
+                    category="pickle_dangerous_opcode",
+                    description=(
+                        f"Dangerous pickle opcode {op_name} "
+                        f"detected at offset {pos}{' in ' + source_label if source_label else ''}. "
+                        f"This opcode enables arbitrary code execution during deserialization."
+                    ),
+                    offset=pos,
+                    opcode=op_name,
+                ))
+    except Exception:
+        used_genops = False
+
+    # Fallback to byte scan if genops could not parse stream
+    if not used_genops:
+        findings.append(ScanFinding(
+            severity=FindingSeverity.HIGH,
+            category="pickle_parse_error",
+            description=f"Pickle stream{' in ' + source_label if source_label else ''} could not be cleanly parsed by bytecode disassembler.",
+        ))
+
+        raw_text = data.decode("latin1", errors="ignore")
+        for bad_callable in DANGEROUS_CALLABLES:
+            parts = bad_callable.split(".")
+            mod_part, fn_part = ".".join(parts[:-1]), parts[-1]
+            if bad_callable in raw_text or (mod_part in raw_text and fn_part in raw_text):
+                findings.append(ScanFinding(
+                    severity=FindingSeverity.CRITICAL,
+                    category="pickle_dangerous_callable",
+                    description=(
+                        f"Pickle raw stream references dangerous callable "
+                        f"'{bad_callable}'{' in ' + source_label if source_label else ''}."
+                    ),
+                    metadata={"callable": bad_callable},
+                ))
+
+        i = 0
+        length = len(data)
+        while i < length:
+            op = data[i]
+            if op in DANGEROUS_OPCODES and not is_pytorch:
+                opcode_name = DANGEROUS_OPCODES[op]
+                findings.append(ScanFinding(
+                    severity=FindingSeverity.CRITICAL,
+                    category="pickle_dangerous_opcode",
+                    description=(
+                        f"Dangerous pickle opcode {opcode_name} (0x{op:02x}) "
+                        f"detected at offset {i}{' in ' + source_label if source_label else ''}. "
+                        f"This opcode enables arbitrary code execution during deserialization."
+                    ),
+                    offset=i,
+                    opcode=opcode_name,
+                ))
+            if op == 0x63:  # GLOBAL
+                end = data.find(b"\n", i + 1)
+                if end != -1:
+                    end2 = data.find(b"\n", end + 1)
+                    if end2 != -1:
+                        module = data[i + 1:end].decode("ascii", errors="replace")
+                        name = data[end + 1:end2].decode("ascii", errors="replace")
+                        full_name = f"{module}.{name}"
+                        if full_name in DANGEROUS_CALLABLES or any(
+                            full_name.startswith(bad + ".")
+                            for bad in ("os", "subprocess", "posix", "nt", "ctypes", "socket", "urllib")
+                        ):
+                            findings.append(ScanFinding(
+                                severity=FindingSeverity.CRITICAL,
+                                category="pickle_dangerous_callable",
+                                description=(
+                                    f"Pickle GLOBAL references dangerous callable "
+                                    f"'{full_name}' at offset {i}. "
+                                    f"This will execute code during deserialization."
+                                ),
+                                offset=i,
+                                opcode="GLOBAL",
+                                metadata={"callable": full_name},
+                            ))
+            i += 1
 
     return findings
 
@@ -181,7 +351,7 @@ def _scan_pickle_bytes(data: bytes, source_label: str = "") -> List[ScanFinding]
 
 def _scan_pickle_file(file_path: str, data: bytes) -> ScanReport:
     """Scan a .pkl/.pickle file."""
-    findings = _scan_pickle_bytes(data, source_label=os.path.basename(file_path))
+    findings = _scan_pickle_bytes(data, source_label=os.path.basename(file_path), is_pytorch=False)
     is_safe = all(f.severity != FindingSeverity.CRITICAL for f in findings)
     return ScanReport(
         file_path=file_path,
@@ -201,16 +371,25 @@ def _scan_pytorch_file(file_path: str, data: bytes) -> ScanReport:
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
             for name in zf.namelist():
+                # Check for zip slip path traversal
+                if "../" in name or "..\\" in name:
+                    findings.append(ScanFinding(
+                        severity=FindingSeverity.CRITICAL,
+                        category="pytorch_zip_slip",
+                        description=f"PyTorch archive contains path traversal entry: '{name}'.",
+                        metadata={"archive_entry": name},
+                    ))
+
                 if name.endswith(".pkl") or name.endswith("data.pkl") or "pickle" in name.lower():
                     pkl_data = zf.read(name)
-                    inner_findings = _scan_pickle_bytes(pkl_data, source_label=name)
+                    inner_findings = _scan_pickle_bytes(pkl_data, source_label=name, is_pytorch=True)
                     findings.extend(inner_findings)
 
             # Check for unexpected file types inside the archive
             for name in zf.namelist():
                 if name.endswith((".py", ".sh", ".bat", ".exe", ".dll", ".so")):
                     findings.append(ScanFinding(
-                        severity=FindingSeverity.HIGH,
+                        severity=FindingSeverity.CRITICAL,
                         category="pytorch_suspicious_archive_entry",
                         description=(
                             f"PyTorch archive contains suspicious file: '{name}'. "
@@ -220,7 +399,7 @@ def _scan_pytorch_file(file_path: str, data: bytes) -> ScanReport:
                     ))
     except (zipfile.BadZipFile, Exception):
         # If not a valid ZIP, try scanning as raw pickle
-        findings = _scan_pickle_bytes(data, source_label=os.path.basename(file_path))
+        findings = _scan_pickle_bytes(data, source_label=os.path.basename(file_path), is_pytorch=False)
 
     is_safe = all(f.severity != FindingSeverity.CRITICAL for f in findings)
     return ScanReport(
@@ -316,6 +495,25 @@ def _scan_safetensors_file(file_path: str, data: bytes) -> ScanReport:
                                 category="safetensors_invalid_offset",
                                 description=f"Tensor '{key}' has invalid data offsets [{start}, {end}].",
                             ))
+
+        # Check __metadata__ block for payload injection
+        if "__metadata__" in header and isinstance(header["__metadata__"], dict):
+            for mkey, mval in header["__metadata__"].items():
+                mkey_lower = str(mkey).lower()
+                if any(bad in mkey_lower for bad in ("__exec__", "__import__", "eval", "exec", "system")):
+                    findings.append(ScanFinding(
+                        severity=FindingSeverity.CRITICAL,
+                        category="safetensors_metadata_injection",
+                        description=f"Suspicious metadata key '{mkey}' in safetensors __metadata__.",
+                        metadata={"key": mkey},
+                    ))
+                if isinstance(mval, str) and any(bad in mval.lower() for bad in ("os.system", "subprocess", "eval(", "exec(")):
+                    findings.append(ScanFinding(
+                        severity=FindingSeverity.CRITICAL,
+                        category="safetensors_metadata_injection",
+                        description=f"Suspicious payload in safetensors metadata value for '{mkey}'.",
+                        metadata={"key": mkey, "value": mval[:100]},
+                    ))
 
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         findings.append(ScanFinding(

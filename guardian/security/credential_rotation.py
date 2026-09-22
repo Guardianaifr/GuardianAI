@@ -60,23 +60,25 @@ class AgentBehaviorAnomalyProfiler:
         # Timing and frequency
         if agent_id in self.last_call_time:
             time_diff = timestamp - self.last_call_time[agent_id]
-            if time_diff > 0:
+            if time_diff <= 0:
+                current_rate = 10000.0  # Burst / zero-delay call
+            else:
                 current_rate = 1.0 / time_diff
                 
-                # EWMA update
-                old_rate = self.call_rates[agent_id]
-                new_rate = self.alpha * current_rate + (1 - self.alpha) * old_rate
-                
-                diff = current_rate - old_rate
-                new_var = self.alpha * (diff ** 2) + (1 - self.alpha) * self.call_variances[agent_id]
-                
-                std_dev = math.sqrt(self.call_variances[agent_id])
-                
-                if current_rate > old_rate + self.threshold * std_dev:
-                    anomalies.append(f"Unusual call frequency spike: {current_rate:.2f} calls/sec")
-                
-                self.call_rates[agent_id] = new_rate
-                self.call_variances[agent_id] = new_var
+            # EWMA update
+            old_rate = self.call_rates[agent_id]
+            new_rate = self.alpha * current_rate + (1 - self.alpha) * old_rate
+            
+            diff = current_rate - old_rate
+            new_var = self.alpha * (diff ** 2) + (1 - self.alpha) * self.call_variances[agent_id]
+            
+            std_dev = math.sqrt(self.call_variances[agent_id])
+            
+            if current_rate > old_rate + self.threshold * std_dev:
+                anomalies.append(f"Unusual call frequency spike: {current_rate:.2f} calls/sec")
+            
+            self.call_rates[agent_id] = new_rate
+            self.call_variances[agent_id] = new_var
         else:
             self.call_rates[agent_id] = 1.0
 

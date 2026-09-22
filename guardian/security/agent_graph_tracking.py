@@ -159,7 +159,7 @@ class AgentGraphDriftTracker:
 
         # ── Check 3: Density drift ───────────────────────────────────
         density = self._compute_density()
-        if density > self.density_threshold:
+        if len(self._nodes) > 2 and density > self.density_threshold:
             alert = DriftAlert(
                 alert_type="density_drift",
                 severity=DriftSeverity.HIGH,
@@ -173,7 +173,7 @@ class AgentGraphDriftTracker:
             alerts.append(alert)
 
         # ── Check 4: Cycle detection ─────────────────────────────────
-        if is_new_edge and self._has_cycle_through(source, target):
+        if is_new_edge and edge not in self._baseline_edges and self._has_cycle_through(source, target):
             cycle = self._find_cycle(target, source)
             alert = DriftAlert(
                 alert_type="cycle_introduced",

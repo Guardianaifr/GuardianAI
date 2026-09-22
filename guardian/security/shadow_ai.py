@@ -127,6 +127,8 @@ _PROVIDERS: List[AIProviderPattern] = [
         name="HuggingFace Inference",
         url_patterns=[
             re.compile(r"api-inference\.huggingface\.co", re.I),
+            re.compile(r"router\.huggingface\.co", re.I),
+            re.compile(r"huggingface\.co/api/models", re.I),
             re.compile(r"[a-z0-9-]+\.hf\.space", re.I),
         ],
         header_indicators=[
@@ -147,7 +149,9 @@ _PROVIDERS: List[AIProviderPattern] = [
     ),
     AIProviderPattern(
         name="Together AI",
-        url_patterns=[re.compile(r"api\.together\.xyz", re.I)],
+        url_patterns=[
+            re.compile(r"api\.together\.(xyz|ai)", re.I),
+        ],
         header_indicators=[],
     ),
     AIProviderPattern(
@@ -163,7 +167,24 @@ _PROVIDERS: List[AIProviderPattern] = [
     AIProviderPattern(
         name="DeepSeek",
         url_patterns=[re.compile(r"api\.deepseek\.com", re.I)],
+        header_indicators=[
+            ("authorization", re.compile(r"Bearer\s+sk-[a-zA-Z0-9]{32,}", re.I)),
+        ],
+    ),
+    AIProviderPattern(
+        name="GitHub Models",
+        url_patterns=[
+            re.compile(r"models\.inference\.ai\.azure\.com", re.I),
+            re.compile(r"models\.github\.ai", re.I),
+        ],
         header_indicators=[],
+    ),
+    AIProviderPattern(
+        name="OpenRouter",
+        url_patterns=[re.compile(r"openrouter\.ai", re.I)],
+        header_indicators=[
+            ("authorization", re.compile(r"Bearer\s+sk-or-v1-[a-zA-Z0-9]+", re.I)),
+        ],
     ),
     AIProviderPattern(
         name="AI21 Labs",
@@ -182,7 +203,37 @@ _PROVIDERS: List[AIProviderPattern] = [
     ),
     AIProviderPattern(
         name="Ollama (Remote)",
-        url_patterns=[re.compile(r".*:11434/api/", re.I)],
+        url_patterns=[
+            re.compile(r".*:11434/(api|v1)/", re.I),
+            re.compile(r"ollama\.[a-z0-9-]+\.corp", re.I),
+        ],
+        header_indicators=[],
+        severity=AlertSeverity.WARNING,
+    ),
+    AIProviderPattern(
+        name="xAI (Grok)",
+        url_patterns=[re.compile(r"api\.x\.ai", re.I)],
+        header_indicators=[
+            ("authorization", re.compile(r"Bearer\s+xai-[a-zA-Z0-9]+", re.I)),
+        ],
+    ),
+    AIProviderPattern(
+        name="GitHub Copilot",
+        url_patterns=[
+            re.compile(r"api\.githubcopilot\.com", re.I),
+            re.compile(r"copilot-proxy\.githubusercontent\.com", re.I),
+        ],
+        header_indicators=[
+            ("editor-version", re.compile(r".+", re.I)),
+        ],
+    ),
+    AIProviderPattern(
+        name="Local AI (vLLM / LM Studio)",
+        url_patterns=[
+            re.compile(r".*:8000/v1/", re.I),
+            re.compile(r".*:1234/v1/", re.I),
+            re.compile(r".*:5000/v1/", re.I),
+        ],
         header_indicators=[],
         severity=AlertSeverity.WARNING,
     ),
@@ -229,6 +280,7 @@ class ShadowAIDetector:
         """
         ts = timestamp or time.time()
         headers = headers or {}
+        norm_headers = {k.lower(): v for k, v in headers.items()}
         alerts: List[ShadowAIAlert] = []
 
         for provider in self._providers:
@@ -246,11 +298,18 @@ class ShadowAIDetector:
 
             # Header-based detection
             for header_name, value_pattern in provider.header_indicators:
-                header_val = headers.get(header_name, "") or headers.get(
-                    header_name.lower(), ""
-                )
+                header_val = norm_headers.get(header_name.lower(), "")
                 if header_val and value_pattern.search(header_val):
                     matched_headers.append(header_name)
+
+            # Disambiguate generic OpenAI header matches when target URL belongs to another specific provider
+            if not matched_url and matched_headers and provider.name == "OpenAI":
+                other_url_match = any(
+                    other.name != "OpenAI" and any(p.search(url) for p in other.url_patterns)
+                    for other in self._providers
+                )
+                if other_url_match:
+                    continue
 
             if matched_url or matched_headers:
                 detection_method = []

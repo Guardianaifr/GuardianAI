@@ -289,16 +289,7 @@ This is no longer just a firewall prototype; it is now a validated security plat
 
 ## 11) Mini Roadmap (Finalized and Execution-Ready)
 
-Roadmap baseline date: **March 11, 2026**.
-
-Delivery cadence:
-- Sprint 1: March 11 to March 24, 2026
-- Sprint 2: March 25 to April 7, 2026
-- Sprint 3: April 8 to April 21, 2026
-- Sprint 4: April 22 to May 5, 2026
-- Sprint 5+: May 6, 2026 onward
-
-### Phase 1: Must-Have (Sprints 1-2)
+### Track 1: Foundation Controls (Completed)
 
 1. SIEM alert routing + playbook mapping
    - Deliverables: structured emitters (JSON + CEF), severity-to-runbook map, synthetic attack replay
@@ -321,7 +312,7 @@ Delivery cadence:
    - Evidence: `artifacts/evidence/service_auth_validation.md`
    - Done when: unauthenticated service calls fail and rotation runbook is tested
 
-### Phase 2: High-Impact (Sprints 3-4)
+### Track 2: High-Impact Controls (Completed)
 
 1. Production IdP adapters
    - Deliverables: adapters for Okta/Auth0/Azure AD with JWT claim and revoke contract tests
@@ -344,7 +335,7 @@ Delivery cadence:
    - Evidence: `artifacts/evidence/cost_abuse_simulation.md`
    - Done when: synthetic wallet-drain scenarios trigger quarantine and alerting
 
-### Phase 3: Scale and Enterprise Readiness (Sprint 5+)
+### Track 3: Scale and Enterprise Readiness
 
 1. Multi-tenant hard isolation
    - Deliverables: tenant-scoped policy, telemetry, and evidence segregation controls

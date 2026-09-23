@@ -9,6 +9,16 @@
         "**/.*",
         "**/node_modules/**"
       ],
+      "rewrites": [
+        {
+          "source": "/boost",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/boost/**",
+          "destination": "/index.html"
+        }
+      ],
       "headers": [
         {
           "source": "**/*.@(html|json|xml|txt)",

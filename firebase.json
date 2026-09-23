@@ -9,29 +9,26 @@
         "**/.*",
         "**/node_modules/**"
       ],
-      "rewrites": [
+      "redirects": [
         {
           "source": "/boost",
-          "destination": "/index.html"
+          "destination": "/",
+          "type": 302
         },
         {
           "source": "/boost/**",
-          "destination": "/index.html"
+          "destination": "/",
+          "type": 302
         }
       ],
       "headers": [
         {
-          "source": "**/*.@(html|json|xml|txt)",
+          "source": "**",
           "headers": [
             {
               "key": "Cache-Control",
               "value": "no-cache, no-store, must-revalidate"
-            }
-          ]
-        },
-        {
-          "source": "**",
-          "headers": [
+            },
             {
               "key": "X-Content-Type-Options",
               "value": "nosniff"
@@ -43,6 +40,15 @@
             {
               "key": "Referrer-Policy",
               "value": "strict-origin-when-cross-origin"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(css|js|svg|png|jpg|jpeg|gif|webp|ico|woff|woff2)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=3600"
             }
           ]
         }

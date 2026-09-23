@@ -722,7 +722,7 @@ Primary files:
 
 Verification:
 - `pytest -q tests/security/test_public_benchmark_alignment.py` -> `4 passed`.
-- `python tools/run_public_benchmark_alignment.py` -> `all_passed: true`, composite `93.6%`.
+- `python tools/run_public_benchmark_alignment.py` -> `all_passed: true`, HarmBench 72.8% strict, AdvBench 99.0% strict (source: definitive_benchmark_v4.json)
 - `python tools/run_missing_security_validation.py` -> includes `public_benchmark_all_passed: true`.
 - `pytest -q tests/security` -> `63 passed`.
 - `pytest -q` -> `231 passed`.

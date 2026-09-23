@@ -7,10 +7,8 @@ Scope: Public benchmark residual risk analysis for GuardianAI controls.
 
 Latest published benchmark alignment:
 
-- HarmBench block rate: 97.0%
-- AdvBench block rate: 94.0%
-- GAIA success rate: 86.0%
-- Composite score: 93.6%
+- HarmBench block rate: 72.8% strict / 57.8% balanced
+- AdvBench block rate: 99.0% strict / 95.6% balanced
 
 The residual gap (for example AdvBench ~6% non-blocked) should be treated as an explicit, managed risk class, not an unknown.
 

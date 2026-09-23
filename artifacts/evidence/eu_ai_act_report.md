@@ -1,6 +1,6 @@
 # EU AI Act Compliance Report — GuardianAI
 
-**Generated**: 2026-04-20T08:47:49.652535+00:00
+**Generated**: 2026-09-23T15:28:54.136325+00:00
 **System**: GuardianAI v1.0
 **Framework**: EU AI Act (Regulation 2024/1689)
 **Overall Score**: 98% (compliant)
@@ -35,7 +35,7 @@
 # Risk Management System — GuardianAI
 
 **Framework**: EU AI Act, Article 9
-**Generated**: 2026-04-20 08:47 UTC
+**Generated**: 2026-09-23 15:28 UTC
 **System**: GuardianAI v1.0
 
 ## 1. System Description
@@ -94,7 +94,7 @@ Residual risks are classified in `FALSE_NEGATIVE_TAXONOMY.md`:
 # Transparency Report — GuardianAI
 
 **Framework**: EU AI Act, Article 13
-**Generated**: 2026-04-20 08:47 UTC
+**Generated**: 2026-09-23 15:28 UTC
 
 ## 1. System Identity
 
@@ -130,12 +130,12 @@ Protect AI systems against prompt injection, data leakage, cost abuse, and adver
 
 | Metric | Value | Source |
 |--------|-------|--------|
-| HarmBench block rate | 97.0% | public_benchmark_report.json |
-| AdvBench block rate | 94.0% | public_benchmark_report.json |
-| GAIA success rate | 86.0% | public_benchmark_report.json |
-| Composite score | 93.6% | public_benchmark_report.json |
+| HarmBench block rate | 72.8% strict / 57.8% balanced | public_benchmark_report.json |
+| AdvBench block rate | 99.0% strict / 95.6% balanced | public_benchmark_report.json |
 | Baseline p95 latency | 587.83 ms | perf_chaos_report.json |
 | Attack block rate | 100% | perf_chaos_report.json |
+
+*Note: Prior benchmark figures (GAIA, composite 93.6%, etc.) were retracted.*
 
 ## 6. Human Oversight
 

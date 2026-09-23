@@ -10,7 +10,7 @@ GuardianAI maintains a defense-in-depth security control layer for LLM traffic w
 Current assurance posture includes:
 
 - Full test suite passing (`pytest -q`: 244 passed)
-- Public benchmark alignment passing (composite score 93.6%)
+- Public benchmark alignment: HarmBench 72.8% strict, AdvBench 99.0% strict, security-gate Tier 1+2 97.6% strict (source: definitive_benchmark_v4.json, 2026-08-08). Prior composite score (93.6%) retracted — see WHITEPAPER_PUBLIC.md Section 6.2.
 - External review metadata with no open critical or high findings
 - Dependency pinning enforced in current SBOM (`all_dependencies_pinned: true`)
 

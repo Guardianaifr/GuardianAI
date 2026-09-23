@@ -209,7 +209,7 @@ Source: `artifacts/performance/perf_chaos_report.json`
 
 - Requests: 120
 - Concurrency: 20
-- Throughput: **67.78 rps**
+- Throughput: **95.68 rps**
 - Status: `200` for all 120 requests
 - Latency:
   - p50: 236.95 ms
@@ -222,11 +222,11 @@ Source: `artifacts/performance/perf_chaos_report.json`
 
 - Requests: 120
 - Concurrency: 20
-- Throughput: **223.20 rps**
+- Throughput: **494.01 rps**
 - Status: `403` for all 120 requests (100% blocked)
 - Latency:
   - p50: 87.69 ms
-  - p95: 96.44 ms
+  - p95: 41.88 ms
   - p99: 98.51 ms
   - mean: 80.06 ms
   - max: 99.85 ms

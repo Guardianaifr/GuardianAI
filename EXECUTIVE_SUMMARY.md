@@ -45,7 +45,7 @@ GuardianAI now operates as a comprehensive **Dual-Layer AI Security Control Plan
 - **Hardcore Live Adversarial Suite:** **38 / 38 real-time live network tests passed** against live Monad Testnet and QuickNode WebSocket stream.
 - **Attestation Latency Benchmark:** **P50 = 2.68 ms**, Mean = 3.00 ms (measured via `tools/benchmark_attestation_latency.py` over 100 iterations), well within Monad's ~400ms block budget.
 - **Monad Testnet Live Verification:** 3 contracts verified with live bytecode; confirmed live broadcast transactions on blocks #59,420,050 and #59,419,967; 19 public interactive Tenderly traces.
-- **Zero-Day Attack Blocking:** **98.4%** across unseen datasets (WildGuard, ToxicChat, JailbreakBench).
+- **Zero-Day Attack Blocking:** Prior 98.4% metric retracted pending re-evaluation.
 - **Standard Benchmark Blocking:** **100%** on strict/balanced curated subsets.
 - **Rate Limiter Concurrency:** Handled 10,000+ requests across 10 threads in <200ms.
 - **Advanced De-obfuscation Resilience:** 100% block rate against Braille steganography, Base64, Hex, ROT13, Pig Latin, Homoglyphs.

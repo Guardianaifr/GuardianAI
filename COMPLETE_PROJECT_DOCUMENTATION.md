@@ -318,7 +318,7 @@ SLO verdict:
 - Recall: 1.0
 - Precision: 1.0
 - Fuzz detection rate: 1.0 (9/9)
-- Public benchmark alignment: all checks passed (composite: 93.6%)
+- Public benchmark alignment: HarmBench 72.8% strict, AdvBench 99.0% strict, security-gate Tier 1+2 97.6% strict (source: definitive_benchmark_v4.json, 2026-08-08)
 
 ### D) Hardening validation
 

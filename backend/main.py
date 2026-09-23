@@ -7,9 +7,8 @@ from cryptography.hazmat.primitives import hashes
 
 import socket
 import ipaddress
-import sys
-import os
 import urllib3.util.connection
+import os
 
 if not hasattr(urllib3.util.connection, "_real_create_connection"):
     urllib3.util.connection._real_create_connection = urllib3.util.connection.create_connection
@@ -165,7 +164,6 @@ import datetime
 from typing import List, Dict, Any, Set, Optional, Tuple
 import json
 
-import os
 import base64
 import hmac
 import hashlib
@@ -182,7 +180,6 @@ try:
 except ImportError:
     class DummyRedisError(Exception):
         pass
-    import sys
     import types
     redis = types.ModuleType("redis")
     redis.RedisError = DummyRedisError
@@ -245,7 +242,6 @@ for _env_var in ["WEB_CONCURRENCY", "UVICORN_WORKERS", "WORKERS"]:
             _workers = max(_workers, int(_val))
         except ValueError:
             pass
-import sys
 for _i, _arg in enumerate(sys.argv):
     if _arg in {"--workers", "-w"}:
         if _i + 1 < len(sys.argv):
@@ -314,7 +310,6 @@ DP_ENABLED = os.getenv("GUARDIAN_DP_ENABLED", "false").strip().lower() in {"1", 
 DP_EPSILON = float(os.getenv("GUARDIAN_DP_EPSILON", "1.0"))
 DP_SEED = int(os.getenv("GUARDIAN_DP_SEED", "7"))
 APP_START_TIME = time.time()
-import sys
 if _env_mode == "production":
     if not _raw_admin_pass:
         logger.error("CRITICAL SECURITY ERROR: GUARDIAN_ADMIN_PASS must be explicitly configured in production mode! Refusing to start.")
@@ -1406,7 +1401,6 @@ def enforce_telemetry_rate_limit(request: Request):
 def _request_source_identity(request: Request) -> str:
     trust_hops_str = os.getenv("GUARDIAN_TRUST_PROXY_HOPS", "").strip()
     if not trust_hops_str:
-        import sys
         if "pytest" in sys.modules or os.getenv("GUARDIAN_ENV") == "test":
             trust_hops = 1
         else:

@@ -1,6 +1,7 @@
 
 # Node & Hardhat
 node_modules/
+contracts/node_modules/
 contracts/artifacts/
 contracts/cache/
 contracts/typechain-types/

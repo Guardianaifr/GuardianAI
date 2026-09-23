@@ -36,7 +36,7 @@ from backend.main import (
 router = APIRouter()
 
 @router.post("/api/v1/agentic/keys", response_model=CreatedAgenticKeyResponse)
-async def create_agentic_key(payload: AgenticKeyCreateRequest, username: str = Depends(enforce_admin_rate_limit)):
+def create_agentic_key(payload: AgenticKeyCreateRequest, username: str = Depends(enforce_admin_rate_limit)):
     agent_id = _normalize_agentic_id(payload.agent_id, "agent_id")
     key_id = _normalize_agentic_id(payload.key_id or f"key-{secrets.token_hex(6)}", "key_id")
     cert_fingerprints = [
@@ -89,7 +89,7 @@ async def create_agentic_key(payload: AgenticKeyCreateRequest, username: str = D
 
 
 @router.get("/api/v1/agentic/keys", response_model=List[AgenticKeyResponse])
-async def list_agentic_keys(username: str = Depends(enforce_auditor_rate_limit)):
+def list_agentic_keys(username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -106,7 +106,7 @@ async def list_agentic_keys(username: str = Depends(enforce_auditor_rate_limit))
 
 
 @router.post("/api/v1/agentic/keys/{key_db_id}/rotate", response_model=CreatedAgenticKeyResponse)
-async def rotate_agentic_key(key_db_id: int, username: str = Depends(enforce_admin_rate_limit)):
+def rotate_agentic_key(key_db_id: int, username: str = Depends(enforce_admin_rate_limit)):
     raw_secret = _new_agentic_secret()
     secret_hash = _hash_agentic_secret(raw_secret)
     ciphertext = _agentic_encrypt_secret(raw_secret)
@@ -145,7 +145,7 @@ async def rotate_agentic_key(key_db_id: int, username: str = Depends(enforce_adm
 
 
 @router.post("/api/v1/agentic/revocations")
-async def revoke_agentic_identity(payload: AgenticRevokeRequest, username: str = Depends(enforce_admin_rate_limit)):
+def revoke_agentic_identity(payload: AgenticRevokeRequest, username: str = Depends(enforce_admin_rate_limit)):
     agent_id = _normalize_agentic_id(payload.agent_id, "agent_id")
     key_id = _normalize_agentic_id(payload.key_id, "key_id") if payload.key_id else None
     revocation_type = "key" if key_id else "agent"
@@ -195,7 +195,7 @@ async def revoke_agentic_identity(payload: AgenticRevokeRequest, username: str =
 
 
 @router.post("/api/v1/agentic/grants", response_model=AgenticExecutionGrantResponse)
-async def create_agentic_grant(payload: AgenticExecutionGrantRequest, username: str = Depends(enforce_admin_rate_limit)):
+def create_agentic_grant(payload: AgenticExecutionGrantRequest, username: str = Depends(enforce_admin_rate_limit)):
     execution_id = _normalize_agentic_id(payload.execution_id, "execution_id")
     agent_id = _normalize_agentic_id(payload.agent_id, "agent_id") if payload.agent_id else None
     parent_agent = _normalize_agentic_id(payload.parent_agent, "parent_agent") if payload.parent_agent else None
@@ -239,7 +239,7 @@ async def create_agentic_grant(payload: AgenticExecutionGrantRequest, username: 
 
 
 @router.get("/api/v1/agentic/grants", response_model=List[AgenticExecutionGrantResponse])
-async def list_agentic_grants(active_only: bool = False, username: str = Depends(enforce_auditor_rate_limit)):
+def list_agentic_grants(active_only: bool = False, username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     base_sql = """
@@ -257,7 +257,7 @@ async def list_agentic_grants(active_only: bool = False, username: str = Depends
 
 
 @router.post("/api/v1/agentic/grants/{execution_id}/revoke")
-async def revoke_agentic_grant(
+def revoke_agentic_grant(
     execution_id: str,
     reason: str | None = None,
     username: str = Depends(enforce_admin_rate_limit),
@@ -288,7 +288,7 @@ async def revoke_agentic_grant(
 
 
 @router.post("/api/v1/agentic/policy-edges", response_model=AgenticPolicyEdgeResponse)
-async def upsert_agentic_policy_edge(
+def upsert_agentic_policy_edge(
     payload: AgenticPolicyEdgeRequest,
     username: str = Depends(enforce_admin_rate_limit),
 ):
@@ -333,7 +333,7 @@ async def upsert_agentic_policy_edge(
 
 
 @router.get("/api/v1/agentic/policy-edges", response_model=List[AgenticPolicyEdgeResponse])
-async def list_agentic_policy_edges(username: str = Depends(enforce_auditor_rate_limit)):
+def list_agentic_policy_edges(username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(

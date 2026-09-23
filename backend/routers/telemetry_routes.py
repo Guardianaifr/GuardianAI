@@ -19,7 +19,7 @@ from backend.security.authorization import can_access_tenant
 router = APIRouter()
 
 @router.get("/api/v1/export/json", response_model=List[SecurityEventResponse])
-async def export_json(principal: Dict[str, Any] = Depends(get_current_principal)):
+def export_json(principal: Dict[str, Any] = Depends(get_current_principal)):
     username = principal["username"]
     _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
     role = principal.get("role", "user")
@@ -45,7 +45,7 @@ async def export_json(principal: Dict[str, Any] = Depends(get_current_principal)
 
 
 @router.get("/api/v1/export/csv")
-async def export_csv(principal: Dict[str, Any] = Depends(get_current_principal)):
+def export_csv(principal: Dict[str, Any] = Depends(get_current_principal)):
     username = principal["username"]
     _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
     role = principal.get("role", "user")
@@ -76,7 +76,7 @@ async def export_csv(principal: Dict[str, Any] = Depends(get_current_principal))
 
 
 @router.get("/api/v1/events", response_model=List[SecurityEventResponse])
-async def get_events(tenant_id: str | None = None, limit: int = 50, principal: Dict[str, Any] = Depends(get_current_principal)):
+def get_events(tenant_id: str | None = None, limit: int = 50, principal: Dict[str, Any] = Depends(get_current_principal)):
     username = principal["username"]
     _enforce_rate_limit(f"user:{username}", _get_user_rate_limit(username))
     role = principal.get("role", "user")

@@ -19,7 +19,7 @@ from backend.main import (
 router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(
+def dashboard(
     request: Request,
 ):
     username: str | None = None

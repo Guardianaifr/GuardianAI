@@ -129,7 +129,7 @@ secure = ENFORCE_HTTPS or os.getenv("GUARDIAN_ENV") == "production"
         },
     },
 )
-async def create_access_token(
+def create_access_token(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(HTTPBasic()),
     _: bool = Depends(enforce_auth_rate_limit),
@@ -182,7 +182,7 @@ async def create_access_token(
         }
     },
 )
-async def revoke_access_token(
+def revoke_access_token(
     payload: Dict[str, Any] = Depends(get_current_token_payload),
     _: bool = Depends(enforce_auth_rate_limit),
 ):
@@ -236,7 +236,7 @@ async def revoke_access_token(
         }
     },
 )
-async def list_revoked_tokens(
+def list_revoked_tokens(
     limit: int = 100,
     include_expired: bool = False,
     username: str = Depends(enforce_auditor_rate_limit),
@@ -259,7 +259,7 @@ async def list_revoked_tokens(
         }
     },
 )
-async def prune_revoked_tokens(
+def prune_revoked_tokens(
     expired_only: bool = True,
     username: str = Depends(enforce_admin_rate_limit),
 ):
@@ -304,7 +304,7 @@ async def prune_revoked_tokens(
         }
     },
 )
-async def list_auth_lockouts(
+def list_auth_lockouts(
     limit: int = 100,
     active_only: bool = True,
     username: str = Depends(enforce_auditor_rate_limit),
@@ -327,7 +327,7 @@ async def list_auth_lockouts(
         }
     },
 )
-async def clear_auth_lockouts(
+def clear_auth_lockouts(
     payload: ClearAuthLockoutsRequest,
     username: str = Depends(enforce_admin_rate_limit),
 ):
@@ -408,7 +408,7 @@ async def clear_auth_lockouts(
         }
     },
 )
-async def list_auth_sessions(
+def list_auth_sessions(
     limit: int = 100,
     include_expired: bool = False,
     include_revoked: bool = True,
@@ -441,7 +441,7 @@ async def list_auth_sessions(
         }
     },
 )
-async def revoke_self_sessions(
+def revoke_self_sessions(
     payload: RevokeSelfSessionsRequest,
     token_payload: Dict[str, Any] = Depends(get_current_token_payload),
     username: str = Depends(enforce_user_rate_limit),
@@ -506,7 +506,7 @@ async def revoke_self_sessions(
         }
     },
 )
-async def revoke_self_session_by_jti(
+def revoke_self_session_by_jti(
     payload: RevokeSelfSessionByJtiRequest,
     token_payload: Dict[str, Any] = Depends(get_current_token_payload),
     username: str = Depends(enforce_user_rate_limit),
@@ -577,7 +577,7 @@ async def revoke_self_session_by_jti(
         }
     },
 )
-async def revoke_user_sessions(
+def revoke_user_sessions(
     payload: RevokeUserSessionsRequest,
     username: str = Depends(enforce_admin_rate_limit),
 ):
@@ -636,7 +636,7 @@ async def revoke_user_sessions(
         }
     },
 )
-async def revoke_all_sessions(
+def revoke_all_sessions(
     payload: RevokeAllSessionsRequest,
     username: str = Depends(enforce_admin_rate_limit),
 ):
@@ -699,7 +699,7 @@ async def revoke_all_sessions(
         }
     },
 )
-async def revoke_session_by_jti(
+def revoke_session_by_jti(
     payload: RevokeSessionByJtiRequest,
     username: str = Depends(enforce_admin_rate_limit),
 ):
@@ -762,7 +762,7 @@ async def revoke_session_by_jti(
         }
     },
 )
-async def auth_whoami(
+def auth_whoami(
     request: Request,
     principal: Dict[str, str] = Depends(get_current_principal),
 ):
@@ -777,7 +777,7 @@ async def auth_whoami(
 
 
 @router.post("/login")
-async def login(
+def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
@@ -814,7 +814,7 @@ async def login(
 
 
 @router.get("/logout")
-async def logout():
+def logout():
     response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie("guardian_token")
     return response

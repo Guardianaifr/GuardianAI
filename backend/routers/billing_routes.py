@@ -62,7 +62,7 @@ async def public_plans():
 
 
 @router.post("/api/v1/billing/checkout")
-async def billing_checkout(payload: BillingCheckoutRequest, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
+def billing_checkout(payload: BillingCheckoutRequest, principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
     if payload.plan not in VALID_PLANS:
         raise HTTPException(status_code=400, detail="Invalid plan")
     now = time.time()
@@ -121,7 +121,7 @@ async def billing_checkout(payload: BillingCheckoutRequest, principal: Dict[str,
 
 
 @router.post("/api/v1/billing/confirm")
-async def billing_confirm(payload: BillingConfirmRequest, username: str = Depends(enforce_admin_rate_limit)):
+def billing_confirm(payload: BillingConfirmRequest, username: str = Depends(enforce_admin_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -141,7 +141,7 @@ async def billing_confirm(payload: BillingConfirmRequest, username: str = Depend
 
 
 @router.get("/api/v1/orders")
-async def list_orders(username: str = Depends(enforce_admin_rate_limit)):
+def list_orders(username: str = Depends(enforce_admin_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT order_id, customer_email, tenant_name, plan, payment_method, provider, status, checkout_url FROM orders ORDER BY created_at DESC")
@@ -163,7 +163,7 @@ async def list_orders(username: str = Depends(enforce_admin_rate_limit)):
 
 
 @router.get("/api/v1/customers")
-async def list_customers(username: str = Depends(enforce_admin_rate_limit)):
+def list_customers(username: str = Depends(enforce_admin_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT email, tenant_name, created_at FROM customers ORDER BY created_at DESC")
@@ -173,7 +173,7 @@ async def list_customers(username: str = Depends(enforce_admin_rate_limit)):
 
 
 @router.delete("/api/v1/admin/tenant-data")
-async def delete_tenant_data(tenant_id: str, username: str = Depends(enforce_admin_rate_limit)):
+def delete_tenant_data(tenant_id: str, username: str = Depends(enforce_admin_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("DELETE FROM security_events WHERE tenant_id = ?", (tenant_id,))

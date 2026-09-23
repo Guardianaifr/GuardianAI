@@ -8,6 +8,7 @@ import time
 import json
 import hashlib
 import sqlite3
+import asyncio
 
 from backend.main import (
     # Private helpers
@@ -105,7 +106,7 @@ router = APIRouter()
         }
     },
 )
-async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(enforce_admin_rate_limit)):
+def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(enforce_admin_rate_limit)):
     key_name = payload.key_name.strip()
     if not key_name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="key_name is required")
@@ -166,7 +167,7 @@ async def create_api_key(payload: CreateApiKeyRequest, username: str = Depends(e
         }
     },
 )
-async def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
+def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -210,7 +211,7 @@ async def list_api_keys(username: str = Depends(enforce_auditor_rate_limit)):
         }
     },
 )
-async def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
+def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("UPDATE api_keys SET is_active = 0 WHERE id = ?", (key_id,))
@@ -258,7 +259,7 @@ async def revoke_api_key(key_id: int, username: str = Depends(enforce_admin_rate
         }
     },
 )
-async def rotate_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
+def rotate_api_key(key_id: int, username: str = Depends(enforce_admin_rate_limit)):
     raw_key, key_prefix = _generate_api_key_material()
     key_hash = _hash_api_key(raw_key)
 
@@ -292,6 +293,31 @@ async def rotate_api_key(key_id: int, username: str = Depends(enforce_admin_rate
         api_key=raw_key,
     )
 
+
+def _persist_telemetry_event(event: SecurityEvent):
+    with sqlite3.connect(_db_path(), timeout=10.0) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO security_events (guardian_id, tenant_id, event_type, severity, details, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+            (event.guardian_id, event.tenant_id, event.event_type, event.severity, json.dumps(event.details), event.timestamp)
+        )
+
+        # Extract Analytics if present (Add to analytics table)
+        if "latency_ms" in event.details and "path" in event.details:
+            try:
+                latency = float(event.details["latency_ms"].replace("ms", ""))
+                path = event.details["path"]
+                cur.execute(
+                    "INSERT INTO analytics (tenant_id, path, latency_ms, timestamp) VALUES (?, ?, ?, ?)",
+                    (event.tenant_id, path, latency, event.timestamp)
+                )
+            except (ValueError, TypeError, KeyError, AttributeError) as exc:
+                logger.debug("Analytics extraction skipped: %s", exc)
+        
+        # Retention Policy: Auto-purge events older than the configured retention window
+        retention_cutoff = time.time() - (30 * 24 * 60 * 60)
+        cur.execute("DELETE FROM security_events WHERE timestamp < ?", (retention_cutoff,))
+        conn.commit()
 
 @router.post(
     "/api/v1/telemetry",
@@ -328,35 +354,14 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
     event.severity = event.severity.upper()
     
     # 1. Persist to SQLite
-    with sqlite3.connect(_db_path(), timeout=10.0) as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO security_events (guardian_id, tenant_id, event_type, severity, details, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-            (event.guardian_id, event.tenant_id, event.event_type, event.severity, json.dumps(event.details), event.timestamp)
-        )
-
-        # Extract Analytics if present (Add to analytics table)
-        if "latency_ms" in event.details and "path" in event.details:
-            try:
-                latency = float(event.details["latency_ms"].replace("ms", ""))
-                path = event.details["path"]
-                cur.execute(
-                    "INSERT INTO analytics (tenant_id, path, latency_ms, timestamp) VALUES (?, ?, ?, ?)",
-                    (event.tenant_id, path, latency, event.timestamp)
-                )
-            except (ValueError, TypeError, KeyError, AttributeError) as exc:
-                logger.debug("Analytics extraction skipped: %s", exc)
-        
-        # Retention Policy: Auto-purge events older than the configured retention window
-        retention_cutoff = time.time() - (30 * 24 * 60 * 60)
-        cur.execute("DELETE FROM security_events WHERE timestamp < ?", (retention_cutoff,))
-        conn.commit()
+    await asyncio.to_thread(_persist_telemetry_event, event)
 
     audit_payload = None
 
     # 2. Immutable Audit Log (Critical Events)
     if event.event_type == "admin_action":
-        audit_payload = write_audit_log_entry_locked(
+        audit_payload = await asyncio.to_thread(
+            write_audit_log_entry_locked,
             guardian_id=event.guardian_id,
             action=event.details.get("action", "unknown"),
             user=event.details.get("user", "unknown"),
@@ -367,8 +372,8 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
 
     # 3. External Audit Sinks (best effort unless strict mode enabled)
     if audit_payload is not None:
-        _forward_audit_payload(audit_payload)
-    _write_siem_alert(event)
+        await asyncio.to_thread(_forward_audit_payload, audit_payload)
+    await asyncio.to_thread(_write_siem_alert, event)
 
     # 4. Fire Webhook Alert
     await send_webhook_alert(event)
@@ -381,7 +386,7 @@ async def ingest_telemetry(event: SecurityEvent, _: bool = Depends(enforce_telem
     response_model=AnalyticsResponse,
     responses={200: {"description": "Aggregated analytics and block-rate summary."}},
 )
-async def get_analytics(
+def get_analytics(
     tenant_id: str | None = None,
     dp: bool = True,
     principal: dict = Depends(get_current_principal),
@@ -616,7 +621,7 @@ async def metrics():
         }
     },
 )
-async def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor_rate_limit)):
+def get_audit_log(limit: int = 50, username: str = Depends(enforce_auditor_rate_limit)):
     limit = min(max(1, limit), 1000)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -787,7 +792,7 @@ async def get_rbac_policy(username: str = Depends(enforce_auditor_rate_limit)):
         }
     },
 )
-async def get_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_auditor_rate_limit)):
+def get_audit_delivery_failures(limit: int = 100, username: str = Depends(enforce_auditor_rate_limit)):
     limit = min(max(1, limit), 1000)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()

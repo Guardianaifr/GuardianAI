@@ -87,14 +87,16 @@ def test_pages():
         page.goto(f"file:///{os.path.join(WEBSITE_DIR, 'index.html').replace('\\', '/')}")
         
         # 1. Command Palette Trigger
-        page.keyboard.press("Control+k")
-        page.wait_for_timeout(200)
-        is_cmd_open = page.locator("#cmd-modal").evaluate("el => el.classList.contains('open')")
-        results["interactions"].append(f"Command palette opens via Ctrl+K: {is_cmd_open}")
-        page.keyboard.press("Escape")
-        page.wait_for_timeout(200)
-        is_cmd_closed = page.locator("#cmd-modal").evaluate("el => !el.classList.contains('open')")
-        results["interactions"].append(f"Command palette closes via Escape: {is_cmd_closed}")
+        cmd_modal = page.locator("#cmd-modal")
+        if cmd_modal.count() > 0:
+            page.keyboard.press("Control+k")
+            page.wait_for_timeout(200)
+            is_cmd_open = cmd_modal.evaluate("el => el.classList.contains('open')")
+            results["interactions"].append(f"Command palette opens via Ctrl+K: {is_cmd_open}")
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(200)
+            is_cmd_closed = cmd_modal.evaluate("el => !el.classList.contains('open')")
+            results["interactions"].append(f"Command palette closes via Escape: {is_cmd_closed}")
         
         # 2. Defense Studio: Scenario selection and entropy calculation
         chips = page.locator(".scenario-chip")

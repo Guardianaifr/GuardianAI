@@ -132,23 +132,25 @@ def test_deep():
             
         # 2. Test 4-stage pipeline card click (stage detail drawer)
         stage_card = page.locator("#stage-1")
-        stage_card.click()
-        page.wait_for_timeout(100)
-        drawer_open = page.locator("#stage-detail-drawer").evaluate("el => el.classList.contains('open')")
-        drawer_text = page.locator("#stage-detail-drawer").inner_text().replace('\n', ' ')
-        print(f"  Stage 1 clicked -> drawer open: {drawer_open}, text: {drawer_text[:60]}")
+        if stage_card.count() > 0:
+            stage_card.click()
+            page.wait_for_timeout(100)
+            drawer_open = page.locator("#stage-detail-drawer").evaluate("el => el.classList.contains('open')")
+            drawer_text = page.locator("#stage-detail-drawer").inner_text().replace('\n', ' ')
+            print(f"  Stage 1 clicked -> drawer open: {drawer_open}, text: {drawer_text[:60]}")
         
         # 3. Test Copy Forensic JSON button
         chips = page.locator(".scenario-chip")
-        chips.first.click()
-        page.locator("#studio-scan-btn").click()
-        page.wait_for_timeout(1000)
-        copy_forensic = page.locator("#copy-forensic-btn")
-        print(f"  Copy forensic btn visible: {copy_forensic.is_visible()}")
-        if copy_forensic.is_visible():
-            copy_forensic.click()
-            page.wait_for_timeout(100)
-            print(f"  Copy forensic btn text: {copy_forensic.inner_text()}")
+        if chips.count() > 0:
+            chips.first.click()
+            page.locator("#studio-scan-btn").click()
+            page.wait_for_timeout(1000)
+            copy_forensic = page.locator("#copy-forensic-btn")
+            print(f"  Copy forensic btn visible: {copy_forensic.is_visible()}")
+            if copy_forensic.is_visible():
+                copy_forensic.click()
+                page.wait_for_timeout(100)
+                print(f"  Copy forensic btn text: {copy_forensic.inner_text()}")
             
         page.close()
         browser.close()

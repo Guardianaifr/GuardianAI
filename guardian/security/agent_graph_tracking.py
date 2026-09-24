@@ -142,20 +142,22 @@ class AgentGraphDriftTracker:
             alerts.append(alert)
 
         # ── Check 2: Hub formation ───────────────────────────────────
-        total_degree = self._out_degree[source] + self._in_degree[source]
-        if total_degree > self.hub_degree_threshold:
-            alert = DriftAlert(
-                alert_type="hub_formation",
-                severity=DriftSeverity.HIGH,
-                description=(
-                    f"Agent '{source}' has become a communication hub with "
-                    f"degree {total_degree} (threshold: {self.hub_degree_threshold})."
-                ),
-                source_agent=source,
-                timestamp=ts,
-                metadata={"degree": total_degree},
-            )
-            alerts.append(alert)
+        candidates = [source] if source == target else [source, target]
+        for candidate in candidates:
+            total_degree = self._out_degree[candidate] + self._in_degree[candidate]
+            if total_degree > self.hub_degree_threshold:
+                alert = DriftAlert(
+                    alert_type="hub_formation",
+                    severity=DriftSeverity.HIGH,
+                    description=(
+                        f"Agent '{candidate}' has become a communication hub with "
+                        f"degree {total_degree} (threshold: {self.hub_degree_threshold})."
+                    ),
+                    source_agent=candidate,
+                    timestamp=ts,
+                    metadata={"degree": total_degree},
+                )
+                alerts.append(alert)
 
         # ── Check 3: Density drift ───────────────────────────────────
         density = self._compute_density()
@@ -253,6 +255,9 @@ class AgentGraphDriftTracker:
 
     def _find_cycle(self, start: str, end: str) -> List[str]:
         """Find the cycle path from start back to end via BFS."""
+        if start == end:
+            return [start, start]
+
         from collections import deque
 
         queue: deque[List[str]] = deque([[start]])

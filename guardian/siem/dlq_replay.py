@@ -157,7 +157,7 @@ class DLQReplayDaemon:
 
         Events are eligible if current_time >= next_retry_ts.
         """
-        now = current_time or time.time()
+        now = current_time if current_time is not None else time.time()
         result = ReplayResult()
         remaining: List[DLQEntry] = []
 

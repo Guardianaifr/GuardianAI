@@ -208,12 +208,17 @@ class AutomatedJailbreakFuzzer:
                 logger.error("Jailbreak fuzzer loop failed: %s", exc)
             self._stop_event.wait(self.interval_seconds)
 
-    @staticmethod
-    def _defensive_pattern(prompt: str) -> str:
-        tokens = [re.escape(token) for token in re.findall(r"[A-Za-z0-9_]{4,}", prompt.lower())[:10]]
+    _STOPWORDS = {"and", "the", "for", "are", "with", "from", "that", "this", "have", "been"}
+
+    @classmethod
+    def _defensive_pattern(cls, prompt: str) -> str:
+        all_words = re.findall(r"[A-Za-z0-9_]{3,}", prompt.lower())
+        meaningful = [w for w in all_words if w not in cls._STOPWORDS]
+        chosen = meaningful if meaningful else all_words
+        tokens = [re.escape(token) for token in chosen[:5]]
         if not tokens:
             return re.escape(prompt[:80])
-        return r".*".join(tokens)
+        return r".{0,150}?".join(tokens)
 
     @staticmethod
     def _fingerprint(prompt: str) -> str:

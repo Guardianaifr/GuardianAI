@@ -280,8 +280,22 @@ class ShadowAIDetector:
         """
         ts = timestamp or time.time()
         headers = headers or {}
-        norm_headers = {k.lower(): v for k, v in headers.items()}
+        norm_headers = {str(k).lower(): str(v) for k, v in headers.items() if v is not None}
         alerts: List[ShadowAIAlert] = []
+
+        import urllib.parse
+        urls_to_check = [str(url)]
+        curr_url = str(url)
+        for _ in range(5):
+            try:
+                nxt_url = urllib.parse.unquote(curr_url)
+                if nxt_url == curr_url:
+                    break
+                if nxt_url not in urls_to_check:
+                    urls_to_check.append(nxt_url)
+                curr_url = nxt_url
+            except Exception:
+                break
 
         for provider in self._providers:
             if provider.name in self._allowed:
@@ -292,7 +306,7 @@ class ShadowAIDetector:
 
             # URL pattern matching
             for pattern in provider.url_patterns:
-                if pattern.search(url):
+                if any(pattern.search(u) for u in urls_to_check):
                     matched_url = True
                     break
 
@@ -305,7 +319,7 @@ class ShadowAIDetector:
             # Disambiguate generic OpenAI header matches when target URL belongs to another specific provider
             if not matched_url and matched_headers and provider.name == "OpenAI":
                 other_url_match = any(
-                    other.name != "OpenAI" and any(p.search(url) for p in other.url_patterns)
+                    other.name != "OpenAI" and any(p.search(u) for u in urls_to_check for p in other.url_patterns)
                     for other in self._providers
                 )
                 if other_url_match:

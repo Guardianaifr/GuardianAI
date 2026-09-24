@@ -38,12 +38,34 @@ class SSHTunnelManager:
 
     def _start_tunnel(self, name: str, user: str, host: str, remote_port: int, local_port: int):
         """Spawns an SSH process for a specific tunnel."""
-        # Command syntax: ssh -L [LocalPort]:localhost:[RemotePort] [User]@[ServerIP] -N
-        # -N: Do not execute a remote command (useful for just forwarding ports)
+        import re
+        # Validate ports
+        try:
+            r_port = int(remote_port)
+            l_port = int(local_port)
+            if not (1 <= r_port <= 65535 and 1 <= l_port <= 65535):
+                logger.error(f"SSH Tunnel '{name}' rejected: ports out of range (1-65535)")
+                return
+        except (ValueError, TypeError) as e:
+            logger.error(f"SSH Tunnel '{name}' invalid port configuration: {e}")
+            return
+
+        # Validate user and host to prevent ssh option injection (e.g. -oProxyCommand=...)
+        user_str = str(user).strip()
+        host_str = str(host).strip()
+        if user_str.startswith("-") or host_str.startswith("-"):
+            logger.error(f"SSH Tunnel '{name}' rejected: host or user cannot start with hyphen")
+            return
+
+        safe_ident = re.compile(r"^[a-zA-Z0-9_.:\[\]-]+$")
+        if not safe_ident.match(user_str) or not safe_ident.match(host_str):
+            logger.error(f"SSH Tunnel '{name}' rejected: invalid characters in user or host")
+            return
+
         cmd = [
             "ssh",
-            "-L", f"{local_port}:localhost:{remote_port}",
-            f"{user}@{host}",
+            "-L", f"{l_port}:localhost:{r_port}",
+            f"{user_str}@{host_str}",
             "-N",
             "-o", "ExitOnForwardFailure=yes"
         ]

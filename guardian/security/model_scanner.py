@@ -122,6 +122,8 @@ DANGEROUS_CALLABLES: Set[str] = {
     # Evaluation and code execution
     "builtins.eval", "builtins.exec", "builtins.compile",
     "builtins.__import__", "builtins.getattr", "builtins.open",
+    "__builtin__.eval", "__builtin__.exec", "__builtin__.compile",
+    "__builtin__.__import__", "__builtin__.getattr", "__builtin__.open", "__builtin__.file",
     "code.InteractiveConsole", "code.interact",
     # Network / exfiltration
     "urllib.request.urlopen", "urllib.request.urlretrieve",
@@ -140,6 +142,17 @@ DANGEROUS_CALLABLES: Set[str] = {
     "platform.popen", "pty.spawn",
     "torch.ops.load_library",
 }
+
+# Dangerous module prefixes for GLOBAL / STACK_GLOBAL callables
+DANGEROUS_MODULE_PREFIXES = (
+    "os", "subprocess", "posix", "nt", "ctypes",
+    "socket", "urllib", "requests", "httpx", "http",
+    "shutil", "pty", "platform", "asyncio",
+    "multiprocessing", "threading", "_thread",
+    "_posixsubprocess", "webbrowser", "ftplib",
+    "smtplib", "xmlrpc", "tarfile", "zipfile",
+    "sqlite3", "runpy", "importlib", "pdb",
+)
 
 
 # Safe callables commonly found in PyTorch model checkpoints
@@ -191,6 +204,7 @@ def _scan_pickle_bytes(
                 "SHORT_BINUNICODE", "BINUNICODE", "BINUNICODE8",
                 "UNICODE", "STRING", "BINSTRING", "SHORT_BINSTRING",
                 "NONE", "BININT", "BININT1", "BININT2", "INT", "LONG",
+                "BINBYTES", "SHORT_BINBYTES", "BINBYTES8",
             ):
                 stack.append(arg)
             elif op_name == "MEMOIZE":
@@ -211,10 +225,13 @@ def _scan_pickle_bytes(
             # Resolve global callables from GLOBAL or STACK_GLOBAL
             callable_name = None
             if op_name == "GLOBAL" and arg:
-                callable_name = str(arg).replace(" ", ".")
+                raw_arg = arg.decode("utf-8", errors="replace") if isinstance(arg, bytes) else str(arg)
+                callable_name = raw_arg.replace(" ", ".")
             elif op_name == "STACK_GLOBAL":
-                name = stack.pop() if stack else ""
-                module = stack.pop() if stack else ""
+                raw_name = stack.pop() if stack else ""
+                raw_module = stack.pop() if stack else ""
+                module = raw_module.decode("utf-8", errors="replace") if isinstance(raw_module, bytes) else str(raw_module or "")
+                name = raw_name.decode("utf-8", errors="replace") if isinstance(raw_name, bytes) else str(raw_name or "")
                 if module or name:
                     callable_name = f"{module}.{name}"
                 else:
@@ -224,11 +241,7 @@ def _scan_pickle_bytes(
                 is_dangerous = (
                     callable_name in DANGEROUS_CALLABLES or any(
                         callable_name.startswith(bad + ".")
-                        for bad in (
-                            "os", "subprocess", "posix", "nt", "ctypes",
-                            "socket", "urllib", "requests", "httpx", "http",
-                            "shutil", "pty", "platform"
-                        )
+                        for bad in DANGEROUS_MODULE_PREFIXES
                     )
                 )
 
@@ -328,7 +341,7 @@ def _scan_pickle_bytes(
                         full_name = f"{module}.{name}"
                         if full_name in DANGEROUS_CALLABLES or any(
                             full_name.startswith(bad + ".")
-                            for bad in ("os", "subprocess", "posix", "nt", "ctypes", "socket", "urllib")
+                            for bad in DANGEROUS_MODULE_PREFIXES
                         ):
                             findings.append(ScanFinding(
                                 severity=FindingSeverity.CRITICAL,
@@ -487,9 +500,15 @@ def _scan_safetensors_file(file_path: str, data: bytes) -> ScanReport:
             if isinstance(header[key], dict):
                 if "data_offsets" in header[key]:
                     offsets = header[key]["data_offsets"]
-                    if isinstance(offsets, list) and len(offsets) == 2:
+                    if not isinstance(offsets, list) or len(offsets) != 2:
+                        findings.append(ScanFinding(
+                            severity=FindingSeverity.WARNING,
+                            category="safetensors_invalid_offset",
+                            description=f"Tensor '{key}' has malformed data offsets {offsets!r}.",
+                        ))
+                    else:
                         start, end = offsets
-                        if end < start:
+                        if not isinstance(start, int) or not isinstance(end, int) or isinstance(start, bool) or isinstance(end, bool) or start < 0 or end < 0 or end < start:
                             findings.append(ScanFinding(
                                 severity=FindingSeverity.WARNING,
                                 category="safetensors_invalid_offset",

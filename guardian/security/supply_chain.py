@@ -7,8 +7,10 @@ import hashlib
 import hmac
 import json
 from pathlib import Path
+import re
 import time
 from typing import Any
+import urllib.parse
 
 
 def _sha256_file(path: Path) -> str:
@@ -145,7 +147,20 @@ def verify_model_provenance(
 
     verified = 0
     for entry in entries:
-        raw_path = Path(entry["path"])
+        curr_path = str(entry["path"])
+        import urllib.parse
+        for _ in range(5):
+            nxt = urllib.parse.unquote(curr_path)
+            if nxt == curr_path:
+                break
+            curr_path = nxt
+
+        path_str = curr_path.replace("\\", "/")
+        if ".." in path_str.split("/") or re.search(r"(?:^|/)\.{2,}(?:/|$)", path_str):
+            report["errors"].append(f"path traversal detected in manifest: {entry['path']}")
+            continue
+
+        raw_path = Path(curr_path)
         if raw_path.is_absolute():
             file_path = raw_path
         else:
@@ -245,9 +260,22 @@ def verify_manifest_signature(manifest: dict[str, Any], signature_b64: str, key:
 
 
 def verify_manifest_files(manifest: dict[str, Any]) -> tuple[bool, list[str]]:
+    import urllib.parse
     errors: list[str] = []
     for file_record in manifest.get("files", []):
-        path = Path(file_record.get("path", ""))
+        raw_p = str(file_record.get("path", ""))
+        curr_p = raw_p
+        for _ in range(5):
+            nxt = urllib.parse.unquote(curr_p)
+            if nxt == curr_p:
+                break
+            curr_p = nxt
+        path_str = curr_p.replace("\\", "/")
+        if ".." in path_str.split("/") or re.search(r"(?:^|/)\.{2,}(?:/|$)", path_str):
+            errors.append(f"path traversal detected in manifest: {raw_p}")
+            continue
+
+        path = Path(curr_p)
         expected_hash = str(file_record.get("sha256", ""))
         if not path.exists():
             errors.append(f"missing file: {path}")

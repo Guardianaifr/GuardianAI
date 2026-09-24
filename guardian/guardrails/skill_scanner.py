@@ -33,14 +33,7 @@ class SkillScanner:
     def scan_file(self, file_path: str) -> List[str]:
         findings = []
         try:
-            # Visual effect: "Scanning [file]..."
             display_name = os.path.basename(file_path)
-            # logger.info(f"Scanning {display_name}...") # Too noisy for logs, maybe print?
-            # We'll use a special log format or just do it silently if we want clean logs.
-            # But user asked for "real scanner" look.
-            print(f"🔍 Scanning skill: {display_name} ...", end="", flush=True)
-            import time
-            time.sleep(0.05) # "Processing" delay
 
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -53,29 +46,30 @@ class SkillScanner:
                 # Check imports
                 if isinstance(node, ast.Import):
                     for alias in node.names:
-                        if alias.name in self.blocked_imports:
+                        root_mod = alias.name.split(".")[0]
+                        if alias.name in self.blocked_imports or root_mod in self.blocked_imports:
                             current_file_findings.append(f"⚠️  THREAT DETECTED: Illicit import '{alias.name}' in {display_name}")
                 
                 # Check from imports
                 elif isinstance(node, ast.ImportFrom):
-                    if node.module in self.blocked_imports:
-                        current_file_findings.append(f"⚠️  THREAT DETECTED: Illicit import '{node.module}' in {display_name}")
+                    mod_name = node.module or ""
+                    root_mod = mod_name.split(".")[0] if mod_name else ""
+                    if mod_name in self.blocked_imports or (root_mod and root_mod in self.blocked_imports):
+                        current_file_findings.append(f"⚠️  THREAT DETECTED: Illicit import '{mod_name}' in {display_name}")
 
-                # Check function calls
+                # Check function and method calls
                 elif isinstance(node, ast.Call):
+                    fn_name = None
                     if isinstance(node.func, ast.Name):
-                        if node.func.id in self.blocked_functions:
-                            current_file_findings.append(f"⚠️  RISK WARNING: Dangerous function '{node.func.id}' usage in {display_name}")
+                        fn_name = node.func.id
+                    elif isinstance(node.func, ast.Attribute):
+                        fn_name = node.func.attr
+                    if fn_name and fn_name in self.blocked_functions:
+                        current_file_findings.append(f"⚠️  RISK WARNING: Dangerous function '{fn_name}' usage in {display_name}")
             
             findings.extend(current_file_findings)
-            
-            if current_file_findings:
-                print(" [ THREAT FOUND ] ❌")
-            else:
-                print(" [ SAFE ] ✅")
 
         except Exception as e:
             logger.error(f"Failed to scan {file_path}: {e}")
-            print(f" [ ERROR ] ❓")
             
         return findings

@@ -27,6 +27,7 @@ import re
 import stat
 import tempfile
 import time
+import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -282,20 +283,29 @@ class FilesystemSandbox:
         Normalize a path, blocking traversal attempts.
         Raises ValueError if path contains traversal sequences.
         """
-        # Detect raw traversal patterns BEFORE normalization
-        raw = path.replace("\\", "/")
-        if re.search(r"(?:^|/)\.\.(?:/|$)", raw):
-            # Check if the traversal escapes any allowed root
-            abs_path = os.path.abspath(path)
-            # Still flag it — traversal is suspicious even if resolved safely
-            if ".." in path:
+        if not path:
+            raise ValueError("empty path")
+
+        # Iteratively unquote URL-encoded paths up to fixed point (handles single, double, multi-level encoding)
+        curr = path
+        for _ in range(10):
+            if "\x00" in curr:
+                raise ValueError("null byte in path")
+
+            raw = curr.replace("\\", "/")
+            # Path traversal segments: ../ or /.. or /../ or .. or ...
+            if re.search(r"(?:^|/)\.{2,}(?:/|$)", raw):
                 raise ValueError(f"path contains traversal sequences: {path}")
 
-        # Null byte injection
-        if "\x00" in path:
-            raise ValueError("null byte in path")
+            nxt = urllib.parse.unquote(curr)
+            if nxt == curr:
+                break
+            curr = nxt
 
-        return os.path.normpath(os.path.abspath(path))
+        normalized = os.path.normpath(os.path.abspath(path))
+        if "\x00" in normalized:
+            raise ValueError("null byte in normalized path")
+        return normalized
 
     @staticmethod
     def _safe_normpath(path: str) -> str:

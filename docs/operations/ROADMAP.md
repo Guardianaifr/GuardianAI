@@ -196,7 +196,7 @@ Goal: Platform ecosystem with long-term enterprise lock-in and recurring revenue
 | Metric | Current Status | Target (Full Release) |
 |--------|----------------|-----------------------|
 | Features | 50 shipped | 57 |
-| Tests Passing | 1,642+ | 1,500+ |
+| Tests Passing | 1,722+ | 1,500+ |
 | OWASP LLM Top 10 | 10/10 (100%) | 10/10 (100%) |
 | OWASP Agentic Top 10 | 10/10 (100%) | 10/10 (100%) |
 | EU AI Act Readiness | 98% (8/8 articles passed) | 98%+ |

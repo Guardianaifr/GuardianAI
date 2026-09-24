@@ -76,10 +76,12 @@ BLOCKED_IMPORTS: Set[str] = {
     "posix", "nt", "genericpath", "posixpath", "ntpath",
     "linecache", "traceback", "runpy", "zipimport", "pkgutil",
     "types", "typing_extensions", "_posixsubprocess",
-    # Network & Serialization
+    # Network & Serialization & Filesystem
     "webbrowser", "http", "urllib", "requests", "httpx",
-    "ftplib", "smtplib", "telnetlib", "xmlrpc", "selectors", "asyncio",
-    "pickle", "shelve", "marshal",
+    "ftplib", "smtplib", "telnetlib", "xmlrpc", "selectors", "asyncio", "_asyncio",
+    "pickle", "shelve", "marshal", "sqlite3", "zipfile", "tarfile",
+    # Debuggers, Profilers, Disassemblers & Code Exec
+    "pdb", "bdb", "dis", "trace", "timeit", "profile", "cProfile", "doctest", "pydoc", "unittest",
 }
 
 # Built-in names that are blocked
@@ -87,13 +89,15 @@ BLOCKED_BUILTINS: Set[str] = {
     "eval", "exec", "compile", "globals", "locals",
     "getattr", "setattr", "delattr", "vars", "dir",
     "open", "input", "breakpoint", "exit", "quit",
+    "help", "memoryview",
 }
 
 # Dangerous attribute names that allow class-hierarchy and frame escapes
 BLOCKED_ATTRIBUTES: Set[str] = {
+    "__class__", "__dict__", "__getattribute__", "__getattr__", "__setattr__", "__delattr__", "__init_subclass__",
     "__subclasses__", "__bases__", "__base__", "__mro__",
     "__globals__", "__builtins__", "__code__", "__reduce__", "__reduce_ex__",
-    "__closure__", "__func__", "__self__",
+    "__closure__", "__func__", "__self__", "__wrapped__", "__loader__", "__spec__",
     "f_back", "f_globals", "f_builtins", "f_locals", "f_code",
     "gi_frame", "cr_frame", "ag_frame",
     "tb_frame", "tb_next",

@@ -22,12 +22,12 @@ def _get_agentic_secret(override: Optional[str] = None) -> str:
             val = getattr(sys.modules["backend.main"], "AGENTIC_ATTESTATION_SECRET", None)
             if val:
                 return val
-    except Exception:
+    except (ImportError, AttributeError):
         pass
     try:
         from backend import config
         return getattr(config, "AGENTIC_ATTESTATION_SECRET", "")
-    except Exception:
+    except (ImportError, AttributeError):
         return os.getenv("GUARDIAN_AGENTIC_ATTESTATION_SECRET", "")
 
 
@@ -40,24 +40,13 @@ def _get_env_mode(override: Optional[str] = None) -> str:
             val = getattr(sys.modules["backend.main"], "_env_mode", None)
             if val:
                 return val
-    except Exception:
+    except (ImportError, AttributeError):
         pass
     try:
         from backend import config
         return getattr(config, "_env_mode", "development")
-    except Exception:
+    except (ImportError, AttributeError):
         return os.getenv("GUARDIAN_ENV", "development").strip().lower()
-
-
-def _agentic_secret_stream(length: int, secret: Optional[str] = None) -> bytes:
-    sec = _get_agentic_secret(secret)
-    seed = sec.encode("utf-8")
-    out = b""
-    counter = 0
-    while len(out) < length:
-        out += hashlib.sha256(seed + counter.to_bytes(4, "big")).digest()
-        counter += 1
-    return out[:length]
 
 
 def _get_aead_key(secret: Optional[str] = None) -> bytes:
@@ -93,18 +82,12 @@ def _agentic_decrypt_secret(
         aesgcm = AESGCM(key)
         try:
             return aesgcm.decrypt(nonce, ct, None).decode("utf-8")
-        except Exception:
-            raise ValueError("Decryption failed")
+        except (ValueError, TypeError, Exception) as e:
+            if type(e).__name__ == "InvalidTag" or isinstance(e, ValueError):
+                raise ValueError("Decryption failed")
+            raise e
     else:
-        current_env = _get_env_mode(env_mode)
-        if current_env == "production":
-            logger.critical("SECURITY ALERT: Rejecting legacy unauthenticated XOR stream cipher secret in production mode")
-            raise ValueError("Legacy unauthenticated secret format rejected in production mode")
-        logger.warning("Decrypting legacy unauthenticated XOR stream secret. Rotate to v2 (AES-GCM).")
-        encrypted = base64.urlsafe_b64decode(ciphertext.encode("ascii"))
-        stream = _agentic_secret_stream(len(encrypted), secret)
-        raw = bytes(a ^ b for a, b in zip(encrypted, stream))
-        return raw.decode("utf-8")
+        raise ValueError("Unsupported or legacy secret format: AES-GCM (v2) required")
 
 
 def _hash_agentic_secret(raw_secret: str, secret: Optional[str] = None) -> str:
@@ -121,7 +104,6 @@ def _new_agentic_secret() -> str:
 
 
 __all__ = [
-    "_agentic_secret_stream",
     "_get_aead_key",
     "_agentic_encrypt_secret",
     "_agentic_decrypt_secret",

@@ -348,8 +348,8 @@ def get_scan_history(limit: int = 50, principal: Dict[str, str] = Depends(enforc
                         "timestamp": entry.get("timestamp", ""),
                         "depth": "standard",
                     })
-        except Exception:
-            pass
+        except json.JSONDecodeError:
+                pass
 
     # Sort by timestamp descending and limit
     history.sort(key=lambda x: x.get("timestamp", ""), reverse=True)

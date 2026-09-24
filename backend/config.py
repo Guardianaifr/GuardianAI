@@ -1,3 +1,5 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional, Dict, List, Set, Any
 import json
 import logging
 import os
@@ -5,35 +7,82 @@ from pathlib import Path
 import secrets
 import sys
 import time
-from typing import Dict, List, Set
+
+class GuardianSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="GUARDIAN_", extra="ignore")
+    
+    ADMIN_USER: str = "admin"
+    ADMIN_PASS: str = ""
+    AUDITOR_USER: str = ""
+    AUDITOR_PASS: str = ""
+    USER_USER: str = ""
+    USER_PASS: str = ""
+    JWT_SECRET: str = ""
+    ENV: str = "development"
+    TELEMETRY_REQUIRE_API_KEY: Optional[str] = None
+    JWT_ISSUER: str = "guardian-backend"
+    JWT_AUDIENCE: Optional[str] = None
+    JWT_EXPIRES_MIN: int = 60
+    RATE_LIMIT_PER_MIN: int = 240
+    TELEMETRY_RATE_LIMIT_PER_MIN: int = 600
+    AUTH_RATE_LIMIT_PER_MIN: int = 60
+    AUTH_LOCKOUT_ENABLED: str = "true"
+    AUTH_LOCKOUT_MAX_ATTEMPTS: int = 5
+    AUTH_LOCKOUT_DURATION_SEC: float = 300.0
+    USER_RATE_LIMITS_JSON: str = ""
+    TELEMETRY_KEY_RATE_LIMITS_JSON: str = ""
+    RATE_LIMIT_BACKEND: str = "memory"
+    RATE_LIMIT_REDIS_URL: str = ""
+    RATE_LIMIT_REDIS_KEY_PREFIX: str = "guardian:ratelimit"
+    RATE_LIMIT_REDIS_TIMEOUT_SEC: float = 0.2
+    RATE_LIMIT_REDIS_FAIL_OPEN: str = "false"
+    
+    AUDIT_SINK_URL: str = ""
+    AUDIT_SINK_TOKEN: str = ""
+    AUDIT_TIMEOUT_SEC: float = 2.0
+    AUDIT_RETRIES: int = 2
+    AUDIT_STRICT: str = "false"
+    
+    ENFORCE_HTTPS: str = "false"
+    METRICS_ENABLED: str = "true"
+    BACKEND_HOST: str = "0.0.0.0"
+    BACKEND_PORT: int = 8001
+    
+    BILLING_MODE: str = "mock"
+    PUBLIC_URL: str = "http://localhost:8001"
+    
+    AGENTIC_ATTESTATION_SECRET: str = ""
+
+settings = GuardianSettings()
+
 
 from backend.auth import hash_password
 
 logger = logging.getLogger("guardian_backend.config")
 
 # Credentials & Admin Config
-ADMIN_USER = os.getenv("GUARDIAN_ADMIN_USER", "admin")
-_raw_admin_pass = os.getenv("GUARDIAN_ADMIN_PASS", "")
+ADMIN_USER = settings.ADMIN_USER
+_raw_admin_pass = settings.ADMIN_PASS
 if _raw_admin_pass:
     ADMIN_PASS = _raw_admin_pass
 else:
     ADMIN_PASS = secrets.token_urlsafe(32)
     logger.warning("GUARDIAN_ADMIN_PASS environment variable was not configured. Ephemeral in-memory admin credentials generated.")
 
-AUDITOR_USER = os.getenv("GUARDIAN_AUDITOR_USER", "").strip()
-AUDITOR_PASS = os.getenv("GUARDIAN_AUDITOR_PASS", "").strip()
-USER_USER = os.getenv("GUARDIAN_USER_USER", "").strip()
-USER_PASS = os.getenv("GUARDIAN_USER_PASS", "").strip()
+AUDITOR_USER = settings.AUDITOR_USER.strip()
+AUDITOR_PASS = settings.AUDITOR_PASS.strip()
+USER_USER = settings.USER_USER.strip()
+USER_PASS = settings.USER_PASS.strip()
 
 # JWT Config
-_raw_jwt_secret = os.getenv("GUARDIAN_JWT_SECRET", "").strip()
+_raw_jwt_secret = settings.JWT_SECRET.strip()
 if _raw_jwt_secret:
     JWT_SECRET = _raw_jwt_secret
 else:
     JWT_SECRET = secrets.token_urlsafe(64)
     logger.warning("GUARDIAN_JWT_SECRET not set. Using ephemeral key. NOT suitable for production.")
 
-_env_mode = os.getenv("GUARDIAN_ENV", "development").strip().lower()
+_env_mode = settings.ENV.strip().lower()
 _default_telemetry_require = "true" if _env_mode == "production" else "false"
 TELEMETRY_REQUIRE_API_KEY = os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", _default_telemetry_require).strip().lower() in {"1", "true", "yes", "on"}
 
@@ -126,7 +175,7 @@ SIEM_ENABLED = os.getenv("GUARDIAN_SIEM_ENABLED", "false").strip().lower() in {"
 SIEM_FORMAT = os.getenv("GUARDIAN_SIEM_FORMAT", "json").strip() or "json"
 SIEM_OUT = os.getenv("GUARDIAN_SIEM_OUT", "artifacts/evidence/siem_alerts.log").strip() or "artifacts/evidence/siem_alerts.log"
 
-_raw_agentic_secret = os.getenv("GUARDIAN_AGENTIC_ATTESTATION_SECRET", "").strip()
+_raw_agentic_secret = settings.AGENTIC_ATTESTATION_SECRET.strip()
 if _raw_agentic_secret:
     AGENTIC_ATTESTATION_SECRET = _raw_agentic_secret
 else:
@@ -201,7 +250,7 @@ def _parse_limit_overrides(raw_value: str, label: str) -> Dict[str, int]:
         return {}
     try:
         parsed = json.loads(raw_value)
-    except Exception as exc:  # noqa: BLE001
+    except json.JSONDecodeError as exc:
         logger.warning("Invalid %s JSON override config: %s", label, exc)
         return {}
     if not isinstance(parsed, dict):
@@ -213,7 +262,7 @@ def _parse_limit_overrides(raw_value: str, label: str) -> Dict[str, int]:
             continue
         try:
             limit = int(value)
-        except Exception:  # noqa: BLE001
+        except (ValueError, TypeError):
             continue
         if limit > 0:
             normalized[key.strip()] = limit

@@ -496,7 +496,7 @@ async def websocket_endpoint(websocket: WebSocket):
             payload = _jwt_decode(cookie_token, JWT_SECRET)
             if payload.get("role") in {"admin", "auditor"}:
                 authenticated = True
-        except Exception:
+        except (ValueError, TypeError, KeyError):
             pass
 
     # 2. Inspect query parameter (?token=...)
@@ -507,7 +507,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 payload = _jwt_decode(query_token, JWT_SECRET)
                 if payload.get("role") in {"admin", "auditor"}:
                     authenticated = True
-            except Exception:
+            except (ValueError, TypeError, KeyError):
                 pass
 
     # 3. Inspect first text message within 10 seconds if not yet authenticated

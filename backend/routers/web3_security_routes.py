@@ -81,8 +81,8 @@ def _notify_relay(method: str, url: str, **kwargs):
         if mgmt_token:
             headers["Authorization"] = f"Bearer {mgmt_token}"
         http_requests.request(method, url, timeout=2, headers=headers, **kwargs)
-    except Exception:
-        pass  # Relay may not be running; DB is the source of truth
+    except (Exception, ValueError):
+            pass  # Relay may not be running; DB is the source of truth
 
 @router.get("/api/v1/web3/status", tags=["Web3 Security"])
 def get_web3_status(principal: Dict[str, str] = Depends(enforce_user_rate_limit)):
@@ -94,8 +94,8 @@ def get_web3_status(principal: Dict[str, str] = Depends(enforce_user_rate_limit)
         if resp.status_code == 200:
             relay_stats = resp.json()
             relay_up = True
-    except Exception:
-        pass
+    except (Exception, ValueError):
+            pass
 
     # Count blocked txs from DB
     blocked_count = 0
@@ -103,8 +103,8 @@ def get_web3_status(principal: Dict[str, str] = Depends(enforce_user_rate_limit)
         with sqlite3.connect(DB_PATH) as conn:
             row = conn.execute("SELECT COUNT(*) FROM blocked_transactions").fetchone()
             blocked_count = row[0] if row else 0
-    except Exception:
-        pass
+    except (Exception, ValueError):
+            pass
 
     return {
         "status": "ok",

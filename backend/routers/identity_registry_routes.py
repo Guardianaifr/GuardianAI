@@ -164,8 +164,8 @@ def erc8004_registration_file(agent_id: str):
         confirmed = [r for r in rows if r["status"] == "confirmed" and r["token_id"]]
         if confirmed:
             token_id = int(confirmed[0]["token_id"])
-    except Exception:  # noqa: BLE001 — file must serve even with queue trouble
-        pass
+    except (ValueError, TypeError):
+            pass
 
     chain = reg.configured_chains()[0] if reg.configured_chains() else "monad-testnet"
     file_obj = build_registration_file(

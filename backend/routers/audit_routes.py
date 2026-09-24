@@ -36,7 +36,7 @@ def get_audits(principal: Dict[str, Any] = Depends(get_current_principal)):
                         "mode": payload.get("scan_mode", ""),
                         "issued_at": payload.get("issued_at", "")
                     })
-            except Exception:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 pass
         audits.sort(key=lambda x: x["issued_at"], reverse=True)
     return {"audits": audits}

@@ -436,7 +436,7 @@ def get_analytics(
         if details_raw:
             try:
                 details = json.loads(details_raw)
-            except Exception:  # noqa: BLE001
+            except json.JSONDecodeError:
                 details = {}
 
         path = details.get("path")

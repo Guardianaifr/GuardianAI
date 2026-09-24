@@ -6,7 +6,6 @@ from backend.security.ssrf import (
     _original_create_connection,
 )
 from backend.security.crypto import (
-    _agentic_secret_stream,
     _get_aead_key,
     _agentic_encrypt_secret,
     _agentic_decrypt_secret,
@@ -163,7 +162,7 @@ import importlib
 if "backend.config" in sys.modules:
     try:
         importlib.reload(sys.modules["backend.config"])
-    except Exception:
+    except ImportError:
         pass
 
 from backend.config import (
@@ -433,7 +432,7 @@ def _get_redis_client() -> Any | None:
 
     try:
         import redis  # type: ignore
-    except Exception:
+    except ImportError:
         _log_redis_fallback("python redis package is not installed")
         return None
 
@@ -1022,7 +1021,7 @@ def _extract_basic_credentials_from_header(request: Request) -> Optional[Tuple[s
         return None
     try:
         decoded = base64.b64decode(encoded).decode("utf-8")
-    except Exception:  # noqa: BLE001
+    except (ValueError, TypeError, UnicodeDecodeError):
         return None
     if ":" not in decoded:
         return None
@@ -1645,7 +1644,7 @@ def _json_list(value: Any) -> List[str]:
     if isinstance(value, str):
         try:
             parsed = json.loads(value)
-        except Exception:
+        except json.JSONDecodeError:
             return []
     else:
         parsed = value
@@ -1730,7 +1729,7 @@ def _build_agentic_config_snapshot() -> Dict[str, Any]:
             secret = _agentic_decrypt_secret(ciphertext)
             if not ciphertext.startswith("v2:"):
                 needs_migration.append((agent_id, key_id, secret))
-        except Exception:
+        except ValueError:
             continue
         agent_keys.setdefault(agent_id, {})[key_id] = secret
         for fingerprint in _json_list(cert_fingerprints_json):
@@ -1822,7 +1821,7 @@ def _build_agentic_metrics() -> Dict[str, Any]:
         for (details_raw,) in cur.fetchall():
             try:
                 details = json.loads(details_raw or "{}")
-            except Exception:
+            except json.JSONDecodeError:
                 details = {}
             reason = str(details.get("reason", "unknown"))
             reason_counts[reason] = reason_counts.get(reason, 0) + 1
@@ -2362,7 +2361,7 @@ def _retry_failed_audit_deliveries(limit: int = 100) -> Dict[str, int]:
         retried += 1
         try:
             payload = json.loads(payload_raw)
-        except Exception:  # noqa: BLE001
+        except json.JSONDecodeError:
             payload = {}
 
         ok = False

@@ -109,7 +109,7 @@ GuardianAI v1.1.0 incorporates comprehensive enterprise-grade remediations from 
 ---
 
 ## 📚 Documentation & Guides (The Trust)
-11. **RAG Security Guide (`RAG_SECURITY_GUIDE.md`):**
+11. **RAG Security Guide (`../architecture/RAG_SECURITY_GUIDE.md`):**
     *   Explains the "Shared Responsibility" model for Vector DBs.
     *   Directs users to secure their infrastructure (Firewalls/Auth).
 

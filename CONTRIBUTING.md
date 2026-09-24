@@ -46,6 +46,6 @@ Help us keep GuardianAI a welcoming and inclusive community. Be respectful, prof
 If you have questions or need help, feel free to:
 - Open a GitHub Issue.
 - Join our community Discord (link in README).
-- Check the [Troubleshooting Guide](TROUBLESHOOTING.md).
+- Check the [Troubleshooting Guide](docs/operations/TROUBLESHOOTING.md).
 
 Thank you for contributing!

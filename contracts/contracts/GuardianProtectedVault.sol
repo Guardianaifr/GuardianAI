@@ -48,6 +48,10 @@ contract GuardianProtectedVault is GuardianCircuitBreaker, Ownable2Step, Pausabl
         token = IERC20(_token);
     }
 
+    /**
+     * @notice Deposit tokens into the vault. Protected by Guardian circuit breaker.
+     * @param _amount The amount of tokens to deposit.
+     */
     function deposit(uint256 _amount) external guardianProtected whenNotPaused nonReentrant {
         if (_amount == 0) revert ZeroAmount();
         uint256 balanceBefore = token.balanceOf(address(this));
@@ -57,6 +61,10 @@ contract GuardianProtectedVault is GuardianCircuitBreaker, Ownable2Step, Pausabl
         emit Deposited(msg.sender, actualReceived);
     }
 
+    /**
+     * @notice Withdraw tokens from the vault. Protected by Guardian circuit breaker.
+     * @param _amount The amount of tokens to withdraw.
+     */
     function withdraw(uint256 _amount) external guardianProtected whenNotPaused nonReentrant {
         if (_amount == 0) revert ZeroAmount();
         if (balances[msg.sender] < _amount) {
@@ -67,6 +75,9 @@ contract GuardianProtectedVault is GuardianCircuitBreaker, Ownable2Step, Pausabl
         emit Withdrawn(msg.sender, _amount);
     }
 
+    /**
+     * @notice Emergency withdraw all tokens by the owner. Protected strictly by Guardian circuit breaker.
+     */
     function emergencyWithdraw() external guardianProtectedStrict onlyOwner {
         uint256 bal = token.balanceOf(address(this));
         if (bal > 0) {
@@ -76,6 +87,13 @@ contract GuardianProtectedVault is GuardianCircuitBreaker, Ownable2Step, Pausabl
         emit EmergencyWithdrawn(owner(), bal);
     }
 
+    /**
+     * @notice Pause the contract.
+     */
     function pause() external onlyOwner { _pause(); }
+
+    /**
+     * @notice Unpause the contract.
+     */
     function unpause() external onlyOwner { _unpause(); }
 }

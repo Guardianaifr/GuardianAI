@@ -2,8 +2,8 @@
 
 This folder contains ops assets for the hosted deployment model.
 The service itself deploys from the repo-root `Dockerfile` (Railway reads
-`railway.json`; any Docker host works) — see `DEPLOYMENT.md` and
-`PRODUCTION_LAUNCH_RUNBOOK.md` for the full runbook, including the
+`railway.json`; any Docker host works) — see `../docs/architecture/DEPLOYMENT.md` and
+`../docs/operations/PRODUCTION_LAUNCH_RUNBOOK.md` for the full runbook, including the
 systemd/Caddy patterns for Oracle Cloud VMs under `production/`.
 
 ## Prometheus

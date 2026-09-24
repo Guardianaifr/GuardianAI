@@ -70,7 +70,12 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Issue a new insurance certificate for an agent.
-     *
+     * @param _certId Unique certificate ID.
+     * @param _agentHash keccak256 hash of the agent ID.
+     * @param _periodStart UNIX timestamp for the start of the validity period.
+     * @param _periodEnd UNIX timestamp for the end of the validity period.
+     * @param _certHash Hash of the full certificate document.
+     * @param _riskLevel The risk level (e.g. "LOW", "MEDIUM", "HIGH").
      * @dev    Check ordering (IL-2): structural input validation first, then
      *         business-logic checks (cap, duplicate). This ensures a caller
      *         cannot distinguish cap-reached from invalid-input via error type.
@@ -114,6 +119,7 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Revoke a certificate. Allowed even when paused so administrators can invalidate compromised policies during incidents.
+     * @param _certId The ID of the certificate to revoke.
      */
     function revokeCertificate(bytes32 _certId) external onlyOwner nonReentrant {
         Certificate storage cert = certificates[_certId];
@@ -129,6 +135,8 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Fetch certificate details.
+     * @param _certId The ID of the certificate to fetch.
+     * @return The certificate details.
      */
     function getCertificate(bytes32 _certId) external view returns (Certificate memory) {
         Certificate memory cert = certificates[_certId];
@@ -138,6 +146,7 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Get total certificate count.
+     * @return The total number of certificates issued.
      */
     function getCertificateCount() external view returns (uint256) {
         return certificateIds.length;
@@ -172,7 +181,14 @@ contract GuardianInsuranceLedger is Ownable2Step, Pausable, ReentrancyGuard {
 
     // ── Admin Functions ──────────────────────────────────────────────────
 
+    /**
+     * @notice Pause the contract.
+     */
     function pause() external onlyOwner { _pause(); }
+
+    /**
+     * @notice Unpause the contract.
+     */
     function unpause() external onlyOwner { _unpause(); }
 
     // ── Internal Helpers ─────────────────────────────────────────────────

@@ -652,7 +652,7 @@ All requirements are verified out for Production Go-Live.
 
 ## 12) Primary References
 
-- `END_TO_END_PROJECT_DOCUMENTATION.md`
+- `../operations/END_TO_END_PROJECT_DOCUMENTATION.md`
 - `artifacts/evidence/TOPIC_PROGRESS.md`
 - `artifacts/performance/perf_chaos_report.json`
 - `artifacts/performance/security_slo_targets.json`

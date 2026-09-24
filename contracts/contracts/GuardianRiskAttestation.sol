@@ -164,6 +164,8 @@ contract GuardianRiskAttestation is Ownable2Step, Pausable {
 
     /**
      * @notice Check whether a grade string is in the current allowlist.
+     * @param grade The grade string to check.
+     * @return True if the grade is allowed, false otherwise.
      */
     function isValidGrade(string calldata grade) external view returns (bool) {
         return _validGrades[keccak256(bytes(grade))];
@@ -171,6 +173,9 @@ contract GuardianRiskAttestation is Ownable2Step, Pausable {
 
     /**
      * @notice Get the latest attestation for a contract on a specific chain.
+     * @param _contractAddress The contract being audited.
+     * @param _chain The chain name.
+     * @return The latest attestation data.
      */
     function getAttestation(address _contractAddress, string calldata _chain)
         external
@@ -184,6 +189,13 @@ contract GuardianRiskAttestation is Ownable2Step, Pausable {
 
     // ── Admin/Pausable functions ─────────────────────────────────────────
 
+    /**
+     * @notice Pause the contract.
+     */
     function pause()   external onlyOwner { _pause(); }
+
+    /**
+     * @notice Unpause the contract.
+     */
     function unpause() external onlyOwner { _unpause(); }
 }

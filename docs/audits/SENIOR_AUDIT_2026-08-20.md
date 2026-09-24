@@ -98,8 +98,8 @@ However, this audit found **one P0** that invalidates the security posture of an
 - CSP allows `cdn.jsdelivr.net` scripts and `unsafe-inline` styles; nonce injection regex is fragile (main.py:1163–1176).
 - CI: `redis_rate_limit.yml` on Python 3.11 vs project 3.12; supply-chain gate signs with hardcoded demo key; no Docker build job in CI; local dev runs Python 3.14 vs Docker 3.12 (confection warns).
 - ~~Breaker hardcodes chain `"monad"` in attestation lookups (GuardianCircuitBreaker.sol:98, 121).~~ **(FIXED: Parameterized via constructor and `GUARDIAN_CHAIN_NAME` env var)**
-- Base images not digest-pinned; `./artifacts` host-mount into container; `DEPLOYMENT.md` port claims and "61/61 tests" stale.
-- ~~Three near-identical whitepaper variants (`WHITEPAPER.md`, `_PUBLIC`, `Update`) — maintenance drift risk; keep one canonical source.~~ **(RESOLVED September 2026: `WHITEPAPER.md` deleted; `WHITEPAPER_PUBLIC.md` is now the single canonical whitepaper source).**
+- Base images not digest-pinned; `./artifacts` host-mount into container; `../architecture/DEPLOYMENT.md` port claims and "61/61 tests" stale.
+- ~~Three near-identical whitepaper variants (`WHITEPAPER.md`, `_PUBLIC`, `Update`) — maintenance drift risk; keep one canonical source.~~ **(RESOLVED September 2026: `WHITEPAPER.md` deleted; `../whitepaper/WHITEPAPER_PUBLIC.md` is now the single canonical whitepaper source).**
 - Tracked third-party-target scan artifacts (`scans/new scan.txt` vs polymarket.com, `artifacts/audit/agentlove_*.html`) — legal/reputational exposure; remove.
 - API-key hash uses `JWT_SECRET` as pepper — rotating the JWT secret invalidates all API keys (operational coupling).
 

@@ -161,6 +161,8 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Get details of a registered interlock proof.
+     * @param _interlockId The ID of the interlock.
+     * @return The interlock proof details.
      */
     function getInterlock(bytes32 _interlockId) external view returns (InterlockProof memory) {
         InterlockProof memory proof = registry[_interlockId];
@@ -170,6 +172,7 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Get total number of registered interlocks.
+     * @return The total number of interlocks.
      */
     function getInterlockCount() external view returns (uint256) {
         return interlockIds.length;
@@ -177,6 +180,13 @@ contract GuardianInterlockRegistry is Ownable2Step, Pausable, ReentrancyGuard {
 
     // ── Admin Functions ──────────────────────────────────────────────────
 
+    /**
+     * @notice Pause the contract (emergency stop). Only owner.
+     */
     function pause() external onlyOwner { _pause(); }
+
+    /**
+     * @notice Unpause the contract. Only owner.
+     */
     function unpause() external onlyOwner { _unpause(); }
 }

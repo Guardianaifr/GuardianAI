@@ -9,7 +9,7 @@ Note: This document is an engineering/evidence mapping aid and not legal certifi
 
 | SOC 2 Area | GuardianAI Control Mapping | Evidence |
 | --- | --- | --- |
-| Security | Prompt injection prevention, semantic firewall, tool policy, authz controls | `END_TO_END_PROJECT_DOCUMENTATION.md`, `tests/runtime/test_interceptor.py` |
+| Security | Prompt injection prevention, semantic firewall, tool policy, authz controls | `../../docs/operations/END_TO_END_PROJECT_DOCUMENTATION.md`, `tests/runtime/test_interceptor.py` |
 | Availability | Rate limiting, chaos validation, DR validation workflow | `artifacts/performance/perf_chaos_report.json`, `artifacts/evidence/dr_validation.md` |
 | Confidentiality | Output leak detection/redaction, watermarking, model governance | `guardian/runtime/interceptor.py`, `artifacts/evidence/security_signoff.md` |
 | Processing Integrity | Output assurance schema/citation/confidence gates | `guardian/security/output_assurance.py`, `tests/security/test_output_assurance.py` |
@@ -30,7 +30,7 @@ Note: This document is an engineering/evidence mapping aid and not legal certifi
 | --- | --- | --- |
 | Data minimization and governance | Tenant-scoped handling and deletion controls | `tools/run_data_governance_audit.py`, `tests/backend/test_tenant_isolation_backend.py` |
 | Automated decision transparency | Output assurance + false-negative taxonomy for residual risk framing | `artifacts/evidence/FALSE_NEGATIVE_TAXONOMY.md` |
-| Technical/organizational safeguards | Defense-in-depth controls, benchmark alignment, event auditability | `FEATURE_BENCHMARK_ANALYSIS.md`, `artifacts/evidence/compliance_bundle.json` |
+| Technical/organizational safeguards | Defense-in-depth controls, benchmark alignment, event auditability | `../../docs/architecture/FEATURE_BENCHMARK_ANALYSIS.md`, `artifacts/evidence/compliance_bundle.json` |
 | Risk management lifecycle | Quarterly threat model cadence and external review metadata | `artifacts/evidence/threat_model_quarterly.md`, `artifacts/security/external_security_review.json` |
 
 ## Enterprise Procurement Checklist Mapping
@@ -38,7 +38,7 @@ Note: This document is an engineering/evidence mapping aid and not legal certifi
 | Procurement Ask | Response Artifact |
 | --- | --- |
 | Named independent review + date | `artifacts/security/external_security_review.json`, `artifacts/evidence/external_pentest_status.md` |
-| Security test status | `END_TO_END_PROJECT_DOCUMENTATION.md` (current `pytest -q` status) |
+| Security test status | `../../docs/operations/END_TO_END_PROJECT_DOCUMENTATION.md` (current `pytest -q` status) |
 | Residual risk statement | `artifacts/evidence/FALSE_NEGATIVE_TAXONOMY.md` |
 | Supply-chain integrity | `artifacts/supply_chain/sbom.json`, `artifacts/evidence/supply_chain_validation.md` |
 | Release approval evidence | `artifacts/evidence/security_signoff.md`, `artifacts/evidence/sre_slo_dr_signoff.md`, `artifacts/evidence/privacy_signoff.md` |

@@ -392,7 +392,7 @@ Implemented:
 Primary files:
 - `tests/e2e/test_guardrail_advanced_e2e.py`
 - `tests/e2e/test_guardrail_adversarial_chaos_e2e.py`
-- `END_TO_END_PROJECT_DOCUMENTATION.md`
+- `../../docs/operations/END_TO_END_PROJECT_DOCUMENTATION.md`
 
 Verification:
 - Advanced E2E test: passed.
@@ -421,7 +421,7 @@ Primary files:
 - `guardian/runtime/interceptor.py`
 - `guardian/config/config.yaml`
 - `tests/runtime/test_interceptor.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/runtime/test_interceptor.py` -> `35 passed`.
@@ -450,7 +450,7 @@ Primary files:
 - `guardian/runtime/interceptor.py`
 - `guardian/config/config.yaml`
 - `tests/runtime/test_interceptor.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/runtime/test_interceptor.py -k "rag_controls or agentic_controls"` -> passed.
@@ -480,7 +480,7 @@ Primary files:
 - `guardian/runtime/interceptor.py`
 - `guardian/config/config.yaml`
 - `tests/runtime/test_interceptor.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/runtime/test_interceptor.py -k "multimodal_controls"` -> passed.
@@ -508,7 +508,7 @@ Primary files:
 - `backend/siem.py`
 - `backend/main.py`
 - `tests/backend/test_siem_format.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/backend/test_siem_format.py` -> `5 passed`.
@@ -545,7 +545,7 @@ Primary files:
 - `tests/security/test_feedback_loop.py`
 - `tests/security/test_tenant_sensitivity.py`
 - `tests/runtime/test_interceptor.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/runtime/test_interceptor.py -k "tenant_sensitivity or feedback_allowlist or rag_controls or agentic_controls or multimodal_controls"` -> `12 passed`.
@@ -581,7 +581,7 @@ Primary files:
 - `tools/generate_sbom.py`
 - `tools/verify_model_provenance.py`
 - `tests/security/test_supply_chain_hardening.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/security/test_supply_chain_hardening.py` -> `7 passed`.
@@ -616,7 +616,7 @@ Primary files:
 - `guardian/runtime/interceptor.py`
 - `guardian/config/config.yaml`
 - `tests/security/test_cost_abuse_detector.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/security/test_cost_abuse_detector.py` -> `4 passed`.
@@ -646,7 +646,7 @@ Primary files:
 - `guardian/config/config.yaml`
 - `tests/security/test_memory_guard.py`
 - `tests/runtime/test_interceptor.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/security/test_memory_guard.py` -> `3 passed`.
@@ -684,7 +684,7 @@ Primary files:
 - `tests/runtime/test_interceptor.py`
 - `backend/siem.py`
 - `guardian/config/secret_scan_allowlist.txt`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/security/test_output_assurance.py` -> `3 passed`.
@@ -718,7 +718,7 @@ Primary files:
 - `tests/security/test_public_benchmark_alignment.py`
 - `tests/data/public_benchmark_sample.json`
 - `artifacts/performance/public_benchmark_targets.json`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/security/test_public_benchmark_alignment.py` -> `4 passed`.
@@ -758,7 +758,7 @@ Primary files:
 - `tools/verify_output_watermark.py`
 - `tests/security/test_output_watermark.py`
 - `tests/runtime/test_interceptor.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/security/test_output_watermark.py` -> `3 passed`.
@@ -791,7 +791,7 @@ Primary files:
 - `tools/run_dp_analytics_benchmark.py`
 - `tests/backend/test_tenant_isolation_backend.py`
 - `tests/security/test_differential_privacy.py`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `pytest -q tests/backend/test_tenant_isolation_backend.py -k "dp or analytics"` -> `3 passed`.
@@ -831,9 +831,9 @@ Primary files:
 - `artifacts/evidence/external_pentest_status.md`
 - `artifacts/evidence/rollback_validation.md`
 - `artifacts/evidence/supply_chain_validation.md`
-- `EXECUTIVE_SUMMARY.md`
-- `COMPLETE_PROJECT_DOCUMENTATION.md`
-- `AI_SECURITY_BACKLOG_2026Q1.md`
+- `../../docs/operations/EXECUTIVE_SUMMARY.md`
+- `../../docs/operations/COMPLETE_PROJECT_DOCUMENTATION.md`
+- `../../docs/operations/AI_SECURITY_BACKLOG_2026Q1.md`
 
 Verification:
 - `python tools/check_external_security_review.py` -> `status: ok`, `open_critical_findings: 0`.
@@ -864,7 +864,7 @@ Primary files:
 - `guardian/config/config.yaml`
 - `tests/runtime/test_interceptor.py`
 - `artifacts/evidence/FALSE_NEGATIVE_TAXONOMY.md`
-- `FEATURE_BENCHMARK_ANALYSIS.md`
+- `../../docs/architecture/FEATURE_BENCHMARK_ANALYSIS.md`
 
 Verification:
 - `pytest -q tests/runtime/test_interceptor.py -k "agentic_controls"` -> `6 passed`.

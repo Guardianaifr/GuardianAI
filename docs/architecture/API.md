@@ -116,7 +116,7 @@ Retrieve cryptographic compliance evidence package with HMAC-SHA256 signature ve
 
 ## 5) ERC-8004 Identity Registry API
 
-All three endpoints are inactive unless `GUARDIAN_ERC8004_ENABLED=true`. See WHITEPAPER_PUBLIC.md Feature 39 and `.env.example`.
+All three endpoints are inactive unless `GUARDIAN_ERC8004_ENABLED=true`. See ../whitepaper/WHITEPAPER_PUBLIC.md Feature 39 and `.env.example`.
 
 ### POST `/api/v1/erc8004/register`
 

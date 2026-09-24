@@ -171,6 +171,7 @@ contract GuardianCortexAnchor is Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Get the total number of commitments.
+     * @return The total number of commitments.
      */
     function getCommitmentCount() external view returns (uint256) {
         return commitments.length;

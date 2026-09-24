@@ -229,13 +229,26 @@ guardianai/
 
 ## 📖 In-Depth Documentation
 
-- **[WHITEPAPER_PUBLIC.md](WHITEPAPER_PUBLIC.md)** — Canonical whitepaper, threat model, and cryptographic design.
-- **[metropolis/README.md](metropolis/README.md)** — Monad Metropolis Track 04 Dossier.
-- **[metropolis/mera/README.md](metropolis/mera/README.md)** — Mera Passkey PRF Enclave specification.
-- **[COMPLETE_PROJECT_DOCUMENTATION.md](COMPLETE_PROJECT_DOCUMENTATION.md)** — Exhaustive platform reference.
-- **[API.md](API.md)** — REST and WebSocket API endpoints.
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** — Production deployment and Docker guide.
-- **[ROADMAP.md](ROADMAP.md)** — Engineering milestones and ecosystem roadmap.
+- **Whitepaper**
+  - [WHITEPAPER_PUBLIC.md](docs/whitepaper/WHITEPAPER_PUBLIC.md) — Canonical whitepaper, threat model, and cryptographic design.
+- **Architecture**
+  - [API.md](docs/architecture/API.md) — REST and WebSocket API endpoints.
+  - [DEPLOYMENT.md](docs/architecture/DEPLOYMENT.md) — Production deployment and Docker guide.
+  - [FEATURE_BENCHMARK_ANALYSIS.md](docs/architecture/FEATURE_BENCHMARK_ANALYSIS.md) — Benchmark capabilities.
+  - [HARDENING.md](docs/architecture/HARDENING.md) — Security Hardening Guide.
+- **Operations & General**
+  - [END_TO_END_PROJECT_DOCUMENTATION.md](docs/operations/END_TO_END_PROJECT_DOCUMENTATION.md) — Exhaustive platform reference.
+  - [ROADMAP.md](docs/operations/ROADMAP.md) — Engineering milestones and ecosystem roadmap.
+  - [EXECUTIVE_SUMMARY.md](docs/operations/EXECUTIVE_SUMMARY.md)
+  - [RELEASE_NOTES.md](docs/operations/RELEASE_NOTES.md)
+  - [TROUBLESHOOTING.md](docs/operations/TROUBLESHOOTING.md)
+- **Audits**
+  - [SENIOR_AUDIT_2026-08-20.md](docs/audits/SENIOR_AUDIT_2026-08-20.md)
+- **ADRs (Architecture Decision Records)**
+  - [ADR-001: PostgreSQL Migration](docs/adrs/ADR-001-postgresql-migration.md)
+- **Ecosystem Integrations**
+  - [metropolis/README.md](metropolis/README.md) — Monad Metropolis Track 04 Dossier.
+  - [metropolis/mera/README.md](metropolis/mera/README.md) — Mera Passkey PRF Enclave specification.
 
 ---
 

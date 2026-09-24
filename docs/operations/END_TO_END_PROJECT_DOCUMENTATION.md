@@ -444,7 +444,7 @@ Post-baseline, this workspace adds the roadmap delivery set (Topics 1-15), inclu
 For the complete professional documentation package (full inventory, benchmarks, APIs, gaps, and release assessment), see:
 
 - `COMPLETE_PROJECT_DOCUMENTATION.md`
-- `FEATURE_BENCHMARK_ANALYSIS.md`
+- `../architecture/FEATURE_BENCHMARK_ANALYSIS.md`
 - `EXECUTIVE_SUMMARY.md`
 
 

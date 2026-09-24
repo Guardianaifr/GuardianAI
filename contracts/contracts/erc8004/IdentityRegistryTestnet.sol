@@ -38,12 +38,23 @@ contract IdentityRegistryTestnet is ERC721 {
         )
     {}
 
+    /**
+     * @notice Register a new agent and get its ID.
+     * @param agentURI_ The URI of the agent to register.
+     * @return id The ID of the newly registered agent.
+     */
     function register(string calldata agentURI_) external returns (uint256 id) {
         id = _nextId++;
         _safeMint(msg.sender, id);
         _agentURI[id] = agentURI_;
     }
 
+    /**
+     * @notice Set metadata for a registered agent.
+     * @param agentId The ID of the agent.
+     * @param key The metadata key.
+     * @param value The metadata value.
+     */
     function setMetadata(
         uint256 agentId,
         string calldata key,
@@ -55,6 +66,12 @@ contract IdentityRegistryTestnet is ERC721 {
         emit MetadataSet(agentId, key, value);
     }
 
+    /**
+     * @notice Get metadata for a registered agent.
+     * @param agentId The ID of the agent.
+     * @param key The metadata key.
+     * @return The metadata value.
+     */
     function getMetadata(
         uint256 agentId,
         string calldata key
@@ -62,6 +79,11 @@ contract IdentityRegistryTestnet is ERC721 {
         return _metadata[agentId][key];
     }
 
+    /**
+     * @notice Get the URI of a registered agent.
+     * @param agentId The ID of the agent.
+     * @return The URI of the agent.
+     */
     function getAgentUri(uint256 agentId) external view returns (string memory) {
         return _agentURI[agentId];
     }

@@ -242,7 +242,7 @@ Status update:
 - FL_003 (Trading Signals): **CLOSED** — real source verification requiring Pyth/Chainlink ECDSA signature block; prompts that merely mention an exchange name without a verifiable signature are blocked.
 - FL_005 (Governance): **BLOCKED** — requires session-wallet auth prerequisite (caller's on-chain address must be verifiably bound to the session) before `getVotes()` lookup is meaningful. Permanently blocked until that prerequisite is built. Does NOT silently fail open — the current implementation rejects all governance vote-cast instructions because the governance ledger is empty (fails closed by design after the fix; the prior failure was failing closed by accident).
 - FL_008 (Slippage): **BLOCKED** — requires a 1inch API key for production DEX liquidity depth queries. The intent gate and normalization logic is implemented; the live enforcement path is gated on the API credential. Fails closed (rejects the slippage-modification instruction) when the DEX aggregator is unavailable.
-- See `FL_pillar_gap_and_fix_spec.md` for full spec, structural decisions, and open TTL-cache timing question.
+- See `../audits/FL_pillar_gap_and_fix_spec.md` for full spec, structural decisions, and open TTL-cache timing question.
 
 14. Agentic Security Fail-Open State - `accepted-risk` (documented, no code change planned)
 - The `agentic_security` parent module currently defaults to `enabled: False`, completely bypassing its sub-controls (`rag_security`, `agentic_controls`).
@@ -354,7 +354,7 @@ Items identified during the Phase 4 whitepaper-vs-code audit (Features 18–26).
 
 **Audit finding (August 2026):** Whitepaper claimed probes "fire against the live AI" and measure real model behavior. Code only called `input_filter.check_prompt(payload)` — zero LLM contact.
 
-**Whitepaper corrected and updated (August 2026):** F18 description in `WHITEPAPER.md` and `WHITEPAPER_PUBLIC.md` rewritten to accurately describe the 3-stage pipeline.
+**Whitepaper corrected and updated (August 2026):** F18 description in `WHITEPAPER.md` and `../whitepaper/WHITEPAPER_PUBLIC.md` rewritten to accurately describe the 3-stage pipeline.
 
 **Implementation: `FEAT-RED-LLM` — DONE (August 2026)**
 
@@ -399,7 +399,7 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 **Audit finding:** Whitepaper claimed "Hard isolation of data, session state, and rate limit buckets per tenant." Code delivers in-process key-prefix namespacing within shared Python in-memory dicts — logical isolation, not hard isolation.
 
 **Completed (August 2026):**
-- Whitepaper corrected in `WHITEPAPER.md`, `WHITEPAPER_PUBLIC.md`, `WHITEPAPER Update.md` — "hard isolation" language removed, accurate description + Phase 4 audit note added.
+- Whitepaper corrected in `WHITEPAPER.md`, `../whitepaper/WHITEPAPER_PUBLIC.md`, `WHITEPAPER Update.md` — "hard isolation" language removed, accurate description + Phase 4 audit note added.
 - Concurrent cross-tenant test suite added: `tests/security/test_tenant_isolation_concurrent.py` — 14 tests, all green.
 - **FEAT-TENANT-INMEM-HARDEN completed**: Per-tenant `threading.Lock()` instances with overflow fallback + `max_tracked_sessions` cap with LRU eviction and quarantine exemption. Closes OOM and contention risks.
 
@@ -494,7 +494,7 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 
 ### F28 — Section 6 Whitepaper Benchmark Correction `completed (August 2026)`
 
-**Finding:** A Phase 5 audit (August 2026) confirmed that all Section 6 benchmark numbers in WHITEPAPER.md, WHITEPAPER_PUBLIC.md, and `WHITEPAPER Update.md` traced to a synthetic test fixture (`tests/data/public_benchmark_sample.json`, April 2026) with no real dataset evaluation behind it. The `public_benchmark.py` module is dead code with no runtime caller. The discrepancy was already known internally (acknowledged in `FEATURE_BENCHMARK_ANALYSIS.md` section 7e) but never propagated to the public-facing whitepaper.
+**Finding:** A Phase 5 audit (August 2026) confirmed that all Section 6 benchmark numbers in WHITEPAPER.md, ../whitepaper/WHITEPAPER_PUBLIC.md, and `WHITEPAPER Update.md` traced to a synthetic test fixture (`tests/data/public_benchmark_sample.json`, April 2026) with no real dataset evaluation behind it. The `public_benchmark.py` module is dead code with no runtime caller. The discrepancy was already known internally (acknowledged in `../architecture/FEATURE_BENCHMARK_ANALYSIS.md` section 7e) but never propagated to the public-facing whitepaper.
 
 **Numbers replaced — old vs. new:**
 
@@ -511,8 +511,8 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 | Block throughput | 223.20 rps | **494.01 rps** | `perf_chaos_report.json` (April 2026) |
 | Attack latency p95 | 96.44 ms | **41.88 ms** | `perf_chaos_report.json` (April 2026) |
 
-**Files changed (August 2026; note: in September 2026, `WHITEPAPER.md` and `WHITEPAPER Update.md` were retired in favor of canonical `WHITEPAPER_PUBLIC.md`):**
-- `WHITEPAPER_PUBLIC.md` — Section 6 table + added Section 6.2 correction note
+**Files changed (August 2026; note: in September 2026, `WHITEPAPER.md` and `WHITEPAPER Update.md` were retired in favor of canonical `../whitepaper/WHITEPAPER_PUBLIC.md`):**
+- `../whitepaper/WHITEPAPER_PUBLIC.md` — Section 6 table + added Section 6.2 correction note
 
 ---
 
@@ -575,5 +575,5 @@ The `run_probe_cycle()` method in `brain/red_probe.py` was fully rewritten with 
 - `guardian/security/output_assurance.py`
 - `tests/security/test_output_assurance.py`
 - `WHITEPAPER.md`
-- `WHITEPAPER_PUBLIC.md`
+- `../whitepaper/WHITEPAPER_PUBLIC.md`
 - `WHITEPAPER Update.md`

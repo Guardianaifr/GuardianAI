@@ -157,26 +157,43 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
 
     // ── Admin Functions ───────────────────────────────────────────────────
 
+    /**
+     * @notice Set a new authorized attestation signer.
+     * @param newSigner The address of the new signer.
+     */
     function setAttestationSigner(address newSigner) external onlyOwner {
         if (newSigner == address(0)) revert InvalidSignerAddress();
         emit AttestationSignerUpdated(attestationSigner, newSigner);
         attestationSigner = newSigner;
     }
 
+    /**
+     * @notice Set the maximum allowed risk score for attestations.
+     * @param newMaxRisk The new maximum risk score.
+     */
     function setMaxAllowedRiskScore(uint8 newMaxRisk) external onlyOwner {
         emit MaxAllowedRiskScoreUpdated(maxAllowedRiskScore, newMaxRisk);
         maxAllowedRiskScore = newMaxRisk;
     }
 
+    /**
+     * @notice Pause the contract.
+     */
     function pause() external onlyOwner {
         _pause();
     }
 
+    /**
+     * @notice Unpause the contract.
+     */
     function unpause() external onlyOwner {
         _unpause();
     }
 
-    /// @notice Sweeps accidentally sent ETH/MON to the specified address.
+    /**
+     * @notice Sweeps accidentally sent ETH/MON to the specified address.
+     * @param to The address to receive the swept funds.
+     */
     function sweepETH(address payable to) external onlyOwner nonReentrant {
         if (to == address(0)) revert InvalidTargetAddress();
         (bool ok, ) = to.call{value: address(this).balance}("");

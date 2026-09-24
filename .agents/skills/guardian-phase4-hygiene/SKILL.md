@@ -32,7 +32,7 @@ This skill implements Phase 4 of the GuardianAI Security Audit Remediation. It c
   - Block root-level images: `/*.png` (allowing `frontend/public/*.png` specifically).
   - Block build files: `htmlcov/`, `*.spec`, `demo.mp4`, `scratch/`.
 - **.dockerignore:**
-  - Append patterns to exclude large directories: `tests/`, `tools/`, `contracts/`, `htmlcov/`, `*.md`, `scratch/`, `demo.mp4`, `*.png`, `*.spec` (keeping `README.md` and `DEPLOYMENT.md`).
+  - Append patterns to exclude large directories: `tests/`, `tools/`, `contracts/`, `htmlcov/`, `*.md`, `scratch/`, `demo.mp4`, `*.png`, `*.spec` (keeping `README.md` and `../../../docs/architecture/DEPLOYMENT.md`).
 
 ### 3. Dependency Hardening
 - Pin `web3` and `eth-account` to their exact installed versions in `requirements.txt`.

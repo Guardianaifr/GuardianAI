@@ -37,5 +37,5 @@ GuardianAI is designed as a **defense-in-depth layer** for LLM applications.
 *   **Social Engineering:** We cannot prevent authorized users from being tricked.
 *   **Model Theft:** We do not DRM model weights.
 
-For more details on securing your deployment, please read our [Hardening Guide](HARDENING.md).
+For more details on securing your deployment, please read our [Hardening Guide](docs/architecture/HARDENING.md).
 

@@ -132,11 +132,19 @@ abstract contract GuardianCircuitBreaker {
 
     // ── Admin Functions (access-controlled) ──────────────────────────────
 
+    /**
+     * @notice Toggles the circuit breaker on or off.
+     * @param _active True to enable the circuit breaker, false to disable.
+     */
     function setCircuitBreakerActive(bool _active) external onlyCircuitBreakerAdmin {
         circuitBreakerActive = _active;
         emit CircuitBreakerToggled(_active);
     }
 
+    /**
+     * @notice Updates the risk score threshold required for execution.
+     * @param _threshold The new risk score threshold (0-10000).
+     */
     function setRiskScoreThreshold(uint16 _threshold) external onlyCircuitBreakerAdmin {
         if (_threshold > 10000) revert InvalidThreshold();   // Audit L-2: bounds check
         uint16 old = riskScoreThreshold;
@@ -144,6 +152,10 @@ abstract contract GuardianCircuitBreaker {
         emit RiskThresholdUpdated(old, _threshold);
     }
 
+    /**
+     * @notice Transfers the circuit breaker admin role to a new address.
+     * @param _newAdmin The address of the new admin.
+     */
     function transferCircuitBreakerAdmin(address _newAdmin) external onlyCircuitBreakerAdmin {
         if (_newAdmin == address(0)) revert ZeroAddress();
         address old = circuitBreakerAdmin;

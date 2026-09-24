@@ -57,9 +57,9 @@ python guardianctl.py start
 ## Related Docs
 
 - `HARDENING.md`
-- `OPERATIONS.md`
-- `TROUBLESHOOTING.md`
+- `../operations/OPERATIONS.md`
+- `../operations/TROUBLESHOOTING.md`
 - `README.md`
-- `PRODUCTION_LAUNCH_RUNBOOK.md`
+- `../operations/PRODUCTION_LAUNCH_RUNBOOK.md`
 
 

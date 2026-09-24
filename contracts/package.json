@@ -13,7 +13,8 @@
     "deploy:risk:monad": "hardhat run scripts/deploy-risk.ts --network monad_testnet",
     "deploy:guard:monad": "hardhat run scripts/deploy-policy-guard.ts --network monad_testnet",
     "deploy:all:monad": "npm run deploy:cortex:monad && npm run deploy:sbt:monad && npm run deploy:interlock:monad && npm run deploy:insurance:monad && npm run deploy:threatfeed:monad && npm run deploy:risk:monad && npm run deploy:guard:monad",
-    "verify:monad": "hardhat verify --network monad_testnet"
+    "verify:monad": "hardhat verify --network monad_testnet",
+    "coverage": "hardhat coverage"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

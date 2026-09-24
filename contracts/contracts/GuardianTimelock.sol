@@ -19,6 +19,12 @@ import "@openzeppelin/contracts/governance/TimelockController.sol";
 contract GuardianTimelock is TimelockController {
     uint256 public constant MIN_DELAY = 24 hours;
 
+    /**
+     * @notice Initialize the timelock controller.
+     * @param proposers Array of addresses that can propose operations.
+     * @param executors Array of addresses that can execute operations.
+     * @param admin Address of the admin.
+     */
     constructor(
         address[] memory proposers,
         address[] memory executors,

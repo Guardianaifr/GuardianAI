@@ -1,0 +1,5 @@
+{
+  "filter_paths": ["mocks/", "interfaces/", "node_modules/"],
+  "detectors_to_exclude": ["naming-convention"],
+  "solc_remaps": ["@openzeppelin/=node_modules/@openzeppelin/"]
+}

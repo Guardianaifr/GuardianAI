@@ -10,9 +10,9 @@
 - ✅ 33 major security feature groups
 - ✅ 32 roadmap topics delivered
 - ✅ Full OWASP LLM Top 10 (2025) coverage — **10/10**
-- ✅ Benchmark alignment on real datasets (3,211 prompts, 8 datasets): AdvBench 99.0% strict, HarmBench 72.8% strict — see WHITEPAPER_PUBLIC.md §6 and `artifacts/evidence/definitive_benchmark_v4.json`
-- ✅ **ERC-8004 Identity Registration:** canonical Trustless Agents registry integration, register-then-transfer ownership handoff, fail-closed safety gates, 42-test offline suite (WHITEPAPER_PUBLIC.md Feature 39)
-- ✅ **Identity Gate & Point-of-Interaction Enforcement:** pre-flight RPC relay & agentic control plane enforcement, on-chain `ownerOf` validation, database-level hot-wallet collision defense, and shadow observation mode (WHITEPAPER_PUBLIC.md Feature 40)
+- ✅ Benchmark alignment on real datasets (3,211 prompts, 8 datasets): AdvBench 99.0% strict, HarmBench 72.8% strict — see ../whitepaper/WHITEPAPER_PUBLIC.md §6 and `artifacts/evidence/definitive_benchmark_v4.json`
+- ✅ **ERC-8004 Identity Registration:** canonical Trustless Agents registry integration, register-then-transfer ownership handoff, fail-closed safety gates, 42-test offline suite (../whitepaper/WHITEPAPER_PUBLIC.md Feature 39)
+- ✅ **Identity Gate & Point-of-Interaction Enforcement:** pre-flight RPC relay & agentic control plane enforcement, on-chain `ownerOf` validation, database-level hot-wallet collision defense, and shadow observation mode (../whitepaper/WHITEPAPER_PUBLIC.md Feature 40)
 - ✅ **GuardianPolicyGuard & Monad Parallel EVM Guardrails:** 10 Solidity invariants, EIP-712 cryptographic verification, zero-trust function selector allowlists (RBAC), rolling 24h outflow caps, and conflict-free namespaced nonces scaling to 10,000 TPS on Monad Testnet (Feature 41)
 - ✅ **Agent Middleware SDK (@guardianai/middleware):** Drop-in ElizaOS memory-poisoning prevention plugin and Viem security decorator (49 TS unit tests passing) (Feature 42)
 - ✅ **Envio HyperIndex Real-Time Indexer:** Multi-contract blockchain event streaming across 5 Monad contracts with sub-second GraphQL feeds and 36 passing tests (Feature 43)

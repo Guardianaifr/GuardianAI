@@ -1,0 +1,1 @@
+> **Note:** This document has been deprecated and merged. Please refer to [END_TO_END_PROJECT_DOCUMENTATION.md](END_TO_END_PROJECT_DOCUMENTATION.md) for the consolidated and most complete project documentation.

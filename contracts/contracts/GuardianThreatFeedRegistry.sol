@@ -71,6 +71,8 @@ contract GuardianThreatFeedRegistry is Ownable2Step, Pausable {
 
     /**
      * @notice Add a malicious EVM address to the registry.
+     * @param _malicious The malicious EVM address to add.
+     * @param _reason The reason for adding the address.
      * @dev    Reverts with EvmRegistryFull if the registry has reached MAX_EVM_REGISTRY_SIZE.
      *         Re-adding an already-registered address only updates its reason/timestamp (no
      *         double-push to the array and no cap check).
@@ -96,6 +98,7 @@ contract GuardianThreatFeedRegistry is Ownable2Step, Pausable {
 
     /**
      * @notice Remove an EVM address from the registry. O(1) via index mapping.
+     * @param _malicious The EVM address to remove.
      * @dev    Fills the vacated slot by swapping in the last element, updates that
      *         element's index entry, then pops.  Handles the single-element and
      *         last-element edge cases (idx == lastIdx) without a swap.
@@ -128,6 +131,8 @@ contract GuardianThreatFeedRegistry is Ownable2Step, Pausable {
 
     /**
      * @notice Batch-add EVM addresses. All-or-nothing.
+     * @param _addresses The array of EVM addresses to add.
+     * @param _reasons The array of reasons corresponding to the addresses.
      * @dev    Reverts with EvmRegistryFull if any new entry would exceed the cap.
      *         Addresses already in the registry are updated in place (no cap check
      *         for them, no re-push).
@@ -160,6 +165,8 @@ contract GuardianThreatFeedRegistry is Ownable2Step, Pausable {
 
     /**
      * @notice Add a malicious non-EVM string address (e.g. Solana, BTC) to the registry.
+     * @param _malicious The malicious string address to add.
+     * @param _reason The reason for adding the address.
      * @dev    Reverts with StringRegistryFull if the registry has reached MAX_STRING_REGISTRY_SIZE.
      */
     function addStringAddress(string calldata _malicious, string calldata _reason)
@@ -184,6 +191,7 @@ contract GuardianThreatFeedRegistry is Ownable2Step, Pausable {
 
     /**
      * @notice Remove a non-EVM string address from the registry. O(1) via index mapping.
+     * @param _malicious The string address to remove.
      */
     function removeStringAddress(string calldata _malicious)
         external
@@ -213,6 +221,8 @@ contract GuardianThreatFeedRegistry is Ownable2Step, Pausable {
 
     /**
      * @notice Batch-add non-EVM string addresses. All-or-nothing.
+     * @param _addresses The array of string addresses to add.
+     * @param _reasons The array of reasons corresponding to the addresses.
      */
     function addStringAddressesBatch(
         string[] calldata _addresses,
@@ -240,26 +250,53 @@ contract GuardianThreatFeedRegistry is Ownable2Step, Pausable {
 
     // ── Read functions ───────────────────────────────────────────────────
 
+    /**
+     * @notice Check if an EVM address is malicious.
+     * @param _query The EVM address to check.
+     * @return isMalicious true if malicious, false otherwise.
+     * @return reason The reason if malicious, empty otherwise.
+     */
     function isMalicious(address _query) external view returns (bool, string memory) {
         ThreatInfo memory info = evmRegistry[_query];
         return (info.isMalicious, info.reason);
     }
 
+    /**
+     * @notice Check if a non-EVM string address is malicious.
+     * @param _query The string address to check.
+     * @return isMalicious true if malicious, false otherwise.
+     * @return reason The reason if malicious, empty otherwise.
+     */
     function isMaliciousString(string calldata _query) external view returns (bool, string memory) {
         ThreatInfo memory info = stringRegistry[_query];
         return (info.isMalicious, info.reason);
     }
 
+    /**
+     * @notice Get the total count of registered malicious EVM addresses.
+     * @return The count of EVM addresses.
+     */
     function evmAddressCount() external view returns (uint256) {
         return evmAddresses.length;
     }
 
+    /**
+     * @notice Get the total count of registered malicious non-EVM string addresses.
+     * @return The count of string addresses.
+     */
     function stringAddressCount() external view returns (uint256) {
         return stringAddresses.length;
     }
 
     // ── Admin/Pausable functions ─────────────────────────────────────────
 
+    /**
+     * @notice Pause the contract.
+     */
     function pause()   external onlyOwner { _pause(); }
+
+    /**
+     * @notice Unpause the contract.
+     */
     function unpause() external onlyOwner { _unpause(); }
 }

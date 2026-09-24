@@ -10,13 +10,13 @@ This packet provides the minimum evidence bundle for enterprise due diligence.
 ## 1) Security Program Summary
 
 - Product security policy: `SECURITY.md`
-- End-to-end architecture and controls: `END_TO_END_PROJECT_DOCUMENTATION.md`
-- Executive release posture: `EXECUTIVE_SUMMARY.md`
+- End-to-end architecture and controls: `../../docs/operations/END_TO_END_PROJECT_DOCUMENTATION.md`
+- Executive release posture: `../../docs/operations/EXECUTIVE_SUMMARY.md`
 
 ## 2) Control Validation and Testing
 
-- Full test status and benchmark posture: `FEATURE_BENCHMARK_ANALYSIS.md`
-- Detailed implementation and readiness documentation: `COMPLETE_PROJECT_DOCUMENTATION.md`
+- Full test status and benchmark posture: `../../docs/architecture/FEATURE_BENCHMARK_ANALYSIS.md`
+- Detailed implementation and readiness documentation: `../../docs/operations/COMPLETE_PROJECT_DOCUMENTATION.md`
 - Regression and E2E validation evidence:
   - `tests/e2e/test_guardrail_advanced_e2e.py`
   - `tests/e2e/test_guardrail_adversarial_chaos_e2e.py`

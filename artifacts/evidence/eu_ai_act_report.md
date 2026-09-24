@@ -153,9 +153,9 @@ Protect AI systems against prompt injection, data leakage, cost abuse, and adver
 |----|-------------|--------|----------|
 | CF-01 | Risk management system established and documented (Art. 9) | ✅ implemented | threat_model_quarterly.md, FALSE_NEGATIVE_TAXONOMY.md |
 | CF-02 | Data governance practices documented (Art. 10) | ⚠️ partial | data_governance_audit.md |
-| CF-03 | Technical documentation maintained (Art. 11) | ✅ implemented | END_TO_END_PROJECT_DOCUMENTATION.md, API.md, RELEASE_NOTES.md |
+| CF-03 | Technical documentation maintained (Art. 11) | ✅ implemented | ../../docs/operations/END_TO_END_PROJECT_DOCUMENTATION.md, ../../docs/architecture/API.md, ../../docs/operations/RELEASE_NOTES.md |
 | CF-04 | Automatic event logging with tamper resistance (Art. 12) | ✅ implemented | evidence_export.py, compliance_bundle.json |
-| CF-05 | Transparency and instructions for use (Art. 13) | ✅ implemented | README.md, DEPLOYMENT.md, OPERATIONS.md |
+| CF-05 | Transparency and instructions for use (Art. 13) | ✅ implemented | README.md, ../../docs/architecture/DEPLOYMENT.md, ../../docs/operations/OPERATIONS.md |
 | CF-06 | Human oversight mechanisms (Art. 14) | ✅ implemented | agentic_controls.py, feedback_loop.py, policy_governance.py |
 | CF-07 | Accuracy levels declared and measured (Art. 15) | ✅ implemented | public_benchmark_report.json, perf_chaos_report.json |
 | CF-08 | Robustness against adversarial attacks (Art. 15) | ✅ implemented | ai_firewall.py, input_filter.py, hardening_checks.py |
@@ -172,7 +172,7 @@ Protect AI systems against prompt injection, data leakage, cost abuse, and adver
 |-----------|-----------|------------------|--------|
 | 4 - Context of the organization | Art. 9, 17 | config.yaml — System configuration and scope defin | ✅ mapped |
 | 5 - Leadership | Art. 17 | policy_governance.py — Governance gate with approv | ✅ mapped |
-| 6 - Planning | Art. 9 | ROADMAP.md — Development planning; security_slo_ta | ✅ mapped |
+| 6 - Planning | Art. 9 | ../../docs/operations/ROADMAP.md — Development planning; security_slo_ta | ✅ mapped |
 | 7 - Support | Art. 11, 13 | Documentation suite (README, API, DEPLOYMENT, OPER | ✅ mapped |
 | 8 - Operation | Art. 9, 14, 15 | interceptor.py — Runtime security operations | ✅ mapped |
 | 9 - Performance evaluation | Art. 15 | Public benchmarks + performance chaos validation | ✅ mapped |

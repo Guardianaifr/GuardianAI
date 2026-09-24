@@ -224,6 +224,8 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
 
     /**
      * @notice Get full passport data for a token.
+     * @param _tokenId The token ID.
+     * @return The passport data.
      */
     function getPassport(uint256 _tokenId)
         external view returns (Passport memory)
@@ -234,6 +236,7 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
 
     /**
      * @notice Get the token ID for an agent (by agentHash).
+     * @param _agentHash keccak256 hash of the agent ID.
      * @return tokenId 0 if no passport exists
      */
     function getAgentTokenId(bytes32 _agentHash)
@@ -244,6 +247,8 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
 
     /**
      * @notice ERC-165: Declare support for ERC-721, ERC-165, and ERC-5192.
+     * @param interfaceId The interface identifier.
+     * @return True if the contract supports the interface.
      */
     function supportsInterface(bytes4 interfaceId)
         public view override returns (bool)
@@ -254,7 +259,14 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
 
     // ── Admin Functions ──────────────────────────────────────────────────
 
+    /**
+     * @notice Pause the contract (emergency stop). Only owner.
+     */
     function pause() external onlyOwner { _pause(); }
+
+    /**
+     * @notice Unpause the contract. Only owner.
+     */
     function unpause() external onlyOwner { _unpause(); }
 
     // ── Internal ─────────────────────────────────────────────────────────

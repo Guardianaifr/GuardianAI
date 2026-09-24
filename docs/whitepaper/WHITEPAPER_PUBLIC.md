@@ -760,8 +760,8 @@ All metrics are sourced from actual test runs and are reproducible.
 | Grand total across 8 datasets (3,211 prompts, balanced mode)†† | **58.5%** (1,879/3,211) |
 | GAIA alignment | *not re-verified — no current real run; prior figure (86.0%) traced to synthetic fixture only* |
 | Zero-day block rate (98.4% WildGuard/ToxicChat/JailbreakBench) | *not re-verified — no source file found; figure removed pending real re-run* |
-| Standard benchmark block rate (strict curated 25-prompt holdout, per FEATURE_BENCHMARK_ANALYSIS.md April 2026) | **100%** (25/25) — not in definitive_benchmark_v4.json; from internal analysis corpus |
-| False positive rate (curated 20-prompt safe set, per FEATURE_BENCHMARK_ANALYSIS.md April 2026) | 0.0% (0/20) — not in definitive_benchmark_v4.json; from internal analysis corpus |
+| Standard benchmark block rate (strict curated 25-prompt holdout, per ../architecture/FEATURE_BENCHMARK_ANALYSIS.md April 2026) | **100%** (25/25) — not in definitive_benchmark_v4.json; from internal analysis corpus |
+| False positive rate (curated 20-prompt safe set, per ../architecture/FEATURE_BENCHMARK_ANALYSIS.md April 2026) | 0.0% (0/20) — not in definitive_benchmark_v4.json; from internal analysis corpus |
 | Throughput (safe load, concurrency 20, perf_chaos_report.json) | **95.68 rps** |
 | Block throughput (attack load, concurrency 20, perf_chaos_report.json) | **494.01 rps**, 100% block rate |
 | Attack latency p95 (perf_chaos_report.json) | **41.88 ms** |
@@ -803,7 +803,7 @@ Specifically:
 - GAIA alignment (86.0%) and the 98.4% zero-day block rate had no corresponding results file anywhere in the repository and have been removed pending a real re-run.
 - Throughput figures (67.78 / 223.20 rps) were from an earlier performance run; the current `perf_chaos_report.json` (April 2026) shows 95.68 rps safe load and 494.01 rps attack block throughput with 41.88 ms p95 attack latency.
 
-The corrected figures now in the table above are drawn directly from these August 2026 sources. The `FEATURE_BENCHMARK_ANALYSIS.md` document already contained an internal acknowledgment of the HarmBench discrepancy that was not propagated to the public whitepaper; this correction closes that gap.
+The corrected figures now in the table above are drawn directly from these August 2026 sources. The `../architecture/FEATURE_BENCHMARK_ANALYSIS.md` document already contained an internal acknowledgment of the HarmBench discrepancy that was not propagated to the public whitepaper; this correction closes that gap.
 
 ### 6.3 September 2026 Senior Systems & Cryptographic Architecture Audit
 

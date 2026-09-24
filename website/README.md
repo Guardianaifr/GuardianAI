@@ -45,7 +45,7 @@ the proof page (`proof.html#sources`) and below. The prior site
 | False positives, fresh-session live run: balanced 11.2% (26/233), strict 29.2% (68/233), three public corpora | `artifacts/evidence/fp_clean_measure.json` |
 | Throughput 95.68 req/s safe / 494.01 req/s attack-blocking, p95 41.88 ms, chaos outcomes, SLOs | `artifacts/performance/perf_chaos_report.json` (April 2026) |
 | Test counts ERC-8004 42/42; targeted Python 107/107 passed; rate limiter 33/33 passed; Hardhat 160 cases/10 suites (100% pass) | `README.md` validation snapshot |
-| Audit history (external pentest closed 2026-03-18; internal audits remediated Jul/Aug/Sep 2026; next external review Q3 2026) | `artifacts/evidence/security_signoff.md`, `WHITEPAPER_PUBLIC.md §6.3` |
+| Audit history (external pentest closed 2026-03-18; internal audits remediated Jul/Aug/Sep 2026; next external review Q3 2026) | `artifacts/evidence/security_signoff.md`, `../docs/whitepaper/WHITEPAPER_PUBLIC.md §6.3` |
 | Prices $0 / $49 / $299 / custom, all tier limits & features | `backend/metering.py` PRICING_TIERS |
 | Anchoring simulated-by-default, Monad testnet opt-in; ERC-8004 mainnet registries = ecosystem infra; insurance = certificate anchoring only | `guardian/cortex/merkle_anchor.py`, whitepaper §6–7 |
 

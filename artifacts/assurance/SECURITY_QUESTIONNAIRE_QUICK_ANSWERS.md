@@ -57,4 +57,4 @@ Use: Rapid response template for customer security questionnaires.
 - `artifacts/assurance/FRAMEWORK_CONTROL_MAPPING.md`
 - `artifacts/security/external_security_review.json`
 - `artifacts/supply_chain/sbom.json`
-- `END_TO_END_PROJECT_DOCUMENTATION.md`
+- `../../docs/operations/END_TO_END_PROJECT_DOCUMENTATION.md`

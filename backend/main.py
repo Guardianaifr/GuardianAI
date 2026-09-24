@@ -1,65 +1,85 @@
 import sys
 if __name__ == "__main__":
     sys.modules["backend.main"] = sys.modules[__name__]
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives import hashes
-
-import socket
-import ipaddress
-import urllib3.util.connection
-import os
-
-if not hasattr(urllib3.util.connection, "_real_create_connection"):
-    urllib3.util.connection._real_create_connection = urllib3.util.connection.create_connection
-_original_create_connection = urllib3.util.connection._real_create_connection
-
-def _safe_create_connection(address, *args, **kwargs):
-    host, port = address
-    try:
-        allowlist = [ip.strip() for ip in os.getenv("GUARDIAN_SSRF_ALLOWLIST", "").split(",") if ip.strip()]
-
-        try:
-            ip_obj = ipaddress.ip_address(host)
-            is_ip = True
-        except ValueError:
-            is_ip = False
-            
-        if is_ip:
-            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
-                if host not in allowlist and "pytest" not in sys.modules:
-                    raise socket.error(f"SSRF Protection: Connection to private/local IP {host} blocked.")
-            return _original_create_connection(address, *args, **kwargs)
-            
-        addr_info = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
-        safe_ips = []
-        for family, socktype, proto, canonname, sockaddr in addr_info:
-            ip = sockaddr[0]
-            try:
-                ip_obj = ipaddress.ip_address(ip)
-                is_private = ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
-                # If resolved IP is private, block unless it's explicitly allowlisted
-                if is_private and ip not in allowlist and "pytest" not in sys.modules:
-                    continue
-                safe_ips.append(ip)
-            except ValueError:
-                continue
-                
-        if not safe_ips:
-            raise socket.error(f"SSRF Protection: All resolved IPs for {host} are private/local and blocked.")
-            
-        # Try safe IPs until one works
-        for safe_ip in safe_ips:
-            try:
-                return _original_create_connection((safe_ip, port), *args, **kwargs)
-            except socket.error:
-                continue
-        raise socket.error(f"SSRF Protection: Could not connect to any safe IP for {host}.")
-        
-    except socket.gaierror as exc:
-        return _original_create_connection(address, *args, **kwargs)
-
-urllib3.util.connection.create_connection = _safe_create_connection
+from backend.security.ssrf import (
+    _safe_create_connection,
+    _original_create_connection,
+)
+from backend.security.crypto import (
+    _agentic_secret_stream,
+    _get_aead_key,
+    _agentic_encrypt_secret,
+    _agentic_decrypt_secret,
+    _hash_agentic_secret,
+    _new_agentic_secret,
+)
+from backend.models import (
+    BaseModel,
+    SecurityEvent,
+    SecurityEventResponse,
+    TokenResponse,
+    CreateApiKeyRequest,
+    ApiKeyResponse,
+    CreatedApiKeyResponse,
+    RevokeTokenResponse,
+    RevokedTokenEntryResponse,
+    PruneRevokedTokensResponse,
+    AuthSessionResponse,
+    RevokeUserSessionsRequest,
+    RevokeUserSessionsResponse,
+    RevokeSelfSessionsRequest,
+    RevokeSelfSessionsResponse,
+    RevokeSelfSessionByJtiRequest,
+    RevokeSelfSessionByJtiResponse,
+    RevokeAllSessionsRequest,
+    RevokeAllSessionsResponse,
+    RevokeSessionByJtiRequest,
+    RevokeSessionByJtiResponse,
+    AuthLockoutEntryResponse,
+    ClearAuthLockoutsRequest,
+    ClearAuthLockoutsResponse,
+    WhoAmIResponse,
+    TelemetryIngestResponse,
+    AnalyticsResponse,
+    HealthDatabaseComponent,
+    HealthComponents,
+    HealthResponse,
+    AuditLogEntryResponse,
+    AuditVerifyResponse,
+    AuditDeliveryFailureResponse,
+    RetryFailuresResponse,
+    AuditSummaryResponse,
+    AgenticKeyCreateRequest,
+    AgenticKeyResponse,
+    CreatedAgenticKeyResponse,
+    AgenticRevokeRequest,
+    AgenticExecutionGrantRequest,
+    AgenticExecutionGrantResponse,
+    AgenticPolicyEdgeRequest,
+    AgenticPolicyEdgeResponse,
+    AgenticMetricsResponse,
+    AgenticConfigSnapshotResponse,
+    ComplianceControlResponse,
+    ComplianceSummaryResponse,
+    ComplianceReportResponse,
+    RbacEndpointPolicyResponse,
+    RbacPolicyResponse,
+    BillingCheckoutRequest,
+    BillingConfirmRequest,
+    BadgeVerificationRequest,
+    ScanRequest,
+    CampaignTargetInput,
+    CampaignCreateRequest,
+    ScheduleInput,
+    RemediationRequest,
+    ContractAnalyzeRequest,
+    ContractOnChainAnalyzeRequest,
+    AddressScreenRequest,
+    BatchScreenRequest,
+    PassportIssueRequest,
+    PassportVerifyRequest,
+    CredentialIssueRequest,
+)
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status, Form, Body
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -67,61 +87,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPBearer, HTTPAuthorizationCredentials
 import io
 import csv
-from pydantic import BaseModel as PydanticBaseModel, Field
+from pydantic import Field
 from typing import Annotated, Optional, Union, Any, get_origin, get_args
-
-class BaseModel(PydanticBaseModel):
-    def __init_subclass__(cls, **kwargs):
-        annotations = getattr(cls, "__annotations__", {})
-        for field_name, ann in list(annotations.items()):
-            is_annotated = get_origin(ann) is Annotated
-            base_type = ann
-            metadata = []
-            if is_annotated:
-                args = get_args(ann)
-                base_type = args[0]
-                metadata = list(args[1:])
-            
-            is_str = False
-            is_optional_str = False
-            
-            if base_type is str:
-                is_str = True
-            elif base_type == Optional[str] or base_type == Union[str, None]:
-                is_optional_str = True
-            elif get_origin(base_type) is Union:
-                args = get_args(base_type)
-                if str in args:
-                    if type(None) in args:
-                        is_optional_str = True
-                    else:
-                        is_str = True
-            
-            if is_str or is_optional_str:
-                has_max_length = False
-                for meta in metadata:
-                    if hasattr(meta, "max_length"):
-                        has_max_length = True
-                        break
-                
-                field_val = getattr(cls, field_name, None)
-                from pydantic.fields import FieldInfo
-                if isinstance(field_val, FieldInfo):
-                    for meta in field_val.metadata:
-                        if hasattr(meta, "max_length"):
-                            has_max_length = True
-                            break
-                    if not has_max_length:
-                        from annotated_types import MaxLen
-                        field_val.metadata.append(MaxLen(512))
-                else:
-                    if not has_max_length:
-                        new_field = Field(max_length=512)
-                        annotations[field_name] = Annotated[base_type, new_field]
-                        if field_val is not None:
-                            setattr(cls, field_name, Field(field_val, max_length=512))
-
-        super().__init_subclass__(**kwargs)
 
 class LimitUploadSizeMiddleware:
     def __init__(self, app, max_upload_size: int):
@@ -156,6 +123,7 @@ class LimitUploadSizeMiddleware:
             return
         await self.app(scope, receive, send)
 
+import os
 import secrets
 import time
 import logging
@@ -191,126 +159,122 @@ from backend.auth import hash_password, verify_password, _jwt_encode, _jwt_decod
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("guardian_backend")
+import importlib
+if "backend.config" in sys.modules:
+    try:
+        importlib.reload(sys.modules["backend.config"])
+    except Exception:
+        pass
 
-ADMIN_USER = os.getenv("GUARDIAN_ADMIN_USER", "admin")
-_raw_admin_pass = os.getenv("GUARDIAN_ADMIN_PASS", "")
-if _raw_admin_pass:
-    ADMIN_PASS = _raw_admin_pass
-else:
-    ADMIN_PASS = secrets.token_urlsafe(32)
-    logger.warning("GUARDIAN_ADMIN_PASS environment variable was not configured. Ephemeral in-memory admin credentials generated.")
+from backend.config import (
+    ADMIN_USER,
+    ADMIN_PASS,
+    AUDITOR_USER,
+    AUDITOR_PASS,
+    USER_USER,
+    USER_PASS,
+    _raw_admin_pass,
+    _raw_jwt_secret,
+    _raw_agentic_secret,
+    JWT_SECRET,
+    JWT_ISSUER,
+    JWT_AUDIENCE,
+    JWT_EXPIRES_MIN,
+    _env_mode,
+    TELEMETRY_REQUIRE_API_KEY,
+    API_RATE_LIMIT_PER_MIN,
+    TELEMETRY_RATE_LIMIT_PER_MIN,
+    AUTH_RATE_LIMIT_PER_MIN,
+    AUTH_LOCKOUT_ENABLED,
+    AUTH_LOCKOUT_MAX_ATTEMPTS,
+    AUTH_LOCKOUT_DURATION_SEC,
+    USER_RATE_LIMITS_JSON,
+    TELEMETRY_KEY_RATE_LIMITS_JSON,
+    RATE_LIMIT_BACKEND,
+    RATE_LIMIT_REDIS_URL,
+    RATE_LIMIT_REDIS_KEY_PREFIX,
+    RATE_LIMIT_REDIS_TIMEOUT_SEC,
+    RATE_LIMIT_REDIS_FAIL_OPEN,
+    _workers,
+    AUDIT_SINK_URL,
+    AUDIT_SINK_TOKEN,
+    AUDIT_SINK_TIMEOUT_SEC,
+    AUDIT_SINK_RETRIES,
+    AUDIT_SINK_STRICT,
+    AUDIT_SYSLOG_HOST,
+    AUDIT_SYSLOG_PORT,
+    AUDIT_SYSLOG_TIMEOUT_SEC,
+    AUDIT_SYSLOG_STRICT,
+    AUDIT_SPLUNK_HEC_URL,
+    AUDIT_SPLUNK_HEC_TOKEN,
+    AUDIT_SPLUNK_INDEX,
+    AUDIT_SPLUNK_SOURCE,
+    AUDIT_SPLUNK_SOURCETYPE,
+    AUDIT_SPLUNK_STRICT,
+    AUDIT_DATADOG_LOGS_URL,
+    AUDIT_DATADOG_API_KEY,
+    AUDIT_DATADOG_SERVICE,
+    AUDIT_DATADOG_SOURCE,
+    AUDIT_DATADOG_TAGS,
+    AUDIT_DATADOG_STRICT,
+    ENFORCE_HTTPS,
+    secure,
+    TLS_CERT_FILE,
+    TLS_KEY_FILE,
+    METRICS_ENABLED,
+    BACKEND_HOST,
+    BACKEND_PORT,
+    BILLING_MODE,
+    PUBLIC_BASE_URL,
+    CHECKOUT_SUCCESS_URL,
+    CHECKOUT_CANCEL_URL,
+    STRIPE_SECRET_KEY,
+    STRIPE_PRICE_STARTER,
+    STRIPE_PRICE_PRO,
+    STRIPE_PRICE_ENTERPRISE,
+    CRYPTO_API_KEY,
+    ETHERSCAN_API_KEY,
+    BACKEND_TOKEN,
+    SERVICE_AUTH_TOKEN,
+    SERVICE_ID,
+    SIEM_ENABLED,
+    SIEM_FORMAT,
+    SIEM_OUT,
+    AGENTIC_ATTESTATION_SECRET,
+    DP_ENABLED,
+    DP_EPSILON,
+    DP_SEED,
+    APP_START_TIME,
+    DB_PATH,
+    CUSTOM_PACKS_DIR,
+    AUDIT_ARTIFACTS_DIR,
+    PROXY_EVENT_TYPES,
+    BLOCKED_EVENT_TYPES,
+    _valid_roles,
+    _REDIS_RATE_LIMIT_SCRIPT,
+    _build_auth_users,
+    _auth_users,
+    _parse_limit_overrides,
+    _user_rate_limit_overrides,
+    _telemetry_rate_limit_overrides,
+    _ROLE_PERMISSIONS,
+)
 
-AUDITOR_USER = os.getenv("GUARDIAN_AUDITOR_USER", "").strip()
-AUDITOR_PASS = os.getenv("GUARDIAN_AUDITOR_PASS", "").strip()
-USER_USER = os.getenv("GUARDIAN_USER_USER", "").strip()
-USER_PASS = os.getenv("GUARDIAN_USER_PASS", "").strip()
 
-_raw_jwt_secret = os.getenv("GUARDIAN_JWT_SECRET", "").strip()
-if _raw_jwt_secret:
-    JWT_SECRET = _raw_jwt_secret
-else:
-    JWT_SECRET = secrets.token_urlsafe(64)
-    logger.warning("GUARDIAN_JWT_SECRET not set. Using ephemeral key. NOT suitable for production.")
-
-_env_mode = os.getenv("GUARDIAN_ENV", "development").strip().lower()
-_default_telemetry_require = "true" if _env_mode == "production" else "false"
-TELEMETRY_REQUIRE_API_KEY = os.getenv("GUARDIAN_TELEMETRY_REQUIRE_API_KEY", _default_telemetry_require).strip().lower() in {"1", "true", "yes", "on"}
-
-JWT_ISSUER = os.getenv("GUARDIAN_JWT_ISSUER", "guardian-backend")
-JWT_AUDIENCE = os.getenv("GUARDIAN_JWT_AUDIENCE", JWT_ISSUER)
-JWT_EXPIRES_MIN = int(os.getenv("GUARDIAN_JWT_EXPIRES_MIN", "60"))
-API_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_RATE_LIMIT_PER_MIN", "240"))
-TELEMETRY_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_TELEMETRY_RATE_LIMIT_PER_MIN", "600"))
-AUTH_RATE_LIMIT_PER_MIN = int(os.getenv("GUARDIAN_AUTH_RATE_LIMIT_PER_MIN", "60"))
-
-AUTH_LOCKOUT_ENABLED = os.getenv("GUARDIAN_AUTH_LOCKOUT_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
-AUTH_LOCKOUT_MAX_ATTEMPTS = max(1, int(os.getenv("GUARDIAN_AUTH_LOCKOUT_MAX_ATTEMPTS", "5")))
-AUTH_LOCKOUT_DURATION_SEC = max(1.0, float(os.getenv("GUARDIAN_AUTH_LOCKOUT_DURATION_SEC", "300")))
-USER_RATE_LIMITS_JSON = os.getenv("GUARDIAN_USER_RATE_LIMITS_JSON", "").strip()
-TELEMETRY_KEY_RATE_LIMITS_JSON = os.getenv("GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON", "").strip()
-RATE_LIMIT_BACKEND = os.getenv("GUARDIAN_RATE_LIMIT_BACKEND", "memory").strip().lower()
-RATE_LIMIT_REDIS_URL = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_URL", "").strip()
-RATE_LIMIT_REDIS_KEY_PREFIX = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_KEY_PREFIX", "guardian:ratelimit").strip() or "guardian:ratelimit"
-RATE_LIMIT_REDIS_TIMEOUT_SEC = float(os.getenv("GUARDIAN_RATE_LIMIT_REDIS_TIMEOUT_SEC", "0.2"))
-RATE_LIMIT_REDIS_FAIL_OPEN = os.getenv("GUARDIAN_RATE_LIMIT_REDIS_FAIL_OPEN", "false").strip().lower() == "true"
-
-_workers = 1
-for _env_var in ["WEB_CONCURRENCY", "UVICORN_WORKERS", "WORKERS"]:
-    _val = os.getenv(_env_var)
-    if _val:
-        try:
-            _workers = max(_workers, int(_val))
-        except ValueError:
-            pass
-for _i, _arg in enumerate(sys.argv):
-    if _arg in {"--workers", "-w"}:
-        if _i + 1 < len(sys.argv):
-            try:
-                _workers = max(_workers, int(sys.argv[_i + 1]))
-            except ValueError:
-                pass
-if _workers > 1 and RATE_LIMIT_BACKEND == "memory":
-    logger.warning(
-        "WARNING: Multiple workers (%d) detected with 'memory' rate limiting backend. "
-        "Rate limits will be enforced per-worker, effectively multiplying limits by the worker count. "
-        "For accurate rate limiting in multi-worker or clustered environments, configure the 'redis' backend.",
-        _workers
+def _is_testing_env() -> bool:
+    return (
+        os.getenv("TESTING", "").strip().lower() in {"1", "true", "yes"}
+        or os.getenv("GUARDIAN_ENV", "").strip().lower() in {"test", "testing"}
+        or "pytest" in sys.modules
     )
-AUDIT_SINK_URL = os.getenv("GUARDIAN_AUDIT_SINK_URL", "").strip()
-AUDIT_SINK_TOKEN = os.getenv("GUARDIAN_AUDIT_SINK_TOKEN", "").strip()
-AUDIT_SINK_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_TIMEOUT_SEC", "2.0"))
-AUDIT_SINK_RETRIES = int(os.getenv("GUARDIAN_AUDIT_RETRIES", "2"))
-AUDIT_SINK_STRICT = os.getenv("GUARDIAN_AUDIT_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
-AUDIT_SYSLOG_HOST = os.getenv("GUARDIAN_AUDIT_SYSLOG_HOST", "").strip()
-AUDIT_SYSLOG_PORT = int(os.getenv("GUARDIAN_AUDIT_SYSLOG_PORT", "514"))
-AUDIT_SYSLOG_TIMEOUT_SEC = float(os.getenv("GUARDIAN_AUDIT_SYSLOG_TIMEOUT_SEC", "1.0"))
-AUDIT_SYSLOG_STRICT = os.getenv("GUARDIAN_AUDIT_SYSLOG_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
-AUDIT_SPLUNK_HEC_URL = os.getenv("GUARDIAN_AUDIT_SPLUNK_HEC_URL", "").strip()
-AUDIT_SPLUNK_HEC_TOKEN = os.getenv("GUARDIAN_AUDIT_SPLUNK_HEC_TOKEN", "").strip()
-AUDIT_SPLUNK_INDEX = os.getenv("GUARDIAN_AUDIT_SPLUNK_INDEX", "").strip()
-AUDIT_SPLUNK_SOURCE = os.getenv("GUARDIAN_AUDIT_SPLUNK_SOURCE", "guardian-backend").strip()
-AUDIT_SPLUNK_SOURCETYPE = os.getenv("GUARDIAN_AUDIT_SPLUNK_SOURCETYPE", "_json").strip()
-AUDIT_SPLUNK_STRICT = os.getenv("GUARDIAN_AUDIT_SPLUNK_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
-AUDIT_DATADOG_LOGS_URL = os.getenv("GUARDIAN_AUDIT_DATADOG_LOGS_URL", "https://http-intake.logs.datadoghq.com/api/v2/logs").strip()
-AUDIT_DATADOG_API_KEY = os.getenv("GUARDIAN_AUDIT_DATADOG_API_KEY", "").strip()
-AUDIT_DATADOG_SERVICE = os.getenv("GUARDIAN_AUDIT_DATADOG_SERVICE", "guardian-backend").strip()
-AUDIT_DATADOG_SOURCE = os.getenv("GUARDIAN_AUDIT_DATADOG_SOURCE", "guardianai").strip()
-AUDIT_DATADOG_TAGS = os.getenv("GUARDIAN_AUDIT_DATADOG_TAGS", "env:prod,app:guardianai").strip()
-AUDIT_DATADOG_STRICT = os.getenv("GUARDIAN_AUDIT_DATADOG_STRICT", "false").strip().lower() in {"1", "true", "yes", "on"}
-ENFORCE_HTTPS = os.getenv("GUARDIAN_ENFORCE_HTTPS", "false").strip().lower() in {"1", "true", "yes", "on"}
-secure = ENFORCE_HTTPS or os.getenv("GUARDIAN_ENV") == "production"
-TLS_CERT_FILE = os.getenv("GUARDIAN_TLS_CERT_FILE", "").strip()
-TLS_KEY_FILE = os.getenv("GUARDIAN_TLS_KEY_FILE", "").strip()
-METRICS_ENABLED = os.getenv("GUARDIAN_METRICS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
-BACKEND_HOST = os.getenv("GUARDIAN_BACKEND_HOST", "0.0.0.0").strip() or "0.0.0.0"
-BACKEND_PORT = int(os.getenv("GUARDIAN_BACKEND_PORT", "8001"))
-BILLING_MODE = os.getenv("GUARDIAN_BILLING_MODE", "mock").strip().lower() or "mock"
-PUBLIC_BASE_URL = os.getenv("GUARDIAN_PUBLIC_URL", "http://localhost:8001")
-CHECKOUT_SUCCESS_URL = os.getenv("GUARDIAN_CHECKOUT_SUCCESS_URL", f"{PUBLIC_BASE_URL}/site/success").strip() or f"{PUBLIC_BASE_URL}/site/success"
-CHECKOUT_CANCEL_URL = os.getenv("GUARDIAN_CHECKOUT_CANCEL_URL", f"{PUBLIC_BASE_URL}/site/cancel").strip() or f"{PUBLIC_BASE_URL}/site/cancel"
-STRIPE_SECRET_KEY = os.getenv("GUARDIAN_STRIPE_SECRET_KEY", "").strip()
-STRIPE_PRICE_STARTER = os.getenv("GUARDIAN_STRIPE_PRICE_STARTER", "").strip()
-STRIPE_PRICE_PRO = os.getenv("GUARDIAN_STRIPE_PRICE_PRO", "").strip()
-STRIPE_PRICE_ENTERPRISE = os.getenv("GUARDIAN_STRIPE_PRICE_ENTERPRISE", "").strip()
-CRYPTO_API_KEY = os.getenv("GUARDIAN_CRYPTO_API_KEY", "").strip()
-ETHERSCAN_API_KEY = os.getenv("GUARDIAN_ETHERSCAN_API_KEY", "").strip()
-BACKEND_TOKEN = os.getenv("GUARDIAN_BACKEND_TOKEN", "").strip()
-SERVICE_AUTH_TOKEN = os.getenv("GUARDIAN_SERVICE_AUTH_TOKEN", "").strip()
-SERVICE_ID = os.getenv("GUARDIAN_SERVICE_ID", "guardian-proxy").strip() or "guardian-proxy"
-SIEM_ENABLED = os.getenv("GUARDIAN_SIEM_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
-SIEM_FORMAT = os.getenv("GUARDIAN_SIEM_FORMAT", "json").strip() or "json"
-SIEM_OUT = os.getenv("GUARDIAN_SIEM_OUT", "artifacts/evidence/siem_alerts.log").strip() or "artifacts/evidence/siem_alerts.log"
-_raw_agentic_secret = os.getenv("GUARDIAN_AGENTIC_ATTESTATION_SECRET", "").strip()
-if _raw_agentic_secret:
-    AGENTIC_ATTESTATION_SECRET = _raw_agentic_secret
-else:
-    AGENTIC_ATTESTATION_SECRET = secrets.token_urlsafe(64)
-    logger.warning("GUARDIAN_AGENTIC_ATTESTATION_SECRET not set. Using ephemeral key. NOT suitable for production.")
-DP_ENABLED = os.getenv("GUARDIAN_DP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
-DP_EPSILON = float(os.getenv("GUARDIAN_DP_EPSILON", "1.0"))
-DP_SEED = int(os.getenv("GUARDIAN_DP_SEED", "7"))
-APP_START_TIME = time.time()
-if _env_mode == "production":
+
+
+def _is_production_env() -> bool:
+    env = os.getenv("GUARDIAN_ENV", _env_mode).strip().lower()
+    return env in {"production", "prod"}
+
+
+if _env_mode == "production" and not _is_testing_env():
     if not _raw_admin_pass:
         logger.error("CRITICAL SECURITY ERROR: GUARDIAN_ADMIN_PASS must be explicitly configured in production mode! Refusing to start.")
         sys.exit(1)
@@ -323,6 +287,10 @@ if _env_mode == "production":
     if not TELEMETRY_REQUIRE_API_KEY and not BACKEND_TOKEN:
         logger.error("CRITICAL SECURITY ERROR: Telemetry API key enforcement is disabled and no backend token is configured in production mode! Refusing to start.")
         sys.exit(1)
+    if RATE_LIMIT_BACKEND != "redis" or not RATE_LIMIT_REDIS_URL:
+        logger.error("CRITICAL SECURITY ERROR: GUARDIAN_RATE_LIMIT_BACKEND=redis and GUARDIAN_RATE_LIMIT_REDIS_URL must be configured in production mode! Refusing to start.")
+        sys.exit(1)
+
 
 app = FastAPI(title="GuardianAI Backend v1.0")
 
@@ -336,28 +304,6 @@ app.add_middleware(
 )
 app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=1048576)
 
-DB_PATH = os.getenv("GUARDIAN_DB_PATH", os.getenv("DB_PATH", "guardian.db"))
-PROXY_EVENT_TYPES = (
-    "allowed_request",
-    "injection",
-    "injection_ai",
-    "threat_feed_match",
-    "obfuscation",
-    "rate_limit",
-    "data_leak",
-    "data_redaction",
-    "redaction",
-    "admin_action",
-)
-BLOCKED_EVENT_TYPES = (
-    "injection",
-    "injection_ai",
-    "threat_feed_match",
-    "obfuscation",
-    "rate_limit",
-    "data_leak",
-)
-
 _rate_limit_lock = threading.Lock()
 _rate_limit_state: Dict[str, List[float]] = {}
 _auth_lockout_lock = threading.Lock()
@@ -368,77 +314,12 @@ _metrics_total_latency_ms = 0.0
 _metrics_latency_samples = 0
 _metrics_status_counts: Dict[int, int] = {}
 _metrics_recent_requests = deque()
-# Local roles for the SaaS Admin Dashboard: admin, auditor, user.
-# Note: This set represents the single active authorization layer for the backend.
-# The legacy auth proxy layer in backend/auth.py and backend/rbac.py has been stripped
-# of its runtime access gates and now serves purely as cryptographic utilities
-# (password hashing and JWT decode primitives).
-_valid_roles: Set[str] = {"admin", "auditor", "user"}
 _redis_client: Any | None = None
 _redis_script_sha: str | None = None
 _redis_init_attempted = False
 _redis_fallback_logged_at = 0.0
 _siem_router_instance: SiemRouter | None = None
 
-_REDIS_RATE_LIMIT_SCRIPT = """
-local key = KEYS[1]
-local now = tonumber(ARGV[1])
-local window_ms = tonumber(ARGV[2])
-local limit = tonumber(ARGV[3])
-local member = ARGV[4]
-redis.call("ZREMRANGEBYSCORE", key, 0, now - window_ms)
-local count = redis.call("ZCARD", key)
-if count >= limit then
-    return 0
-end
-redis.call("ZADD", key, now, member)
-redis.call("EXPIRE", key, math.ceil(window_ms / 1000) + 5)
-return 1
-"""
-
-
-def _build_auth_users() -> Dict[str, Dict[str, str]]:
-    users: Dict[str, Dict[str, str]] = {}
-    users[ADMIN_USER] = {"password": hash_password(ADMIN_PASS), "role": "admin", "org_id": "org_guardian"}
-    if AUDITOR_USER and AUDITOR_PASS:
-        users[AUDITOR_USER] = {"password": hash_password(AUDITOR_PASS), "role": "auditor", "org_id": "org_guardian"}
-    if USER_USER and USER_PASS:
-        users[USER_USER] = {"password": hash_password(USER_PASS), "role": "user", "org_id": "org_default"}
-    return users
-
-
-_auth_users = _build_auth_users()
-
-
-def _parse_limit_overrides(raw_value: str, label: str) -> Dict[str, int]:
-    if not raw_value:
-        return {}
-    try:
-        parsed = json.loads(raw_value)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Invalid %s JSON override config: %s", label, exc)
-        return {}
-    if not isinstance(parsed, dict):
-        logger.warning("Invalid %s JSON override config: expected object", label)
-        return {}
-    normalized: Dict[str, int] = {}
-    for key, value in parsed.items():
-        if not isinstance(key, str):
-            continue
-        try:
-            limit = int(value)
-        except Exception:  # noqa: BLE001
-            continue
-        if limit > 0:
-            normalized[key.strip()] = limit
-    return normalized
-
-
-_user_rate_limit_overrides = _parse_limit_overrides(USER_RATE_LIMITS_JSON, "GUARDIAN_USER_RATE_LIMITS_JSON")
-_telemetry_rate_limit_overrides = _parse_limit_overrides(
-    TELEMETRY_KEY_RATE_LIMITS_JSON,
-    "GUARDIAN_TELEMETRY_KEY_RATE_LIMITS_JSON",
-)
 
 
 
@@ -485,6 +366,27 @@ def _decode_jwt(token: str) -> Dict[str, Any]:
 
 
 def _enforce_rate_limit(identity: str, limit_per_minute: int):
+    if _is_production_env() and not _is_testing_env():
+        if not RATE_LIMIT_REDIS_URL or RATE_LIMIT_BACKEND != "redis":
+            logger.error("Rate limiting error: Redis is required in production.")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiter configuration error: Redis is required in production",
+            )
+        client = _get_redis_client()
+        if client is None:
+            logger.error("Rate limiting error: Redis client unavailable.")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiter unavailable: Redis connection failed",
+            )
+        if not _enforce_rate_limit_distributed(identity, limit_per_minute):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiter unavailable",
+            )
+        return
+
     if _enforce_rate_limit_distributed(identity, limit_per_minute):
         return
 
@@ -838,15 +740,8 @@ def _build_metrics_payload() -> str:
 
 
 def _check_db_health() -> tuple[bool, str]:
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        cur.execute("SELECT 1")
-        cur.fetchone()
-        conn.close()
-        return True, "ok"
-    except Exception as exc:  # noqa: BLE001
-        return False, str(exc)
+    from backend.database.schema import check_db_health as _schema_check_db_health
+    return _schema_check_db_health(DB_PATH)
 
 
 def _to_ms(value):
@@ -897,230 +792,24 @@ def _write_siem_alert(event: "SecurityEvent") -> None:
     )
     router.enqueue(alert)
 
-def init_db():
-    db_dir = os.path.dirname(DB_PATH)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    cur = conn.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS security_events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        guardian_id TEXT,
-        tenant_id TEXT DEFAULT 'default',
-        event_type TEXT,
-        severity TEXT,
-        details TEXT,
-        timestamp REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS analytics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tenant_id TEXT DEFAULT 'default',
-        path TEXT,
-        latency_ms REAL,
-        timestamp REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS audit_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        guardian_id TEXT,
-        action TEXT,
-        user TEXT,
-        details TEXT,
-        timestamp REAL,
-        signature TEXT -- Cryptographic proof (simulated)
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS api_keys (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        key_name TEXT UNIQUE,
-        key_prefix TEXT,
-        key_hash TEXT UNIQUE,
-        is_active INTEGER DEFAULT 1,
-        created_by TEXT,
-        created_at REAL,
-        last_used_at REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS revoked_tokens (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        jti TEXT UNIQUE,
-        revoked_by TEXT,
-        revoked_at REAL,
-        expires_at REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS issued_tokens (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        jti TEXT UNIQUE,
-        subject TEXT,
-        role TEXT,
-        issued_at REAL,
-        expires_at REAL,
-        revoked_at REAL,
-        revoked_by TEXT,
-        revoke_reason TEXT
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS audit_delivery_failures (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sink_type TEXT,
-        payload TEXT,
-        error TEXT,
-        retry_count INTEGER DEFAULT 0,
-        created_at REAL,
-        last_attempt_at REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS customers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE,
-        tenant_name TEXT,
-        created_at REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id TEXT UNIQUE,
-        customer_email TEXT,
-        tenant_name TEXT,
-        plan TEXT,
-        payment_method TEXT,
-        provider TEXT,
-        status TEXT,
-        checkout_url TEXT,
-        provider_transaction_id TEXT,
-        created_at REAL,
-        updated_at REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS licenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id TEXT UNIQUE,
-        machine_id TEXT,
-        license_key TEXT,
-        status TEXT,
-        issued_at REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS lockout_state (
-        identity TEXT PRIMARY KEY,
-        failed_count INTEGER,
-        locked_until REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS agentic_agent_keys (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        agent_id TEXT NOT NULL,
-        key_id TEXT NOT NULL,
-        key_secret_hash TEXT NOT NULL,
-        key_secret_ciphertext TEXT NOT NULL,
-        cert_fingerprints_json TEXT,
-        status TEXT DEFAULT 'active',
-        created_by TEXT,
-        created_at REAL,
-        rotated_at REAL,
-        revoked_at REAL,
-        revoked_by TEXT,
-        revoke_reason TEXT,
-        UNIQUE(agent_id, key_id)
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS agentic_revocations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        revocation_type TEXT NOT NULL,
-        agent_id TEXT,
-        key_id TEXT,
-        reason TEXT,
-        revoked_by TEXT,
-        revoked_at REAL
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS agentic_execution_grants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        execution_id TEXT UNIQUE NOT NULL,
-        agent_id TEXT,
-        parent_agent TEXT,
-        scopes_json TEXT,
-        tools_json TEXT,
-        expires_at REAL,
-        created_by TEXT,
-        created_at REAL,
-        revoked_at REAL,
-        revoked_by TEXT,
-        revoke_reason TEXT
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS agentic_policy_edges (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        parent_agent TEXT NOT NULL,
-        child_agent TEXT NOT NULL,
-        scopes_json TEXT,
-        tools_json TEXT,
-        max_hops INTEGER,
-        created_by TEXT,
-        created_at REAL,
-        UNIQUE(parent_agent, child_agent)
-    )
-    """)
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS agentic_trace_hashes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trace_hash TEXT UNIQUE NOT NULL,
-        agent_id TEXT,
-        execution_id TEXT,
-        first_seen_at REAL
-    )
-    """)
-    # Backward-compatible schema upgrades for existing installations.
-    cur.execute("PRAGMA table_info(security_events)")
-    security_cols = {row[1] for row in cur.fetchall()}
-    if "tenant_id" not in security_cols:
-        cur.execute("ALTER TABLE security_events ADD COLUMN tenant_id TEXT DEFAULT 'default'")
-    cur.execute("PRAGMA table_info(analytics)")
-    analytics_cols = {row[1] for row in cur.fetchall()}
-    if "tenant_id" not in analytics_cols:
-        cur.execute("ALTER TABLE analytics ADD COLUMN tenant_id TEXT DEFAULT 'default'")
-    cur.execute("PRAGMA table_info(audit_logs)")
-    audit_cols = {row[1] for row in cur.fetchall()}
-    if "prev_hash" not in audit_cols:
-        cur.execute("ALTER TABLE audit_logs ADD COLUMN prev_hash TEXT")
-    if "entry_hash" not in audit_cols:
-        cur.execute("ALTER TABLE audit_logs ADD COLUMN entry_hash TEXT")
-    cur.execute("PRAGMA table_info(agentic_agent_keys)")
-    agentic_key_cols = {row[1] for row in cur.fetchall()}
-    if "cert_fingerprints_json" not in agentic_key_cols:
-        cur.execute("ALTER TABLE agentic_agent_keys ADD COLUMN cert_fingerprints_json TEXT")
-    conn.commit()
-    conn.close()
-    logger.info("SQLite DB initialized at %s", DB_PATH)
+def init_db(db_path: Optional[str] = None):
+    from backend.database.schema import init_db as _schema_init_db
+    return _schema_init_db(db_path or DB_PATH)
+
+def get_db_connection(db_path: Optional[str] = None, timeout: float = 10.0):
+    from backend.database.schema import get_db_connection as _schema_get_db_connection
+    return _schema_get_db_connection(db_path or DB_PATH, timeout)
+
+def get_default_db_path() -> str:
+    from backend.database.schema import get_default_db_path as _schema_get_default_db_path
+    return _schema_get_default_db_path()
+
+def run_migrations(db_path: Optional[str] = None) -> None:
+    from backend.database.schema import run_migrations as _schema_run_migrations
+    return _schema_run_migrations(db_path or DB_PATH)
 
 init_db()
 
-class SecurityEvent(BaseModel):
-    guardian_id: str = Field(..., max_length=256)
-    tenant_id: str = Field("default", max_length=512)
-    event_type: str = Field(..., max_length=128)
-    severity: str = Field(..., max_length=512)
-    details: dict = Field(default_factory=dict)
-    timestamp: float = 0.0
 
 # WebSocket Connection Manager
 class ConnectionManager:
@@ -1455,6 +1144,25 @@ def _auth_lockout_identity(request: Request, username: str | None) -> str:
 
 
 def _get_lockout_entry(identity: str) -> Dict[str, float]:
+    if _is_production_env() and not _is_testing_env():
+        client = _get_redis_client()
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable: Redis is required in production",
+            )
+        try:
+            val = client.get(f"guardian:lockout:{identity}")
+            if val:
+                return json.loads(val)
+            return {"failed": 0.0, "locked_until": 0.0}
+        except Exception as exc:
+            logger.error("Redis error reading lockout: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable",
+            )
+
     client = _get_redis_client()
     if client is not None:
         try:
@@ -1479,6 +1187,25 @@ def _get_lockout_entry(identity: str) -> Dict[str, float]:
     return _auth_lockout_state.get(identity, {"failed": 0.0, "locked_until": 0.0})
 
 def _set_lockout_entry(identity: str, failed: float, locked_until: float):
+    if _is_production_env() and not _is_testing_env():
+        client = _get_redis_client()
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable: Redis is required in production",
+            )
+        try:
+            val = json.dumps({"failed": failed, "locked_until": locked_until})
+            ttl = int(max(86400, (locked_until - time.time()) + 3600))
+            client.set(f"guardian:lockout:{identity}", val, ex=ttl)
+            return
+        except Exception as exc:
+            logger.error("Redis error writing lockout: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable",
+            )
+
     client = _get_redis_client()
     if client is not None:
         try:
@@ -1506,6 +1233,23 @@ def _set_lockout_entry(identity: str, failed: float, locked_until: float):
     _auth_lockout_state[identity] = {"failed": failed, "locked_until": locked_until}
 
 def _delete_lockout_entry(identity: str):
+    if _is_production_env() and not _is_testing_env():
+        client = _get_redis_client()
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable: Redis is required in production",
+            )
+        try:
+            client.delete(f"guardian:lockout:{identity}")
+            return
+        except Exception as exc:
+            logger.error("Redis error deleting lockout: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable",
+            )
+
     client = _get_redis_client()
     if client is not None:
         try:
@@ -1525,6 +1269,28 @@ def _delete_lockout_entry(identity: str):
     _auth_lockout_state.pop(identity, None)
 
 def _get_all_lockout_entries() -> Dict[str, Dict[str, float]]:
+    if _is_production_env() and not _is_testing_env():
+        client = _get_redis_client()
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable: Redis is required in production",
+            )
+        try:
+            entries = {}
+            for key in client.scan_iter("guardian:lockout:*"):
+                identity = key.replace("guardian:lockout:", "", 1)
+                val = client.get(key)
+                if val:
+                    entries[identity] = json.loads(val)
+            return entries
+        except Exception as exc:
+            logger.error("Redis error scanning lockouts: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable",
+            )
+
     client = _get_redis_client()
     if client is not None:
         try:
@@ -1552,6 +1318,24 @@ def _get_all_lockout_entries() -> Dict[str, Dict[str, float]]:
     return dict(_auth_lockout_state)
 
 def _clear_all_lockout_entries():
+    if _is_production_env() and not _is_testing_env():
+        client = _get_redis_client()
+        if client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable: Redis is required in production",
+            )
+        try:
+            for key in client.scan_iter("guardian:lockout:*"):
+                client.delete(key)
+            return
+        except Exception as exc:
+            logger.error("Redis error clearing lockouts: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication lockout service unavailable",
+            )
+
     client = _get_redis_client()
     if client is not None:
         try:
@@ -1570,6 +1354,7 @@ def _clear_all_lockout_entries():
             
     global _auth_lockout_state
     _auth_lockout_state.clear()
+
 
 
 def _auth_lockout_retry_after_seconds(identity: str) -> int:
@@ -1715,469 +1500,7 @@ def _clear_auth_lockouts(
         }
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str
-    expires_in: int
-    user: str
-    role: str
-
-
-class CreateApiKeyRequest(BaseModel):
-    key_name: str
-
-
-class ApiKeyResponse(BaseModel):
-    id: int
-    key_name: str
-    key_prefix: str
-    is_active: bool
-    created_by: str
-    created_at: float
-    last_used_at: float | None = None
-
-
-class CreatedApiKeyResponse(ApiKeyResponse):
-    api_key: str
-
-
-class RevokeTokenResponse(BaseModel):
-    status: str
-    revoked_jti: str
-    revoked_by: str
-
-
-class RevokedTokenEntryResponse(BaseModel):
-    jti: str
-    revoked_by: str
-    revoked_at: float
-    expires_at: float
-    expired: bool
-
-
-class PruneRevokedTokensResponse(BaseModel):
-    deleted: int
-    remaining: int
-    expired_only: bool
-
-
-class AuthSessionResponse(BaseModel):
-    jti: str
-    subject: str
-    role: str
-    issued_at: float
-    expires_at: float
-    revoked_at: float | None = None
-    revoked_by: str | None = None
-    revoke_reason: str | None = None
-    active: bool
-
-
-class RevokeUserSessionsRequest(BaseModel):
-    username: str
-    active_only: bool = True
-    reason: str | None = None
-
-
-class RevokeUserSessionsResponse(BaseModel):
-    target_user: str
-    matched: int
-    revoked: int
-    already_revoked: int
-    active_only: bool
-    reason: str | None = None
-
-
-class RevokeSelfSessionsRequest(BaseModel):
-    active_only: bool = True
-    exclude_current: bool = True
-    reason: str | None = None
-
-
-class RevokeSelfSessionsResponse(BaseModel):
-    target_user: str
-    matched: int
-    revoked: int
-    already_revoked: int
-    excluded_current: int
-    active_only: bool
-    exclude_current: bool
-    reason: str | None = None
-
-
-class RevokeSelfSessionByJtiRequest(BaseModel):
-    jti: str
-    reason: str | None = None
-
-
-class RevokeSelfSessionByJtiResponse(BaseModel):
-    jti: str
-    target_user: str
-    revoked: bool
-    already_revoked: bool
-    reason: str | None = None
-
-
-class RevokeAllSessionsRequest(BaseModel):
-    active_only: bool = True
-    exclude_self: bool = True
-    exclude_usernames: List[str] | None = None
-    reason: str | None = None
-
-
-class RevokeAllSessionsResponse(BaseModel):
-    matched: int
-    revoked: int
-    already_revoked: int
-    excluded: int
-    active_only: bool
-    exclude_self: bool
-    excluded_users: List[str]
-    reason: str | None = None
-
-
-class RevokeSessionByJtiRequest(BaseModel):
-    jti: str
-    reason: str | None = None
-
-
-class RevokeSessionByJtiResponse(BaseModel):
-    jti: str
-    target_user: str
-    revoked: bool
-    already_revoked: bool
-    reason: str | None = None
-
-
-class AuthLockoutEntryResponse(BaseModel):
-    identity: str
-    username: str
-    source: str
-    failed_attempts: int
-    locked_until: float | None = None
-    retry_after_sec: int
-    active: bool
-
-
-class ClearAuthLockoutsRequest(BaseModel):
-    clear_all: bool = False
-    identity: str | None = None
-    username: str | None = None
-    source: str | None = None
-
-
-class ClearAuthLockoutsResponse(BaseModel):
-    cleared: int
-    remaining: int
-    scope: str
-
-
-class WhoAmIResponse(BaseModel):
-    user: str
-    role: str
-    auth_type: str
-    permissions: List[str]
-
-
-class TelemetryIngestResponse(BaseModel):
-    status: str
-    event_id: str
-
-
-class BillingCheckoutRequest(BaseModel):
-    plan: str
-    payment_method: str
-    customer_email: str | None = None
-    tenant_name: str | None = None
-
-
-class BillingConfirmRequest(BaseModel):
-    order_id: str
-    provider_transaction_id: str
-    provider_status: str
-    machine_id: str | None = None
-
-
-class AnalyticsResponse(BaseModel):
-    total_requests: int
-    total_blocked: int
-    avg_latency_ms: float
-    avg_guardian_overhead_ms: float
-    avg_upstream_ms: float
-    global_block_rate_pct: float
-    recent_block_rate_pct: float
-    path_breakdown: Dict[str, int]
-    fast_path_pct: float
-    differential_privacy: Dict[str, Any] | None = None
-
-
-class HealthDatabaseComponent(BaseModel):
-    ok: bool
-    detail: str
-
-
-class HealthComponents(BaseModel):
-    database: HealthDatabaseComponent
-    metrics_enabled: bool
-    https_enforced: bool
-    telemetry_requires_api_key: bool
-    audit_sink_configured: bool
-    auth_lockout_enabled: bool
-
-
-class HealthResponse(BaseModel):
-    status: str
-    timestamp: float
-    uptime_sec: float
-    components: HealthComponents
-
-
-class SecurityEventResponse(BaseModel):
-    id: int
-    guardian_id: str
-    tenant_id: str = "default"
-    event_type: str
-    severity: str
-    details: Dict[str, Any]
-    timestamp: float
-
-
-class AuditLogEntryResponse(BaseModel):
-    id: int
-    guardian_id: str
-    action: str
-    user: str
-    details: str
-    timestamp: float
-    signature: str
-    prev_hash: str | None = None
-    entry_hash: str | None = None
-
-
-class AuditVerifyResponse(BaseModel):
-    ok: bool
-    entries: int
-    message: str | None = None
-    failed_id: int | None = None
-    reason: str | None = None
-
-
-class AuditDeliveryFailureResponse(BaseModel):
-    id: int
-    sink_type: str
-    payload: Dict[str, Any]
-    error: str
-    retry_count: int
-    created_at: float
-    last_attempt_at: float
-
-
-class RetryFailuresResponse(BaseModel):
-    retried: int
-    resolved: int
-    failed: int
-
-
-class AuditSummaryResponse(BaseModel):
-    timestamp: float
-    total_entries: int
-    hashed_entries: int
-    legacy_unhashed_entries: int
-    recent_admin_actions_24h: int
-    failed_deliveries_total: int
-    failed_deliveries_by_sink: Dict[str, int]
-    chain_ok: bool
-    chain_entries_checked: int
-    chain_message: str | None = None
-    chain_failed_id: int | None = None
-    chain_reason: str | None = None
-
-
-class AgenticKeyCreateRequest(BaseModel):
-    agent_id: str
-    key_id: str | None = None
-    cert_fingerprints: List[str] = []
-
-
-class AgenticKeyResponse(BaseModel):
-    id: int
-    agent_id: str
-    key_id: str
-    key_secret_hash: str
-    cert_fingerprints: List[str] = []
-    status: str
-    created_by: str | None = None
-    created_at: float
-    rotated_at: float | None = None
-    revoked_at: float | None = None
-    revoked_by: str | None = None
-    revoke_reason: str | None = None
-
-
-class CreatedAgenticKeyResponse(AgenticKeyResponse):
-    key_secret: str
-
-
-class AgenticRevokeRequest(BaseModel):
-    agent_id: str
-    key_id: str | None = None
-    reason: str | None = None
-
-
-class AgenticExecutionGrantRequest(BaseModel):
-    execution_id: str
-    agent_id: str | None = None
-    parent_agent: str | None = None
-    scopes: List[str] = []
-    tools: List[str] = []
-    ttl_seconds: int = 300
-
-
-class AgenticExecutionGrantResponse(BaseModel):
-    id: int
-    execution_id: str
-    agent_id: str | None = None
-    parent_agent: str | None = None
-    scopes: List[str]
-    tools: List[str]
-    expires_at: float
-    created_by: str | None = None
-    created_at: float
-    revoked_at: float | None = None
-    revoked_by: str | None = None
-    revoke_reason: str | None = None
-
-
-class AgenticPolicyEdgeRequest(BaseModel):
-    parent_agent: str
-    child_agent: str
-    scopes: List[str] = []
-    tools: List[str] = []
-    max_hops: int | None = None
-
-
-class AgenticPolicyEdgeResponse(BaseModel):
-    id: int
-    parent_agent: str
-    child_agent: str
-    scopes: List[str]
-    tools: List[str]
-    max_hops: int | None = None
-    created_by: str | None = None
-    created_at: float
-
-
-class AgenticMetricsResponse(BaseModel):
-    timestamp: float
-    hop_policy_violations_blocked: int
-    unauthorized_mcp_server_attempts: int
-    scope_escalation_attempts_blocked: int
-    agent_revocations_total: int
-    active_agent_keys: int
-    active_execution_grants: int
-    mean_time_to_revoke_seconds: float | None = None
-
-
-class AgenticConfigSnapshotResponse(BaseModel):
-    generated_at: float
-    agent_attestation_keys: Dict[str, Dict[str, str]]
-    agent_cert_fingerprints: Dict[str, List[str]]
-    revoked_agent_ids: List[str]
-    revoked_agent_key_ids: List[str]
-    cross_agent_policy_graph: Dict[str, Any]
-    execution_grants: Dict[str, Any]
-    trace_replay_cache: List[str]
-
-
-class ComplianceControlResponse(BaseModel):
-    control: str
-    status: str
-    detail: str
-
-
-class ComplianceSummaryResponse(BaseModel):
-    passed: int
-    warnings: int
-    failed: int
-
-
-class ComplianceReportResponse(BaseModel):
-    status: str
-    timestamp: float
-    summary: ComplianceSummaryResponse
-    controls: List[ComplianceControlResponse]
-
-
-class RbacEndpointPolicyResponse(BaseModel):
-    method: str
-    path: str
-    allowed_roles: List[str]
-    permission: str
-
-
-class RbacPolicyResponse(BaseModel):
-    generated_at: float
-    roles: Dict[str, List[str]]
-    endpoints: List[RbacEndpointPolicyResponse]
-
-
-_ROLE_PERMISSIONS: Dict[str, List[str]] = {
-    "admin": [
-        "auth:issue",
-        "auth:revoke:self",
-        "auth:revocations:read",
-        "auth:revocations:manage",
-        "auth:sessions:read",
-        "auth:sessions:revoke_self",
-        "auth:sessions:revoke_self_jti",
-        "auth:sessions:revoke_user",
-        "auth:sessions:revoke_all",
-        "auth:sessions:revoke_jti",
-        "auth:lockouts:read",
-        "auth:lockouts:manage",
-        "api_keys:manage",
-        "audit:read",
-        "audit:verify",
-        "audit:retry",
-        "agentic:manage",
-        "agentic:read",
-        "compliance:read",
-        "rbac:read",
-        "events:read",
-        "analytics:read",
-        "export:read",
-        "telemetry:ingest",
-    ],
-    "auditor": [
-        "auth:issue",
-        "auth:revoke:self",
-        "auth:revocations:read",
-        "auth:sessions:read",
-        "auth:sessions:revoke_self",
-        "auth:sessions:revoke_self_jti",
-        "auth:lockouts:read",
-        "api_keys:read",
-        "audit:read",
-        "audit:verify",
-        "agentic:read",
-        "compliance:read",
-        "rbac:read",
-        "events:read",
-        "analytics:read",
-        "export:read",
-        "telemetry:ingest",
-    ],
-    "user": [
-        "auth:issue",
-        "auth:revoke:self",
-        "auth:sessions:revoke_self",
-        "auth:sessions:revoke_self_jti",
-        "events:read",
-        "analytics:read",
-        "export:read",
-        "telemetry:ingest",
-    ],
-}
+# Models and _ROLE_PERMISSIONS extracted to backend.models and backend.config
 
 
 def _permissions_for_role(role: str) -> List[str]:
@@ -2304,66 +1627,7 @@ def _build_audit_summary() -> Dict[str, Any]:
         "chain_reason": chain_result.get("reason"),
     }
 
-
-def _agentic_secret_stream(length: int) -> bytes:
-    seed = AGENTIC_ATTESTATION_SECRET.encode("utf-8")
-    out = b""
-    counter = 0
-    while len(out) < length:
-        out += hashlib.sha256(seed + counter.to_bytes(4, "big")).digest()
-        counter += 1
-    return out[:length]
-
-
-def _get_aead_key():
-    hkdf = HKDF(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=b"guardian_agentic_v2",
-        info=b"agentic_attestation_key",
-    )
-    return hkdf.derive(AGENTIC_ATTESTATION_SECRET.encode("utf-8"))
-
-def _agentic_encrypt_secret(raw_secret: str) -> str:
-    key = _get_aead_key()
-    aesgcm = AESGCM(key)
-    nonce = os.urandom(12)
-    raw = raw_secret.encode("utf-8")
-    ct = aesgcm.encrypt(nonce, raw, None)
-    return "v2:" + base64.urlsafe_b64encode(nonce + ct).decode("ascii")
-
-def _agentic_decrypt_secret(ciphertext: str) -> str:
-    if ciphertext.startswith("v2:"):
-        data = base64.urlsafe_b64decode(ciphertext[3:].encode("ascii"))
-        nonce = data[:12]
-        ct = data[12:]
-        key = _get_aead_key()
-        aesgcm = AESGCM(key)
-        try:
-            return aesgcm.decrypt(nonce, ct, None).decode("utf-8")
-        except Exception:
-            raise ValueError("Decryption failed")
-    else:
-        if _env_mode == "production":
-            logger.critical("SECURITY ALERT: Rejecting legacy unauthenticated XOR stream cipher secret in production mode")
-            raise ValueError("Legacy unauthenticated secret format rejected in production mode")
-        logger.warning("Decrypting legacy unauthenticated XOR stream secret. Rotate to v2 (AES-GCM).")
-        encrypted = base64.urlsafe_b64decode(ciphertext.encode("ascii"))
-        stream = _agentic_secret_stream(len(encrypted))
-        raw = bytes(a ^ b for a, b in zip(encrypted, stream))
-        return raw.decode("utf-8")
-
-
-def _hash_agentic_secret(raw_secret: str) -> str:
-    return hmac.new(
-        AGENTIC_ATTESTATION_SECRET.encode("utf-8"),
-        raw_secret.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
-
-def _new_agentic_secret() -> str:
-    return "ga_" + secrets.token_urlsafe(32)
+# Agentic crypto functions extracted to backend.security.crypto and imported above
 
 
 def _normalize_agentic_id(value: str, field_name: str) -> str:
@@ -3607,16 +2871,12 @@ def _build_checkout_url(order_id: str) -> str:
 
 
 
-class BadgeVerificationRequest(BaseModel):
-    badge_data: dict
+# BadgeVerificationRequest imported from backend.models
 
 
 # ---------- CRYPTO AUDIT SCAN ENDPOINT ----------
 
-class ScanRequest(BaseModel):
-    target_url: str
-    target_name: str = ""
-    depth: str = "standard"
+# ScanRequest imported from backend.models
 
 _scan_results_cache: dict = {}
 _scan_jobs_lock = threading.Lock()
@@ -3995,16 +3255,7 @@ def _get_campaign_engine():
     return _campaign_engine
 
 
-class CampaignTargetInput(BaseModel):
-    url: str
-    name: str = ""
-    depth: str = "standard"
-
-
-class CampaignCreateRequest(BaseModel):
-    name: str
-    targets: List[CampaignTargetInput]
-    custom_pack_paths: List[str] = []
+# CampaignTargetInput and CampaignCreateRequest imported from backend.models
 
 
 
@@ -4059,35 +3310,12 @@ def _get_audit_scheduler():
                 _audit_scheduler.start()
     return _audit_scheduler
 
-class ScheduleInput(BaseModel):
-    target_url: str
-    target_name: str
-    interval_seconds: int = 86400
-    scan_mode: str = "standard"
-    webhook_url: Optional[str] = None
-    stream_mode: bool = False
-
-
-
-
-
-class RemediationRequest(BaseModel):
-    scan_id: str
-    vector_ids: List[str]
+# ScheduleInput and RemediationRequest imported from backend.models
 
 
 # ---------- P2: MULTI-CHAIN SMART CONTRACT ANALYZER ----------
 
-class ContractAnalyzeRequest(BaseModel):
-    source_code: str
-    contract_name: str = "UnknownContract"
-    contract_address: Optional[str] = None
-    chain: str = "ethereum"
-
-class ContractOnChainAnalyzeRequest(BaseModel):
-    contract_address: str
-    chain: str = "ethereum"
-    api_key: Optional[str] = None
+# ContractAnalyzeRequest and ContractOnChainAnalyzeRequest imported from backend.models
 
 
 
@@ -4098,13 +3326,7 @@ class ContractOnChainAnalyzeRequest(BaseModel):
 
 # ---------- P2: THREAT INTELLIGENCE & ADDRESS SCREENING ----------
 
-class AddressScreenRequest(BaseModel):
-    address: str
-    chain: str = "bitcoin"
-
-class BatchScreenRequest(BaseModel):
-    addresses: List[str]
-    chain: str = "bitcoin"
+# AddressScreenRequest and BatchScreenRequest imported from backend.models
 
 
 
@@ -4163,22 +3385,7 @@ def _get_passport_verifier():
     return _passport_verifier
 
 
-class PassportIssueRequest(BaseModel):
-    agent_id: str
-    owner_pubkey: str
-    chain_id: str = "monad-testnet"
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class PassportVerifyRequest(BaseModel):
-    agent_id: str
-    requesting_agent_id: Optional[str] = None
-
-
-class CredentialIssueRequest(BaseModel):
-    agent_id: str
-    credential_type: str
-    claims: Optional[Dict[str, Any]] = None
+# PassportIssueRequest, PassportVerifyRequest, CredentialIssueRequest imported from backend.models
 
 
 

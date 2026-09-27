@@ -208,12 +208,12 @@ Blind-stores an encrypted memory record.
 **Request Body:**
 ```json
 {
-  "agent_id": "sentinel-alpha",
+  "agent_id": "guardian-alpha",
   "session_id": "session-101",
   "seq_no": 1,
   "ciphertext_b64": "vA7G4...",
   "iv_b64": "123456789012",
-  "aad": "sentinel-alpha:session-101:1:1789220000",
+  "aad": "guardian-alpha:session-101:1:1789220000",
   "timestamp": 1789220000.0
 }
 ```

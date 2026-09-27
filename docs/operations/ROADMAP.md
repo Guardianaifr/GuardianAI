@@ -135,7 +135,7 @@ Goal: Full OWASP Agentic Top 10 coverage, ahead of all competitors.
 
 18. ~~**SIEM Advanced Packs**~~ ✅ **COMPLETE**
     - ✅ Real-time SIEM async streaming router with CEF/JSON format and dead-letter queue (`backend/siem.py`)
-    - ✅ Microsoft Sentinel CommonSecurityLog mapper with KQL detection rules (`guardian/siem/mapping_packs.py`)
+    - ✅ Microsoft CommonSecurityLog SIEM mapper with KQL detection rules (`guardian/siem/mapping_packs.py`)
     - ✅ Elastic ECS mapper with Kuery detection rule templates (`guardian/siem/mapping_packs.py`)
     - ✅ DLQ replay daemon with exponential backoff, max retry thresholds, and FATAL drop logging (`guardian/siem/dlq_replay.py`)
     - ✅ 11 tests passing (`tests/test_phase5.py`)

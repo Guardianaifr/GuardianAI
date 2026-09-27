@@ -285,7 +285,7 @@ This is no longer just a firewall prototype; it is now a validated security plat
 3. Governance workflow integration:
    - approval ticket sync with your issue tracker/ITSM
 4. SIEM playbook packs:
-   - add vendor-specific mapping presets (Splunk/Sentinel/Elastic) and dead-letter replay job
+   - add vendor-specific mapping presets (Splunk/Microsoft SIEM/Elastic) and dead-letter replay job
 
 ## 11) Mini Roadmap (Finalized and Execution-Ready)
 

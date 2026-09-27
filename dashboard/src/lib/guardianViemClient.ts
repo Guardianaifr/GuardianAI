@@ -1,4 +1,4 @@
-﻿/**
+/**
  * guardianViemClient.ts
  *
  * Creates a GuardianAI-secured Viem WalletClient from a Privy embedded wallet.
@@ -55,7 +55,7 @@ export async function createGuardedViemClient(opts: CreateGuardedClientOptions) 
   const {
     provider,
     agentId,
-    relayerUrl = "http://localhost:8000",
+    relayerUrl = (typeof import.meta !== "undefined" && import.meta.env?.VITE_RELAYER_URL) || "http://localhost:8000",
     failClosed = true,
     getPromptContext,
     getSecurityState,

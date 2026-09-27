@@ -30,7 +30,7 @@ class TestMeraMemoryRoutes:
     def test_store_and_retrieve_encrypted_memory(self, auth_client):
         """Valid encrypted memory blob is blind-stored and retrieved accurately."""
         client, headers = auth_client
-        agent_id = "sentinel-live-01"
+        agent_id = "guardian-live-01"
 
         raw_ciphertext = b"encrypted_payload_bytes_32_chars_long_!"
         raw_iv = b"123456789012"  # Exact 12 bytes
@@ -79,7 +79,7 @@ class TestMeraMemoryRoutes:
         """Missing mandatory fields returns 400 Bad Request."""
         client, headers = auth_client
         incomplete_payload = {
-            "agent_id": "sentinel-01",
+            "agent_id": "guardian-01",
             "session_id": "sess-1",
             # missing ciphertext_b64, iv_b64, aad, timestamp
         }
@@ -91,7 +91,7 @@ class TestMeraMemoryRoutes:
         """Corrupt base64 encoding returns 400."""
         client, headers = auth_client
         corrupt_payload = {
-            "agent_id": "sentinel-01",
+            "agent_id": "guardian-01",
             "session_id": "sess-1",
             "seq_no": 1,
             "ciphertext_b64": "!!!not_valid_base64@@@",
@@ -107,7 +107,7 @@ class TestMeraMemoryRoutes:
         """IV of invalid length (e.g. 16 bytes or 8 bytes) is rejected for AES-GCM."""
         client, headers = auth_client
         wrong_iv_payload = {
-            "agent_id": "sentinel-01",
+            "agent_id": "guardian-01",
             "session_id": "sess-1",
             "seq_no": 1,
             "ciphertext_b64": base64.b64encode(b"ciphertext").decode(),

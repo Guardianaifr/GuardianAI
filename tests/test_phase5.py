@@ -491,15 +491,15 @@ class TestDeepBinaryScanner:
 # ══════════════════════════════════════════════════════════════════════════════
 
 from guardian.siem.mapping_packs import (
-    MicrosoftSentinelMapper,
+    MicrosoftSIEMMapper,
     ElasticECSMapper,
 )
 from guardian.siem.dlq_replay import DLQReplayDaemon, ReplayResult
 
 
-class TestMicrosoftSentinelMapper:
+class TestMicrosoftSIEMMapper:
     def test_basic_mapping(self):
-        mapper = MicrosoftSentinelMapper()
+        mapper = MicrosoftSIEMMapper()
         event = {
             "event_type": "prompt_injection",
             "severity": "high",
@@ -513,20 +513,20 @@ class TestMicrosoftSentinelMapper:
         assert result.Activity == "prompt_injection"
 
     def test_severity_mapping(self):
-        mapper = MicrosoftSentinelMapper()
+        mapper = MicrosoftSIEMMapper()
         for sev, expected in [("info", 1), ("low", 3), ("medium", 5), ("high", 8), ("critical", 10)]:
             result = mapper.map_event({"severity": sev})
             assert result.LogSeverity == expected
 
     def test_to_dict(self):
-        mapper = MicrosoftSentinelMapper()
+        mapper = MicrosoftSIEMMapper()
         result = mapper.map_event({"event_type": "test"})
         d = result.to_dict()
         assert "TimeGenerated" in d
         assert "DeviceVendor" in d
 
     def test_detection_rules(self):
-        rules = MicrosoftSentinelMapper.get_detection_rules()
+        rules = MicrosoftSIEMMapper.get_detection_rules()
         assert len(rules) >= 3
         assert any("Prompt Injection" in r["name"] for r in rules)
         assert any("Jailbreak" in r["name"] for r in rules)
@@ -583,7 +583,7 @@ class TestDLQReplayDaemon:
             max_retries=3,
             base_delay_seconds=10,
         )
-        daemon.add_event({"test": 1}, "sentinel", error="fail", timestamp=0)
+        daemon.add_event({"test": 1}, "microsoft_siem", error="fail", timestamp=0)
 
         # next_retry_ts = 0 + 10 = 10, replay at t=20
         result = daemon.replay_cycle(current_time=20)

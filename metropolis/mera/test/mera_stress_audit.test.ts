@@ -27,7 +27,7 @@ describe('Mera Enclave Hard Stress & Adversarial Audit', () => {
       it(`seals and unseals ${label} with 100% fidelity`, async () => {
         // Generate pseudo-realistic JSON strategy context
         const dummyStrategy = {
-          agentId: 'sentinel-alpha',
+          agentId: 'guardian-alpha',
           timestamp: Date.now(),
           marketConditions: { volatility: 0.24, gasPriceGwei: 52 },
           rebalanceThreshold: 0.0015,
@@ -36,14 +36,14 @@ describe('Mera Enclave Hard Stress & Adversarial Audit', () => {
         const rawJson = JSON.stringify(dummyStrategy);
 
         const startSeal = performance.now();
-        const sealed = await engine.sealMemory('sentinel-alpha', 'session-scale', 1, rawJson, webAuthnClient);
+        const sealed = await engine.sealMemory('guardian-alpha', 'session-scale', 1, rawJson, webAuthnClient);
         const sealDuration = performance.now() - startSeal;
 
         expect(sealed.ciphertext.length).toBeGreaterThan(size);
 
         const startUnseal = performance.now();
         const unsealed = await engine.unsealMemory(
-          'sentinel-alpha',
+          'guardian-alpha',
           sealed.ciphertext,
           sealed.iv,
           sealed.aad,
@@ -55,7 +55,7 @@ describe('Mera Enclave Hard Stress & Adversarial Audit', () => {
         if (!unsealed.poisoned) {
           expect(unsealed.plaintext).toBe(rawJson);
           const parsed = JSON.parse(unsealed.plaintext);
-          expect(parsed.agentId).toBe('sentinel-alpha');
+          expect(parsed.agentId).toBe('guardian-alpha');
         }
 
         // Performance assertions: Even 500 KB unseal should be sub-50ms with WebCrypto

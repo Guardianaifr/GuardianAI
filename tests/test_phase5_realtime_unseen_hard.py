@@ -68,7 +68,7 @@ from guardian.siem.dlq_replay import (
 )
 from guardian.siem.mapping_packs import (
     ElasticECSMapper,
-    MicrosoftSentinelMapper,
+    MicrosoftSIEMMapper,
 )
 from guardian.utils.ssh_manager import SSHTunnelManager
 
@@ -826,10 +826,10 @@ class TestTrustExploitationRealWorldAttacks:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestSIEMMappingPacksAndDLQStress:
-    """Stress tests Microsoft Sentinel, Elastic ECS mappers, and DLQ backoff."""
+    """Stress tests Microsoft SIEM, Elastic ECS mappers, and DLQ backoff."""
 
-    def test_sentinel_bulk_event_mapping_integrity(self):
-        mapper = MicrosoftSentinelMapper()
+    def test_microsoft_siem_bulk_event_mapping_integrity(self):
+        mapper = MicrosoftSIEMMapper()
         severities = ["info", "low", "medium", "high", "critical"]
         for idx, sev in enumerate(severities):
             event = {
@@ -869,7 +869,7 @@ class TestSIEMMappingPacksAndDLQStress:
             base_delay_seconds=10.0,
             backoff_multiplier=2.0,
         )
-        daemon.add_event({"id": "event-101"}, "sentinel", error="HTTP 503", timestamp=100.0)
+        daemon.add_event({"id": "event-101"}, "microsoft_siem", error="HTTP 503", timestamp=100.0)
 
         # Attempt 1 at t=115 -> fails (attempts=1, next_retry=115 + 20 = 135)
         res1 = daemon.replay_cycle(current_time=115.0)

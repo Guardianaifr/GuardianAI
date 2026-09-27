@@ -42,7 +42,7 @@ async function runRealtimeAudit() {
   const clientA = new MockWebAuthnClient({ masterSecret: passkeyMaster });
   const engineA = new GuardianMeraEngine('audit.guardianai.local');
 
-  const agentId = 'sentinel-prod-alpha';
+  const agentId = 'guardian-prod-alpha';
   const t0 = performance.now();
   const identityA = await engineA.deriveAgentIdentity(agentId, clientA);
   const mintLatency = performance.now() - t0;

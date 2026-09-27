@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class DLQEntry:
     """A failed SIEM event awaiting retry."""
     event: Dict[str, Any]
-    target: str  # e.g. "splunk", "sentinel", "elastic", "datadog"
+    target: str  # e.g. "splunk", "microsoft_siem", "elastic", "datadog"
     first_failure_ts: float = 0.0
     last_attempt_ts: float = 0.0
     attempt_count: int = 0

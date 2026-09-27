@@ -73,7 +73,7 @@ Status update:
   - `tests/backend/test_siem_format.py`
 - Remaining expansion:
   - batch replay worker for dead-letter recovery
-  - richer SIEM mapping packs (Splunk/Sentinel/Elastic presets)
+  - richer SIEM mapping packs (Splunk/Microsoft SIEM/Elastic presets)
 
 5. False-Positive Feedback Loop - `completed`
 - Analyst review queue for blocked-but-benign samples.

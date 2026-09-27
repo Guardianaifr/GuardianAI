@@ -52,6 +52,8 @@ tests/scratch_*
 
 # Environment & Secrets
 .env*
+!/.env.example
+!dashboard/.env.example
 .admin_pass
 .coverage
 files/

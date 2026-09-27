@@ -117,7 +117,7 @@
   >
   > *For Category Labs' Mera Bounty, we integrated WebAuthn Passkey PRF. Crucially, we do NOT use the passkey to sign transactions. Instead, we use biometric PRF derivation as the sovereign hardware root of trust.*
   >
-  > *Watch this cross-device simulation: Touching FaceID or TouchID deterministically mints an Ed25519 decentralized identifier for agent `sentinel-alpha`.*
+  > *Watch this cross-device simulation: Touching FaceID or TouchID deterministically mints an Ed25519 decentralized identifier for agent `guardian-alpha`.*
   >
   > *Then, using a separate PRF namespace, it derives an AES-256-GCM key to seal the agent's long-term memory with sequence-bound authenticated data.*
   >

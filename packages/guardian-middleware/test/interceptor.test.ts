@@ -355,7 +355,7 @@ export async function runTests() {
   {
     const store = new MemoryStore();
     const sessionId = "session-mera-test";
-    const agentId = "sentinel-alpha";
+    const agentId = "guardian-alpha";
 
     // Simulate normal memory write
     const writeRes = store.write(sessionId, "Safe strategy context", {

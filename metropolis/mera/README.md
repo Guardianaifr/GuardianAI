@@ -91,7 +91,7 @@ npm run demo
 ```
 
 ### Demonstration Flow:
-1. **[Device A] Mint Identity:** Touch passkey → Deterministically mints Ed25519 DID for agent `sentinel-alpha`.
+1. **[Device A] Mint Identity:** Touch passkey → Deterministically mints Ed25519 DID for agent `guardian-alpha`.
 2. **[Device A] Seal Memory:** Plaintext: `"Rebalance portfolio if price divergence exceeds 0.15%"`. Encrypted with AES-256-GCM. Database receives **only ciphertext**.
 3. **[Device B / Incognito] Cross-Device Restore:** Fresh environment with zero local storage. Passkey evaluates same PRF salts → Reproduces the **exact same DID** and successfully decrypts the strategy context.
 4. **[Attack Simulation] DB Poisoning:** Attacker flips 1 byte in the SQLite ciphertext.

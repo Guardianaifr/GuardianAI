@@ -1,10 +1,10 @@
 """
-SIEM Mapping Packs — Microsoft Sentinel & Elastic (ECS)
+SIEM Mapping Packs — Microsoft Security (CommonSecurityLog) & Elastic (ECS)
 
 Pre-built field mapping classes that translate GuardianAI security events
 into vendor-specific schemas:
 
-  - Microsoft Sentinel: CommonSecurityLog schema with DeviceVendor,
+  - Microsoft SIEM: CommonSecurityLog schema with DeviceVendor,
     DeviceProduct, Activity, LogSeverity, and SourceHostName fields.
   - Elastic (ECS): Elastic Common Schema with @timestamp, event.kind,
     event.category, event.severity, and guardianai namespace fields.
@@ -32,8 +32,8 @@ class GuardianSeverity(str, Enum):
     CRITICAL = "critical"
 
 
-# Sentinel severity: 0-10 scale
-_SENTINEL_SEVERITY: Dict[str, int] = {
+# Microsoft SIEM severity: 0-10 scale
+_MICROSOFT_SIEM_SEVERITY: Dict[str, int] = {
     "info": 1,
     "low": 3,
     "medium": 5,
@@ -51,11 +51,11 @@ _ECS_SEVERITY: Dict[str, int] = {
 }
 
 
-# ── Microsoft Sentinel Mapper ────────────────────────────────────────────────
+# ── Microsoft SIEM Mapper ────────────────────────────────────────────────────
 
 @dataclass
-class SentinelMappedEvent:
-    """A GuardianAI event mapped to Microsoft Sentinel CommonSecurityLog."""
+class MicrosoftSIEMMappedEvent:
+    """A GuardianAI event mapped to Microsoft CommonSecurityLog."""
     TimeGenerated: str
     DeviceVendor: str
     DeviceProduct: str
@@ -86,19 +86,19 @@ class SentinelMappedEvent:
         }
 
 
-class MicrosoftSentinelMapper:
-    """Maps GuardianAI events to Microsoft Sentinel CommonSecurityLog schema."""
+class MicrosoftSIEMMapper:
+    """Maps GuardianAI events to Microsoft CommonSecurityLog schema."""
 
     VENDOR = "GuardianAI"
     PRODUCT = "AISecurityFirewall"
     VERSION = "2.0"
 
-    def map_event(self, event: Dict[str, Any]) -> SentinelMappedEvent:
-        """Map a raw GuardianAI event to Sentinel format."""
+    def map_event(self, event: Dict[str, Any]) -> MicrosoftSIEMMappedEvent:
+        """Map a raw GuardianAI event to CommonSecurityLog format."""
         severity_str = str(event.get("severity", "medium")).lower()
-        severity_num = _SENTINEL_SEVERITY.get(severity_str, 5)
+        severity_num = _MICROSOFT_SIEM_SEVERITY.get(severity_str, 5)
 
-        return SentinelMappedEvent(
+        return MicrosoftSIEMMappedEvent(
             TimeGenerated=event.get("ts_utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
             DeviceVendor=self.VENDOR,
             DeviceProduct=self.PRODUCT,
@@ -120,7 +120,7 @@ class MicrosoftSentinelMapper:
 
     @staticmethod
     def get_detection_rules() -> List[Dict[str, Any]]:
-        """Return pre-built Sentinel KQL detection rule templates."""
+        """Return pre-built KQL detection rule templates."""
         return [
             {
                 "name": "GuardianAI - Prompt Injection Detected",

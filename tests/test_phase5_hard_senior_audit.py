@@ -12,7 +12,7 @@ datasets, real exploit payloads, real Web3 attack vectors, and hardened edge cas
   - Item 15: Pre-Deployment Model Scanning (Pickle RCE, Python 2/3, Safetensors, ONNX, GGUF)
   - Item 16: Human-Agent Trust Exploitation (ASI09, Vanity Address Poisoning, Phishing)
   - Item 17: Agentic Supply Chain + Circuit Breakers (Skill Scanner, Provenance, Circuit Breaker)
-  - Item 18: SIEM Enterprise Packs & DLQ Replay Daemon (Sentinel, ECS, Network Outages)
+  - Item 18: SIEM Enterprise Packs & DLQ Replay Daemon (Microsoft SIEM, ECS, Network Outages)
   - Item 19: SSH Tunnel Manager (Option Injection Defense, Port Bounds, Process Groups)
 """
 
@@ -78,7 +78,7 @@ from guardian.security.supply_chain import (
     build_sbom,
 )
 from guardian.siem.mapping_packs import (
-    MicrosoftSentinelMapper,
+    MicrosoftSIEMMapper,
     ElasticECSMapper,
 )
 from guardian.siem.dlq_replay import (
@@ -553,7 +553,7 @@ class TestItem18SIEMSeniorAudit:
             base_delay_seconds=100.0,
         )
         for i in range(5):
-            daemon.add_event({"id": f"evt-{i}"}, "sentinel", timestamp=float(i))
+            daemon.add_event({"id": f"evt-{i}"}, "microsoft_siem", timestamp=float(i))
 
         assert daemon.queue_size == 3
         assert daemon.stats["total_dropped"] == 2

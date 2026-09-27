@@ -8,11 +8,15 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'global': 'globalThis',
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
       // Local workspace package — no npm install needed; Vite resolves it directly
       "@guardianai/middleware": path.resolve(__dirname, "../packages/guardian-middleware/src/index.ts"),
+      buffer: "buffer/",
     },
   },
   server: {

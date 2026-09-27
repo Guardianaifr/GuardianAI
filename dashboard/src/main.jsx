@@ -3,12 +3,15 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { PrivyConfigProvider } from './components/PrivyConfigProvider.tsx'
+import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <PrivyConfigProvider>
-      <App />
-    </PrivyConfigProvider>
+    <ErrorBoundary>
+      <PrivyConfigProvider>
+        <App />
+      </PrivyConfigProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )
 

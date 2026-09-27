@@ -418,7 +418,7 @@ async function runHardAudit() {
   console.log(`${COLORS.bold}${COLORS.blue}[STAGE 5] Cross-Device Zero-Knowledge State Restoration...${COLORS.reset}`);
   console.log(`  Device A (Primary Workstation) -> Device B (Fresh Browser Profile / Incognito)...`);
 
-  const crossDeviceAgentId = 'cross-device-sentinel-01';
+  const crossDeviceAgentId = 'cross-device-guardian-01';
   const confidentialPayload = JSON.stringify({
     vaultKeyId: "vk-9901-monad",
     tradingRules: "Execute liquidity rebalance when price deviation > 0.12%",

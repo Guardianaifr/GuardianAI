@@ -15,7 +15,26 @@ interface PrivyConfigProviderProps {
   children: React.ReactNode;
 }
 
-const PRIVY_APP_ID = (import.meta.env.VITE_PRIVY_APP_ID as string) || "clx_guardian_demo";
+/**
+ * Privy requires appId to be a string of exactly 25 characters.
+ * If the environment variable is missing, shorter, or longer, normalize it
+ * to a 25-character identifier so the dashboard always mounts gracefully.
+ */
+function resolvePrivyAppId(envId?: string): string {
+  const clean = typeof envId === "string" ? envId.trim() : "";
+  if (!clean) {
+    return "clxguardianmonaddemo00000";
+  }
+  if (clean.length === 25) {
+    return clean;
+  }
+  if (clean.length > 25) {
+    return clean.slice(0, 25);
+  }
+  return clean.padEnd(25, "0");
+}
+
+const PRIVY_APP_ID = resolvePrivyAppId(import.meta.env.VITE_PRIVY_APP_ID as string);
 
 export const PrivyConfigProvider: React.FC<PrivyConfigProviderProps> = ({
   children,

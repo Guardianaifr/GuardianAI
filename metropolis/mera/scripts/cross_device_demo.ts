@@ -27,8 +27,8 @@ async function runDemo() {
   const engineA = new GuardianMeraEngine('demo.guardianai.local');
 
   // 2. Mint agent identity
-  console.log(`\n${COLORS.blue}[Device A] Minting Agent Identity for 'sentinel-alpha'...${COLORS.reset}`);
-  const identity = await engineA.deriveAgentIdentity('sentinel-alpha', clientA);
+  console.log(`\n${COLORS.blue}[Device A] Minting Agent Identity for 'guardian-alpha'...${COLORS.reset}`);
+  const identity = await engineA.deriveAgentIdentity('guardian-alpha', clientA);
   console.log(`${COLORS.green}✔ Identity Derived!${COLORS.reset}`);
   console.log(`${COLORS.cyan}  DID: ${identity.did}${COLORS.reset}`);
   console.log(`${COLORS.cyan}  Public Key: ${toHexString(identity.publicKey)}${COLORS.reset}`);
@@ -38,7 +38,7 @@ async function runDemo() {
   console.log(`\n${COLORS.blue}[Device A] Sealing Memory...${COLORS.reset}`);
   console.log(`  Plaintext: "${secretMessage}"`);
   
-  const sealed = await engineA.sealMemory('sentinel-alpha', 'session-demo', 1, secretMessage, clientA);
+  const sealed = await engineA.sealMemory('guardian-alpha', 'session-demo', 1, secretMessage, clientA);
   console.log(`${COLORS.green}✔ Memory Sealed!${COLORS.reset}`);
   console.log(`${COLORS.cyan}  Ciphertext (hex): ${toHexString(sealed.ciphertext)}${COLORS.reset}`);
   console.log(`${COLORS.cyan}  IV (hex): ${toHexString(sealed.iv)}${COLORS.reset}`);
@@ -52,8 +52,8 @@ async function runDemo() {
   const engineB = new GuardianMeraEngine('demo.guardianai.local');
 
   // 5. Derive identity again
-  console.log(`\n${COLORS.blue}[Device B] Deriving Identity for 'sentinel-alpha'...${COLORS.reset}`);
-  const identityB = await engineB.deriveAgentIdentity('sentinel-alpha', clientB);
+  console.log(`\n${COLORS.blue}[Device B] Deriving Identity for 'guardian-alpha'...${COLORS.reset}`);
+  const identityB = await engineB.deriveAgentIdentity('guardian-alpha', clientB);
   console.log(`${COLORS.green}✔ Identity Derived!${COLORS.reset}`);
   console.log(`${COLORS.cyan}  DID: ${identityB.did}${COLORS.reset}`);
   if (identity.did === identityB.did) {
@@ -64,7 +64,7 @@ async function runDemo() {
 
   // 6. Unseal memory
   console.log(`\n${COLORS.blue}[Device B] Unsealing Memory...${COLORS.reset}`);
-  const unsealed = await engineB.unsealMemory('sentinel-alpha', sealed.ciphertext, sealed.iv, sealed.aad, clientB);
+  const unsealed = await engineB.unsealMemory('guardian-alpha', sealed.ciphertext, sealed.iv, sealed.aad, clientB);
   if (!unsealed.poisoned) {
     console.log(`${COLORS.green}✔ Memory Unsealed!${COLORS.reset}`);
     console.log(`${COLORS.cyan}  Plaintext: "${unsealed.plaintext}"${COLORS.reset}`);
@@ -80,7 +80,7 @@ async function runDemo() {
   tamperedCiphertext[0] ^= 0x01; // flip a bit
 
   console.log(`\n${COLORS.blue}[Device B] Unsealing Tampered Memory...${COLORS.reset}`);
-  const tamperedResult = await engineB.unsealMemory('sentinel-alpha', tamperedCiphertext, sealed.iv, sealed.aad, clientB);
+  const tamperedResult = await engineB.unsealMemory('guardian-alpha', tamperedCiphertext, sealed.iv, sealed.aad, clientB);
   
   if (tamperedResult.poisoned) {
     console.log(`${COLORS.green}✔ Tamper Tripwire Triggered!${COLORS.reset}`);

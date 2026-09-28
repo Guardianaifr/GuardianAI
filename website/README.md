@@ -17,7 +17,7 @@ no build step, no CDN JavaScript. Works when opened straight from disk
 |---|---|
 | `index.html` | Hero, verified stat strip, dual-plane story, feature grid, proof highlights, Protocol Explorer showcase |
 | `how-it-works.html` | Off-chain request path (5 steps), on-chain trust path (4 steps), nine-contract suite, SDK integration snippet |
-| `pricing.html` | Portal redirecting to the interactive Protocol Explorer on `http://localhost:5173` |
+
 | `proof.html` | Benchmarks, performance/chaos, tests, audit status, chains & identity, privacy disclosures — each figure mapped to its artifact |
 
 Shared assets: `css/style.css` (design system), `js/main.js` (~40 lines:

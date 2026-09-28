@@ -753,6 +753,7 @@ function App() {
             isConnected={isConnected}
             isLiveSimulating={isLiveSimulating}
             isBlockedEvent={isBlockedEvent}
+            onNavigateTab={(tab) => setActiveTab(tab)}
           />
         )}
 

@@ -791,9 +791,19 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-border/60 py-4 px-6 text-center text-xs font-mono text-muted-foreground bg-muted/10">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>GuardianAI Platform • Monad Testnet (Chain ID 10143)</span>
+      <footer className="w-full border-t border-border/60 py-4 px-6 text-xs font-mono text-muted-foreground bg-muted/10">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span>GuardianAI Platform • Monad Testnet (Chain ID 10143)</span>
+            <span className="hidden sm:inline text-muted-foreground/40">•</span>
+            <a 
+              href="/"
+              className="text-[#836EF9] hover:underline flex items-center gap-1 font-sans font-medium"
+              title="Return to aiguardian.dev"
+            >
+              ← Back to Main Website (aiguardian.dev)
+            </a>
+          </div>
           <span className="text-[11px] opacity-75">
             Privy Hardware TEE • Envio Hypersync Indexer • Category Labs MERA Enclave
           </span>

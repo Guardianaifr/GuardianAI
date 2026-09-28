@@ -8,7 +8,8 @@ import {
   Terminal, 
   UserCheck, 
   LogOut,
-  Radio
+  Radio,
+  ArrowLeft
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -38,8 +39,18 @@ export function Navbar({
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/80 bg-background/90 backdrop-blur-md transition-all">
       <div className="flex h-16 items-center justify-between px-3 sm:px-6 lg:px-8 gap-2">
-        {/* Brand / Logo */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Brand / Logo & Back to Main Website */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <a
+            href="/"
+            title="Return to aiguardian.dev main website"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/80 border border-border/80 hover:border-[#836EF9]/50 transition-all select-none group shrink-0"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 text-[#836EF9] group-hover:-translate-x-0.5 transition-transform" />
+            <span className="hidden sm:inline">Back to Website</span>
+            <span className="sm:hidden">Main Site</span>
+          </a>
+
           <div 
             role="button"
             tabIndex={0}
@@ -53,6 +64,7 @@ export function Navbar({
                 setActiveTab('home')
               }
             }}
+            title="GuardianAI Dashboard Home"
             className="flex items-center gap-2 sm:gap-3 cursor-pointer group select-none focus:outline-none"
           >
             <div className="relative p-1.5 sm:p-2 rounded-xl bg-[#836EF9]/15 border border-[#836EF9]/30 text-[#836EF9] shadow-sm group-hover:scale-105 transition-transform">

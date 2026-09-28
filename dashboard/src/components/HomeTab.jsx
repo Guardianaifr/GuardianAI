@@ -14,7 +14,8 @@ import {
   Terminal, 
   ExternalLink,
   Layers,
-  Sparkles
+  Sparkles,
+  ArrowLeft
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -43,9 +44,19 @@ export function HomeTab({
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#836EF9]/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#836EF9]/20 border border-[#836EF9]/40 text-xs font-mono text-[#836EF9]">
-              <Sparkles className="h-3.5 w-3.5 text-[#836EF9]" />
-              <span>Next-Gen Autonomous Agent Security • Monad Parallel EVM</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#836EF9]/20 border border-[#836EF9]/40 text-xs font-mono text-[#836EF9]">
+                <Sparkles className="h-3.5 w-3.5 text-[#836EF9]" />
+                <span>Next-Gen Autonomous Agent Security • Monad Parallel EVM</span>
+              </div>
+              <a
+                href="/"
+                title="Return to aiguardian.dev main landing page"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/60 hover:bg-muted border border-border/80 text-xs text-muted-foreground hover:text-foreground transition-all group"
+              >
+                <ArrowLeft className="h-3 w-3 text-[#836EF9] group-hover:-translate-x-0.5 transition-transform" />
+                <span>aiguardian.dev (Main Site)</span>
+              </a>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Guardian<span className="text-[#836EF9]">AI</span> Platform

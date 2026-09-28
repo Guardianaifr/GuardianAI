@@ -21,6 +21,16 @@
           "type": 302
         }
       ],
+      "rewrites": [
+        {
+          "source": "/explorer",
+          "destination": "/explorer/index.html"
+        },
+        {
+          "source": "/explorer/**",
+          "destination": "/explorer/index.html"
+        }
+      ],
       "headers": [
         {
           "source": "**",

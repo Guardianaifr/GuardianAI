@@ -41,8 +41,19 @@ export function Navbar({
         {/* Brand / Logo */}
         <div className="flex items-center gap-3 shrink-0">
           <div 
-            onClick={() => setActiveTab('home')}
-            className="flex items-center gap-2 sm:gap-3 cursor-pointer group select-none"
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation()
+              setActiveTab('home')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setActiveTab('home')
+              }
+            }}
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer group select-none focus:outline-none"
           >
             <div className="relative p-1.5 sm:p-2 rounded-xl bg-[#836EF9]/15 border border-[#836EF9]/30 text-[#836EF9] shadow-sm group-hover:scale-105 transition-transform">
               <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#836EF9]" />
@@ -56,12 +67,18 @@ export function Navbar({
                 <span className="text-lg sm:text-xl font-bold tracking-tight text-foreground font-mono">
                   Guardian<span className="text-[#836EF9]">AI</span>
                 </span>
-                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#836EF9]/10 text-[#836EF9] border border-[#836EF9]/25">
-                  MONAD 10143
+                <span 
+                  className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#836EF9]/10 text-[#836EF9] border border-[#836EF9]/25 cursor-help"
+                  title="Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)"
+                >
+                  PROTOCOL EXPLORER • MONAD 10143
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground hidden lg:block">
-                Autonomous Agent Policy Containment
+              <p 
+                className="text-[11px] text-muted-foreground hidden lg:block"
+                title="Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)"
+              >
+                Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)
               </p>
             </div>
           </div>
@@ -75,7 +92,11 @@ export function Navbar({
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setActiveTab(tab.id)
+                }}
                 title={tab.label}
                 className={cn(
                   "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 select-none whitespace-nowrap",
@@ -112,7 +133,11 @@ export function Navbar({
           {/* Supervisor Wallet Auth Controller */}
           {!isConnectedSupervisor ? (
             <button
-              onClick={onConnectSupervisor}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onConnectSupervisor?.()
+              }}
               disabled={!ready && !privyTimedOut}
               className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg text-white transition-all shadow-sm hover:brightness-110 active:scale-95 disabled:opacity-50"
               style={{ backgroundColor: "#836EF9" }}
@@ -138,14 +163,22 @@ export function Navbar({
                 <span>{truncatedSupervisor}</span>
               </div>
               <button
-                onClick={onOpenDelegationModal}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenDelegationModal?.()
+                }}
                 className="hidden md:flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg text-white transition hover:brightness-110 shadow-sm"
                 style={{ backgroundColor: "#836EF9" }}
               >
                 Delegate
               </button>
               <button
-                onClick={onDisconnectSupervisor}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDisconnectSupervisor?.()
+                }}
                 title="Disconnect Supervisor"
                 className="p-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition"
               >

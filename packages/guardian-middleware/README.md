@@ -13,7 +13,7 @@ AI agents with on-chain execution capabilities are vulnerable to **prompt inject
 1. **Scans Prompts & Memory:** Detects jailbreaks, prompt injections, and adversarial overrides before actions execute.
 2. **Decodes Pre-Flight Calldata:** Inspects target contract addresses, function selectors (ERC-20, Uniswap, native transfers), and parameters.
 3. **Requests EIP-712 Attestation:** Contacts Guardian's sub-second attestation relayer (`<40ms` latency).
-4. **Wraps Approved Transactions:** Re-routes transactions through [`GuardianPolicyGuard`](https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/) (`0x32fa...1101`) on Monad Testnet (`0x3cb7461c`).
+4. **Wraps Approved Transactions:** Re-routes transactions through [`GuardianPolicyGuard`](https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60) (`0x90Fd...EF60`) on Monad Testnet (`0x3cb7461c`).
 5. **Strictly Fails Closed:** If an attestation is rejected or the relayer is unreachable, execution halts immediately with `GuardianSecurityError`—un-attested transactions never reach the blockchain.
 
 ---
@@ -30,7 +30,7 @@ const agent = new Agent({
   plugins: [
     createGuardianPlugin({
       relayerUrl: "https://your-guardian-relayer.com",
-      policyGuardAddress: "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+      policyGuardAddress: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
       chainId: 10143, // Monad Testnet
       failClosed: true,
     }),
@@ -64,7 +64,7 @@ const baseClient = createWalletClient({
 const secureClient = withGuardianSecurity(baseClient, {
   agentId: "agent-alpha-01",
   relayerUrl: "http://localhost:8000",
-  policyGuardAddress: "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+  policyGuardAddress: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
 });
 
 // Outgoing transaction is automatically verified and wrapped!
@@ -92,7 +92,7 @@ from guardianai.middleware import (
 # 1. Initialize Middleware
 guard = GuardianMiddleware(
     relayer_url="http://localhost:8000",
-    policy_guard_address="0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+    policy_guard_address="0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
     chain_id=10143,
     fail_closed=True,
 )
@@ -112,9 +112,9 @@ w3.middleware_onion.inject(
 ## Monad Testnet Deployment Reference
 
 * **Network:** Monad Testnet (Chain ID `10143`)
-* **Policy Guard Address:** [`0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101`](https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/)
+* **Policy Guard Address:** [`0x90Fdc8E1e5C951701eCd84677038B38560CdEF60`](https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60)
 * **Policy Guard Selector:** `0x3cb7461c` (`executeWithAttestation(address,bytes,SafetyAttestation,bytes)`)
-* **Status:** 100% Full Match Verified on MonadVision (Sourcify)
+* **Status:** Verified Live on Monad Testnet (Chain ID 10143)
 
 ---
 

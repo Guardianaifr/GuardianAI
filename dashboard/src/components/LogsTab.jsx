@@ -134,7 +134,11 @@ export function LogsTab({ events, isBlockedEvent }) {
         {/* Action Controls */}
         <div className="flex items-center gap-2.5">
           <button
-            onClick={togglePause}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              togglePause()
+            }}
             className={cn(
               "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono border transition-colors",
               isPaused
@@ -147,7 +151,11 @@ export function LogsTab({ events, isBlockedEvent }) {
           </button>
 
           <button
-            onClick={handleExportJSON}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleExportJSON()
+            }}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#836EF9] hover:brightness-110 text-white text-xs font-semibold shadow-sm transition active:scale-[0.98]"
           >
             <Download className="h-3.5 w-3.5" />
@@ -172,7 +180,11 @@ export function LogsTab({ events, isBlockedEvent }) {
               />
               {searchTerm && (
                 <button
-                  onClick={() => setSearchTerm('')}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSearchTerm('')
+                  }}
                   className="absolute right-2.5 top-2 text-xs text-muted-foreground hover:text-foreground"
                 >
                   &times;
@@ -199,7 +211,11 @@ export function LogsTab({ events, isBlockedEvent }) {
             {/* Reset Filters button */}
             {(searchTerm || selectedCategory !== 'all' || selectedSeverity !== 'all') && (
               <button
-                onClick={handleResetFilters}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleResetFilters()
+                }}
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 text-xs transition"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -215,7 +231,11 @@ export function LogsTab({ events, isBlockedEvent }) {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedCategory(cat.id)
+                  }}
                   className={cn(
                     "px-3 py-1 rounded-lg text-xs font-mono transition-colors",
                     isSelected
@@ -271,7 +291,11 @@ export function LogsTab({ events, isBlockedEvent }) {
                       <Filter className="h-6 w-6 text-muted-foreground/50" />
                       <span>No matching events found for current filters.</span>
                       <button
-                        onClick={handleResetFilters}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleResetFilters()
+                        }}
                         className="text-xs text-[#836EF9] underline hover:brightness-110"
                       >
                         Reset All Filters
@@ -339,7 +363,11 @@ export function LogsTab({ events, isBlockedEvent }) {
                           <div className="flex items-center gap-1 text-purple-300">
                             <span>A: {agentAddr}</span>
                             <button
-                              onClick={() => handleCopy(agentAddr, `ag_${idx}`)}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCopy(agentAddr, `ag_${idx}`)
+                              }}
                               className="text-muted-foreground hover:text-white"
                             >
                               {copiedField === `ag_${idx}` ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5" />}
@@ -350,7 +378,11 @@ export function LogsTab({ events, isBlockedEvent }) {
                           <div className="flex items-center gap-1 text-slate-400">
                             <span>T: {targetAddr.length > 16 ? `${targetAddr.slice(0, 10)}...${targetAddr.slice(-4)}` : targetAddr}</span>
                             <button
-                              onClick={() => handleCopy(targetAddr, `tg_${idx}`)}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCopy(targetAddr, `tg_${idx}`)
+                              }}
                               className="text-muted-foreground hover:text-white"
                             >
                               {copiedField === `tg_${idx}` ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5" />}

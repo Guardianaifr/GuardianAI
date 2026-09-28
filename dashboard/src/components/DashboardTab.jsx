@@ -164,7 +164,11 @@ export function DashboardTab({
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={togglePause}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  togglePause()
+                }}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border transition-colors",
                   isPaused
@@ -188,7 +192,10 @@ export function DashboardTab({
             {isScrolledDown && (
               <button
                 type="button"
-                onClick={scrollToLatest}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  scrollToLatest()
+                }}
                 className="absolute top-2 right-6 z-10 flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#836EF9] text-white text-[11px] font-mono shadow-md hover:brightness-110 transition active:scale-95 animate-in fade-in"
               >
                 <span>&uarr; Jump to Latest</span>

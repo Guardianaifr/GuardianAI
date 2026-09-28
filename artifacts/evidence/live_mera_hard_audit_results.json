@@ -1,6 +1,6 @@
 {
-  "timestamp": 1789296358803,
-  "date": "Sun, 13 Sep 2026 10:45:58 GMT",
+  "timestamp": 1790613336447,
+  "date": "Mon, 28 Sep 2026 16:35:36 GMT",
   "framework": "@guardianai/mera-enclave",
   "version": "1.0.0",
   "target": "Category Labs Mera Passkey PRF (WebAuthn PRF)",
@@ -23,7 +23,7 @@
     {
       "name": "Monad Deployed Contract Telemetry",
       "source": "GuardianPolicyGuard.sol ABI (Chain ID 10143)",
-      "sizeBytes": 37335
+      "sizeBytes": 43854
     }
   ],
   "scorecard": {
@@ -37,22 +37,22 @@
   },
   "latencyPercentiles": {
     "identityMint": {
-      "p50": "0.489",
-      "p90": "0.655",
-      "p95": "0.904",
-      "p99": "1.466"
+      "p50": "0.483",
+      "p90": "0.577",
+      "p95": "0.670",
+      "p99": "1.546"
     },
     "memorySeal": {
-      "p50": "0.393",
-      "p90": "0.647",
-      "p95": "0.803",
-      "p99": "1.419"
+      "p50": "0.374",
+      "p90": "0.600",
+      "p95": "0.761",
+      "p99": "1.937"
     },
     "memoryUnseal": {
-      "p50": "0.373",
-      "p90": "0.504",
-      "p95": "0.575",
-      "p99": "0.886"
+      "p50": "0.356",
+      "p90": "0.467",
+      "p95": "0.545",
+      "p99": "0.644"
     }
   }
 }

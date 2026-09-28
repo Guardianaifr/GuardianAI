@@ -50,7 +50,7 @@ from guardian.web3sec.tx_analyzer import TransactionAnalyzer
 
 MONAD_RPC_URL = os.getenv("MONAD_TESTNET_RPC") or os.getenv("MONAD_RPC_URL") or "https://testnet-rpc.monad.xyz"
 DEPLOYER_KEY = os.getenv("GUARDIAN_DEPLOYER_PRIVATE_KEY") or os.getenv("GUARDIAN_ERC8004_REGISTRAR_KEY")
-POLICY_GUARD_ADDR = Web3.to_checksum_address("0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101")
+POLICY_GUARD_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD") or "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60")
 
 CACHE_DIR = PROJECT_ROOT / "tools" / ".github_cache"
 CACHE_DIR.mkdir(exist_ok=True)

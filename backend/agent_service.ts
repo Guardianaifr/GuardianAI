@@ -36,7 +36,7 @@ const MONAD_TESTNET = {
 } as const;
 
 /** Verified GuardianPolicyGuard address on Monad Testnet */
-const POLICY_GUARD_ADDRESS = "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101";
+const POLICY_GUARD_ADDRESS = "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60";
 
 export interface AgentRunnerConfig {
   /** Privy App ID */

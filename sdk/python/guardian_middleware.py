@@ -24,7 +24,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 logger = logging.getLogger("guardianai.middleware")
 
 # Deployed GuardianPolicyGuard on Monad Testnet (Chain ID 10143)
-DEFAULT_MONAD_POLICY_GUARD = "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101"
+DEFAULT_MONAD_POLICY_GUARD = "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
 DEFAULT_MONAD_CHAIN_ID = 10143
 POLICY_GUARD_SELECTOR = "0x3cb7461c"  # executeWithAttestation(address,bytes,(bytes32,address,bytes32,uint256,uint256,uint256,uint16),bytes)
 

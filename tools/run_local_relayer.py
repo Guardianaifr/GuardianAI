@@ -25,7 +25,7 @@ logger = logging.getLogger("tools.run_local_relayer")
 
 def create_relayer(port: int = 8000) -> GuardianRPCRelay:
     private_key = os.environ.get("GUARDIAN_ATTESTATION_SIGNER_KEY") or os.environ.get("GUARDIAN_DEPLOYER_PRIVATE_KEY")
-    policy_guard = os.environ.get("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD", "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101")
+    policy_guard = os.environ.get("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD", "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60")
     upstream_rpc = os.environ.get("MONAD_TESTNET_RPC", "https://testnet-rpc.monad.xyz")
     chain_id = int(os.environ.get("MONAD_CHAIN_ID", 10143))
 

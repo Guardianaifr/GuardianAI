@@ -76,7 +76,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
   const [highValueThreshold, setHighValueThreshold] = useState(2.0)
   const [circuitBreakerTrips, setCircuitBreakerTrips] = useState(5)
   const [contracts, setContracts] = useState([
-    "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+    "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
     "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
   ])
   const [newContractInput, setNewContractInput] = useState("")
@@ -223,7 +223,11 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
 
         {/* Quick Deploy Trigger Button */}
         <button
-          onClick={handleDeployPolicy}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleDeployPolicy()
+          }}
           disabled={isDeploying}
           className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#836EF9] hover:brightness-110 text-white text-xs font-semibold shadow-md shadow-[#836EF9]/25 transition active:scale-[0.98] disabled:opacity-50"
         >
@@ -255,8 +259,19 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
           {PRESETS.map((preset, idx) => (
             <div
               key={idx}
-              onClick={() => applyPreset(preset)}
-              className="cursor-pointer p-3.5 rounded-xl border border-border/80 bg-card/60 hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all select-none"
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation()
+                applyPreset(preset)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  applyPreset(preset)
+                }
+              }}
+              className="cursor-pointer p-3.5 rounded-xl border border-border/80 bg-card/60 hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all select-none focus:outline-none focus:ring-1 focus:ring-[#836EF9]"
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="font-semibold text-xs text-foreground">{preset.name}</span>
@@ -320,7 +335,10 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
                     <button
                       key={val}
                       type="button"
-                      onClick={() => setMaxSpend(val)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMaxSpend(val)
+                      }}
                       className={cn(
                         "px-2.5 py-1 text-[11px] font-mono rounded border transition-colors",
                         maxSpend === val
@@ -408,7 +426,10 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
                     <button
                       key={count}
                       type="button"
-                      onClick={() => setCircuitBreakerTrips(count)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setCircuitBreakerTrips(count)
+                      }}
                       className={cn(
                         "px-3 py-1.5 text-xs font-mono rounded-lg border transition-colors",
                         circuitBreakerTrips === count
@@ -449,7 +470,11 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
                     >
                       <span className="text-foreground truncate mr-2">{addr}</span>
                       <button
-                        onClick={() => handleRemoveContract(addr)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRemoveContract(addr)
+                        }}
                         className="text-muted-foreground hover:text-red-400 p-1 transition-colors"
                         title="Remove contract"
                       >
@@ -472,7 +497,11 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
                     className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-[#836EF9]"
                   />
                   <button
-                    onClick={handleAddContract}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleAddContract()
+                    }}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#836EF9]/20 hover:bg-[#836EF9]/30 text-[#836EF9] border border-[#836EF9]/40 text-xs font-semibold transition"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -495,9 +524,20 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
                     return (
                       <div
                         key={sel.id}
-                        onClick={() => toggleSelector(sel.id)}
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleSelector(sel.id)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            toggleSelector(sel.id)
+                          }
+                        }}
                         className={cn(
-                          "cursor-pointer flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors select-none",
+                          "cursor-pointer flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors select-none focus:outline-none focus:ring-1 focus:ring-[#836EF9]",
                           isSelected
                             ? "bg-[#836EF9]/15 border-[#836EF9]/40 text-foreground"
                             : "bg-background/40 border-border/60 text-muted-foreground hover:border-border"
@@ -551,7 +591,11 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
                     className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-[#836EF9]"
                   />
                   <button
-                    onClick={handleAddCustomSelector}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleAddCustomSelector()
+                    }}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-muted/40 text-xs font-medium transition"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -613,7 +657,11 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
               </div>
 
               <button
-                onClick={handleDeployPolicy}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDeployPolicy()
+                }}
                 disabled={isDeploying}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#836EF9] hover:brightness-110 text-white text-xs font-semibold shadow-md shadow-[#836EF9]/20 transition active:scale-[0.99] disabled:opacity-50"
               >
@@ -666,7 +714,11 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
                       {deploymentResult.txHash.slice(0, 16)}...
                     </a>
                     <button
-                      onClick={() => handleCopy(deploymentResult.txHash, 'tx')}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCopy(deploymentResult.txHash, 'tx')
+                      }}
                       className="p-1 hover:text-white"
                       title="Copy Tx Hash"
                     >
@@ -678,14 +730,20 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
                   <div className="flex gap-2 pt-2 border-t border-emerald-900/60 font-sans">
                     <button
                       type="button"
-                      onClick={() => onNavigateTab('agents')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onNavigateTab('agents')
+                      }}
                       className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-700/50 hover:bg-emerald-600/50 text-emerald-100 text-xs font-semibold transition text-center"
                     >
                       Delegate to Agents &rarr;
                     </button>
                     <button
                       type="button"
-                      onClick={() => onNavigateTab('logs')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onNavigateTab('logs')
+                      }}
                       className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-800 text-emerald-300 text-xs font-semibold transition text-center"
                     >
                       View in Audit Logs &rarr;

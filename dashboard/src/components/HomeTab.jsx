@@ -22,13 +22,18 @@ export function HomeTab({
   stats,
   onTriggerGuardedAction,
   onTriggerRogueAction,
-  isExecutingAction,
+  executingAction,
+  isExecutingGuarded,
+  isExecutingRogue,
   agentActionStatus,
   defaultAgentAddress,
+  defaultPolicyId,
   onOpenDelegationModal,
   onNavigateTab,
   indexerStatus
 }) {
+  const isGuardedRunning = Boolean(isExecutingGuarded || executingAction === 'guarded')
+  const isRogueRunning = Boolean(isExecutingRogue || executingAction === 'rogue')
   const estimatedPreventedLoss = (stats.blocked * 10).toLocaleString()
 
   return (
@@ -185,9 +190,17 @@ export function HomeTab({
                 Sends a transaction of 0.1 MON to the approved <span className="font-mono text-emerald-300">GuardianPolicyGuard</span> contract. Verified by Privy TEE allowlist and GuardianAI pre-flight middleware.
               </p>
               <div className="text-[11px] font-mono bg-background/60 p-2.5 rounded-lg border border-border/60 text-muted-foreground">
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span>Target:</span>
-                  <span className="text-foreground">0x32fa...1101 (Approved)</span>
+                  <a
+                    href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-foreground hover:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    0x90Fd...EF60 (Approved)
+                    <ExternalLink className="h-2.5 w-2.5 inline" />
+                  </a>
                 </div>
                 <div className="flex justify-between">
                   <span>Spend Cap:</span>
@@ -195,11 +208,15 @@ export function HomeTab({
                 </div>
               </div>
               <button
-                onClick={onTriggerGuardedAction}
-                disabled={isExecutingAction}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onTriggerGuardedAction?.()
+                }}
+                disabled={isGuardedRunning}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition active:scale-[0.99] disabled:opacity-50"
               >
-                {isExecutingAction ? (
+                {isGuardedRunning ? (
                   <span className="flex items-center gap-2">
                     <span className="h-3 w-3 border-2 border-white/60 border-t-white rounded-full animate-spin" />
                     Executing On Monad...
@@ -249,11 +266,15 @@ export function HomeTab({
                 </div>
               </div>
               <button
-                onClick={onTriggerRogueAction}
-                disabled={isExecutingAction}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onTriggerRogueAction?.()
+                }}
+                disabled={isRogueRunning}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-semibold shadow-sm transition active:scale-[0.99] disabled:opacity-50"
               >
-                {isExecutingAction ? (
+                {isRogueRunning ? (
                   <span className="flex items-center gap-2">
                     <span className="h-3 w-3 border-2 border-white/60 border-t-white rounded-full animate-spin" />
                     Engaging Containment...
@@ -286,23 +307,21 @@ export function HomeTab({
                 ) : (
                   <AlertTriangle className="h-4 w-4 text-red-400" />
                 )}
-                <span className="font-bold uppercase tracking-wider">{agentActionStatus.title}</span>
+                <span className="font-bold uppercase tracking-wider">
+                  {agentActionStatus.agentId ? `[${agentActionStatus.agentId}] ` : ""}{agentActionStatus.title}
+                </span>
               </div>
               <span className="text-[11px] opacity-70">{agentActionStatus.timestamp}</span>
             </div>
-            <p className="leading-relaxed opacity-90">{agentActionStatus.message}</p>
             {agentActionStatus.tx && (
               <div className="mt-2.5 pt-2 border-t border-emerald-900/60 flex items-center gap-2">
                 <span className="text-muted-foreground">Tx Hash:</span>
-                <a 
-                  href={`https://testnet.monadscan.com/tx/${agentActionStatus.tx}`} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="text-emerald-400 underline hover:text-emerald-300 flex items-center gap-1"
+                <span 
+                  className="text-emerald-400 font-mono flex items-center gap-1 cursor-help"
+                  title="Simulated transaction hash (Standalone Demo Mode)"
                 >
-                  {agentActionStatus.tx.slice(0, 24)}...
-                  <ExternalLink className="h-3 w-3 inline" />
-                </a>
+                  {agentActionStatus.tx.slice(0, 24)}... (Simulated)
+                </span>
               </div>
             )}
           </div>
@@ -374,14 +393,22 @@ export function HomeTab({
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={onOpenDelegationModal}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenDelegationModal?.(defaultAgentAddress, defaultPolicyId)
+                }}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg text-white bg-[#836EF9] hover:brightness-110 transition shadow-sm"
               >
                 <Cpu className="h-3.5 w-3.5" />
                 Delegate Session Signer
               </button>
               <button
-                onClick={() => onNavigateTab('policy')}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onNavigateTab?.('policy')
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border/80 text-foreground hover:bg-muted/40 transition"
               >
                 <Sliders className="h-3.5 w-3.5 text-[#836EF9]" />
@@ -401,8 +428,19 @@ export function HomeTab({
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div 
-            onClick={() => onNavigateTab('dashboard')}
-            className="group cursor-pointer p-4 rounded-xl border border-border/80 bg-card hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all"
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation()
+              onNavigateTab?.('dashboard')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onNavigateTab?.('dashboard')
+              }
+            }}
+            className="group cursor-pointer p-4 rounded-xl border border-border/80 bg-card hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all focus:outline-none focus:ring-1 focus:ring-[#836EF9]"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="p-2 rounded-lg bg-[#836EF9]/15 text-[#836EF9]">
@@ -417,8 +455,19 @@ export function HomeTab({
           </div>
 
           <div 
-            onClick={() => onNavigateTab('policy')}
-            className="group cursor-pointer p-4 rounded-xl border border-border/80 bg-card hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all"
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation()
+              onNavigateTab?.('policy')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onNavigateTab?.('policy')
+              }
+            }}
+            className="group cursor-pointer p-4 rounded-xl border border-border/80 bg-card hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all focus:outline-none focus:ring-1 focus:ring-[#836EF9]"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400">
@@ -433,8 +482,19 @@ export function HomeTab({
           </div>
 
           <div 
-            onClick={() => onNavigateTab('agents')}
-            className="group cursor-pointer p-4 rounded-xl border border-border/80 bg-card hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all"
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation()
+              onNavigateTab?.('agents')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onNavigateTab?.('agents')
+              }
+            }}
+            className="group cursor-pointer p-4 rounded-xl border border-border/80 bg-card hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all focus:outline-none focus:ring-1 focus:ring-[#836EF9]"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="p-2 rounded-lg bg-blue-500/15 text-blue-400">
@@ -449,8 +509,19 @@ export function HomeTab({
           </div>
 
           <div 
-            onClick={() => onNavigateTab('logs')}
-            className="group cursor-pointer p-4 rounded-xl border border-border/80 bg-card hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all"
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation()
+              onNavigateTab?.('logs')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onNavigateTab?.('logs')
+              }
+            }}
+            className="group cursor-pointer p-4 rounded-xl border border-border/80 bg-card hover:border-[#836EF9]/60 hover:bg-muted/20 transition-all focus:outline-none focus:ring-1 focus:ring-[#836EF9]"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="p-2 rounded-lg bg-amber-500/15 text-amber-400">

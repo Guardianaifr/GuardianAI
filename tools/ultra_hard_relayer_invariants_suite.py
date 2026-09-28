@@ -50,9 +50,9 @@ from guardian.web3sec.rpc_relay import GuardianRPCRelay
 
 MONAD_RPC_URL = os.getenv("MONAD_TESTNET_RPC") or os.getenv("MONAD_RPC_URL") or "https://testnet-rpc.monad.xyz"
 SIGNER_KEY = os.getenv("GUARDIAN_ATTESTATION_SIGNER_KEY") or os.getenv("GUARDIAN_DEPLOYER_PRIVATE_KEY")
-POLICY_GUARD_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD") or "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101")
-THREAT_FEED_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_THREATFEED_CONTRACT_MONAD") or "0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8")
-IDENTITY_REGISTRY_ADDR = Web3.to_checksum_address("0x51ba213AE6aE04D334D822d2b61a72eCEB777B49")
+POLICY_GUARD_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD") or "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60")
+THREAT_FEED_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_THREATFEED_CONTRACT_MONAD") or "0x576CC248D8c406ac302b74e7BFd571E9F989f467")
+IDENTITY_REGISTRY_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_ERC8004_REGISTRY_MONAD_TESTNET") or "0xda5dA75777d30d6d7586b97965dD906AD032E3ff")
 
 w3 = Web3(Web3.HTTPProvider(MONAD_RPC_URL))
 signer_account = Account.from_key(SIGNER_KEY)
@@ -717,7 +717,7 @@ def main():
     print("*" * 80)
     print("  GUARDIAN-AI ULTRA-HARD ATTESTATION RELAYER & INVARIANTS TEST SUITE")
     print("  Target Network : Monad Testnet (Chain ID 10143)")
-    print("  Verifying Guard: 0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101")
+    print(f"  Verifying Guard: {POLICY_GUARD_ADDR}")
     print(f"  Execution Time : {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
     print("*" * 80)
     

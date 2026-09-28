@@ -26,7 +26,7 @@ import type { GuardianViemOptions } from "@guardianai/middleware";
 import { monadTestnet } from "./monadChain";
 
 /** Verified deploy address on Monad Testnet (Chain ID 10143) */
-const POLICY_GUARD_ADDRESS = "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101";
+const POLICY_GUARD_ADDRESS = "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60";
 
 export interface CreateGuardedClientOptions {
   /** EIP-1193 provider from Privy embedded wallet (wallet.getEthereumProvider()) */

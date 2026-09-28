@@ -59,7 +59,7 @@ async function runRealtimeAudit() {
     timestamp: Date.now(),
     blockHeight: 14205819,
     chain: 'monad-testnet',
-    chainConfig: { chainId: 10143, policyGuard: '0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101' },
+    chainConfig: { chainId: 10143, policyGuard: '0x90Fdc8E1e5C951701eCd84677038B38560CdEF60' },
     strategy: {
       pool: '0x9999999999999999999999999999999999999999',
       pair: 'MON/USDC',

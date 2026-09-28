@@ -15,7 +15,9 @@ def test_production_templates_exist():
 
 
 def test_runbook_exists():
-    runbook = ROOT / "PRODUCTION_LAUNCH_RUNBOOK.md"
+    runbook = ROOT / "docs" / "operations" / "PRODUCTION_LAUNCH_RUNBOOK.md"
+    if not runbook.exists():
+        runbook = ROOT / "PRODUCTION_LAUNCH_RUNBOOK.md"
     assert runbook.exists()
     text = runbook.read_text(encoding="utf-8")
     assert "setup_production.ps1" in text

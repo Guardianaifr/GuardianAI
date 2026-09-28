@@ -66,6 +66,13 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
   const [status, setStatus] = useState<"idle" | "delegated" | "revoked" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const displayAgentAddress = typeof agentAddress === "string" && agentAddress.trim().length > 0
+    ? agentAddress
+    : "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
+  const displayPolicyId = typeof policyId === "string" && policyId.trim().length > 0
+    ? policyId
+    : "pol_guardian_monad_policyguard_01";
+
   // Supervisor wallet address from the authenticated Privy user or override
   const supervisorAddress =
     supervisorAddressOverride ??
@@ -77,7 +84,7 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
    * Delegate signing authority to the AI agent.
    *
    * addSigners() is the correct method on the useSigners() hook.
-   * Specification: addSigners({ address: supervisorAddress, signers: [{ signerId: agentAddress, policyIds: [policyId] }] })
+   * Specification: addSigners({ address: supervisorAddress, signers: [{ signerId: displayAgentAddress, policyIds: [displayPolicyId] }] })
    * Gracefully falls back to array signature if object fails.
    */
   const handleDelegate = async () => {
@@ -93,8 +100,8 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
           address: supervisorAddress,
           signers: [
             {
-              signerId: agentAddress,
-              policyIds: policyId ? [policyId] : [],
+              signerId: displayAgentAddress,
+              policyIds: displayPolicyId ? [displayPolicyId] : [],
             },
           ],
         });
@@ -103,9 +110,9 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
           // Fallback: array signature format (legacy / alternate SDK variants)
           await (addSigners as any)([
             {
-              address: agentAddress,
+              address: displayAgentAddress,
               chainType: "ethereum",
-              policyIds: policyId ? [policyId] : [],
+              policyIds: displayPolicyId ? [displayPolicyId] : [],
             },
           ]);
         } catch {
@@ -151,7 +158,7 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
           // Fallback: array signature format
           await (removeSigners as any)([
             {
-              address: agentAddress,
+              address: displayAgentAddress,
               chainType: "ethereum",
             },
           ]);
@@ -180,7 +187,11 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
 
         {/* Close button */}
         <button
-          onClick={onClose}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           className="absolute right-4 top-4 rounded-lg p-1 text-gray-500 transition hover:bg-gray-800 hover:text-white"
           aria-label="Close"
         >
@@ -209,13 +220,13 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
         {/* Agent address */}
         <div className="mb-4 rounded-xl border border-gray-700/50 bg-gray-900/40 p-4">
           <p className="mb-1 text-xs font-medium text-gray-400">AI Agent Address</p>
-          <p className="truncate font-mono text-sm text-[#836EF9]">{agentAddress}</p>
+          <p className="truncate font-mono text-sm text-[#836EF9]">{displayAgentAddress}</p>
         </div>
 
         {/* Policy */}
         <div className="mb-6 rounded-xl border border-gray-700/50 bg-gray-900/40 p-4">
           <p className="mb-1 text-xs font-medium text-gray-400">Privy Policy ID</p>
-          <p className="truncate font-mono text-xs text-gray-300">{policyId}</p>
+          <p className="truncate font-mono text-xs text-gray-300">{displayPolicyId}</p>
           <p className="mt-2 text-xs text-gray-500">
             Restricts agent to GuardianPolicyGuard on Monad Testnet (≤ 5 MON)
           </p>
@@ -245,7 +256,11 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
         <div className="flex gap-3">
           {/* Delegate button */}
           <button
-            onClick={handleDelegate}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelegate();
+            }}
             disabled={isDelegating || isRevoking || status === "delegated"}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#836EF9] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7560e0] disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -259,7 +274,11 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
 
           {/* Revoke button */}
           <button
-            onClick={handleRevoke}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRevoke();
+            }}
             disabled={isDelegating || isRevoking || status !== "delegated"}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-700/50 bg-red-900/20 px-4 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-50"
           >

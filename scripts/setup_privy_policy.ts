@@ -63,7 +63,7 @@ if (!PRIVY_APP_ID || !PRIVY_APP_SECRET) {
 }
 
 /** GuardianPolicyGuard verified deploy address on Monad Testnet */
-const POLICY_GUARD_ADDRESS = "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101";
+const POLICY_GUARD_ADDRESS = process.env.GUARDIAN_POLICY_GUARD_CONTRACT_MONAD || "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60";
 
 /** 5 MON in wei (5 * 10^18) as decimal string */
 const MAX_VALUE_WEI = (5n * 10n ** 18n).toString();
@@ -79,7 +79,7 @@ async function main() {
    * Privy Policy Engine is an ALLOWLIST engine.
    * A single ALLOW rule restricts transactions to:
    *   1. Monad Testnet (chain_id == 10143)
-   *   2. Target contract is GuardianPolicyGuard (0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101)
+   *   2. Target contract is GuardianPolicyGuard (0x90Fdc8E1e5C951701eCd84677038B38560CdEF60)
    *   3. Value <= 5 MON (5000000000000000000 wei)
    */
   const policy = await privy.policies().create({

@@ -491,4 +491,144 @@ describe("GuardianPolicyGuard", function () {
       ).to.be.revertedWithCustomError(policyGuard, "InvalidTargetAddress");
     });
   });
+
+  describe("Group 7: Monad Track 04 Protocol Primitives", function () {
+    it("should allow owner to set passport registry and emit event", async function () {
+      const dummyRegistry = ethers.Wallet.createRandom().address;
+      await expect(policyGuard.setPassportRegistry(dummyRegistry))
+        .to.emit(policyGuard, "PassportRegistryUpdated")
+        .withArgs(ethers.ZeroAddress, dummyRegistry);
+      expect(await policyGuard.passportRegistry()).to.equal(dummyRegistry);
+    });
+
+    it("should revert setPassportRegistry if called by non-owner", async function () {
+      await expect(
+        policyGuard.connect(user).setPassportRegistry(user.address)
+      ).to.be.revertedWithCustomError(policyGuard, "OwnableUnauthorizedAccount");
+    });
+
+    it("should allow execution when passportRegistry is address(0) (backward compatibility)", async function () {
+      expect(await policyGuard.passportRegistry()).to.equal(ethers.ZeroAddress);
+      const targetAddress = await mockTarget.getAddress();
+      const callData = mockTarget.interface.encodeFunctionData("doSomething", [100]);
+      const calldataHash = ethers.keccak256(callData);
+      const attestation = await createAttestation({ targetContract: targetAddress, calldataHash, nonce: 7001n });
+      const sig = await signAttestation(attestation);
+
+      await expect(policyGuard.executeWithAttestation(targetAddress, callData, attestation, sig)).to.not.be.reverted;
+    });
+
+    it("should validate active passport and execute when passport is active", async function () {
+      const PassportFactory = await ethers.getContractFactory("GuardianPassportSBT");
+      const passport = await PassportFactory.deploy();
+      await passport.waitForDeployment();
+
+      await policyGuard.setPassportRegistry(await passport.getAddress());
+
+      // Mint passport for AGENT_A
+      await passport.mint(user.address, AGENT_A, 9000n, "ipfs://QmAgentPassport01");
+      expect(await passport.isPassportActive(AGENT_A)).to.be.true;
+
+      const targetAddress = await mockTarget.getAddress();
+      const callData = mockTarget.interface.encodeFunctionData("doSomething", [200]);
+      const calldataHash = ethers.keccak256(callData);
+      const attestation = await createAttestation({ agentId: AGENT_A, targetContract: targetAddress, calldataHash, nonce: 7002n });
+      const sig = await signAttestation(attestation);
+
+      await expect(policyGuard.executeWithAttestation(targetAddress, callData, attestation, sig)).to.not.be.reverted;
+    });
+
+    it("should revert PassportRevokedOrInactive if agent has no passport", async function () {
+      const PassportFactory = await ethers.getContractFactory("GuardianPassportSBT");
+      const passport = await PassportFactory.deploy();
+      await passport.waitForDeployment();
+
+      await policyGuard.setPassportRegistry(await passport.getAddress());
+
+      const targetAddress = await mockTarget.getAddress();
+      const callData = mockTarget.interface.encodeFunctionData("doSomething", [300]);
+      const calldataHash = ethers.keccak256(callData);
+      // AGENT_B has no passport
+      const attestation = await createAttestation({ agentId: AGENT_B, targetContract: targetAddress, calldataHash, nonce: 7003n });
+      const sig = await signAttestation(attestation);
+
+      await expect(
+        policyGuard.executeWithAttestation(targetAddress, callData, attestation, sig)
+      ).to.be.revertedWithCustomError(policyGuard, "PassportRevokedOrInactive")
+        .withArgs(AGENT_B);
+    });
+
+    it("should revert PassportRevokedOrInactive if agent passport was revoked", async function () {
+      const PassportFactory = await ethers.getContractFactory("GuardianPassportSBT");
+      const passport = await PassportFactory.deploy();
+      await passport.waitForDeployment();
+
+      await policyGuard.setPassportRegistry(await passport.getAddress());
+
+      // Mint then revoke for AGENT_A
+      await passport.mint(user.address, AGENT_A, 8500n, "ipfs://QmAgentPassport01");
+      const tokenId = await passport.getAgentTokenId(AGENT_A);
+      await passport.revoke(tokenId);
+
+      expect(await passport.isPassportActive(AGENT_A)).to.be.false;
+
+      const targetAddress = await mockTarget.getAddress();
+      const callData = mockTarget.interface.encodeFunctionData("doSomething", [400]);
+      const calldataHash = ethers.keccak256(callData);
+      const attestation = await createAttestation({ agentId: AGENT_A, targetContract: targetAddress, calldataHash, nonce: 7004n });
+      const sig = await signAttestation(attestation);
+
+      await expect(
+        policyGuard.executeWithAttestation(targetAddress, callData, attestation, sig)
+      ).to.be.revertedWithCustomError(policyGuard, "PassportRevokedOrInactive")
+        .withArgs(AGENT_A);
+    });
+
+    it("should expose RIP7212_P256_PRECOMPILE constant and verifyP256Signature helper (fail-closed on non-precompile EVM)", async function () {
+      expect(await policyGuard.RIP7212_P256_PRECOMPILE()).to.equal("0x0000000000000000000000000000000000000100");
+      const dummyHash = ethers.keccak256(ethers.toUtf8Bytes("hello monad"));
+      const r = ethers.ZeroHash;
+      const s = ethers.ZeroHash;
+      const qx = ethers.ZeroHash;
+      const qy = ethers.ZeroHash;
+
+      // 1. bytes32 signature call fails closed gracefully
+      const isValid = await policyGuard["verifyP256Signature(bytes32,bytes32,bytes32,bytes32,bytes32)"](dummyHash, r, s, qx, qy);
+      expect(isValid).to.be.false;
+
+      // 2. uint256 overload signature call fails closed gracefully
+      const isValidUint = await policyGuard["verifyP256Signature(bytes32,uint256,uint256,uint256,uint256)"](dummyHash, 0n, 0n, 0n, 0n);
+      expect(isValidUint).to.be.false;
+    });
+
+    it("should revert PassportRevokedOrInactive when passport registry is paused and succeed once unpaused", async function () {
+      const PassportFactory = await ethers.getContractFactory("GuardianPassportSBT");
+      const passport = await PassportFactory.deploy();
+      await passport.waitForDeployment();
+
+      await policyGuard.setPassportRegistry(await passport.getAddress());
+      await passport.mint(user.address, AGENT_A, 9000n, "ipfs://QmAgentPassport01");
+
+      const targetAddress = await mockTarget.getAddress();
+      const callData = mockTarget.interface.encodeFunctionData("doSomething", [500]);
+      const calldataHash = ethers.keccak256(callData);
+      const attestation = await createAttestation({ agentId: AGENT_A, targetContract: targetAddress, calldataHash, nonce: 7005n });
+      const sig = await signAttestation(attestation);
+
+      // Pause passport registry -> isPassportActive returns false -> execution reverts
+      await passport.pause();
+      expect(await passport.isPassportActive(AGENT_A)).to.be.false;
+
+      await expect(
+        policyGuard.executeWithAttestation(targetAddress, callData, attestation, sig)
+      ).to.be.revertedWithCustomError(policyGuard, "PassportRevokedOrInactive")
+        .withArgs(AGENT_A);
+
+      // Unpause passport registry -> isPassportActive returns true -> execution succeeds
+      await passport.unpause();
+      expect(await passport.isPassportActive(AGENT_A)).to.be.true;
+
+      await expect(policyGuard.executeWithAttestation(targetAddress, callData, attestation, sig)).to.not.be.reverted;
+    });
+  });
 });

@@ -54,7 +54,7 @@ const getInitialFallbackEvents = () => {
       severity: "INFO",
       details: {
         agent: "0x742d...f44e",
-        target: "0x32fa...1101 (PolicyGuard)",
+        target: "0x90Fd...EF60 (PolicyGuard)",
         riskScore: 7,
         tx: "0x8c74e2d35cc6634c0532925a3b844bc454e4438f44e19d7b420f129ad4ec1101",
         latency_ms: "2.8ms",
@@ -119,7 +119,7 @@ const getInitialFallbackEvents = () => {
       severity: "INFO",
       details: {
         agent: "0x1142...c890",
-        target: "0x32fa...1101 (PolicyGuard)",
+        target: "0x90Fd...EF60 (PolicyGuard)",
         riskScore: 12,
         tx: "0x3a51f89c02d1847c25e8391a27e771c56b72d2459a721d7b328a9b1c73f1101",
         latency_ms: "3.4ms",
@@ -168,10 +168,20 @@ function App() {
     return 'home'
   })
 
-  // Synchronize URL hash with activeTab
+  // Synchronize URL hash with activeTab and listen for hash changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.location.hash = activeTab
+
+      const handleHashChange = () => {
+        const hash = window.location.hash.replace('#', '').toLowerCase()
+        if (['home', 'dashboard', 'policy', 'agents', 'logs'].includes(hash)) {
+          setActiveTab(hash)
+        }
+      }
+
+      window.addEventListener('hashchange', handleHashChange)
+      return () => window.removeEventListener('hashchange', handleHashChange)
     }
   }, [activeTab])
 
@@ -184,10 +194,18 @@ function App() {
     policyId: DEFAULT_POLICY_ID
   })
   const [agentActionStatus, setAgentActionStatus] = useState(null)
-  const [isExecutingAction, setIsExecutingAction] = useState(false)
+  const [isExecutingGuarded, setIsExecutingGuarded] = useState(false)
+  const [isExecutingRogue, setIsExecutingRogue] = useState(false)
+  const executingAction = isExecutingGuarded ? 'guarded' : isExecutingRogue ? 'rogue' : null
 
   const handleOpenDelegationModal = (agentAddress = DEFAULT_AGENT_ADDRESS, policyId = DEFAULT_POLICY_ID) => {
-    setDelegationTarget({ agentAddress, policyId })
+    const validAgent = typeof agentAddress === 'string' && agentAddress.trim().length > 0
+      ? agentAddress
+      : DEFAULT_AGENT_ADDRESS
+    const validPolicy = typeof policyId === 'string' && policyId.trim().length > 0
+      ? policyId
+      : DEFAULT_POLICY_ID
+    setDelegationTarget({ agentAddress: validAgent, policyId: validPolicy })
     setIsDelegationModalOpen(true)
   }
 
@@ -231,19 +249,21 @@ function App() {
   const [vectorData, setVectorData] = useState(FALLBACK_VECTOR_DATA)
   const lastEventTimeRef = useRef(0)
 
-  const handleTriggerGuardedAction = () => {
-    setIsExecutingAction(true)
+  const handleTriggerGuardedAction = (agentId) => {
+    setIsExecutingGuarded(typeof agentId === 'string' ? agentId : true)
     setAgentActionStatus(null)
     setTimeout(() => {
       const txHash = "0x8c74e2d35cc6634c0532925a3b844bc454e4438f44e19d7b420f129ad4ec1101"
       setAgentActionStatus({
         type: "success",
+        action: "guarded",
+        agentId: typeof agentId === 'string' ? agentId : null,
         title: "Guarded Execution Confirmed",
         message: "Action pre-screened by GuardianAI (Risk: 5/100) -> Allowed by Privy Policy Engine (<= 5 MON to PolicyGuard) -> Executed on Monad Testnet (10143).",
         tx: txHash,
         timestamp: new Date().toLocaleTimeString()
       })
-      setIsExecutingAction(false)
+      setIsExecutingGuarded(false)
 
       const liveEvent = {
         event_type: "ON-CHAIN ACTION",
@@ -251,8 +271,8 @@ function App() {
         severity: "INFO",
         isBlocked: false,
         details: {
-          agent: truncatedSupervisor !== "Connected" ? truncatedSupervisor : "0x742d...f44e",
-          target: "0x32fa...1101 (PolicyGuard)",
+          agent: typeof agentId === 'string' ? agentId : (truncatedSupervisor !== "Connected" ? truncatedSupervisor : "0x742d...f44e"),
+          target: "0x90Fd...EF60 (PolicyGuard)",
           riskScore: 5,
           tx: txHash,
           latency_ms: "3.2ms",
@@ -264,17 +284,19 @@ function App() {
     }, 600)
   }
 
-  const handleTriggerRogueAction = () => {
-    setIsExecutingAction(true)
+  const handleTriggerRogueAction = (agentId) => {
+    setIsExecutingRogue(typeof agentId === 'string' ? agentId : true)
     setAgentActionStatus(null)
     setTimeout(() => {
       setAgentActionStatus({
         type: "error",
+        action: "rogue",
+        agentId: typeof agentId === 'string' ? agentId : null,
         title: "Privy Policy Violation Blocked",
         message: "Containment Engaged: Agent attempted 10 MON transfer to unapproved target 0x9999...f08e. Aborted off-chain by Privy Policy Engine before signing. 0 gas spent.",
         timestamp: new Date().toLocaleTimeString()
       })
-      setIsExecutingAction(false)
+      setIsExecutingRogue(false)
 
       const rogueEvent = {
         event_type: "POLICY CONTAINMENT",
@@ -284,6 +306,7 @@ function App() {
         details: {
           reason: "Containment Engaged: Agent attempted 10 MON transfer to unapproved target 0x9999...f08e. Aborted off-chain by Privy Policy Engine before signing.",
           target: "0x9999...f08e",
+          agent: typeof agentId === 'string' ? agentId : undefined,
           riskScore: 99,
           latency_ms: "1.4ms",
           path: "/v1/policy/containment"
@@ -300,6 +323,16 @@ function App() {
         prompt: prev.prompt + 1
       }))
     }, 600)
+  }
+
+  const handleEmitTelemetryEvent = (eventData) => {
+    if (!eventData) return
+    setEvents(prev => [eventData, ...prev].slice(0, 50))
+    if (eventData.isBlocked) {
+      setStats(prev => ({ ...prev, blocked: prev.blocked + 1 }))
+    } else {
+      setStats(prev => ({ ...prev, requests: prev.requests + 1 }))
+    }
   }
 
   const handleNewEvent = (data) => {
@@ -534,7 +567,7 @@ function App() {
         severity: "INFO",
         getDetails: () => ({
           agent: "0x742d...f44e",
-          target: "0x32fa...1101 (PolicyGuard)",
+          target: "0x90Fd...EF60 (PolicyGuard)",
           riskScore: Math.floor(Math.random() * 14) + 2,
           tx: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`,
           latency_ms: `${(2.1 + Math.random() * 2.2).toFixed(1)}ms`,
@@ -560,7 +593,7 @@ function App() {
         severity: "HIGH",
         getDetails: () => ({
           reason: "Privy Policy Guard: Transfer limit verification enforced before signing. Off-chain contained.",
-          target: "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+          target: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
           latency_ms: `${(1.1 + Math.random() * 1.0).toFixed(1)}ms`,
           path: "/v1/policy/preflight"
         }),
@@ -664,7 +697,7 @@ function App() {
       isBlocked: false,
       details: {
         reason: `New policy ${newPolicy.policyId} (${newPolicy.name}) deployed to Privy TEE & Monad Testnet`,
-        target: "0x32fa...1101 (PolicyGuard)",
+        target: "0x90Fd...EF60 (PolicyGuard)",
         tx: newPolicy.txHash,
         latency_ms: "2.6ms",
         path: "/v1/policy/deploy"
@@ -699,7 +732,9 @@ function App() {
             stats={stats}
             onTriggerGuardedAction={handleTriggerGuardedAction}
             onTriggerRogueAction={handleTriggerRogueAction}
-            isExecutingAction={isExecutingAction}
+            executingAction={executingAction}
+            isExecutingGuarded={isExecutingGuarded}
+            isExecutingRogue={isExecutingRogue}
             agentActionStatus={agentActionStatus}
             defaultAgentAddress={DEFAULT_AGENT_ADDRESS}
             defaultPolicyId={DEFAULT_POLICY_ID}
@@ -737,8 +772,11 @@ function App() {
             onConnectSupervisor={handleConnectSupervisor}
             onTriggerGuardedAction={handleTriggerGuardedAction}
             onTriggerRogueAction={handleTriggerRogueAction}
-            isExecutingAction={isExecutingAction}
+            executingAction={executingAction}
+            isExecutingGuarded={isExecutingGuarded}
+            isExecutingRogue={isExecutingRogue}
             agentActionStatus={agentActionStatus}
+            onEmitTelemetryEvent={handleEmitTelemetryEvent}
             onNavigateTab={(tab) => setActiveTab(tab)}
           />
         )}

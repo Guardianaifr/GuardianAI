@@ -4,6 +4,7 @@ Verifies the two features identified as missing in the 6.5/10 audit:
 1. Per-agent function selector allowlists (deny-by-default)
 2. Per-agent spending caps (per-tx and rolling 24h outflow)
 """
+import os
 import time
 import pytest
 from guardian.relayer.attestation_service import (
@@ -38,7 +39,7 @@ def make_service(agent_policies=None):
     """Create a SafetyAttestationService with a deterministic test key."""
     return SafetyAttestationService(
         private_key="0x" + "ab" * 32,
-        verifying_contract="0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+        verifying_contract=os.environ.get("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD", "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"),
         chain_id=10143,
         max_allowed_risk_score=25,
         agent_policies=agent_policies or {},

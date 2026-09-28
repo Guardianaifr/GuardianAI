@@ -246,6 +246,19 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
     }
 
     /**
+     * @notice Check whether an agent's passport is currently active and valid.
+     * @param _agentId The agent identifier (or keccak256 hash if hashed)
+     * @return True if the agent has a minted, non-revoked passport and is not tombstoned
+     */
+    function isPassportActive(bytes32 _agentId) external view returns (bool) {
+        if (paused()) return false;
+        if (isAgentRevoked[_agentId]) return false;
+        uint256 tokenId = agentToken[_agentId];
+        if (tokenId == 0) return false;
+        return !passports[tokenId].revoked;
+    }
+
+    /**
      * @notice ERC-165: Declare support for ERC-721, ERC-165, and ERC-5192.
      * @param interfaceId The interface identifier.
      * @return True if the contract supports the interface.

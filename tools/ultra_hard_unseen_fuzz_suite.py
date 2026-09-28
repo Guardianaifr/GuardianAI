@@ -47,9 +47,9 @@ from guardian_middleware import GuardianMiddleware
 MONAD_RPC_URL = os.getenv("MONAD_TESTNET_RPC") or os.getenv("MONAD_RPC_URL") or "https://testnet-rpc.monad.xyz"
 DEPLOYER_KEY = os.getenv("GUARDIAN_DEPLOYER_PRIVATE_KEY") or os.getenv("GUARDIAN_ERC8004_REGISTRAR_KEY")
 
-POLICY_GUARD_ADDR = Web3.to_checksum_address("0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101")
-THREAT_FEED_ADDR = Web3.to_checksum_address("0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8")
-PASSPORT_SBT_ADDR = Web3.to_checksum_address("0x65e081101a08F8c1C2df1cB9D008b3f988fF147f")
+POLICY_GUARD_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD") or "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60")
+THREAT_FEED_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_THREATFEED_CONTRACT_MONAD") or "0x576CC248D8c406ac302b74e7BFd571E9F989f467")
+PASSPORT_SBT_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_SBT_CONTRACT_MONAD") or "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff")
 
 # Load ABIs
 with open("metropolis/indexer/abis/GuardianPolicyGuard.json", encoding="utf-8") as f:

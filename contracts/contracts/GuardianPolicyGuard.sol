@@ -7,6 +7,10 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+interface IGuardianPassportSBT {
+    function isPassportActive(bytes32 agentId) external view returns (bool);
+}
+
 /**
  * @title GuardianPolicyGuard
  * @notice Validates cryptographic EIP-712 safety attestations signed off-chain
@@ -34,16 +38,19 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
         "SafetyAttestation(bytes32 agentId,address targetContract,bytes32 calldataHash,uint256 value,uint8 riskScore,uint256 nonce,uint256 deadline)"
     );
 
+    /// @notice Monad native RIP-7212 P256 (secp256r1) precompile address
+    address public constant RIP7212_P256_PRECOMPILE = address(0x0000000000000000000000000000000000000100);
+
     // ── State Variables ───────────────────────────────────────────────────
 
     address public attestationSigner;
+    address public passportRegistry;
     uint8 public maxAllowedRiskScore = 25; // Default safety threshold
 
     /// @notice agentId => nonce => isUsed (Namespaced for Monad parallel execution)
     mapping(bytes32 => mapping(uint256 => bool)) public usedNonces;
 
-    // ── Events ────────────────────────────────────────────────────────────
-
+    // ── Events ────────────────────────────────────────────────────
     event ActionExecutedWithAttestation(
         bytes32 indexed agentId,
         address indexed target,
@@ -51,6 +58,7 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
         uint256 nonce
     );
     event AttestationSignerUpdated(address indexed previousSigner, address indexed newSigner);
+    event PassportRegistryUpdated(address indexed previousRegistry, address indexed newRegistry);
     event MaxAllowedRiskScoreUpdated(uint8 previousScore, uint8 newScore);
 
     // ── Custom Errors ─────────────────────────────────────────────────────
@@ -58,6 +66,7 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
     error InvalidTargetAddress();
     error SelfCallProhibited();
     error InvalidSignerAddress();
+    error PassportRevokedOrInactive(bytes32 agentId);
     error ValueMismatch(uint256 expected, uint256 actual);
     error AttestationExpired(uint256 deadline, uint256 currentTimestamp);
     error RiskScoreExceedsThreshold(uint8 riskScore, uint8 maxAllowed);
@@ -111,6 +120,11 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
         if (attestation.riskScore > maxAllowedRiskScore)
             revert RiskScoreExceedsThreshold(attestation.riskScore, maxAllowedRiskScore);
 
+        // 4b. Sovereign Agent Passport validation (Track 04 Protocol Primitive)
+        if (passportRegistry != address(0) && !IGuardianPassportSBT(passportRegistry).isPassportActive(attestation.agentId)) {
+            revert PassportRevokedOrInactive(attestation.agentId);
+        }
+
         // 5. Cryptographic EIP-712 signature verification (Audit M-02-R2: Before nonce write)
         bytes32 structHash = keccak256(
             abi.encode(
@@ -158,6 +172,15 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
     // ── Admin Functions ───────────────────────────────────────────────────
 
     /**
+     * @notice Set or update the address of the GuardianPassportSBT registry.
+     * @param _registry The address of the passport SBT registry contract.
+     */
+    function setPassportRegistry(address _registry) external onlyOwner {
+        emit PassportRegistryUpdated(passportRegistry, _registry);
+        passportRegistry = _registry;
+    }
+
+    /**
      * @notice Set a new authorized attestation signer.
      * @param newSigner The address of the new signer.
      */
@@ -198,5 +221,45 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
         if (to == address(0)) revert InvalidTargetAddress();
         (bool ok, ) = to.call{value: address(this).balance}("");
         if (!ok) revert SweepFailed();
+    }
+
+    // ── Cryptographic Precompile Helpers ───────────────────────────────────
+
+    /**
+     * @notice Native Monad RIP-7212 P256 Precompile verification helper.
+     * @dev Invokes the native secp256r1 precompile at 0x0000000000000000000000000000000000000100 via staticcall.
+     * @param messageHash 32-byte hash of the payload being verified
+     * @param r Signature component r (32 bytes)
+     * @param s Signature component s (32 bytes)
+     * @param qx Public key X coordinate (32 bytes)
+     * @param qy Public key Y coordinate (32 bytes)
+     * @return isValid True if the signature is valid under the secp256r1 curve
+     */
+    function verifyP256Signature(
+        bytes32 messageHash,
+        bytes32 r,
+        bytes32 s,
+        bytes32 qx,
+        bytes32 qy
+    ) public view returns (bool isValid) {
+        bytes memory input = abi.encodePacked(messageHash, r, s, qx, qy);
+        (bool success, bytes memory output) = RIP7212_P256_PRECOMPILE.staticcall(input);
+        if (success && output.length == 32) {
+            return abi.decode(output, (uint256)) == 1;
+        }
+        return false;
+    }
+
+    /**
+     * @notice Overload for verifyP256Signature accepting uint256 components.
+     */
+    function verifyP256Signature(
+        bytes32 messageHash,
+        uint256 r,
+        uint256 s,
+        uint256 qx,
+        uint256 qy
+    ) external view returns (bool isValid) {
+        return verifyP256Signature(messageHash, bytes32(r), bytes32(s), bytes32(qx), bytes32(qy));
     }
 }

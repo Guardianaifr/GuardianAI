@@ -51,7 +51,7 @@
 | Component | Category | Target Deliverable | Status | Implementation Notes |
 | :--- | :--- | :--- | :---: | :--- |
 | **Domain Context & Research** | **Pre-existing** | Prompt injection heuristics, safety datasets, jailbreak taxonomy, NLP filters | ✅ **100% COMPLETE** | Fully integrated into `guardian/guardrails/` and wired into the relayer. |
-| **Monad Smart Contracts** | **New (Hackathon)** | `GuardianPolicyGuard.sol`, `GuardianThreatFeedRegistry.sol`, and `GuardianPassportSBT.sol` deployed natively to Monad Testnet | ✅ **100% COMPLETE** | Deployed (`10143`) via QuickNode. 183 Hardhat tests passing. Full Match Verified on [MonadVision](https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/). |
+| **Monad Smart Contracts** | **New (Hackathon)** | Complete suite including `GuardianPolicyGuard.sol`, `GuardianThreatFeedRegistry.sol`, `GuardianPassportSBT.sol`, `GuardianInsuranceLedger.sol`, and `GuardianTimelock.sol` deployed natively to Monad Testnet | ✅ **100% COMPLETE** | Deployed (`10143`). 215 Hardhat tests passing across 12 suites. Verified on [MonadScan](https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60). |
 | **Cryptographic Attestation Relayer** | **New (Hackathon)** | Sub-second EIP-712 signing pipeline converting AI safety decisions into on-chain proofs (<3ms P50) | ✅ **100% COMPLETE** | Built in `guardian/relayer/attestation_service.py` & `/api/v1/attest` in `rpc_relay.py`. Includes Function Allowlists & 24h Outflow Caps. |
 | **Agent Middleware / SDK** | **New (Hackathon)** | Lightweight drop-in middleware/interceptor (`guardian-middleware`) between AI agent frameworks and Monad RPC | ✅ **100% COMPLETE** | TypeScript SDK (`packages/guardian-middleware`) + Python SDK (`sdk/python/guardian_middleware.py`) with ElizaOS plugin & LangChain callback. Strict fail-closed. |
 
@@ -69,11 +69,13 @@ GuardianAI is custom-engineered to exploit the unique properties of **Category L
    * Unlike Ethereum's 24.576 KB limit (EIP-170), Monad supports up to **128 KB** bytecode. GuardianAI leverages this headroom to embed comprehensive policy rule sets (10 on-chain invariants including contract code length verification) and signature verification matrices without runtime proxy fragmentation.
 3. **Sub-second Attestation & Finality Alignment:**
    * Category Labs prioritizes high-throughput execution with Monad's **~400ms block times**. GuardianAI's Python Relayer signs EIP-712 attestations in **P50 = 2.68 ms** (Mean = 3.00 ms, measured across 100 iterations), delivering end-to-end security verification within a single Monad block window.
-4. **Full-Match Explorer Verification:**
-   * Deployed contracts are verified on **MonadVision** (Sourcify API) on Chain ID `10143`:
-     * [`GuardianPolicyGuard`](https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/)
-     * [`GuardianThreatFeedRegistry`](https://testnet.monadvision.com/contracts/full_match/10143/0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8/)
-     * [`GuardianPassportSBT`](https://testnet.monadvision.com/contracts/full_match/10143/0x65e081101a08F8c1C2df1cB9D008b3f988fF147f/)
+4. **Explorer Verification & On-Chain Addresses:**
+   * Deployed contracts on Monad Testnet (Chain ID `10143`):
+     * [`GuardianPolicyGuard`](https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60)
+     * [`GuardianThreatFeedRegistry`](https://testnet.monadscan.com/address/0x576CC248D8c406ac302b74e7BFd571E9F989f467)
+     * [`GuardianPassportSBT`](https://testnet.monadscan.com/address/0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff)
+     * [`GuardianInsuranceLedger`](https://testnet.monadscan.com/address/0x671F73068BF55a30299719D76db0d3031A64Bb22)
+     * [`GuardianTimelock`](https://testnet.monadscan.com/address/0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc)
 
 ---
 

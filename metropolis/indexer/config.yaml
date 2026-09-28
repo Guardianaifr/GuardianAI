@@ -47,12 +47,12 @@ chains:
       url: https://snowy-ultra-film.monad-testnet.quiknode.pro/e9b2075b87f936cab2a8777098e57a00a51c5673/
     contracts:
       - name: GuardianPolicyGuard
-        address: "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101"
+        address: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
       - name: GuardianThreatFeedRegistry
-        address: "0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8"
+        address: "0x576CC248D8c406ac302b74e7BFd571E9F989f467"
       - name: GuardianPassportSBT
-        address: "0x65e081101a08F8c1C2df1cB9D008b3f988fF147f"
+        address: "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff"
       - name: GuardianCortexAnchor
-        address: "0x0000000000000000000000000000000000000004"
+        address: "0x78aFC34a9653c762cA9827370A94a02f7412dBfa"
       - name: GuardianRiskAttestation
-        address: "0x0000000000000000000000000000000000000005"
+        address: "0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87"

@@ -177,7 +177,7 @@ Evaluates agent prompt and transaction parameters using the deterministic rules 
     "deadline": 1788462000
   },
   "signature": "0x...",
-  "policy_guard": "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+  "policy_guard": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
   "wrapped_calldata": "0x3cb7461c..."
 }
 ```
@@ -192,7 +192,7 @@ Evaluates agent prompt and transaction parameters using the deterministic rules 
   ],
   "attestation": null,
   "signature": null,
-  "policy_guard": "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101",
+  "policy_guard": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
   "wrapped_calldata": null
 }
 ```

@@ -186,12 +186,17 @@ GuardianAI's smart contract layer is deployed and verified on Monad Testnet:
 
 | Contract | Address | Verification & Explorer |
 |---|---|---|
-| **GuardianPolicyGuard** | `0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101` | [MonadVision Match](https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/) |
-| **GuardianThreatFeedRegistry** | `0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8` | [MonadVision Match](https://testnet.monadvision.com/contracts/full_match/10143/0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8/) |
-| **GuardianPassportSBT** | `0x65e081101a08F8c1C2df1cB9D008b3f988fF147f` | [MonadVision Match](https://testnet.monadvision.com/contracts/full_match/10143/0x65e081101a08F8c1C2df1cB9D008b3f988fF147f/) |
-| **GuardianTimelock** | `0x89E5F2f638104E351bF43BffE6bCeC6D70933B01` | [MonadVision Match](https://testnet.monadvision.com/contracts/full_match/10143/0x89E5F2f638104E351bF43BffE6bCeC6D70933B01/) |
+| **GuardianPolicyGuard** | `0x90Fdc8E1e5C951701eCd84677038B38560CdEF60` | [MonadScan](https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60) |
+| **GuardianThreatFeedRegistry** | `0x576CC248D8c406ac302b74e7BFd571E9F989f467` | [MonadScan](https://testnet.monadscan.com/address/0x576CC248D8c406ac302b74e7BFd571E9F989f467) |
+| **GuardianPassportSBT** | `0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff` | [MonadScan](https://testnet.monadscan.com/address/0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff) |
+| **IdentityRegistryTestnet** | `0xda5dA75777d30d6d7586b97965dD906AD032E3ff` | [MonadScan](https://testnet.monadscan.com/address/0xda5dA75777d30d6d7586b97965dD906AD032E3ff) |
+| **GuardianInsuranceLedger** | `0x671F73068BF55a30299719D76db0d3031A64Bb22` | [MonadScan](https://testnet.monadscan.com/address/0x671F73068BF55a30299719D76db0d3031A64Bb22) |
+| **GuardianCortexAnchor** | `0x78aFC34a9653c762cA9827370A94a02f7412dBfa` | [MonadScan](https://testnet.monadscan.com/address/0x78aFC34a9653c762cA9827370A94a02f7412dBfa) |
+| **GuardianInterlockRegistry** | `0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d` | [MonadScan](https://testnet.monadscan.com/address/0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d) |
+| **GuardianRiskAttestation** | `0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87` | [MonadScan](https://testnet.monadscan.com/address/0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87) |
+| **GuardianTimelock** | `0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc` | [MonadScan](https://testnet.monadscan.com/address/0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc) |
 
-- **Confirmed On-Chain Receipt:** Monad Block `#59,420,050` (Tx: [`0x2ac9f4ee...`](https://testnet.monadvision.com/tx/0x2ac9f4eea0e9b918bf915f62e9763e9b67c48aa53425eff90c318106fb04d33a))
+- **Confirmed On-Chain Receipt:** Monad Block `#66,451,553` (Tx: [`0xda14b65c...`](https://testnet.monadscan.com/tx/0xda14b65c639fe6fe7b160bb8610524c429b1bdb9b73f208ba9ae1e6d67481c87))
 - **Interactive Simulation:** [Tenderly Monad Testnet Simulation Trace](https://dashboard.tenderly.co/shared/simulation/b45791d7-a479-475a-a4c7-b26f34f9fc8e)
 
 ---

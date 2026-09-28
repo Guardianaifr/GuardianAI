@@ -52,9 +52,9 @@
         <a href="/">Home</a>
         <a href="/how-it-works">Architecture</a>
         <a href="/proof">Proof &amp; Benchmarks</a>
-        <a href="/pricing">Pricing</a>
+        <a href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Dashboard ↗</a>
         <a href="https://x.com/noob_nad" target="_blank" rel="noopener">X (@noob_nad)</a>
-        <a class="btn btn-primary btn-sm" href="/#demo">Live Demo</a>
+        <a class="btn btn-primary btn-sm" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Launch Explorer ↗</a>
       </nav>
     </div>
   </header>
@@ -506,8 +506,8 @@ try {
         <p>GuardianAI deploys native smart contracts to the <strong>Monad Parallel EVM</strong> (Chain ID <code>10143</code>). The flagship execution firewall, <code>GuardianPolicyGuard.sol</code>, enforces 10 deterministic on-chain invariants before autonomous agent transactions are broadcast.</p>
 
         <div class="docs-callout tip">
-          <div class="docs-callout-title">&#128279; Full-Match Verified on MonadVision</div>
-          <code>GuardianPolicyGuard</code> is deployed and verified at <a href="https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0x32fa...1101 ↗</a>. Verified test suite: 207 Hardhat unit, stress, and reorg tests (100% passing across 11 suites).
+          <div class="docs-callout-title">&#128279; Deployed &amp; Verified on MonadScan</div>
+          <code>GuardianPolicyGuard</code> is deployed and verified at <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0x90Fd...EF60 ↗</a>. Verified test suite: 215 Hardhat unit, stress, and reorg tests (100% passing across 12 suites).
         </div>
 
         <div class="docs-grid">
@@ -674,7 +674,7 @@ export const agentConfig = {
     createGuardianSecurityPlugin({
       enclavePreset: "mera-passkey-prf",
       failClosed: true,
-      policyGuardAddress: "0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101"
+      policyGuardAddress: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
     })
   ]
 };

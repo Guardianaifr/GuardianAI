@@ -30,10 +30,10 @@
       </button>
       <ul class="nav-links" id="nav-links">
         <li><a href="/how-it-works" aria-current="page">How it works</a></li>
-        <li><a href="/pricing">Pricing</a></li>
         <li><a href="/docs">Docs &amp; API</a></li>
         <li><a href="/proof">Proof</a></li>
-        <li><a class="btn btn-primary btn-sm" href="/#demo">Run the demo</a></li>
+        <li><a href="http://localhost:5173/" target="_blank" rel="noopener noreferrer" class="nav-highlight">Protocol Explorer ↗</a></li>
+        <li><a class="btn btn-primary btn-sm" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Open Dashboard ↗</a></li>
       </ul>
     </div>
   </header>
@@ -145,7 +145,7 @@
 
         <div class="callout warn reveal">
           <h3>What's real today — stated plainly.</h3>
-          <p>Merkle anchoring defaults to <b>simulated mode</b>; live testnet submission is active on <a href="https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. The canonical ERC-8004 registries are mainnet ecosystem infrastructure — testnet registrations use an ABI-faithful stand-in registry. The insurance ledger anchors certificates only; no payout or slashing automation exists. We'd rather lose the hype than the trust this page asks you to place in us.</p>
+          <p>Merkle anchoring defaults to <b>simulated mode</b>; live testnet submission is active on <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. The canonical ERC-8004 registries are mainnet ecosystem infrastructure — testnet registrations use an ABI-faithful stand-in registry. The insurance ledger anchors certificates only; no payout or slashing automation exists. We'd rather lose the hype than the trust this page asks you to place in us.</p>
         </div>
       </div>
     </section>
@@ -208,8 +208,8 @@ out = guardian.<span class="tok-fn">scan_response</span>(reply, system_prompt=SY
             <p>The universal auth proxy sits in front of Ollama, vLLM, LocalAI, and other OpenAI-compatible endpoints, so unmodified clients get guarded without code changes.</p>
           </article>
           <article class="card reveal">
-            <h3>Managed platform</h3>
-            <p>The whole platform runs as a managed cloud service — no setup, no maintenance. Onboarding opens soon. See <a href="/pricing" style="color:var(--green)">pricing status</a>.</p>
+            <h3>Interactive Protocol Explorer</h3>
+            <p>Explore the full platform in your browser — live telemetry, agent policies, and audit logs are ready to test at <a href="http://localhost:5173/" target="_blank" rel="noopener noreferrer" style="color:var(--green);text-decoration:underline;">http://localhost:5173 ↗</a>.</p>
           </article>
         </div>
       </div>
@@ -221,7 +221,8 @@ out = guardian.<span class="tok-fn">scan_response</span>(reply, system_prompt=SY
         <h2 class="section-title reveal" id="cta-title" style="margin-left:auto;margin-right:auto;">Read the receipts next.</h2>
         <p class="section-lede reveal" style="margin:0 auto 30px;text-align:center;">Benchmarks, latency under attack, test counts, audit status — each figure cited to its dated artifact.</p>
         <div class="hero-actions reveal">
-          <a class="btn btn-primary" href="/proof">Open the proof page</a>
+          <a class="btn btn-primary" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Launch Protocol Explorer ↗</a>
+          <a class="btn btn-ghost" href="/proof">Open the proof page</a>
         </div>
       </div>
     </section>
@@ -240,11 +241,13 @@ out = guardian.<span class="tok-fn">scan_response</span>(reply, system_prompt=SY
           <p class="footer-fine" style="margin-top:14px;">Compliance artifacts are internally generated assessments, not certifications. Non-English prompts are normalized via a third-party translation service before filtering.</p>
         </div>
         <div>
-          <h4>Product</h4>
+          <h4>Product &amp; Explorer</h4>
           <ul>
-            <li><a href="/#demo">Live demo</a></li>
+            <li><a href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Protocol Explorer (localhost:5173) ↗</a></li>
+            <li><a href="http://localhost:5173/#dashboard" target="_blank" rel="noopener noreferrer">Threat Stream &amp; Telemetry ↗</a></li>
+            <li><a href="http://localhost:5173/#agents" target="_blank" rel="noopener noreferrer">Agent Directory &amp; Delegation ↗</a></li>
+            <li><a href="/#demo">In-page scanner demo</a></li>
             <li><a href="/#platform">Platform overview</a></li>
-            <li><a href="/pricing">Pricing</a></li>
             <li><a href="#contracts">Contract suite</a></li>
           </ul>
         </div>

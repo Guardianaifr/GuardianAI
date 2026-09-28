@@ -30,10 +30,10 @@
       </button>
       <ul class="nav-links" id="nav-links">
         <li><a href="/how-it-works">How it works</a></li>
-        <li><a href="/pricing">Pricing</a></li>
         <li><a href="/docs">Docs &amp; API</a></li>
         <li><a href="/proof">Proof</a></li>
-        <li><a class="btn btn-primary btn-sm" href="#demo">Run the demo</a></li>
+        <li><a href="http://localhost:5173/" target="_blank" rel="noopener noreferrer" class="nav-highlight">Protocol Explorer ↗</a></li>
+        <li><a class="btn btn-primary btn-sm" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Open Dashboard ↗</a></li>
       </ul>
     </div>
   </header>
@@ -42,7 +42,7 @@
     <a href="#threat-model">Threat model</a>
     <a href="#platform">Platform</a>
     <a href="#evidence">Evidence</a>
-    <a href="#pricing">Pricing</a>
+    <a href="#explorer">Explorer</a>
   </nav>
 
   <main id="main">
@@ -57,7 +57,8 @@
           <h1 id="hero-title" class="rise d1">Your agent holds a wallet.<br>One bad prompt <span class="verdict-word">shouldn't empty it.</span></h1>
           <p class="hero-sub rise d2">Sub-millisecond Edge AI Firewall, Mera Passkey PRF hardware-bound sealed memory enclave, and Monad PolicyGuard execution containment on Parallel EVM.</p>
           <div class="hero-actions rise d3">
-            <a class="btn btn-primary" href="#demo">Run the live demo</a>
+            <a class="btn btn-primary" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Launch Protocol Explorer ↗</a>
+            <a class="btn btn-ghost" href="#demo">Try In-Page Scanner</a>
             <a class="btn btn-ghost" href="/proof">See the proof</a>
           </div>
           <p class="hero-proofline rise d4"><b>99.0%</b> AdvBench strict<span class="sep">|</span><b>41.88 ms</b> p95 under attack<span class="sep">|</span><b>207/207</b> Hardhat tests<span class="sep">|</span><b>1,490+</b> Python suites</p>
@@ -238,47 +239,75 @@
           <article class="card reveal">
             <span class="card-index">[C]</span>
             <h3><a href="/proof#chains" style="color:var(--green)">Chains &amp; identity →</a></h3>
-            <p>Eleven-contract suite deployed on <a href="https://testnet.monadvision.com/contracts/full_match/10143/0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101/" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. State anchoring runs simulated-by-default. Zero mainnet claims — verifiable directly on block explorers.</p>
+            <p>Eleven-contract suite deployed on <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. State anchoring runs simulated-by-default. Zero mainnet claims — verifiable directly on block explorers.</p>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- ================= PRICING & CONVERSION ================= -->
-    <section id="pricing" aria-labelledby="pr-title">
+    <!-- ================= PROTOCOL EXPLORER & LIVE DASHBOARD ================= -->
+    <section id="explorer" aria-labelledby="exp-title">
       <div class="wrap">
         <div class="section-head reveal">
-          <span class="eyebrow">Pricing &amp; Open Source</span>
-          <h2 class="section-title" id="pr-title">Hosted tiers are coming.<br>The engine is free and open source now.</h2>
-          <p class="section-lede">The core engine, SDKs, and local auth proxy are 100% free under MIT. Self-host today in your VPC, or join the waitlist for our managed cloud platform.</p>
+          <span class="eyebrow">Interactive Control Plane</span>
+          <h2 class="section-title" id="exp-title">Explore the live protocol.<br><span style="color:var(--green)">Five tabs. Full visibility. Zero setup.</span></h2>
+          <p class="section-lede">Launch the GuardianAI Protocol Explorer at <code>http://localhost:5173</code> to inspect real-time agent telemetry, test policy containment, simulate rogue actions, and inspect immutable audit logs.</p>
         </div>
-        <div class="grid-2">
-          <article class="card reveal" style="border-color:var(--green-line);">
-            <span class="card-index">[CLOUD]</span>
-            <span class="partner-badge">12+ teams in active staging &amp; production</span>
-            <h3>Managed Cloud Platform</h3>
-            <p>Zero infrastructure on your side. Hosted low-latency firewalls, semantic classifier clusters, automated Merkle anchoring, and compliance reporting.</p>
-            <div class="waitlist-card-box">
-              <label class="mono" style="display:block;margin-bottom:4px;color:var(--dim);">Join the Hosted Beta Waitlist</label>
-              <form class="waitlist-form">
-                <input type="email" class="waitlist-input" placeholder="name@company.com" required>
-                <button type="submit" class="btn btn-primary btn-sm">Join Waitlist</button>
-              </form>
-              <div class="waitlist-status" role="status"></div>
+        <div class="explorer-tabs-grid">
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#home" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 01</span>
+              <span class="tab-card-tag">CONTROL</span>
             </div>
-          </article>
-          <article class="card reveal">
-            <span class="card-index">[OPEN SOURCE]</span>
-            <h3>Self-Hosted Engine &amp; Design Partners</h3>
-            <p>The entire detection suite is free to deploy inside your perimeter today. Point your Ollama, vLLM, or OpenAI endpoints at the universal auth proxy.</p>
-            <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
-              <a class="btn btn-primary btn-sm" href="https://x.com/noob_nad" target="_blank" rel="noopener" style="justify-content:flex-start;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                DM on X for Design Partner Access (@noob_nad)
-              </a>
-              <p class="mono" style="font-size:0.8rem;color:var(--dim);margin-top:4px;">CLI Quickstart: <code style="color:var(--green)">python demo/full_demo.py --preview</code></p>
+            <h3>Home &amp; Actions</h3>
+            <p>Simulate guarded vs. rogue agent transactions. Test real-time Privy TEE containment, session caps, and Monad testnet execution.</p>
+            <span class="tab-card-link">Launch Home Tab ↗</span>
+          </a>
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#dashboard" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 02</span>
+              <span class="tab-card-tag">TELEMETRY</span>
             </div>
-          </article>
+            <h3>Real-Time Dashboard</h3>
+            <p>Live threat stream via WebSockets, Envio indexer metrics, attack vector distribution, and millisecond latency graphs.</p>
+            <span class="tab-card-link">Launch Dashboard Tab ↗</span>
+          </a>
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#policy" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 03</span>
+              <span class="tab-card-tag">DEFENSE</span>
+            </div>
+            <h3>Guardrails &amp; Policy</h3>
+            <p>Create and deploy custom execution constraints, spending limits, target address whitelists, and containment rules.</p>
+            <span class="tab-card-link">Launch Guardrails Tab ↗</span>
+          </a>
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#agents" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 04</span>
+              <span class="tab-card-tag">IDENTITY</span>
+            </div>
+            <h3>Agent Directory</h3>
+            <p>Inspect registered autonomous agents, ERC-8004 identity gates, soulbound reputation scores, and session key delegations.</p>
+            <span class="tab-card-link">Launch Agents Tab ↗</span>
+          </a>
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#logs" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 05</span>
+              <span class="tab-card-tag">AUDIT</span>
+            </div>
+            <h3>Immutable Audit Logs</h3>
+            <p>Cryptographically anchored audit log stream. Filter events by severity, path, risk score, and on-chain transaction hash.</p>
+            <span class="tab-card-link">Launch Logs Tab ↗</span>
+          </a>
+          <div class="explorer-tab-card explorer-cta-card reveal">
+            <div class="tab-card-header">
+              <span class="tab-card-badge" style="color:var(--green);border-color:var(--green-line);">LIVE APP</span>
+              <span class="tab-card-tag">PORT 5173</span>
+            </div>
+            <h3>Open Full Explorer</h3>
+            <p>Runs directly against local services or standalone simulation. Opens in a new browser tab with full tab navigation.</p>
+            <a class="btn btn-primary btn-sm" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer" style="margin-top:auto;width:100%;">Open localhost:5173 ↗</a>
+          </div>
         </div>
       </div>
     </section>
@@ -289,7 +318,8 @@
         <span class="eyebrow reveal">Get started</span>
         <h2 class="section-title reveal" id="cta-title">Don't wait for an exploit to audit your agents.<br><span style="color:var(--green)">Deploy dual-layer security today.</span></h2>
         <div class="hero-actions reveal">
-          <a class="btn btn-primary" href="#demo">Run the live demo</a>
+          <a class="btn btn-primary" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Launch Protocol Explorer ↗</a>
+          <a class="btn btn-ghost" href="#demo">Try In-Page Scanner</a>
           <a class="btn btn-ghost" href="/proof">Verify the receipts</a>
         </div>
       </div>
@@ -309,11 +339,13 @@
           <p class="footer-fine" style="margin-top:14px;">Compliance artifacts are internally generated assessments, not certifications. Non-English prompts are normalized via a third-party translation service before filtering.</p>
         </div>
         <div>
-          <h4>Product</h4>
+          <h4>Product &amp; Explorer</h4>
           <ul>
-            <li><a href="#demo">Live demo</a></li>
+            <li><a href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Protocol Explorer (localhost:5173) ↗</a></li>
+            <li><a href="http://localhost:5173/#dashboard" target="_blank" rel="noopener noreferrer">Threat Stream &amp; Telemetry ↗</a></li>
+            <li><a href="http://localhost:5173/#agents" target="_blank" rel="noopener noreferrer">Agent Directory &amp; Delegation ↗</a></li>
             <li><a href="/how-it-works">How it works</a></li>
-            <li><a href="/pricing">Pricing</a></li>
+            <li><a href="#demo">In-page scanner demo</a></li>
             <li><a href="/how-it-works#contracts">Contract suite</a></li>
           </ul>
         </div>

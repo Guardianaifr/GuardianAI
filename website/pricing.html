@@ -3,18 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pricing — GuardianAI</title>
-  <meta name="description" content="GuardianAI hosted tiers are being finalized. The core engine is 100% open source under MIT. Managed platform beta onboarding opens soon.">
+  <title>Protocol Explorer — GuardianAI</title>
+  <meta name="description" content="Launch the interactive GuardianAI Protocol Explorer on localhost:5173 to inspect real-time agent telemetry, test policy containment, and audit logs.">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
-  <meta property="og:title" content="GuardianAI pricing — coming soon">
-  <meta property="og:description" content="Hosted tiers are being finalized. One managed platform for AI-agent security — onboarding opens soon.">
+  <meta property="og:title" content="GuardianAI Protocol Explorer">
+  <meta property="og:description" content="Dual-layer security for autonomous agents. Explore live telemetry, agent directory, guardrails, and audit logs.">
   <meta property="og:type" content="website">
-  <link rel="canonical" href="https://aiguardian.dev/pricing">
-  <meta property="og:url" content="https://aiguardian.dev/pricing">
+  <link rel="canonical" href="https://aiguardian.dev/">
+  <meta property="og:url" content="https://aiguardian.dev/">
+  <meta http-equiv="refresh" content="2; url=http://localhost:5173/">
+  <script>
+    if (typeof window !== 'undefined') {
+      window.location.replace("http://localhost:5173/");
+    }
+  </script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -30,117 +36,93 @@
       </button>
       <ul class="nav-links" id="nav-links">
         <li><a href="/how-it-works">How it works</a></li>
-        <li><a href="/pricing" aria-current="page">Pricing</a></li>
         <li><a href="/docs">Docs &amp; API</a></li>
         <li><a href="/proof">Proof</a></li>
-        <li><a class="btn btn-primary btn-sm" href="/#demo">Run the demo</a></li>
+        <li><a href="http://localhost:5173/" target="_blank" rel="noopener noreferrer" class="nav-highlight">Protocol Explorer ↗</a></li>
+        <li><a class="btn btn-primary btn-sm" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Open Dashboard ↗</a></li>
       </ul>
     </div>
   </header>
 
   <main id="main">
 
-    <!-- ================= HERO ================= -->
-    <section class="hero" style="padding-bottom:32px;" aria-labelledby="page-title">
+    <!-- ================= REDIRECT HERO ================= -->
+    <section class="hero" style="padding-bottom:48px;" aria-labelledby="page-title">
       <div class="hero-grid-bg" aria-hidden="true"></div>
       <div class="wrap">
-        <span class="eyebrow rise d1">/// PRICING &amp; AVAILABILITY</span>
-        <h1 id="page-title" class="rise d1" style="font-size:clamp(2.2rem,4.8vw,3.5rem);max-width:880px;">Hosted tiers are launching.<br><span style="color:var(--green)">The engine is free now.</span></h1>
-        <p class="hero-sub rise d2" style="max-width:760px;">The core detection engine, SDKs, and local proxy are 100% open-source under MIT. For managed cloud infrastructure and high-volume crypto agent security, join the private beta or apply for our design partner cohort.</p>
-      </div>
-    </section>
-
-    <!-- ================= BETA & PARTNERS CARDS ================= -->
-    <section aria-label="What's available now" style="padding-top:16px;padding-bottom:64px;">
-      <div class="wrap" id="waitlist">
-        <div class="grid-2">
-          <article class="card reveal" style="border-color:var(--green-line);">
-            <div class="card-header-bar">
-              <span class="partner-badge">12+ TEAMS IN ACTIVE STAGING</span>
-              <span class="card-tag">[CLOUD BETA]</span>
-            </div>
-            <h3>Managed Cloud Platform</h3>
-            <p>The entire platform — prompt-injection firewall, de-obfuscation engine, output guardrails, contract analyzer, and Cortex Merkle anchoring — runs as a managed cloud service. Zero ops, SLA-backed latency.</p>
-            <div class="card-action-box">
-              <span class="action-label">REQUEST EARLY ACCESS / JOIN WAITLIST</span>
-              <form class="waitlist-form">
-                <input type="email" class="waitlist-input" placeholder="work-email@company.com" required>
-                <button type="submit" class="btn btn-primary btn-sm">Join Beta Waitlist</button>
-              </form>
-              <div class="waitlist-status" role="status"></div>
-            </div>
-          </article>
-
-          <article class="card reveal">
-            <div class="card-header-bar">
-              <span class="partner-badge">HIGH-VOLUME AGENT PILOTS</span>
-              <span class="card-tag">[DESIGN PARTNERS]</span>
-            </div>
-            <h3>Design Partner Cohort &amp; API</h3>
-            <p>Building high-volume autonomous agents with crypto wallets or financial execution permissions? Work directly with our security engineering team for custom integration support, red-teaming, and early hosted API keys.</p>
-            <div class="card-action-box">
-              <span class="action-label">DIRECT SECURITY ENGINEERING ACCESS</span>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <a class="btn btn-primary btn-sm" href="https://x.com/noob_nad" target="_blank" rel="noopener" style="justify-content:flex-start;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                  Apply via DM on X (@noob_nad)
-                </a>
-              </div>
-              <div class="action-meta">Direct inquiries &amp; partnerships: <a href="https://x.com/noob_nad" target="_blank" rel="noopener" style="color:var(--green)">@noob_nad on X</a></div>
-            </div>
-          </article>
+        <span class="eyebrow rise d1">/// LIVE PROTOCOL EXPLORER</span>
+        <h1 id="page-title" class="rise d1" style="font-size:clamp(2.2rem,4.8vw,3.5rem);max-width:880px;">Redirecting to the<br><span style="color:var(--green)">Protocol Explorer.</span></h1>
+        <p class="hero-sub rise d2" style="max-width:760px;">The interactive dashboard is live at <code>http://localhost:5173</code>. Access real-time threat telemetry, test agent policies, and inspect immutable audit logs.</p>
+        <div class="hero-actions rise d3" style="margin-top:24px;">
+          <a class="btn btn-primary" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Open Protocol Explorer (localhost:5173) ↗</a>
+          <a class="btn btn-ghost" href="/">Return to Homepage</a>
         </div>
       </div>
     </section>
 
-    <!-- ================= PLANNED TIERS MATRIX ================= -->
-    <section class="section-tint" id="tiers" aria-labelledby="tiers-title" style="padding-top:72px;padding-bottom:72px;">
+    <!-- ================= 5 TABS OVERVIEW ================= -->
+    <section aria-labelledby="tabs-title" style="padding-top:16px;padding-bottom:72px;">
       <div class="wrap">
         <div class="section-head reveal">
-          <span class="eyebrow">/// ARCHITECTURE &amp; TIERS</span>
-          <h2 class="section-title" id="tiers-title">Planned tiers. Backed by real meters.</h2>
-          <p class="section-lede">The core engine is free today. Hosted tiers are being finalized based on the metering limits implemented in <code>backend/metering.py</code>.</p>
+          <span class="eyebrow">Five Explorer Tabs</span>
+          <h2 class="section-title" id="tabs-title">Direct tab links</h2>
+          <p class="section-lede">Jump straight into any tab within the local interactive suite:</p>
         </div>
-
-        <!-- Tiers removed temporarily -->
-      </div>
-    </section>
-
-    <!-- ================= AVAILABLE TODAY ================= -->
-    <section aria-labelledby="free-title" style="padding-top:72px;padding-bottom:72px;">
-      <div class="wrap">
-        <div class="section-head reveal">
-          <span class="eyebrow">/// AVAILABLE TODAY</span>
-          <h2 class="section-title" id="free-title">Free and open source today.</h2>
-        </div>
-        <div class="grid-3">
-          <article class="card reveal">
-            <span class="card-index">[01]</span>
-            <h3>The core engine</h3>
-            <p>Both security directions — prompt screening and response guardrails — plus the multi-encoding de-obfuscation layer. Full behavior under MIT license, not a crippled community edition.</p>
-          </article>
-          <article class="card reveal">
-            <span class="card-index">[02]</span>
-            <h3>SDKs &amp; universal proxy</h3>
-            <p>Python and TypeScript SDKs, plus the drop-in auth proxy for Ollama, vLLM, LocalAI, and OpenAI-compatible endpoints.</p>
-          </article>
-          <article class="card reveal">
-            <span class="card-index">[03]</span>
-            <h3>The receipts &amp; benchmarks</h3>
-            <p>Benchmarks, chaos results, test counts, and audit status — all published with sources on the <a href="/proof" style="color:var(--green)">proof page</a>, including the unflattering rows.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= CTA ================= -->
-    <section class="cta-band section-tint" aria-labelledby="cta-title">
-      <div class="wrap" style="padding-top:80px;padding-bottom:88px;">
-        <h2 class="section-title reveal" id="cta-title" style="margin-left:auto;margin-right:auto;">Don't wait for pricing.<br><span style="color:var(--green)">Watch it work.</span></h2>
-        <p class="section-lede reveal" style="margin:0 auto 30px;text-align:center;">The demo runs real detection rules in your browser — no signup, no gateway required.</p>
-        <div class="hero-actions reveal">
-          <a class="btn btn-primary" href="/#demo">Run the live demo</a>
-          <a class="btn btn-ghost" href="/proof">Check the numbers</a>
+        <div class="explorer-tabs-grid">
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#home" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 01</span>
+              <span class="tab-card-tag">CONTROL</span>
+            </div>
+            <h3>Home &amp; Actions</h3>
+            <p>Simulate guarded vs. rogue agent transactions and test Privy TEE containment in real time.</p>
+            <span class="tab-card-link">Launch Home ↗</span>
+          </a>
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#dashboard" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 02</span>
+              <span class="tab-card-tag">TELEMETRY</span>
+            </div>
+            <h3>Real-Time Dashboard</h3>
+            <p>Live WebSocket threat streams, Envio indexer data, and attack vector graphs.</p>
+            <span class="tab-card-link">Launch Dashboard ↗</span>
+          </a>
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#policy" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 03</span>
+              <span class="tab-card-tag">DEFENSE</span>
+            </div>
+            <h3>Guardrails &amp; Policy</h3>
+            <p>Create and deploy custom agent execution constraints and spending caps.</p>
+            <span class="tab-card-link">Launch Guardrails ↗</span>
+          </a>
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#agents" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 04</span>
+              <span class="tab-card-tag">IDENTITY</span>
+            </div>
+            <h3>Agent Directory</h3>
+            <p>Inspect registered autonomous agents, ERC-8004 identity status, and soulbound reputation.</p>
+            <span class="tab-card-link">Launch Agents ↗</span>
+          </a>
+          <a class="explorer-tab-card reveal" href="http://localhost:5173/#logs" target="_blank" rel="noopener noreferrer">
+            <div class="tab-card-header">
+              <span class="tab-card-badge">TAB 05</span>
+              <span class="tab-card-tag">AUDIT</span>
+            </div>
+            <h3>Immutable Audit Logs</h3>
+            <p>Query cryptographic security event history, risk scores, and latency metrics.</p>
+            <span class="tab-card-link">Launch Logs ↗</span>
+          </a>
+          <div class="explorer-tab-card explorer-cta-card reveal">
+            <div class="tab-card-header">
+              <span class="tab-card-badge" style="color:var(--green);border-color:var(--green-line);">LIVE APP</span>
+              <span class="tab-card-tag">PORT 5173</span>
+            </div>
+            <h3>Open Protocol Explorer</h3>
+            <p>Opens directly in a new browser tab with all five tabs accessible.</p>
+            <a class="btn btn-primary btn-sm" href="http://localhost:5173/" target="_blank" rel="noopener noreferrer" style="margin-top:auto;width:100%;">Open localhost:5173 ↗</a>
+          </div>
         </div>
       </div>
     </section>
@@ -159,12 +141,14 @@
           <p class="footer-fine" style="margin-top:14px;">Compliance artifacts are internally generated assessments, not certifications. Non-English prompts are normalized via a third-party translation service before filtering.</p>
         </div>
         <div>
-          <h4>Product</h4>
+          <h4>Product &amp; Explorer</h4>
           <ul>
-            <li><a href="/#demo">Live demo</a></li>
-            <li><a href="/#platform">Platform overview</a></li>
+            <li><a href="http://localhost:5173/" target="_blank" rel="noopener noreferrer">Protocol Explorer (localhost:5173) ↗</a></li>
+            <li><a href="http://localhost:5173/#dashboard" target="_blank" rel="noopener noreferrer">Threat Stream &amp; Telemetry ↗</a></li>
+            <li><a href="http://localhost:5173/#agents" target="_blank" rel="noopener noreferrer">Agent Directory &amp; Delegation ↗</a></li>
             <li><a href="/how-it-works">How it works</a></li>
-            <li><a href="/pricing">Pricing status</a></li>
+            <li><a href="/#demo">In-page scanner demo</a></li>
+            <li><a href="/how-it-works#contracts">Contract suite</a></li>
           </ul>
         </div>
         <div>

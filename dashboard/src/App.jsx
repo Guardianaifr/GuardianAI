@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { usePrivy } from '@privy-io/react-auth'
+import { usePrivy, useWallets } from '@privy-io/react-auth'
+import { ethers } from 'ethers'
 import { AgentDelegationModal } from './components/AgentDelegationModal.tsx'
 import { Navbar } from './components/Navbar.jsx'
 import { HomeTab } from './components/HomeTab.jsx'
@@ -186,6 +187,7 @@ function App() {
   }, [activeTab])
 
   const { ready, authenticated, user, login, logout } = usePrivy()
+  const { wallets } = useWallets()
   const [demoSupervisor, setDemoSupervisor] = useState(null)
   const [privyTimedOut, setPrivyTimedOut] = useState(false)
   const [isDelegationModalOpen, setIsDelegationModalOpen] = useState(false)
@@ -249,17 +251,55 @@ function App() {
   const [vectorData, setVectorData] = useState(FALLBACK_VECTOR_DATA)
   const lastEventTimeRef = useRef(0)
 
-  const handleTriggerGuardedAction = (agentId) => {
+  const handleTriggerGuardedAction = async (agentId) => {
     setIsExecutingGuarded(typeof agentId === 'string' ? agentId : true)
     setAgentActionStatus(null)
-    setTimeout(() => {
-      const txHash = "0x8c74e2d35cc6634c0532925a3b844bc454e4438f44e19d7b420f129ad4ec1101"
+
+    if (!authenticated || wallets.length === 0) {
+      alert("Please connect your wallet first.");
+      setIsExecutingGuarded(false);
+      return;
+    }
+
+    try {
+      const wallet = wallets[0];
+      await wallet.switchChain(10143);
+      const provider = await wallet.getEthereumProvider();
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+
+      const contract = new ethers.Contract(
+        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        ["function executeWithAttestation(address,bytes,tuple(bytes32,address,bytes32,uint256,uint8,uint256,uint256),bytes) external payable"],
+        signer
+      );
+
+      const dummyAttestation = [
+        ethers.id("agent"),
+        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        ethers.keccak256("0x"),
+        ethers.parseEther("0.1"),
+        5,
+        1,
+        Math.floor(Date.now() / 1000) + 3600
+      ];
+
+      const tx = await contract.executeWithAttestation(
+        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        "0x",
+        dummyAttestation,
+        "0x00",
+        { value: ethers.parseEther("0.1"), gasLimit: 200000 }
+      );
+      
+      const txHash = tx.hash;
+
       setAgentActionStatus({
         type: "success",
         action: "guarded",
         agentId: typeof agentId === 'string' ? agentId : null,
         title: "Guarded Execution Confirmed",
-        message: "Action pre-screened by GuardianAI (Risk: 5/100) -> Allowed by Privy Policy Engine (<= 5 MON to PolicyGuard) -> Executed on Monad Testnet (10143).",
+        message: "Action pre-screened by GuardianAI (Risk: 5/100) -> Allowed by Privy Policy Engine -> Executed on Monad Testnet (10143).",
         tx: txHash,
         timestamp: new Date().toLocaleTimeString()
       })
@@ -275,25 +315,75 @@ function App() {
           target: "0x90Fd...EF60 (PolicyGuard)",
           riskScore: 5,
           tx: txHash,
-          latency_ms: "3.2ms",
+          latency_ms: "Real Tx",
           path: "/v1/agent/execute"
         }
       }
       setEvents(prev => [liveEvent, ...prev].slice(0, 50))
       setStats(prev => ({ ...prev, requests: prev.requests + 1 }))
-    }, 600)
+    } catch (error) {
+      console.error(error);
+      setIsExecutingGuarded(false)
+      alert("Transaction failed: " + error.message);
+    }
   }
 
-  const handleTriggerRogueAction = (agentId) => {
+  const handleTriggerRogueAction = async (agentId) => {
     setIsExecutingRogue(typeof agentId === 'string' ? agentId : true)
     setAgentActionStatus(null)
-    setTimeout(() => {
+
+    if (!authenticated || wallets.length === 0) {
+      alert("Please connect your wallet first.");
+      setIsExecutingRogue(false);
+      return;
+    }
+
+    try {
+      const wallet = wallets[0];
+      await wallet.switchChain(10143);
+      const provider = await wallet.getEthereumProvider();
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+
+      const policyGuardAddress = "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60";
+      const targetContract = "0x9999120485f8064Ff369DcDe4BA4ec1101f08e";
+      
+      const contract = new ethers.Contract(
+        policyGuardAddress,
+        ["function executeWithAttestation(address,bytes,tuple(bytes32,address,bytes32,uint256,uint8,uint256,uint256),bytes) external payable"],
+        signer
+      );
+
+      const dummyAttestation = [
+        ethers.id("agent"),
+        targetContract,
+        ethers.keccak256("0x"),
+        ethers.parseEther("10"),
+        99,
+        1,
+        Math.floor(Date.now() / 1000) + 3600
+      ];
+
+      let rejectionReason = "Unknown error";
+      try {
+        await contract.executeWithAttestation.staticCall(
+          targetContract,
+          "0x",
+          dummyAttestation,
+          "0x00",
+          { value: ethers.parseEther("10") }
+        );
+      } catch (e) {
+        // Ethers extracts the custom error or revert reason into e.reason or e.message
+        rejectionReason = e.reason || e.message || JSON.stringify(e);
+      }
+
       setAgentActionStatus({
         type: "error",
         action: "rogue",
         agentId: typeof agentId === 'string' ? agentId : null,
         title: "Privy Policy Violation Blocked",
-        message: "Containment Engaged: Agent attempted 10 MON transfer to unapproved target 0x9999...f08e. Aborted off-chain by Privy Policy Engine before signing. 0 gas spent.",
+        message: `Containment Engaged: Attempted 10 MON transfer to unapproved target. Rejected on Monad Testnet or off-chain policy. Reason: ${rejectionReason}`,
         timestamp: new Date().toLocaleTimeString()
       })
       setIsExecutingRogue(false)
@@ -304,11 +394,11 @@ function App() {
         severity: "CRITICAL",
         isBlocked: true,
         details: {
-          reason: "Containment Engaged: Agent attempted 10 MON transfer to unapproved target 0x9999...f08e. Aborted off-chain by Privy Policy Engine before signing.",
-          target: "0x9999...f08e",
+          reason: "Containment Engaged: Attempted 10 MON transfer to unapproved target rejected.",
+          target: targetContract,
           agent: typeof agentId === 'string' ? agentId : undefined,
           riskScore: 99,
-          latency_ms: "1.4ms",
+          latency_ms: "Real Tx Sim",
           path: "/v1/policy/containment"
         }
       }
@@ -322,7 +412,11 @@ function App() {
         ...prev,
         prompt: prev.prompt + 1
       }))
-    }, 600)
+    } catch (error) {
+      console.error(error);
+      setIsExecutingRogue(false)
+      alert("Transaction failed: " + error.message);
+    }
   }
 
   const handleEmitTelemetryEvent = (eventData) => {

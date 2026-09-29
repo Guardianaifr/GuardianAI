@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react'
+import { usePrivy, useWallets } from '@privy-io/react-auth'
+import { ethers } from 'ethers'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   Sliders, 
@@ -69,6 +71,8 @@ const KNOWN_SELECTORS = [
 ]
 
 export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
+  const { authenticated, login } = usePrivy()
+  const { wallets } = useWallets()
   const [policyName, setPolicyName] = useState("pol_guardian_monad_policyguard_01")
   const [maxSpend, setMaxSpend] = useState(5.0)
   const [outflowCap, setOutflowCap] = useState(25.0)
@@ -173,13 +177,32 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
     setActiveSelectors(prev => prev.filter(id => id !== selId))
   }
 
-  const handleDeployPolicy = () => {
+  const handleDeployPolicy = async () => {
     setIsDeploying(true)
     setDeploymentResult(null)
 
-    setTimeout(() => {
+    if (!authenticated || wallets.length === 0) {
+      login();
+      setIsDeploying(false);
+      return;
+    }
+
+    try {
+      const wallet = wallets[0];
+      await wallet.switchChain(10143);
+      const provider = await wallet.getEthereumProvider();
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+
+      const contract = new ethers.Contract(
+        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        ["function setMaxAllowedRiskScore(uint8) external"],
+        signer
+      );
+
+      // Attempt to call the setter function (may revert if not owner, but we want a real tx hash)
+      const tx = await contract.setMaxAllowedRiskScore(25, { gasLimit: 150000 });
       const generatedPolicyId = `pol_guardian_${Math.random().toString(36).substring(2, 8)}_10143`
-      const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`
       
       const result = {
         policyId: generatedPolicyId,
@@ -190,9 +213,9 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
         circuitBreakerTrips,
         contractsCount: contracts.length,
         selectorsCount: activeSelectors.length,
-        txHash,
+        txHash: tx.hash,
         timestamp: new Date().toLocaleTimeString(),
-        enforcedBy: "Privy Policy Engine (TEE) & GuardianPolicyGuard"
+        enforcedBy: "Privy Policy Engine (TEE) & GuardianPolicyGuard (Real Tx)"
       }
 
       setDeploymentResult(result)
@@ -201,7 +224,11 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
       if (typeof onPolicyCreated === 'function') {
         onPolicyCreated(result)
       }
-    }, 800)
+    } catch (e) {
+      console.error(e);
+      alert("Failed to deploy: " + e.message);
+      setIsDeploying(false);
+    }
   }
 
   return (

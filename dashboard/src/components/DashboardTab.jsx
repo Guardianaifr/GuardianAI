@@ -19,6 +19,13 @@ import {
   KeyRound
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { 
+  calculateRiskScores, 
+  classifyActionOutcomes, 
+  getSafetyContinuumStatus, 
+  calculateShareBlocked,
+  getSimpleStatusIndicator
+} from "@/lib/truthfulnessMetrics"
 
 export function DashboardTab({
   events = [],
@@ -27,28 +34,30 @@ export function DashboardTab({
   indexerStatus,
   isConnected,
   isLiveSimulating,
-  onNavigateTab
+  isBlockedEvent,
+  onNavigateTab,
+  isAdvanced = false
 }) {
   // Calculate dynamic attack vector percentages
-  const totalVectors = Math.max(1, (vectorData.prompt || 0) + (vectorData.pii || 0) + (vectorData.admin || 0) + (stats.blocked || 0))
-  const promptPct = Math.min(100, Math.round(((vectorData.prompt || 0) / totalVectors) * 100))
-  const piiPct = Math.min(100, Math.round(((vectorData.pii || 0) / totalVectors) * 100))
-  const policyPct = Math.min(100, Math.round(((stats.blocked || 0) / totalVectors) * 100))
-  const enclavePct = Math.min(100, Math.round(((vectorData.admin || 0) / totalVectors) * 100))
+  const totalVectors = (vectorData.prompt || 0) + (vectorData.pii || 0) + (vectorData.admin || 0) + (stats.blocked || 0)
+  const promptPct = totalVectors > 0 ? Math.min(100, Math.round(((vectorData.prompt || 0) / totalVectors) * 100)) : 0
+  const piiPct = totalVectors > 0 ? Math.min(100, Math.round(((vectorData.pii || 0) / totalVectors) * 100)) : 0
+  const policyPct = totalVectors > 0 ? Math.min(100, Math.round(((stats.blocked || 0) / totalVectors) * 100)) : 0
+  const enclavePct = totalVectors > 0 ? Math.min(100, Math.round(((vectorData.admin || 0) / totalVectors) * 100)) : 0
 
-  // Risk Score calculation based on recent events
-  const recentEvents = events.slice(0, 20)
-  const scores = recentEvents.map(e => e.details?.riskScore || (e.severity === 'CRITICAL' ? 95 : e.severity === 'HIGH' ? 70 : 15))
-  const avgRiskScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 14
-  const peakRiskScore = scores.length > 0 ? Math.max(...scores) : 98
+  // Risk Score calculation based on recent events (F1/F16: null if no data, never default to 14)
+  const { avgRiskScore, peakRiskScore } = calculateRiskScores(events)
 
-  // Blocked vs verified ratio
-  const totalRequests = stats.requests || 1482
-  const blockedCount = stats.blocked || 94
-  const redactedCount = stats.redacted || 17
-  const verifiedCount = Math.max(0, totalRequests - blockedCount)
+  // F10 Action outcome classification: separate allowed / blocked / couldn't verify
+  const { totalRequests, allowedCount, blockedCount, couldntVerifyCount } = classifyActionOutcomes(events, stats)
 
-  const [realChainData, setRealChainData] = useState({ tps: "9,840", latency: "0.8s" });
+  // Advanced mode safety continuum status
+  const continuumStatus = getSafetyContinuumStatus(avgRiskScore, couldntVerifyCount)
+
+  // Simple mode fail-closed status indicator
+  const simpleStatus = getSimpleStatusIndicator(avgRiskScore, couldntVerifyCount)
+
+  const [realChainData, setRealChainData] = useState({ tps: "--", latency: "--" });
 
   useEffect(() => {
     let active = true;
@@ -78,7 +87,7 @@ export function DashboardTab({
     return () => { active = false; clearInterval(interval); };
   }, []);
 
-  const actualContainmentRatio = totalRequests > 0 ? ((blockedCount / totalRequests) * 100).toFixed(1) + '%' : '100.0%';
+  const actualShareBlocked = calculateShareBlocked(blockedCount, totalRequests);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -87,18 +96,20 @@ export function DashboardTab({
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
             <Cpu className="h-4 w-4 text-[#836EF9]" />
-            Monad Parallel EVM Telemetry & Throughput
+            {isAdvanced ? "Monad Parallel EVM Telemetry & Throughput" : "System Throughput & Protection Metrics"}
           </h2>
           <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Parallel BFT Consensus • Chain 10143</span>
+            <span>{isAdvanced ? "Parallel BFT Consensus • Chain 10143" : "Active Protection Feed"}</span>
           </div>
         </div>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-border/80 bg-card/60 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Parallel Execution TPS</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">
+                {isAdvanced ? "Parallel Execution TPS" : "Execution Speed"}
+              </CardTitle>
               <Zap className="h-4 w-4 text-[#836EF9]" />
             </CardHeader>
             <CardContent>
@@ -106,13 +117,17 @@ export function DashboardTab({
                 <span className="text-2xl font-bold font-mono text-foreground">{realChainData.tps}</span>
                 <span className="text-xs font-mono text-emerald-400 font-semibold">+14.2%</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Non-blocking parallel state transitions</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {isAdvanced ? "Non-blocking parallel state transitions" : "Actions processed per second"}
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-border/80 bg-card/60 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Monad Block Latency</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">
+                {isAdvanced ? "Monad Block Latency" : "Response Time"}
+              </CardTitle>
               <Activity className="h-4 w-4 text-emerald-400" />
             </CardHeader>
             <CardContent>
@@ -120,35 +135,51 @@ export function DashboardTab({
                 <span className="text-2xl font-bold font-mono text-foreground">{realChainData.latency}</span>
                 <span className="text-xs font-mono text-emerald-400">Sub-second</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Real-time BFT consensus commit time</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {isAdvanced ? "Real-time BFT consensus commit time" : "Real-time network response time"}
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-border/80 bg-card/60 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Containment Ratio</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">Share blocked</CardTitle>
               <Shield className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold font-mono text-emerald-400">{actualContainmentRatio}</span>
-                <span className="text-xs font-mono text-muted-foreground">Zero Leaks</span>
+                <span className={cn("text-2xl font-bold font-mono", isAdvanced ? continuumStatus.colorClass : simpleStatus.colorClass)}>
+                  {actualShareBlocked}
+                </span>
+                <span className="text-xs font-mono text-muted-foreground">
+                  {totalRequests > 0 ? `${blockedCount} blocked · ${couldntVerifyCount} couldn't verify` : "No Data Yet"}
+                </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">Adversarial prompt & outflow interdiction</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {isAdvanced ? "Adversarial prompt & outflow interdiction" : "Attacks and unauthorized transfers blocked"}
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-border/80 bg-card/60 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Active Protocol Guards</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">
+                {isAdvanced ? "Active Protocol Guards" : "Active Protections"}
+              </CardTitle>
               <Layers className="h-4 w-4 text-purple-400" />
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold font-mono text-purple-300">3 Primitives</span>
-                <span className="text-xs font-mono text-emerald-400">P256 + TEE</span>
+                <span className="text-2xl font-bold font-mono text-purple-300">
+                  {isAdvanced ? "3 Primitives" : "3 Protections"}
+                </span>
+                <span className="text-xs font-mono text-emerald-400">
+                  {isAdvanced ? "P256 Precompile" : "Enforced"}
+                </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">PolicyGuard, Passport SBT, Mera PRF</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {isAdvanced ? "PolicyGuard, Passport SBT, Mera PRF" : "Firewall, Identity, Memory Isolation"}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -162,61 +193,87 @@ export function DashboardTab({
             <CardTitle className="text-base font-semibold text-foreground flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Gauge className="h-4 w-4 text-[#836EF9]" />
-                Runtime Risk & Anomaly Engine
+                {isAdvanced ? "Runtime Risk & Anomaly Engine" : "Threat Monitoring Engine"}
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-                ACTIVE MONITOR
+              <span className={cn(
+                "text-[10px] font-mono px-2 py-0.5 rounded border",
+                !isAdvanced
+                  ? simpleStatus.badgeClass
+                  : "bg-emerald-950 text-emerald-400 border-emerald-800"
+              )}>
+                {!isAdvanced ? simpleStatus.statusLabel : "ACTIVE MONITOR"}
               </span>
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Continuous entropy anomaly scoring and prompt injection severity assessment
+              {isAdvanced
+                ? "Continuous entropy anomaly scoring and prompt injection severity assessment"
+                : "Live assessment of security risks and incoming requests"}
             </p>
           </CardHeader>
           <CardContent className="space-y-6 pt-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl border border-border/80 bg-background/50 text-center">
                 <span className="text-xs text-muted-foreground">Session Average Risk</span>
-                <div className="text-3xl font-bold font-mono mt-1 text-emerald-400">
-                  {avgRiskScore} <span className="text-xs text-muted-foreground font-normal">/ 100</span>
+                <div className={cn("text-3xl font-bold font-mono mt-1", isAdvanced ? continuumStatus.colorClass : simpleStatus.colorClass)}>
+                  {avgRiskScore !== null ? avgRiskScore : "--"} <span className="text-xs text-muted-foreground font-normal">/ 100</span>
                 </div>
-                <span className="text-[10px] text-emerald-400 font-mono">NOMINAL BASELINE</span>
+                <span className={cn("text-[10px] font-mono", isAdvanced ? continuumStatus.colorClass : simpleStatus.colorClass)}>
+                  {isAdvanced ? continuumStatus.statusLabel : simpleStatus.statusLabel}
+                </span>
               </div>
               <div className="p-4 rounded-xl border border-border/80 bg-background/50 text-center">
                 <span className="text-xs text-muted-foreground">Peak Intercepted Risk</span>
                 <div className="text-3xl font-bold font-mono mt-1 text-red-500">
-                  {peakRiskScore} <span className="text-xs text-muted-foreground font-normal">/ 100</span>
+                  {peakRiskScore !== null ? peakRiskScore : "--"} <span className="text-xs text-muted-foreground font-normal">/ 100</span>
                 </div>
-                <span className="text-[10px] text-red-400 font-mono">CONTAINED ATTACK</span>
+                <span className={cn(
+                  "text-[10px] font-mono",
+                  peakRiskScore === null ? "text-muted-foreground" : "text-red-400"
+                )}>
+                  {peakRiskScore !== null ? (isAdvanced ? "CONTAINED ATTACK" : "Contained Attack") : "NO DATA YET"}
+                </span>
               </div>
             </div>
 
             {/* Visual Risk Gauge Meter */}
             <div className="space-y-2">
               <div className="flex justify-between text-xs text-muted-foreground font-mono">
-                <span>Safety Continuum</span>
-                <span className="font-semibold text-foreground">
-                  {avgRiskScore < 30 ? "Optimal Protection (Green)" : avgRiskScore < 70 ? "Elevated Monitoring (Amber)" : "Critical Rogue Tier (Red)"}
+                <span>{isAdvanced ? "Safety Continuum" : "Protection Status"}</span>
+                <span className={cn("font-semibold", isAdvanced ? "text-foreground" : simpleStatus.colorClass)}>
+                  {isAdvanced ? continuumStatus.text : simpleStatus.statusLabel}
                 </span>
               </div>
               <div className="h-3 w-full rounded-full bg-secondary overflow-hidden flex">
-                <div className="h-full bg-emerald-500" style={{ width: '40%' }} title="Safe Tier (0-40)" />
-                <div className="h-full bg-amber-500" style={{ width: '30%' }} title="Elevated Tier (40-70)" />
-                <div className="h-full bg-red-500" style={{ width: '30%' }} title="Critical Rogue Tier (70-100)" />
+                {avgRiskScore === null ? (
+                  <div className="h-full bg-muted/40 w-full" title="No activity recorded yet" />
+                ) : (
+                  <>
+                    <div className="h-full bg-emerald-500" style={{ width: '40%' }} title="Safe Tier (0-40)" />
+                    <div className="h-full bg-amber-500" style={{ width: '30%' }} title="Elevated Tier (40-70)" />
+                    <div className="h-full bg-red-500" style={{ width: '30%' }} title="Critical Rogue Tier (70-100)" />
+                  </>
+                )}
               </div>
               <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
-                <span>0 (Compliant)</span>
-                <span>40 (Warning)</span>
-                <span>70 (Interdict)</span>
-                <span>100 (Rogue)</span>
+                <span>{isAdvanced ? "0 (Compliant)" : "Low Risk"}</span>
+                <span>{isAdvanced ? "40 (Warning)" : "Moderate"}</span>
+                <span>{isAdvanced ? "70 (Interdict)" : "High"}</span>
+                <span>{isAdvanced ? "100 (Rogue)" : "Critical"}</span>
               </div>
             </div>
 
             <div className="p-3.5 rounded-xl border border-border/70 bg-muted/20 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-emerald-400" />
-                <span className="text-muted-foreground">Pre-flight verification gate:</span>
+                <span className="text-muted-foreground">
+                  {isAdvanced ? "Pre-flight verification gate:" : "Automated verification gate:"}
+                </span>
               </div>
-              <span className="font-mono font-semibold text-emerald-400">100% Transactions Scanned</span>
+              <span className={cn("font-mono font-semibold", couldntVerifyCount > 0 ? "text-amber-400" : "text-emerald-400")}>
+                {totalRequests > 0 
+                  ? `${blockedCount} blocked · ${couldntVerifyCount} couldn't verify` 
+                  : (isAdvanced ? "No Transactions Recorded" : "No Activity Recorded")}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -227,14 +284,16 @@ export function DashboardTab({
             <CardTitle className="text-base font-semibold text-foreground flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-[#836EF9]" />
-                Attack Vector Distribution
+                {isAdvanced ? "Attack Vector Distribution" : "Threat Categorization"}
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#836EF9]/20 text-[#836EF9] border border-[#836EF9]/30">
-                {totalRequests} SCANS
+                {totalRequests} {isAdvanced ? "SCANS" : "CHECKS"}
               </span>
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Live categorization of intercepted prompt attacks, leaks, and policy breaches
+              {isAdvanced 
+                ? "Live categorization of intercepted prompt attacks, leaks, and policy breaches" 
+                : "Breakdown of stopped attacks and safety violations"}
             </p>
           </CardHeader>
           <CardContent className="space-y-4 pt-5">
@@ -243,9 +302,9 @@ export function DashboardTab({
               <div className="flex justify-between text-xs font-mono">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
-                  Indirect Prompt Injections
+                  {isAdvanced ? "Indirect Prompt Injections" : "Prompt Injections Blocked"}
                 </span>
-                <span className="font-semibold text-foreground">{vectorData.prompt || 94} ({promptPct}%)</span>
+                <span className="font-semibold text-foreground">{vectorData.prompt || 0} ({promptPct}%)</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div 
@@ -260,9 +319,9 @@ export function DashboardTab({
               <div className="flex justify-between text-xs font-mono">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  Key / PII Leaks Scrubbed
+                  {isAdvanced ? "Key / PII Leaks Scrubbed" : "Sensitive Data Leaks Prevented"}
                 </span>
-                <span className="font-semibold text-foreground">{vectorData.pii || 17} ({piiPct}%)</span>
+                <span className="font-semibold text-foreground">{vectorData.pii || 0} ({piiPct}%)</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div 
@@ -277,9 +336,9 @@ export function DashboardTab({
               <div className="flex justify-between text-xs font-mono">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-[#836EF9]" />
-                  Policy Outflow Breaches
+                  {isAdvanced ? "Policy Outflow Breaches" : "Unauthorized Spending Stopped"}
                 </span>
-                <span className="font-semibold text-foreground">{stats.blocked || 94} ({policyPct}%)</span>
+                <span className="font-semibold text-foreground">{stats.blocked || 0} ({policyPct}%)</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div 
@@ -294,9 +353,9 @@ export function DashboardTab({
               <div className="flex justify-between text-xs font-mono">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-blue-500" />
-                  Memory Enclave Tripwires
+                  {isAdvanced ? "Memory Enclave Tripwires" : "Memory Tampering Intercepted"}
                 </span>
-                <span className="font-semibold text-foreground">{vectorData.admin || 340} ({enclavePct}%)</span>
+                <span className="font-semibold text-foreground">{vectorData.admin || 0} ({enclavePct}%)</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
                 <div 
@@ -306,9 +365,16 @@ export function DashboardTab({
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-border/70 bg-muted/20 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Verified Non-Malicious Actions:</span>
-              <span className="font-mono font-semibold text-foreground">{verifiedCount} allowed</span>
+            {/* F10: Separated action outcomes: allowed / blocked / couldn't verify */}
+            <div className="p-3.5 rounded-xl border border-border/70 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">Action Outcomes Breakdown:</span>
+              <div className="flex items-center gap-3 font-mono">
+                <span className="text-emerald-400 font-semibold">{allowedCount} allowed</span>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="text-red-400 font-semibold">{blockedCount} blocked</span>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="text-amber-400 font-semibold">{couldntVerifyCount} couldn't verify</span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -321,42 +387,73 @@ export function DashboardTab({
           <CardHeader className="pb-3 border-b border-border/50">
             <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
               <Cpu className="h-4 w-4 text-[#836EF9]" />
-              Monad Protocol Specifications
+              {isAdvanced ? "Monad Protocol Specifications" : "Active Security Services"}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Verified on-chain contract addresses and hardware primitives on Monad Testnet
+              {isAdvanced 
+                ? "Configured on-chain contract addresses and primitives on Monad Testnet"
+                : "Automated safeguards running continuously to protect your agents"}
             </p>
           </CardHeader>
           <CardContent className="space-y-3 pt-4 text-xs font-mono">
-            <div className="flex justify-between items-center py-1.5 border-b border-border/60">
-              <span className="text-muted-foreground">Chain Target</span>
-              <span className="text-foreground font-semibold">Monad Testnet (10143)</span>
-            </div>
-            <div className="flex justify-between items-center py-1.5 border-b border-border/60">
-              <span className="text-muted-foreground">Execution Firewalls</span>
-              <span className="text-purple-300">GuardianPolicyGuard (0x90Fd...EF60)</span>
-            </div>
-            <div className="flex justify-between items-center py-1.5 border-b border-border/60">
-              <span className="text-muted-foreground">Identity Registry</span>
-              <span className="text-emerald-400 font-semibold">ERC-8004 Soulbound (0xDA5f...2Cff)</span>
-            </div>
-            <div className="flex justify-between items-center py-1.5 border-b border-border/60">
-              <span className="text-muted-foreground">Precompile Engine</span>
-              <span className="text-blue-400">Native Monad RIP-7212 (0x100)</span>
-            </div>
-            <div className="flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground">Indexer Protocol</span>
-              <span className={cn(
-                "font-semibold",
-                indexerStatus === "connected" ? "text-emerald-400" : "text-blue-400"
-              )}>
-                {indexerStatus === "connected" 
-                  ? "Envio HyperIndex (Connected)" 
-                  : isLiveSimulating 
-                  ? "Envio Standalone Simulator" 
-                  : "Direct WebSockets"}
-              </span>
-            </div>
+            {isAdvanced ? (
+              <>
+                <div className="flex justify-between items-center py-1.5 border-b border-border/60">
+                  <span className="text-muted-foreground">Chain Target</span>
+                  <span className="text-foreground font-semibold">Monad Testnet (10143)</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-border/60">
+                  <span className="text-muted-foreground">Execution Firewalls</span>
+                  <span className="text-purple-300">GuardianPolicyGuard (0x90Fd...EF60)</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-border/60">
+                  <span className="text-muted-foreground">Identity Registry</span>
+                  <span className="text-emerald-400 font-semibold">ERC-8004 Soulbound (0xDA5f...2Cff)</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-border/60">
+                  <span className="text-muted-foreground">Precompile Engine</span>
+                  <span className="text-blue-400">Native Monad RIP-7212 (0x100)</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5">
+                  <span className="text-muted-foreground">Indexer Protocol</span>
+                  <span className={cn(
+                    "font-semibold",
+                    indexerStatus === "connected" ? "text-emerald-400" : "text-blue-400"
+                  )}>
+                    {indexerStatus === "connected" 
+                      ? "Envio HyperIndex (Connected)" 
+                      : isLiveSimulating 
+                      ? "Envio Standalone Simulator" 
+                      : "Direct WebSockets"}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-center py-1.5 border-b border-border/60">
+                  <span className="text-muted-foreground font-sans">Protection Engine</span>
+                  <span className="text-emerald-400 font-sans font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Active & Monitoring
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-border/60">
+                  <span className="text-muted-foreground font-sans">Execution Safeguards</span>
+                  <span className="text-foreground font-sans font-semibold">Spending & Action Limits Enforced</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-border/60">
+                  <span className="text-muted-foreground font-sans">Agent Identity Checks</span>
+                  <span className="text-foreground font-sans font-semibold">Verified Passports Required</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-border/60">
+                  <span className="text-muted-foreground font-sans">Hardware Enclave Defense</span>
+                  <span className="text-foreground font-sans font-semibold">Keys Protected In Secure Storage</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5">
+                  <span className="text-muted-foreground font-sans">Activity Log Stream</span>
+                  <span className="text-emerald-400 font-sans font-semibold">Connected</span>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -366,31 +463,35 @@ export function DashboardTab({
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
                 <FileText className="h-4 w-4 text-[#836EF9]" />
-                Cryptographic Audit Log Center
+                {isAdvanced ? "Cryptographic Audit Log Center" : "Activity Log Summary"}
               </CardTitle>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#836EF9]/20 text-[#836EF9] border border-[#836EF9]/30">
-                DEDICATED SECTION
+                {isAdvanced ? "DEDICATED SECTION" : "AUDIT TRAIL"}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Raw execution logs, transaction hashes, and forensic search have been segregated into the Logs tab
+              {isAdvanced 
+                ? "Raw execution logs, transaction hashes, and forensic search have been segregated into the Logs tab"
+                : "Complete history of all agent activities and blocked threats"}
             </p>
           </CardHeader>
           <CardContent className="space-y-4 pt-4">
             <div className="p-3.5 rounded-xl border border-border/80 bg-background/50 text-xs text-muted-foreground leading-relaxed">
-              Every on-chain action, prompt injection attempt, session key delegation, and circuit breaker tripwire is immutably logged with its timestamp, latency, target address, and MonadScan explorer link.
+              {isAdvanced 
+                ? "Every on-chain action, prompt injection attempt, session key delegation, and circuit breaker tripwire is immutably logged with its timestamp, latency, target address, and MonadScan explorer link."
+                : "Every AI agent action, security check, and blocked attempt is permanently recorded with full details and verification records."}
             </div>
 
             <div className="flex items-center justify-between pt-2">
               <div className="text-xs font-mono text-muted-foreground">
-                <span className="text-foreground font-semibold">{events.length}</span> logged events available
+                <span className="text-foreground font-semibold">{events.length}</span> {isAdvanced ? "logged events available" : "recorded events"}
               </div>
               <button
                 type="button"
                 onClick={() => onNavigateTab?.('logs')}
                 className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg text-white bg-[#836EF9] hover:brightness-110 transition shadow-sm active:scale-95"
               >
-                <span>Open Audit Logs Tab</span>
+                <span>{isAdvanced ? "Open Audit Logs Tab" : "View Activity Logs"}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>

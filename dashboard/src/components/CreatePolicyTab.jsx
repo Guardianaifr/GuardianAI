@@ -70,7 +70,7 @@ const KNOWN_SELECTORS = [
   { id: "0x8b30e4c1", name: "submitProof(bytes)", desc: "Zero-knowledge enclave proof" },
 ]
 
-export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
+export function CreatePolicyTab({ onPolicyCreated, onNavigateTab, isAdvanced = false, setIsAdvanced }) {
   const { authenticated, login } = usePrivy()
   const { wallets } = useWallets()
   const [policyName, setPolicyName] = useState("pol_guardian_monad_policyguard_01")
@@ -215,7 +215,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
         selectorsCount: activeSelectors.length,
         txHash: tx.hash,
         timestamp: new Date().toLocaleTimeString(),
-        enforcedBy: "Privy Policy Engine (TEE) & GuardianPolicyGuard (Real Tx)"
+        enforcedBy: "Privy Policy Engine & GuardianPolicyGuard"
       }
 
       setDeploymentResult(result)
@@ -231,6 +231,38 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
     }
   }
 
+  if (!isAdvanced) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto py-12 text-center animate-in fade-in duration-300">
+        <div className="p-4 rounded-2xl bg-[#836EF9]/10 border border-[#836EF9]/30 inline-flex items-center justify-center text-[#836EF9] mb-2">
+          <Sliders className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground">
+          Custom Policy Creation is an Advanced Feature
+        </h2>
+        <p className="text-sm text-muted-foreground leading-relaxed max-w-lg mx-auto">
+          In Simple mode, your agents are pre-configured with recommended safety policies and spending limits. Switch to Advanced mode to customize transaction caps, contract allowlists, and execution timelocks.
+        </p>
+        <div className="pt-4 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsAdvanced?.(true)}
+            className="px-5 py-2.5 rounded-xl bg-[#836EF9] hover:brightness-110 text-white text-xs font-semibold shadow-md shadow-[#836EF9]/25 transition"
+          >
+            Switch to Advanced Mode
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('home')}
+            className="px-4 py-2.5 rounded-xl border border-border/80 hover:bg-muted/30 text-xs font-medium text-foreground transition"
+          >
+            Back to Overview
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Header */}
@@ -238,7 +270,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
         <div>
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#836EF9]/15 border border-[#836EF9]/30 text-xs font-mono text-[#836EF9] mb-2">
             <Shield className="h-3.5 w-3.5" />
-            <span>Privy Hardware TEE Engine & Monad PolicyGuard</span>
+            <span>Privy Policy Engine & Monad PolicyGuard</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
             AI Agent Guardrails & Rule Studio
@@ -680,7 +712,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab }) {
 
               <div className="p-3 rounded-lg bg-[#836EF9]/10 border border-[#836EF9]/25 text-[11px] text-muted-foreground leading-relaxed font-sans">
                 <span className="font-semibold text-foreground">Enforcement Mechanism:</span>
-                {" "}When an AI agent requests a signature, the Privy Policy Engine verifies this policy hash in its hardware TEE. Violations are aborted before signing.
+                {" "}When an AI agent requests a signature, policy rules are evaluated before signing. Violations are blocked.
               </div>
 
               <button

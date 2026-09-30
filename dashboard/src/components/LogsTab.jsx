@@ -27,7 +27,7 @@ const EVENT_TYPE_CATEGORIES = [
   { id: 'ratelimit', label: 'Rate Limits', match: ['rate_limit', 'rate limit'] },
 ]
 
-export function LogsTab({ events, isBlockedEvent }) {
+export function LogsTab({ events, isBlockedEvent, isAdvanced = false }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedSeverity, setSelectedSeverity] = useState('all')
@@ -121,13 +121,15 @@ export function LogsTab({ events, isBlockedEvent }) {
         <div>
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#836EF9]/15 border border-[#836EF9]/30 text-xs font-mono text-[#836EF9] mb-2">
             <Terminal className="h-3.5 w-3.5" />
-            <span>Monad Pre-Flight Security & Tamper Audit Log</span>
+            <span>{isAdvanced ? "Monad Pre-Flight Security & Tamper Audit Log" : "Activity Stream"}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-            Audit Trail & Event Explorer
+            {isAdvanced ? "Audit Trail & Event Explorer" : "Activity & Protection History"}
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Filter, search, inspect, and export cryptographic pre-flight event telemetry.
+            {isAdvanced 
+              ? "Filter, search, inspect, and export cryptographic pre-flight event telemetry."
+              : "Review all agent actions, safety inspections, and blocked threats in plain English."}
           </p>
         </div>
 
@@ -175,7 +177,7 @@ export function LogsTab({ events, isBlockedEvent }) {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by agent address, target contract, tx hash, or anomaly reason..."
+                placeholder={isAdvanced ? "Search by agent address, target contract, tx hash, or anomaly reason..." : "Search activity log or protection reasons..."}
                 className="w-full pl-9 pr-4 py-2 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#836EF9]"
               />
               {searchTerm && (
@@ -272,37 +274,100 @@ export function LogsTab({ events, isBlockedEvent }) {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead className="bg-muted/30 border-b border-border text-muted-foreground uppercase text-[10px] tracking-wider">
-              <tr>
-                <th className="py-3 px-4">Time</th>
-                <th className="py-3 px-3">Severity</th>
-                <th className="py-3 px-3">Type</th>
-                <th className="py-3 px-3">Agent / Target</th>
-                <th className="py-3 px-4">Telemetry Details / Calldata</th>
-                <th className="py-3 px-3">Latency</th>
-                <th className="py-3 px-3">Risk</th>
-                <th className="py-3 px-4 text-right">Explorer</th>
-              </tr>
+              {isAdvanced ? (
+                <tr>
+                  <th className="py-3 px-4">Time</th>
+                  <th className="py-3 px-3">Severity</th>
+                  <th className="py-3 px-3">Type</th>
+                  <th className="py-3 px-3">Agent / Target</th>
+                  <th className="py-3 px-4">Telemetry Details / Calldata</th>
+                  <th className="py-3 px-3">Latency</th>
+                  <th className="py-3 px-3">Risk</th>
+                  <th className="py-3 px-4 text-right">Explorer</th>
+                </tr>
+              ) : (
+                <tr>
+                  <th className="py-3 px-4 font-sans">Time</th>
+                  <th className="py-3 px-3 font-sans">Status</th>
+                  <th className="py-3 px-3 font-sans">Event Type</th>
+                  <th className="py-3 px-4 font-sans">Activity Description</th>
+                  <th className="py-3 px-4 text-right font-sans">Security Result</th>
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-border/60">
               {filteredEvents.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={isAdvanced ? 8 : 5} className="py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <Filter className="h-6 w-6 text-muted-foreground/50" />
-                      <span>No matching events found for current filters.</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleResetFilters()
-                        }}
-                        className="text-xs text-[#836EF9] underline hover:brightness-110"
-                      >
-                        Reset All Filters
-                      </button>
+                      {events.length === 0 ? (
+                        <>
+                          <span className="font-semibold text-foreground">No telemetry events recorded yet</span>
+                          <span className="text-xs text-muted-foreground">Awaiting live agent actions or security events.</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>No matching events found for current filters.</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleResetFilters()
+                            }}
+                            className="text-xs text-[#836EF9] underline hover:brightness-110"
+                          >
+                            Reset All Filters
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
+              ) : !isAdvanced ? (
+                filteredEvents.map((evt, idx) => {
+                  const isBlocked = isBlockedEvent(evt)
+                  const dateStr = new Date(evt.timestamp * 1000).toLocaleTimeString()
+                  const statusDesc = evt.details?.reason || evt.details?.prompt_preview || "Nominal operation within authorized thresholds"
+                  return (
+                    <tr
+                      key={idx}
+                      className={cn(
+                        "hover:bg-muted/30 transition-colors font-sans text-xs",
+                        isBlocked ? "bg-red-950/10" : ""
+                      )}
+                    >
+                      <td className="py-3 px-4 whitespace-nowrap text-muted-foreground font-mono text-[11px]">
+                        {dateStr}
+                      </td>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {isBlocked ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-950 text-red-400 border border-red-800 flex items-center gap-1 w-fit">
+                            <ShieldAlert className="h-3 w-3" /> Blocked
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1 w-fit">
+                            <CheckCircle2 className="h-3 w-3" /> Allowed
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 whitespace-nowrap font-medium text-foreground">
+                        {evt.event_type}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-muted-foreground leading-relaxed max-w-lg">
+                        {statusDesc}
+                      </td>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[11px] font-semibold",
+                          isBlocked ? "text-red-300 bg-red-950/40" : "text-emerald-300 bg-emerald-950/40"
+                        )}>
+                          {isBlocked ? "Threat Neutralized" : "Verified Safe"}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })
               ) : (
                 filteredEvents.map((evt, idx) => {
                   const isBlocked = isBlockedEvent(evt)
@@ -433,7 +498,11 @@ export function LogsTab({ events, isBlockedEvent }) {
 
                       {/* Monad Explorer Link */}
                       <td className="py-3 px-4 text-right whitespace-nowrap">
-                        {txHash ? (
+                        {evt.isSimulated ? (
+                          <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                            Simulated
+                          </span>
+                        ) : txHash ? (
                           <a
                             href={`https://testnet.monadscan.com/tx/${txHash}`}
                             target="_blank"

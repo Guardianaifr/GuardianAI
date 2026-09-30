@@ -35,7 +35,11 @@ export function Navbar({
   onConnectSupervisor,
   onDisconnectSupervisor,
   onOpenDelegationModal,
+  isAdvanced = false,
+  setIsAdvanced
 }) {
+  const visibleTabs = isAdvanced ? NAV_TABS : NAV_TABS.filter((t) => t.id !== 'policy')
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/80 bg-background/90 backdrop-blur-md transition-all">
       <div className="flex h-16 items-center justify-between px-3 sm:px-6 lg:px-8 gap-2">
@@ -81,16 +85,18 @@ export function Navbar({
                 </span>
                 <span 
                   className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#836EF9]/10 text-[#836EF9] border border-[#836EF9]/25 cursor-help"
-                  title="Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)"
+                  title={isAdvanced ? "Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)" : "Autonomous Agent Protection & Security Monitor"}
                 >
-                  PROTOCOL EXPLORER • MONAD 10143
+                  {isAdvanced ? "PROTOCOL EXPLORER • MONAD 10143" : "SECURITY EXPLORER"}
                 </span>
               </div>
               <p 
                 className="text-[11px] text-muted-foreground hidden lg:block"
-                title="Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)"
+                title={isAdvanced ? "Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)" : "Autonomous Agent Protection & Security Monitor"}
               >
-                Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)
+                {isAdvanced
+                  ? "Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)"
+                  : "Autonomous Agent Protection & Security Monitor"}
               </p>
             </div>
           </div>
@@ -98,7 +104,7 @@ export function Navbar({
 
         {/* Navigation Tabs */}
         <nav className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl bg-muted/40 border border-border/60 overflow-x-auto max-w-[55vw] sm:max-w-none">
-          {NAV_TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             return (
@@ -127,6 +133,42 @@ export function Navbar({
 
         {/* Right Action / Status Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Simple / Advanced Toggle Switch */}
+          <div className="flex items-center p-0.5 rounded-lg border border-border/70 bg-muted/40 text-xs font-medium shrink-0">
+            <button
+              type="button"
+              id="mode-simple-btn"
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsAdvanced?.(false)
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded-md transition-all select-none text-xs font-medium",
+                !isAdvanced
+                  ? "bg-background text-foreground shadow-sm font-semibold text-[#836EF9]"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              id="mode-advanced-btn"
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsAdvanced?.(true)
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded-md transition-all select-none text-xs font-medium",
+                isAdvanced
+                  ? "bg-[#836EF9] text-white shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Advanced
+            </button>
+          </div>
+
           {/* Telemetry Status Indicator */}
           <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 rounded-lg border border-border/60 bg-muted/20 text-[11px] text-muted-foreground">
             <Radio className={cn(
@@ -134,7 +176,9 @@ export function Navbar({
               isConnected ? "text-emerald-400" : isLiveSimulating ? "text-blue-400" : "text-amber-400"
             )} />
             <span className="font-mono">
-              {indexerStatus === "connected"
+              {!isAdvanced
+                ? "Live Monitoring"
+                : indexerStatus === "connected"
                 ? "Envio Live"
                 : isConnected
                 ? "WS Active"
@@ -142,7 +186,7 @@ export function Navbar({
             </span>
           </div>
 
-          {/* Supervisor Wallet Auth Controller */}
+          {/* Supervisor / Account Auth Controller */}
           {!isConnectedSupervisor ? (
             <button
               type="button"
@@ -157,9 +201,9 @@ export function Navbar({
               <UserCheck className="h-4 w-4" />
               <span className="hidden sm:inline">
                 {ready
-                  ? "Connect Supervisor"
+                  ? (isAdvanced ? "Connect Supervisor" : "Connect Account")
                   : privyTimedOut
-                  ? "Connect Demo Supervisor"
+                  ? (isAdvanced ? "Connect Demo Supervisor" : "Demo Account")
                   : "Initializing..."}
               </span>
               <span className="sm:hidden">Connect</span>
@@ -171,27 +215,29 @@ export function Navbar({
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#836EF9]/40 bg-[#836EF9]/10 text-xs font-mono text-[#836EF9]"
               >
                 <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="font-semibold hidden sm:inline">Supervisor:</span>
-                <span>{truncatedSupervisor}</span>
+                <span className="font-semibold hidden sm:inline">{isAdvanced ? "Supervisor:" : "Account:"}</span>
+                <span>{isAdvanced ? truncatedSupervisor : "Active"}</span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onOpenDelegationModal?.()
-                }}
-                className="hidden md:flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg text-white transition hover:brightness-110 shadow-sm"
-                style={{ backgroundColor: "#836EF9" }}
-              >
-                Delegate
-              </button>
+              {isAdvanced && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenDelegationModal?.()
+                  }}
+                  className="hidden md:flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg text-white transition hover:brightness-110 shadow-sm"
+                  style={{ backgroundColor: "#836EF9" }}
+                >
+                  Delegate
+                </button>
+              )}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
                   onDisconnectSupervisor?.()
                 }}
-                title="Disconnect Supervisor"
+                title={isAdvanced ? "Disconnect Supervisor" : "Sign Out"}
                 className="p-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition"
               >
                 <LogOut className="h-3.5 w-3.5" />

@@ -8,6 +8,8 @@ import { DashboardTab } from './components/DashboardTab.jsx'
 import { CreatePolicyTab } from './components/CreatePolicyTab.jsx'
 import { AgentsTab } from './components/AgentsTab.jsx'
 import { LogsTab } from './components/LogsTab.jsx'
+import { isDemoModeActive } from './lib/demoMode.js'
+import { processTelemetryEvent } from './lib/truthfulnessMetrics.js'
 
 const DEFAULT_WS_URL =
   typeof window !== 'undefined' && window.location.protocol === 'https:'
@@ -21,21 +23,35 @@ const DEFAULT_GRAPHQL_URL =
 
 const WS_URL = import.meta.env.VITE_WS_URL || DEFAULT_WS_URL
 const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || DEFAULT_GRAPHQL_URL
+const IS_DEMO_MODE = isDemoModeActive()
+
 const IS_STANDALONE_CONFIG =
-  import.meta.env.VITE_STANDALONE_MODE === 'true' ||
-  import.meta.env.VITE_DEMO_MODE === 'true'
+  import.meta.env.VITE_STANDALONE_MODE === 'true' || IS_DEMO_MODE
 
 const DEFAULT_AGENT_ADDRESS =
-  import.meta.env.VITE_AGENT_ADDRESS ||
-  "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+  IS_DEMO_MODE ? "0x742d35Cc6634C0532925a3b844Bc454e4438f44e" : (import.meta.env.VITE_AGENT_ADDRESS || "")
 
 const DEFAULT_POLICY_ID =
-  import.meta.env.VITE_PRIVY_AGENT_POLICY_ID ||
-  "pol_guardian_monad_policyguard_01"
+  IS_DEMO_MODE ? "pol_guardian_monad_policyguard_01" : (import.meta.env.VITE_PRIVY_AGENT_POLICY_ID || "")
+
+const EMPTY_STATS = {
+  requests: 0,
+  blocked: 0,
+  allowed: 0,
+  redacted: 0,
+  admin: 0
+}
+
+const EMPTY_VECTOR_DATA = {
+  prompt: 0,
+  pii: 0,
+  admin: 0
+}
 
 const FALLBACK_STATS = {
   requests: 1482,
   blocked: 94,
+  allowed: 1380, // Demo only: explicit allowed count so demo mode displays truthful distribution
   redacted: 17,
   admin: 340
 }
@@ -78,7 +94,7 @@ const getInitialFallbackEvents = () => {
       timestamp: nowSec - 98,
       severity: "HIGH",
       details: {
-        reason: "Privy Policy Violation: Attempted 10.0 MON transfer exceeding 5 MON session limit. Aborted off-chain.",
+        reason: "Privy Policy Violation: Attempted 10.0 MON transfer exceeding 5 MON session limit. Intercepted off-chain before signing.",
         target: "0x9999120485f8064Ff369DcDe4BA4ec1101f08e",
         latency_ms: "1.2ms",
         path: "/v1/policy/preflight"
@@ -99,7 +115,7 @@ const getInitialFallbackEvents = () => {
       timestamp: nowSec - 230,
       severity: "INFO",
       details: {
-        reason: "Category Labs MERA: Ed25519 passkey PRF verified. AES-256-GCM memory block tamper tripwire clean.",
+        reason: "Category Labs MERA enclave: Simulated passkey PRF derivation. Memory tamper tripwire clean.",
         latency_ms: "5.8ms",
         path: "/v1/enclave/attest"
       }
@@ -186,6 +202,25 @@ function App() {
     }
   }, [activeTab])
 
+  // Global Simple / Advanced Mode state (Default: Simple mode, persisted in localStorage)
+  const [isAdvanced, setIsAdvanced] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = window.localStorage.getItem('guardian_mode')
+      return stored === 'advanced'
+    }
+    return false // Default is Simple mode
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('guardian_mode', isAdvanced ? 'advanced' : 'simple')
+    }
+    // If switching to simple mode while on policy tab, navigate to dashboard
+    if (!isAdvanced && activeTab === 'policy') {
+      setActiveTab('dashboard')
+    }
+  }, [isAdvanced, activeTab])
+
   const { ready, authenticated, user, login, logout } = usePrivy()
   const { wallets } = useWallets()
   const [demoSupervisor, setDemoSupervisor] = useState(null)
@@ -202,11 +237,11 @@ function App() {
 
   const handleOpenDelegationModal = (agentAddress = DEFAULT_AGENT_ADDRESS, policyId = DEFAULT_POLICY_ID) => {
     const validAgent = typeof agentAddress === 'string' && agentAddress.trim().length > 0
-      ? agentAddress
-      : DEFAULT_AGENT_ADDRESS
+      ? agentAddress.trim()
+      : (isDemoMode ? "0x742d35Cc6634C0532925a3b844Bc454e4438f44e" : "")
     const validPolicy = typeof policyId === 'string' && policyId.trim().length > 0
-      ? policyId
-      : DEFAULT_POLICY_ID
+      ? policyId.trim()
+      : (isDemoMode ? "pol_guardian_monad_policyguard_01" : "")
     setDelegationTarget({ agentAddress: validAgent, policyId: validPolicy })
     setIsDelegationModalOpen(true)
   }
@@ -243,12 +278,13 @@ function App() {
     setDemoSupervisor(null)
   }
 
-  const [stats, setStats] = useState(FALLBACK_STATS)
-  const [events, setEvents] = useState(getInitialFallbackEvents)
+  const [isDemoMode] = useState(() => isDemoModeActive())
+  const [stats, setStats] = useState(() => (isDemoModeActive() ? FALLBACK_STATS : EMPTY_STATS))
+  const [events, setEvents] = useState(() => (isDemoModeActive() ? getInitialFallbackEvents() : []))
   const [isConnected, setIsConnected] = useState(false)
-  const [isLiveSimulating, setIsLiveSimulating] = useState(true)
-  const [indexerStatus, setIndexerStatus] = useState("standalone")
-  const [vectorData, setVectorData] = useState(FALLBACK_VECTOR_DATA)
+  const [isLiveSimulating, setIsLiveSimulating] = useState(() => isDemoModeActive())
+  const [indexerStatus, setIndexerStatus] = useState(() => (isDemoModeActive() ? "standalone" : "disconnected"))
+  const [vectorData, setVectorData] = useState(() => (isDemoModeActive() ? FALLBACK_VECTOR_DATA : EMPTY_VECTOR_DATA))
   const lastEventTimeRef = useRef(0)
 
   const handleTriggerGuardedAction = async (agentId) => {
@@ -298,8 +334,8 @@ function App() {
         type: "success",
         action: "guarded",
         agentId: typeof agentId === 'string' ? agentId : null,
-        title: "Guarded Execution Confirmed",
-        message: "Action pre-screened by GuardianAI (Risk: 5/100) -> Allowed by Privy Policy Engine -> Executed on Monad Testnet (10143).",
+        title: "Guarded Execution Submitted (Monad Testnet)",
+        message: "Action pre-screened by GuardianAI (Risk: 5/100) -> Allowed by Privy Policy Engine -> Transaction submitted to Monad Testnet (10143).",
         tx: txHash,
         timestamp: new Date().toLocaleTimeString()
       })
@@ -314,9 +350,8 @@ function App() {
           agent: typeof agentId === 'string' ? agentId : (truncatedSupervisor !== "Connected" ? truncatedSupervisor : "0x742d...f44e"),
           target: "0x90Fd...EF60 (PolicyGuard)",
           riskScore: 5,
-          tx: txHash,
-          latency_ms: "Real Tx",
-          path: "/v1/agent/execute"
+          status: "EXECUTED",
+          tx: txHash
         }
       }
       setEvents(prev => [liveEvent, ...prev].slice(0, 50))
@@ -398,8 +433,7 @@ function App() {
           target: targetContract,
           agent: typeof agentId === 'string' ? agentId : undefined,
           riskScore: 99,
-          latency_ms: "Real Tx Sim",
-          path: "/v1/policy/containment"
+          status: "BLOCKED"
         }
       }
       setEvents(prev => [rogueEvent, ...prev].slice(0, 50))
@@ -421,12 +455,11 @@ function App() {
 
   const handleEmitTelemetryEvent = (eventData) => {
     if (!eventData) return
-    setEvents(prev => [eventData, ...prev].slice(0, 50))
-    if (eventData.isBlocked) {
-      setStats(prev => ({ ...prev, blocked: prev.blocked + 1 }))
-    } else {
-      setStats(prev => ({ ...prev, requests: prev.requests + 1 }))
+    const { nextStats, eventToRecord } = processTelemetryEvent(eventData, stats, isDemoMode)
+    if (eventToRecord) {
+      setEvents(prev => [eventToRecord, ...prev].slice(0, 50))
     }
+    setStats(nextStats)
   }
 
   const handleNewEvent = (data) => {
@@ -445,7 +478,7 @@ function App() {
   useEffect(() => {
     if (IS_STANDALONE_CONFIG) {
       setIsConnected(false)
-      setIsLiveSimulating(true)
+      setIsLiveSimulating(isDemoMode)
       return
     }
 
@@ -458,7 +491,7 @@ function App() {
     const scheduleRetry = () => {
       if (isUnmounted) return
       setIsConnected(false)
-      setIsLiveSimulating(true)
+      setIsLiveSimulating(isDemoMode)
       retryCount++
       const nextDelay = retryCount > 3 ? 30000 : Math.min(20000, retryDelay * 2)
       retryDelay = nextDelay
@@ -575,9 +608,18 @@ function App() {
 
         if (statsArr.length > 0) {
           const indexerStats = statsArr[0]
+          // Indexer endpoint: Envio GraphQL query GetDashboardData (metropolis/indexer/schema.graphql)
+          // - totalActionsExecuted (schema.graphql:58) -> stats.requests
+          // - totalThreatsRegistered (schema.graphql:59) -> stats.blocked
+          // - activeThreatCount (schema.graphql:60) -> stats.redacted
+          // - totalPassportsTracked (schema.graphql:61) -> stats.admin
+          // Envio GlobalSecurityStats entity has no separate allowed field;
+          // derive stats.allowed directly from real verified EXECUTED events (or 0 if none):
+          const realAllowedCount = actionsArr.filter(a => a && Number(a.riskScore) <= 65).length
           setStats({
             requests: parseInt(indexerStats.totalActionsExecuted || 0),
             blocked: parseInt(indexerStats.totalThreatsRegistered || 0),
+            allowed: realAllowedCount,
             redacted: parseInt(indexerStats.activeThreatCount || 0),
             admin: parseInt(indexerStats.totalPassportsTracked || 0)
           })
@@ -591,24 +633,32 @@ function App() {
 
         const combinedEvents = []
         actionsArr.forEach(action => {
+          // Source: GuardianPolicyGuard.sol:166 ActionExecutedWithAttestation event indexed as AgentAction.
+          // Emitted exclusively upon successful on-chain execution of executeWithAttestation on Monad Testnet.
+          // Ingested payload explicitly maps status: "EXECUTED" and isBlocked: false to reflect verified on-chain execution.
           combinedEvents.push({
             event_type: "ON-CHAIN ACTION",
             timestamp: parseInt(action.timestamp),
             severity: action.riskScore > 50 ? "HIGH" : "INFO",
+            isBlocked: false,
             details: {
               agent: action.agentId ? action.agentId.substring(0, 10) + '...' : '0x742d...f44e',
               target: action.target,
               riskScore: action.riskScore,
+              status: "EXECUTED", // Cites GuardianPolicyGuard.sol:166 ActionExecutedWithAttestation
               tx: action.txHash
             }
           })
         })
         
         threatsArr.forEach(threat => {
+          // Source: GuardianThreatFeedRegistry.sol AddressAdded/StringAddressAdded indexed as ThreatRecord (schema.graphql:11-20).
+          // Emitted when a malicious target is registered; ingested payload is explicitly isBlocked: true.
           combinedEvents.push({
             event_type: "THREAT REGISTERED",
             timestamp: parseInt(threat.addedAt),
             severity: "CRITICAL",
+            isBlocked: true,
             details: {
               target: threat.id,
               reason: threat.reason,
@@ -651,9 +701,9 @@ function App() {
     }
   }, [])
 
-  // Standalone simulation ticker
+  // Standalone simulation ticker (only runs in explicit demo mode)
   useEffect(() => {
-    if (!isLiveSimulating) return
+    if (!isLiveSimulating || !isDemoMode) return
 
     const SIMULATED_STREAM_TEMPLATES = [
       {
@@ -709,7 +759,7 @@ function App() {
         event_type: "MEMORY ENCLAVE",
         severity: "INFO",
         getDetails: () => ({
-          reason: "Category Labs MERA enclave: Deterministic Ed25519 passkey PRF verified. AAD replay check passed.",
+          reason: "Category Labs MERA enclave: Simulated passkey PRF derivation. Memory block state recorded.",
           latency_ms: `${(5.2 + Math.random() * 2.8).toFixed(1)}ms`,
           path: "/v1/enclave/verify"
         }),
@@ -748,6 +798,7 @@ function App() {
         timestamp: nowSec,
         severity: template.severity,
         isBlocked: template.isBlocked,
+        isSimulated: true,
         details: template.getDetails()
       }
 
@@ -779,7 +830,7 @@ function App() {
     }, 4500)
 
     return () => clearInterval(interval)
-  }, [isLiveSimulating])
+  }, [isLiveSimulating, isDemoMode])
 
   const handlePolicyCreated = (newPolicy) => {
     // Inject policy creation event into the live event feed
@@ -790,11 +841,9 @@ function App() {
       severity: "INFO",
       isBlocked: false,
       details: {
-        reason: `New policy ${newPolicy.policyId} (${newPolicy.name}) deployed to Privy TEE & Monad Testnet`,
+        reason: `Policy ${newPolicy.policyId} (${newPolicy.name}) created (Monad Testnet Tx: ${newPolicy.txHash ? newPolicy.txHash.slice(0, 10) + '...' : 'unconfirmed'})`,
         target: "0x90Fd...EF60 (PolicyGuard)",
-        tx: newPolicy.txHash,
-        latency_ms: "2.6ms",
-        path: "/v1/policy/deploy"
+        tx: newPolicy.txHash || null
       }
     }
     setEvents(prev => [policyEvent, ...prev].slice(0, 50))
@@ -817,7 +866,18 @@ function App() {
         onConnectSupervisor={handleConnectSupervisor}
         onDisconnectSupervisor={handleDisconnectSupervisor}
         onOpenDelegationModal={handleOpenDelegationModal}
+        isAdvanced={isAdvanced}
+        setIsAdvanced={setIsAdvanced}
       />
+
+      {/* Explicit Demo Mode Banner (F1/F16) */}
+      {isDemoMode && (
+        <div className="w-full bg-amber-950/70 border-b border-amber-600/50 px-4 py-2 text-center text-xs font-mono text-amber-200 flex items-center justify-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="font-semibold uppercase tracking-wider">Sample Data</span>
+          <span className="text-amber-300/80">— Explicit demo mode active. No live network transactions are being executed.</span>
+        </div>
+      )}
 
       {/* Main Tab Content Area */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -835,6 +895,7 @@ function App() {
             onOpenDelegationModal={handleOpenDelegationModal}
             onNavigateTab={(tab) => setActiveTab(tab)}
             indexerStatus={indexerStatus}
+            isAdvanced={isAdvanced}
           />
         )}
 
@@ -848,6 +909,7 @@ function App() {
             isLiveSimulating={isLiveSimulating}
             isBlockedEvent={isBlockedEvent}
             onNavigateTab={(tab) => setActiveTab(tab)}
+            isAdvanced={isAdvanced}
           />
         )}
 
@@ -855,6 +917,8 @@ function App() {
           <CreatePolicyTab
             onPolicyCreated={handlePolicyCreated}
             onNavigateTab={(tab) => setActiveTab(tab)}
+            isAdvanced={isAdvanced}
+            setIsAdvanced={setIsAdvanced}
           />
         )}
 
@@ -873,6 +937,9 @@ function App() {
             agentActionStatus={agentActionStatus}
             onEmitTelemetryEvent={handleEmitTelemetryEvent}
             onNavigateTab={(tab) => setActiveTab(tab)}
+            isAdvanced={isAdvanced}
+            stats={stats}
+            events={events}
           />
         )}
 
@@ -880,6 +947,7 @@ function App() {
           <LogsTab
             events={events}
             isBlockedEvent={isBlockedEvent}
+            isAdvanced={isAdvanced}
           />
         )}
       </main>
@@ -899,7 +967,7 @@ function App() {
             </a>
           </div>
           <span className="text-[11px] opacity-75">
-            Privy Hardware TEE • Envio Hypersync Indexer • Category Labs MERA Enclave
+            Privy Policy Engine • Envio Hypersync Indexer • Category Labs MERA Enclave
           </span>
         </div>
       </footer>
@@ -910,6 +978,7 @@ function App() {
           agentAddress={delegationTarget.agentAddress}
           policyId={delegationTarget.policyId}
           supervisorAddressOverride={supervisorAddress}
+          isDemoMode={isDemoMode}
           onClose={() => setIsDelegationModalOpen(false)}
         />
       )}

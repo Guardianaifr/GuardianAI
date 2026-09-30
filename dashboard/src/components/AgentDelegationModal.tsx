@@ -15,6 +15,12 @@
 import React, { useState } from "react";
 import { usePrivy, useSessionSigners } from "@privy-io/react-auth";
 import { Shield, UserCheck, UserX, AlertTriangle, Loader2, X } from "lucide-react";
+import {
+  createDelegationAdapters,
+  validateDelegationResult,
+  validateRevocationResult,
+  resolveDelegationParams
+} from "@/lib/delegationAdapter";
 
 interface AgentDelegationModalProps {
   /** The AI agent's Ethereum address that will be the session signer */
@@ -25,6 +31,8 @@ interface AgentDelegationModalProps {
   onClose: () => void;
   /** Optional supervisor address fallback for demo mode */
   supervisorAddressOverride?: string;
+  /** Explicit demo mode flag */
+  isDemoMode?: boolean;
 }
 
 export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
@@ -32,46 +40,23 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
   policyId,
   onClose,
   supervisorAddressOverride,
+  isDemoMode = false,
 }) => {
   const { user } = usePrivy();
   const sessionSigners = useSessionSigners();
+  const [isDemoSimulation, setIsDemoSimulation] = useState(false);
 
-  // Adapter supporting addSigners / addSessionSigners seamlessly across SDK versions
-  const addSigners = async (args: any) => {
-    if (typeof sessionSigners?.addSessionSigners === "function") {
-      return sessionSigners.addSessionSigners(args);
-    }
-    if (typeof (sessionSigners as any)?.addSigners === "function") {
-      return (sessionSigners as any).addSigners(args);
-    }
-    // Standalone / demo simulation fallback when live session signers are not registered
-    console.info("Privy session signers backend not active; simulating delegation for demo session.");
-    return { success: true, simulated: true };
-  };
-
-  // Adapter supporting removeSigners / removeSessionSigners seamlessly across SDK versions
-  const removeSigners = async (args: any) => {
-    if (typeof sessionSigners?.removeSessionSigners === "function") {
-      return sessionSigners.removeSessionSigners(args);
-    }
-    if (typeof (sessionSigners as any)?.removeSigners === "function") {
-      return (sessionSigners as any).removeSigners(args);
-    }
-    console.info("Privy session signers backend not active; simulating revocation for demo session.");
-    return { success: true, simulated: true };
-  };
+  const { addSigners, removeSigners } = createDelegationAdapters(sessionSigners, isDemoMode);
 
   const [isDelegating, setIsDelegating] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [status, setStatus] = useState<"idle" | "delegated" | "revoked" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const displayAgentAddress = typeof agentAddress === "string" && agentAddress.trim().length > 0
-    ? agentAddress
-    : "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
-  const displayPolicyId = typeof policyId === "string" && policyId.trim().length > 0
-    ? policyId
-    : "pol_guardian_monad_policyguard_01";
+  const resolvedParams = resolveDelegationParams(agentAddress, policyId, isDemoMode);
+  const displayAgentAddress = resolvedParams.agentAddress || "Not specified";
+  const displayPolicyId = resolvedParams.policyId || "Not specified";
+  const isMissingParams = !resolvedParams.isValid;
 
   // Supervisor wallet address from the authenticated Privy user or override
   const supervisorAddress =
@@ -91,12 +76,16 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
     setIsDelegating(true);
     setErrorMessage(null);
     try {
+      if (!resolvedParams.isValid) {
+        throw new Error("Explicit agent address and policy ID are required outside demo mode. Cannot delegate to empty target.");
+      }
       if (!supervisorAddress || supervisorAddress === "Not connected") {
         throw new Error("Please connect a supervisor wallet first.");
       }
+      let res: any;
       try {
         // Primary: @privy-io/react-auth object specification
-        await (addSigners as any)({
+        res = await (addSigners as any)({
           address: supervisorAddress,
           signers: [
             {
@@ -108,7 +97,7 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
       } catch (primaryErr: any) {
         try {
           // Fallback: array signature format (legacy / alternate SDK variants)
-          await (addSigners as any)([
+          res = await (addSigners as any)([
             {
               address: displayAgentAddress,
               chainType: "ethereum",
@@ -116,15 +105,21 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
             },
           ]);
         } catch {
-          // If demo supervisor is active without live Privy login, simulate successful delegation
-          if (supervisorAddressOverride && !user) {
+          // If demo supervisor is active without live Privy login, simulate successful delegation only in demo mode
+          if (supervisorAddressOverride && !user && isDemoMode) {
             console.info("Simulating successful delegation for demo supervisor session.");
+            setIsDemoSimulation(true);
             setStatus("delegated");
             return;
           }
           // Preserve the primary error which reflects the standard SDK contract
           throw primaryErr;
         }
+      }
+
+      const validation = validateDelegationResult(res, isDemoMode);
+      if (validation.isDemoSimulation) {
+        setIsDemoSimulation(true);
       }
       setStatus("delegated");
     } catch (err: any) {
@@ -145,32 +140,42 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
     setIsRevoking(true);
     setErrorMessage(null);
     try {
+      if (!resolvedParams.isValid) {
+        throw new Error("Explicit agent address and policy ID are required outside demo mode.");
+      }
       if (!supervisorAddress || supervisorAddress === "Not connected") {
         throw new Error("Please connect a supervisor wallet first.");
       }
+      let res: any;
       try {
         // Primary: @privy-io/react-auth object specification
-        await (removeSigners as any)({
+        res = await (removeSigners as any)({
           address: supervisorAddress,
         });
       } catch (primaryErr: any) {
         try {
           // Fallback: array signature format
-          await (removeSigners as any)([
+          res = await (removeSigners as any)([
             {
               address: displayAgentAddress,
               chainType: "ethereum",
             },
           ]);
         } catch {
-          if (supervisorAddressOverride && !user) {
+          if (supervisorAddressOverride && !user && isDemoMode) {
             console.info("Simulating successful revocation for demo supervisor session.");
+            setIsDemoSimulation(true);
             setStatus("revoked");
             return;
           }
           // Preserve the primary error which reflects the standard SDK contract
           throw primaryErr;
         }
+      }
+
+      const validation = validateRevocationResult(res, isDemoMode);
+      if (validation.isDemoSimulation) {
+        setIsDemoSimulation(true);
       }
       setStatus("revoked");
     } catch (err: any) {
@@ -233,6 +238,12 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
         </div>
 
         {/* Status feedback */}
+        {isDemoSimulation && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-600/50 bg-amber-950/40 p-3 text-xs text-amber-200">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+            <span>Demo mode: nothing was changed</span>
+          </div>
+        )}
         {status === "delegated" && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-700/40 bg-green-900/20 p-3">
             <UserCheck className="h-4 w-4 text-green-400" />
@@ -252,6 +263,16 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
           </div>
         )}
 
+        {/* Inline explanation for missing explicit parameters outside demo mode */}
+        {isMissingParams && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-600/50 bg-amber-950/40 p-3 text-xs text-amber-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+            <span>
+              Explicit AI Agent Address and Policy ID are required outside demo mode. Delegation and revocation are disabled to prevent actions against placeholder targets.
+            </span>
+          </div>
+        )}
+
         {/* Action buttons */}
         <div className="flex gap-3">
           {/* Delegate button */}
@@ -261,7 +282,7 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
               e.stopPropagation();
               handleDelegate();
             }}
-            disabled={isDelegating || isRevoking || status === "delegated"}
+            disabled={isDelegating || isRevoking || status === "delegated" || isMissingParams}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#836EF9] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7560e0] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isDelegating ? (
@@ -279,7 +300,7 @@ export const AgentDelegationModal: React.FC<AgentDelegationModalProps> = ({
               e.stopPropagation();
               handleRevoke();
             }}
-            disabled={isDelegating || isRevoking || status !== "delegated"}
+            disabled={isDelegating || isRevoking || status !== "delegated" || isMissingParams}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-700/50 bg-red-900/20 px-4 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-900/40 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isRevoking ? (

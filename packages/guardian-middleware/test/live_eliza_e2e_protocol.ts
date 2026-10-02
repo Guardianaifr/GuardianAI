@@ -38,11 +38,11 @@ import type { ElizaMessage, ElizaRuntime, RawTransaction } from "../src/index.ts
 const MONAD_RPC_URL =
   process.env.MONAD_TESTNET_RPC ||
   process.env.MONAD_RPC_URL ||
-  "https://snowy-ultra-film.monad-testnet.quiknode.pro/e9b2075b87f936cab2a8777098e57a00a51c5673/";
+  "https://testnet-rpc.monad.xyz";
 const MONAD_CHAIN_ID = 10143;
 const POLICY_GUARD_ADDRESS =
   process.env.GUARDIAN_POLICY_GUARD_CONTRACT_MONAD || DEFAULT_MONAD_POLICY_GUARD;
-const RELAYER_URL = process.env.GUARDIAN_RELAYER_URL || "http://127.0.0.1:8000";
+const RELAYER_URL = process.env.GUARDIAN_RELAYER_URL || "http://127.0.0.1:8546";
 const AGENT_WALLET_ADDRESS = "0x1D4549B95dccAC8203393543187b25B3137D0bf6";
 
 // Find LLM Key (Groq / OpenRouter)

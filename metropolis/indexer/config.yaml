@@ -44,7 +44,7 @@ chains:
   - id: 10143
     start_block: 0
     rpc_config:
-      url: https://snowy-ultra-film.monad-testnet.quiknode.pro/e9b2075b87f936cab2a8777098e57a00a51c5673/
+      url: ${ENVIO_MONAD_RPC_URL:-https://testnet-rpc.monad.xyz}
     contracts:
       - name: GuardianPolicyGuard
         address: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"

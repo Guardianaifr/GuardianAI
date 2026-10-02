@@ -18,6 +18,7 @@ import {
   Key
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { POLICY_GUARD_ADDRESS } from "@/lib/constants"
 
 const PRESETS = [
   {
@@ -51,7 +52,7 @@ const PRESETS = [
     selectors: ["0xa9059cbb"]
   },
   {
-    name: "Treasury Vault Escort",
+    name: "Treasury Protection Escort",
     desc: "Maximum security governance policy with mandatory 24h timelock",
     maxSpend: 1.0,
     outflowCap: 5.0,
@@ -80,7 +81,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab, isAdvanced = f
   const [highValueThreshold, setHighValueThreshold] = useState(2.0)
   const [circuitBreakerTrips, setCircuitBreakerTrips] = useState(5)
   const [contracts, setContracts] = useState([
-    "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+    POLICY_GUARD_ADDRESS,
     "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
   ])
   const [newContractInput, setNewContractInput] = useState("")
@@ -195,7 +196,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab, isAdvanced = f
       const signer = await ethersProvider.getSigner();
 
       const contract = new ethers.Contract(
-        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        POLICY_GUARD_ADDRESS,
         ["function setMaxAllowedRiskScore(uint8) external"],
         signer
       );
@@ -215,7 +216,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab, isAdvanced = f
         selectorsCount: activeSelectors.length,
         txHash: tx.hash,
         timestamp: new Date().toLocaleTimeString(),
-        enforcedBy: "Privy Policy Engine & GuardianPolicyGuard"
+        enforcedBy: "GuardianPolicyGuard (Monad Testnet)"
       }
 
       setDeploymentResult(result)
@@ -270,13 +271,13 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab, isAdvanced = f
         <div>
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#836EF9]/15 border border-[#836EF9]/30 text-xs font-mono text-[#836EF9] mb-2">
             <Shield className="h-3.5 w-3.5" />
-            <span>Privy Policy Engine & Monad PolicyGuard</span>
+            <span>Monad GuardianPolicyGuard</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
             AI Agent Guardrails & Rule Studio
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Build deterministic execution boundaries enforced before agent session keys sign.
+            Build deterministic execution boundaries enforced on-chain by Monad PolicyGuard.
           </p>
         </div>
 
@@ -431,7 +432,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab, isAdvanced = f
                   className="w-full accent-emerald-500 cursor-pointer"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  If an agent attempts transactions totaling more than {outflowCap} MON within a rolling 24-hour window, the Privy Policy Engine aborts signing off-chain.
+                  If an agent attempts transactions totaling more than {outflowCap} MON within a rolling 24-hour window, policy rules reject execution.
                 </p>
               </div>
 
@@ -712,7 +713,7 @@ export function CreatePolicyTab({ onPolicyCreated, onNavigateTab, isAdvanced = f
 
               <div className="p-3 rounded-lg bg-[#836EF9]/10 border border-[#836EF9]/25 text-[11px] text-muted-foreground leading-relaxed font-sans">
                 <span className="font-semibold text-foreground">Enforcement Mechanism:</span>
-                {" "}When an AI agent requests a signature, policy rules are evaluated before signing. Violations are blocked.
+                {" "}GuardianPolicyGuard.sol on Monad Testnet enforces spending caps and contract allowlists on transaction execution.
               </div>
 
               <button

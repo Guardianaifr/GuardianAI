@@ -72,14 +72,28 @@ def billing_checkout(payload: BillingCheckoutRequest, principal: Dict[str, str] 
 
     if BILLING_MODE == "live" and payload.payment_method == "card":
         provider = "stripe"
-        price_id = STRIPE_PRICE_STARTER or STRIPE_PRICE_PRO or STRIPE_PRICE_ENTERPRISE
+        if payload.plan == "free":
+            raise HTTPException(status_code=400, detail="The free plan needs no checkout")
+        # Charge the plan the customer chose (previously always the first configured price).
+        # "lifetime" has no price of its own and keeps the original one-off fallback.
+        plan_prices = {
+            "starter": STRIPE_PRICE_STARTER,
+            "pro": STRIPE_PRICE_PRO,
+            "enterprise": STRIPE_PRICE_ENTERPRISE,
+        }
+        if payload.plan in plan_prices:
+            price_id = plan_prices[payload.plan]
+        else:
+            price_id = STRIPE_PRICE_STARTER or STRIPE_PRICE_PRO or STRIPE_PRICE_ENTERPRISE
+        # Starter/Pro are monthly plans: Stripe recurring prices need subscription mode.
+        checkout_mode = "subscription" if payload.plan in ("starter", "pro") else "payment"
         if not STRIPE_SECRET_KEY or not price_id:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Stripe is not configured")
         response = requests.post(
             "https://api.stripe.com/v1/checkout/sessions",
             headers={"Authorization": f"Bearer {STRIPE_SECRET_KEY}"},
             data={
-                "mode": "payment",
+                "mode": checkout_mode,
                 "success_url": CHECKOUT_SUCCESS_URL,
                 "cancel_url": CHECKOUT_CANCEL_URL,
                 "line_items[0][price]": price_id,

@@ -52,11 +52,11 @@
       <canvas id="hero-canvas" aria-hidden="true"></canvas>
       <div class="wrap hero-inner">
         <div>
-          <span class="eyebrow rise d1">AI agent security · 3-Layer Defense-in-Depth</span>
+          <span class="eyebrow rise d1">AI agent security · two gates: off-chain firewall + on-chain PolicyGuard</span>
           <h1 id="hero-title" class="rise d1">Your agent holds a wallet.<br>One bad prompt <span class="verdict-word">shouldn't empty it.</span></h1>
-          <p class="hero-sub rise d2">Sub-millisecond Edge AI Firewall, Mera Passkey PRF hardware-bound sealed memory enclave, and Monad PolicyGuard execution containment on Parallel EVM.</p>
+          <p class="hero-sub rise d2">An AI firewall stops the trick before your agent reads it. A PolicyGuard contract on Monad stops the money if anything gets through. Mera passkeys give each agent its identity and sealed memory.</p>
           <div class="hero-actions rise d3">
-            <a class="btn btn-primary" href="/explorer/" target="_blank" rel="noopener noreferrer">Open Live Dashboard ↗</a>
+            <a class="btn btn-primary" href="/explorer/" target="_blank" rel="noopener noreferrer">Try to rob an agent ↗</a>
             <a class="btn btn-ghost" href="#demo">Try In-Page Scanner</a>
             <a class="btn btn-ghost" href="/proof">See the proof</a>
           </div>
@@ -86,7 +86,7 @@
               <span class="stamp" id="verdict-stamp"></span>
               <span class="verdict-meta" id="verdict-meta"></span>
             </div>
-            <p class="gate-note"><strong>Architecture note:</strong> This sandbox demonstrates the fast-path screening and client-side de-obfuscation layers (Layer 1 &amp; 2 of 4). The full 4-layer production pipeline — including semantic embedding classification, output DLP/redaction, and on-chain Merkle anchoring — runs server-side.</p>
+            <p class="gate-note"><strong>Architecture note:</strong> This sandbox runs the fast-path screen and de-obfuscation in your browser. The semantic classifier, output redaction and the on-chain PolicyGuard check run in the full gateway; try them in the <a href="/explorer/" style="color:var(--green);text-decoration:underline;">Attack Lab</a>.</p>
           </div>
         </div>
       </div>
@@ -142,7 +142,7 @@
       <div class="wrap">
         <div class="section-head reveal">
           <span class="eyebrow">Threat model</span>
-          <h2 class="section-title" id="tm-title">Four layers between your agent and a bad day.</h2>
+          <h2 class="section-title" id="tm-title">Inside Gate 1: four checks between your agent and a bad day.</h2>
           <p class="section-lede">Each layer is independently tested and artifact-documented. Together they close the attack classes that ship in the wild today.</p>
         </div>
         <div class="grid-2">
@@ -187,11 +187,11 @@
                 <li><b>Semantic firewall</b> — embedding classifier, strict / balanced / permissive modes</li>
                 <li><b>De-obfuscation pass</b> — encodings decoded and normalized before judgment</li>
                 <li><b>Response guardrails</b> — redaction, payload blocking, watermarking</li>
-                <li><b>Metering &amp; limits</b> — per-tenant tiers enforced fail-closed</li>
+                <li><b>Rate limits</b> — per-user and per-key request limits; plan-based quotas are built but not switched on yet</li>
               </ul>
               <div class="term-buyer-note">
                 <span class="label">For AI &amp; Platform Engineers:</span>
-                Sub-millisecond gateway proxy sits seamlessly in front of OpenAI, Anthropic, Ollama, or vLLM — zero changes to your agent reasoning code.
+                Millisecond-scale gateway proxy sits seamlessly in front of OpenAI, Anthropic, Ollama, or vLLM — zero changes to your agent reasoning code.
               </div>
             </div>
           </article>
@@ -200,7 +200,8 @@
             <div class="term-body">
               <ul>
                 <li><b>ERC-8004 identity &amp; Identity Gate</b> — portable agent registry and pre-flight point-of-interaction enforcement with hot-wallet collision guards</li>
-                <li><b>PolicyGuard &amp; ThreatConsumer</b> — Monad Parallel EVM execution containment &amp; Chainlink oracle threat consumer</li>
+                <li><b>PolicyGuard</b> — refuses any agent payment without GuardianAI's signed approval, above the risk limit, or from a revoked agent (live on Monad testnet)</li>
+                <li><b>Chainlink CRE threat oracle</b> — signed threat reports for an on-chain consumer (CRE simulator today; consumer not deployed yet)</li>
                 <li><b>Soulbound passport</b> — ERC-5192 reputation score (0–10000) derived from verified scan history</li>
                 <li><b>Evidence anchoring</b> — Merkle roots over security-event logs (simulated default; Monad testnet opt-in)</li>
                 <li><b>Insurance certificates</b> — cryptographic evidence packages for underwriters and compliance audits</li>
@@ -233,80 +234,53 @@
           <article class="card reveal">
             <span class="card-index">[B]</span>
             <h3><a href="/proof#audits" style="color:var(--green)">Audit status →</a></h3>
-            <p>External pentest completed March 2026 (<a href="/proof#audits" style="color:var(--green);text-decoration:underline;">Independent Security Review</a>, zero open critical/high findings). Internal off-chain, contract, and senior architecture audits remediated July–September 2026, including September 2026 Metropolis &amp; Mera Passkey PRF enclave hard audit (166/166 assertions, 0 collisions).</p>
+            <p>One external review of the off-chain gateway (March 2026, summary published, zero open critical/high). Internal off-chain, contract and architecture audits July–September 2026, including the Mera passkey enclave audit (166/166 assertions). The Monad contracts have not been externally audited yet.</p>
           </article>
           <article class="card reveal">
             <span class="card-index">[C]</span>
             <h3><a href="/proof#chains" style="color:var(--green)">Chains &amp; identity →</a></h3>
-            <p>Eleven-contract suite deployed on <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>. State anchoring runs simulated-by-default. Zero mainnet claims — verifiable directly on block explorers.</p>
+            <p>Nine contracts live on <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>, each checked live in the <a href="/explorer/#proof" style="color:var(--green);text-decoration:underline;">Explorer proof ledger</a>. State anchoring runs simulated by default. No mainnet claims.</p>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- ================= PROTOCOL EXPLORER & LIVE DASHBOARD ================= -->
+    <!-- ================= EXPLORER ================= -->
     <section id="explorer" aria-labelledby="exp-title">
       <div class="wrap">
         <div class="section-head reveal">
-          <span class="eyebrow">Interactive Control Plane</span>
-          <h2 class="section-title" id="exp-title">Explore the live protocol.<br><span style="color:var(--green)">Five tabs. Full visibility. Zero setup.</span></h2>
-          <p class="section-lede">Launch the GuardianAI Dashboard directly at <code>https://aiguardian.dev/explorer</code> to inspect real-time agent telemetry, test policy containment, simulate rogue actions, and inspect immutable audit logs.</p>
+          <span class="eyebrow">Live on Monad testnet</span>
+          <h2 class="section-title" id="exp-title">Try to rob an AI agent.<br><span style="color:var(--green)">Every check is real. No wallet needed.</span></h2>
+          <p class="section-lede">The Explorer at <code>aiguardian.dev/explorer</code> runs real attacks against GuardianAI's gates and calls the deployed contracts directly from your browser.</p>
         </div>
         <div class="explorer-tabs-grid">
-          <a class="explorer-tab-card reveal" href="/explorer/#home" target="_blank" rel="noopener noreferrer">
+          <a class="explorer-tab-card reveal" href="/explorer/#lab" target="_blank" rel="noopener noreferrer">
             <div class="tab-card-header">
-              <span class="tab-card-badge">TAB 01</span>
-              <span class="tab-card-tag">CONTROL</span>
+              <span class="tab-card-badge">01</span>
+              <span class="tab-card-tag">ATTACK LAB</span>
             </div>
-            <h3>Home &amp; Actions</h3>
-            <p>Simulate guarded vs. rogue agent transactions. Test real-time Privy TEE containment, session caps, and Monad testnet execution.</p>
-            <span class="tab-card-link">Launch Home Tab ↗</span>
+            <h3>Try to rob an AI agent</h3>
+            <p>Pick an attack (hidden instructions, a scam invoice, a forged approval, an impostor agent) and watch both gates refuse it: the off-chain firewall first, then PolicyGuard on Monad, with the real call and revert shown.</p>
+            <span class="tab-card-link">Launch an attack ↗</span>
           </a>
-          <a class="explorer-tab-card reveal" href="/explorer/#dashboard" target="_blank" rel="noopener noreferrer">
+          <a class="explorer-tab-card reveal" href="/explorer/#proof" target="_blank" rel="noopener noreferrer">
             <div class="tab-card-header">
-              <span class="tab-card-badge">TAB 02</span>
-              <span class="tab-card-tag">TELEMETRY</span>
+              <span class="tab-card-badge">02</span>
+              <span class="tab-card-tag">PROOF</span>
             </div>
-            <h3>Real-Time Dashboard</h3>
-            <p>Live threat stream via WebSockets, Envio indexer metrics, attack vector distribution, and millisecond latency graphs.</p>
-            <span class="tab-card-link">Launch Dashboard Tab ↗</span>
+            <h3>Don't trust us. Check the chain.</h3>
+            <p>Every contract's code and live settings, read from Monad testnet each time the page loads, plus a real approved payment.</p>
+            <span class="tab-card-link">Open the proof ledger ↗</span>
           </a>
-          <a class="explorer-tab-card reveal" href="/explorer/#policy" target="_blank" rel="noopener noreferrer">
+          <a class="explorer-tab-card reveal" href="/explorer/?view=console" target="_blank" rel="noopener noreferrer">
             <div class="tab-card-header">
-              <span class="tab-card-badge">TAB 03</span>
-              <span class="tab-card-tag">DEFENSE</span>
+              <span class="tab-card-badge">03</span>
+              <span class="tab-card-tag">CONSOLE</span>
             </div>
-            <h3>Guardrails &amp; Policy</h3>
-            <p>Create and deploy custom execution constraints, spending limits, target address whitelists, and containment rules.</p>
-            <span class="tab-card-link">Launch Guardrails Tab ↗</span>
+            <h3>Your wallet, your agents</h3>
+            <p>Connect a wallet (read-only), see agent ID cards, check any address against the on-chain scam list, and read the payment guard's live settings.</p>
+            <span class="tab-card-link">Open the Console ↗</span>
           </a>
-          <a class="explorer-tab-card reveal" href="/explorer/#agents" target="_blank" rel="noopener noreferrer">
-            <div class="tab-card-header">
-              <span class="tab-card-badge">TAB 04</span>
-              <span class="tab-card-tag">IDENTITY</span>
-            </div>
-            <h3>Agent Directory</h3>
-            <p>Inspect registered autonomous agents, ERC-8004 identity gates, soulbound reputation scores, and session key delegations.</p>
-            <span class="tab-card-link">Launch Agents Tab ↗</span>
-          </a>
-          <a class="explorer-tab-card reveal" href="/explorer/#logs" target="_blank" rel="noopener noreferrer">
-            <div class="tab-card-header">
-              <span class="tab-card-badge">TAB 05</span>
-              <span class="tab-card-tag">AUDIT</span>
-            </div>
-            <h3>Immutable Audit Logs</h3>
-            <p>Cryptographically anchored audit log stream. Filter events by severity, path, risk score, and on-chain transaction hash.</p>
-            <span class="tab-card-link">Launch Logs Tab ↗</span>
-          </a>
-          <div class="explorer-tab-card explorer-cta-card reveal">
-            <div class="tab-card-header">
-              <span class="tab-card-badge" style="color:var(--green);border-color:var(--green-line);">LIVE APP</span>
-              <span class="tab-card-tag">DASHBOARD</span>
-            </div>
-            <h3>Open Full Dashboard</h3>
-            <p>Runs directly in your browser with full tab navigation. Test real-time security primitives on Monad Testnet.</p>
-            <a class="btn btn-primary btn-sm" href="/explorer/" target="_blank" rel="noopener noreferrer" style="margin-top:auto;width:100%;">Open Dashboard ↗</a>
-          </div>
         </div>
       </div>
     </section>
@@ -340,9 +314,9 @@
         <div>
           <h4>Product &amp; Navigation</h4>
           <ul>
-            <li><a href="/explorer/" target="_blank" rel="noopener noreferrer">Live Dashboard (Web App) ↗</a></li>
-            <li><a href="/explorer/#dashboard" target="_blank" rel="noopener noreferrer">Threat Stream &amp; Telemetry ↗</a></li>
-            <li><a href="/explorer/#agents" target="_blank" rel="noopener noreferrer">Agent Directory &amp; Delegation ↗</a></li>
+            <li><a href="/explorer/#lab" target="_blank" rel="noopener noreferrer">Attack Lab (live on Monad) ↗</a></li>
+            <li><a href="/explorer/#proof" target="_blank" rel="noopener noreferrer">Live contract proof ↗</a></li>
+            <li><a href="/explorer/?view=console" target="_blank" rel="noopener noreferrer">Console &amp; agent ID cards ↗</a></li>
             <li><a href="/how-it-works">How it works</a></li>
             <li><a href="#demo">In-page scanner demo</a></li>
             <li><a href="/how-it-works#contracts">Contract suite</a></li>

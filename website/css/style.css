@@ -808,4 +808,10 @@ footer li a:hover { color: var(--green); }
   .footer-watermark { font-size: clamp(1.8rem, 9vw, 9.5rem); max-width: 100%; }
 }
 
-
+/* phone-width overflow guard */
+@media (max-width: 720px) {
+  main table, .docs-table { display: block; max-width: 100%; overflow-x: auto; }
+  pre, .docs-code-block { max-width: 100%; overflow-x: auto; }
+  p code, li code, td code { overflow-wrap: anywhere; word-break: break-word; }
+  .fact-list li, .fact-list a { overflow-wrap: anywhere; }
+}

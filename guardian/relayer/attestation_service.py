@@ -187,7 +187,9 @@ class SafetyAttestationService:
             # Ephemeral key fallback for testing/development
             logger.warning("No GUARDIAN_ATTESTATION_SIGNER_KEY set. Generating ephemeral key for testing.")
             self.account = Account.create()
+            self.ephemeral_signer = True
         else:
+            self.ephemeral_signer = False
             normalized_key = raw_key if raw_key.startswith("0x") else "0x" + raw_key
             self.account = Account.from_key(normalized_key)
 

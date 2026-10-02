@@ -118,7 +118,7 @@ class GuardianMiddleware:
 
     def __init__(
         self,
-        relayer_url: str = "http://localhost:8000",
+        relayer_url: str = "http://localhost:8546",
         policy_guard_address: str = DEFAULT_MONAD_POLICY_GUARD,
         chain_id: int = DEFAULT_MONAD_CHAIN_ID,
         fail_closed: bool = True,
@@ -438,7 +438,7 @@ def guardian_web3_middleware(
         from guardian_middleware import GuardianMiddleware, guardian_web3_middleware
 
         w3 = Web3(...)
-        guard = GuardianMiddleware(relayer_url="http://localhost:8000")
+        guard = GuardianMiddleware(relayer_url="http://localhost:8546")
         w3.middleware_onion.inject(guardian_web3_middleware(guard, agent_id="agent-01"), layer=0)
     """
     def middleware_factory(make_request: Callable[[str, Any], Any], web3: Any) -> Callable[[str, Any], Any]:

@@ -85,17 +85,22 @@ export function Navbar({
                 </span>
                 <span 
                   className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#836EF9]/10 text-[#836EF9] border border-[#836EF9]/25 cursor-help"
-                  title={isAdvanced ? "Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)" : "Autonomous Agent Protection & Security Monitor"}
+                  title={isAdvanced ? "Trust & Execution Primitives for Autonomous Agents (ERC-5192 + P256)" : "Autonomous Agent Protection & Security Monitor"}
                 >
                   {isAdvanced ? "PROTOCOL EXPLORER • MONAD 10143" : "SECURITY EXPLORER"}
                 </span>
+                {!isAdvanced && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    Test network data
+                  </span>
+                )}
               </div>
               <p 
                 className="text-[11px] text-muted-foreground hidden lg:block"
-                title={isAdvanced ? "Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)" : "Autonomous Agent Protection & Security Monitor"}
+                title={isAdvanced ? "Trust & Execution Primitives for Autonomous Agents (ERC-5192 + P256)" : "Autonomous Agent Protection & Security Monitor"}
               >
                 {isAdvanced
-                  ? "Trust & Execution Primitives for Autonomous Agents (ERC-8004 + P256)"
+                  ? "Trust & Execution Primitives for Autonomous Agents (ERC-5192 + P256)"
                   : "Autonomous Agent Protection & Security Monitor"}
               </p>
             </div>

@@ -1,4 +1,4 @@
-import React from 'react'
+import { useWallets } from '@privy-io/react-auth'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   Shield, 
@@ -18,6 +18,7 @@ import {
   ArrowLeft
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { POLICY_GUARD_ADDRESS } from "@/lib/constants"
 
 export function HomeTab({
   stats,
@@ -34,12 +35,27 @@ export function HomeTab({
   indexerStatus,
   isAdvanced = false
 }) {
+  const { wallets } = useWallets()
+  const activeWallet = wallets?.[0]
+  const isPrivyWallet = activeWallet?.walletClientType === 'privy'
   const isGuardedRunning = Boolean(isExecutingGuarded || executingAction === 'guarded')
   const isRogueRunning = Boolean(isExecutingRogue || executingAction === 'rogue')
-  const estimatedPreventedLoss = stats.requests > 0 ? (stats.blocked * 10).toLocaleString() : "0"
+  const isFetchFailed = indexerStatus === "failed" || stats.status === "failed"
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
+      {stats?.isStale && (
+        <div data-testid="stale-banner" className="p-3 rounded-xl border border-amber-800/50 bg-amber-950/20 text-amber-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+            <span>{stats.staleMessage || "Connection interrupted. Couldn't refresh data."}</span>
+          </div>
+          <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            STALE CACHE
+          </span>
+        </div>
+      )}
+
       {/* Hero / Platform Overview Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-[#836EF9]/30 bg-gradient-to-br from-[#836EF9]/15 via-background to-background p-6 sm:p-8 shadow-lg">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#836EF9]/10 rounded-full blur-3xl pointer-events-none" />
@@ -74,7 +90,7 @@ export function HomeTab({
             <div className="flex items-center justify-between gap-4 px-3.5 py-2 rounded-xl bg-card border border-border/80 text-xs font-mono">
               <span className="text-muted-foreground flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                {isAdvanced ? "Privy Policy Engine" : "Safety Firewall"}
+                {isAdvanced ? "Privy Policy Engine" : "Safety Rules Engine"}
               </span>
               <span className="font-semibold text-emerald-400">{isAdvanced ? "POLICY ENGINE" : "ACTIVE"}</span>
             </div>
@@ -110,59 +126,72 @@ export function HomeTab({
           </span>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-border/80 bg-card/60 backdrop-blur hover:border-[#836EF9]/50 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">{isAdvanced ? "Actions Indexed" : "Actions Monitored"}</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">{isAdvanced ? "Actions Executed" : "Actions Executed"}</CardTitle>
               <Activity className="h-4 w-4 text-[#836EF9]" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono text-foreground">{stats.requests.toLocaleString()}</div>
-              <p className="text-[11px] text-muted-foreground mt-1">{isAdvanced ? "Monad on-chain executions" : "Autonomous agent actions"}</p>
+              <div className="text-2xl font-bold font-mono text-foreground">
+                {isFetchFailed ? (
+                  <span className="text-amber-400 text-sm font-semibold">Couldn't load data</span>
+                ) : (
+                  stats.actionsExecuted !== null && stats.actionsExecuted !== undefined ? stats.actionsExecuted.toLocaleString() : "--"
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">Verified on-chain executions</p>
             </CardContent>
           </Card>
 
           <Card className="border-border/80 bg-card/60 backdrop-blur hover:border-red-500/40 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Threats Intercepted</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">{isAdvanced ? "Threats Registered" : "Threats Registered"}</CardTitle>
               <Shield className="h-4 w-4 text-red-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono text-red-500">{stats.blocked.toLocaleString()}</div>
-              <p className="text-[11px] text-muted-foreground mt-1">{isAdvanced ? "Injections & cap breaches" : "Injections & safety breaches"}</p>
+              <div className="text-2xl font-bold font-mono text-red-500">
+                {isFetchFailed ? (
+                  <span className="text-amber-400 text-sm font-semibold">Couldn't load data</span>
+                ) : (
+                  stats.threatsRegistered !== null && stats.threatsRegistered !== undefined ? stats.threatsRegistered.toLocaleString() : "--"
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">Threats in on-chain blocklist</p>
             </CardContent>
           </Card>
 
           <Card className="border-border/80 bg-card/60 backdrop-blur hover:border-amber-500/40 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">{isAdvanced ? "Active Malicious Targets" : "Flagged Targets"}</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">{isAdvanced ? "Active Threat Indicators" : "Active Threat Indicators"}</CardTitle>
               <AlertTriangle className="h-4 w-4 text-amber-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono text-amber-500">{stats.redacted.toLocaleString()}</div>
-              <p className="text-[11px] text-muted-foreground mt-1">{isAdvanced ? "Drainer contracts in registry" : "Malicious destinations blocked"}</p>
+              <div className="text-2xl font-bold font-mono text-amber-500">
+                {isFetchFailed ? (
+                  <span className="text-amber-400 text-sm font-semibold">Couldn't load data</span>
+                ) : (
+                  stats.activeThreats !== null && stats.activeThreats !== undefined ? stats.activeThreats.toLocaleString() : "--"
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">Active blocklist targets</p>
             </CardContent>
           </Card>
 
           <Card className="border-border/80 bg-card/60 backdrop-blur hover:border-blue-500/40 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">{isAdvanced ? "Soulbound Passports" : "Protected Agents"}</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">{isAdvanced ? "Agent Passports Tracked" : "Agent Passports Tracked"}</CardTitle>
               <Lock className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono text-blue-500">{stats.admin.toLocaleString()}</div>
-              <p className="text-[11px] text-muted-foreground mt-1">{isAdvanced ? "ERC-8004 registered agents" : "Active monitored agents"}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/80 bg-card/60 backdrop-blur sm:col-span-2 lg:col-span-1 hover:border-emerald-500/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Capital Preserved</CardTitle>
-              <Zap className="h-4 w-4 text-emerald-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-mono text-emerald-400">~{estimatedPreventedLoss} MON</div>
-              <p className="text-[11px] text-muted-foreground mt-1">{isAdvanced ? "Pre-flight saved off-chain" : "Saved from unauthorized transfer"}</p>
+              <div className="text-2xl font-bold font-mono text-blue-500">
+                {isFetchFailed ? (
+                  <span className="text-amber-400 text-sm font-semibold">Couldn't load data</span>
+                ) : (
+                  stats.passportsTracked !== null && stats.passportsTracked !== undefined ? stats.passportsTracked.toLocaleString() : "--"
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">Tracked agent passports</p>
             </CardContent>
           </Card>
         </div>
@@ -177,7 +206,7 @@ export function HomeTab({
           </h2>
           <p className="text-xs text-muted-foreground">
             {isAdvanced
-              ? "Fire live pre-flight simulations to verify Privy Policy Engine enforcement vs. GuardianAI off-chain containment."
+              ? "Run test actions to evaluate policy guard enforcement on Monad Testnet."
               : "Test how GuardianAI immediately allows safe transactions and blocks unauthorized actions before execution."}
           </p>
         </div>
@@ -216,7 +245,7 @@ export function HomeTab({
                   <span>Target:</span>
                   {isAdvanced ? (
                     <a
-                      href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
+                      href={`https://testnet.monadscan.com/address/${POLICY_GUARD_ADDRESS}`}
                       target="_blank"
                       rel="noreferrer"
                       className="text-foreground hover:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
@@ -282,8 +311,8 @@ export function HomeTab({
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {isAdvanced
-                  ? "Simulates an autonomous agent attempting a 10 MON transfer to an unapproved recipient. Instantly intercepted off-chain by Privy Policy Engine before private keys sign. 0 gas burned."
-                  : "Simulates an agent attempting an unauthorized 10 MON transfer. Instantly blocked before execution with zero fees burned."}
+                  ? "Simulates an autonomous agent attempting a 10 MON transfer exceeding policy limit. Evaluated against spend cap (5.0 MON limit) and rejected before execution. 0 gas burned."
+                  : "Simulates an agent attempting an unauthorized 10 MON transfer. Evaluated against spend caps and rejected before execution."}
               </p>
               <div className="text-[11px] font-mono bg-background/60 p-2.5 rounded-lg border border-border/60 text-muted-foreground">
                 <div className="flex justify-between">
@@ -369,12 +398,12 @@ export function HomeTab({
               <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
                 {isAdvanced ? "Dual-Layer Beyond-Authentication Architecture" : "Three Layers of Agent Protection"}
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#836EF9]/25 text-[#836EF9] font-normal border border-[#836EF9]/40 font-mono">
-                  {isAdvanced ? "HARDWARE + MIDDLEWARE" : "AUTOMATED DEFENSE"}
+                  {isAdvanced ? "POLICY ENGINE + MIDDLEWARE" : "AUTOMATED DEFENSE"}
                 </span>
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {isAdvanced
-                  ? "Autonomous agent session signing designed to protect keys with hardware enclaves"
+                  ? "Autonomous agent session signing designed with scoped delegation rules"
                   : "How GuardianAI keeps your AI agents safe around the clock"}
               </p>
             </div>
@@ -392,12 +421,12 @@ export function HomeTab({
           <div className="grid gap-3 sm:grid-cols-3 text-xs">
             <div className="p-3.5 rounded-xl border border-border/80 bg-background/50">
               <div className="font-semibold text-foreground mb-1 flex items-center justify-between">
-                <span>{isAdvanced ? "Layer 1: Privy Policy Engine" : "Layer 1: Safety Firewall"}</span>
-                <span className="text-[10px] text-emerald-400 font-mono">{isAdvanced ? "POLICY ENGINE" : "FIREWALL"}</span>
+                <span>{isAdvanced ? "Layer 1: Privy Policy Engine" : "Layer 1: Safety Rules Engine"}</span>
+                <span className="text-[10px] text-emerald-400 font-mono">{isAdvanced ? "POLICY ENGINE" : "RULES ENGINE"}</span>
               </div>
               <p className="text-muted-foreground text-[11px] leading-relaxed">
                 {isAdvanced
-                  ? "Policy allowlist enforcing Chain 10143 (Monad), Target GuardianPolicyGuard, and Max Spend ≤ 5.0 MON before keys can sign."
+                  ? "Policy rules configure Chain 10143 (Monad), Target GuardianPolicyGuard, and Max Spend ≤ 5.0 MON session limits."
                   : "Enforces spending caps and blocks unapproved recipients before any action can take place."}
               </p>
             </div>
@@ -409,8 +438,8 @@ export function HomeTab({
               </div>
               <p className="text-muted-foreground text-[11px] leading-relaxed">
                 {isAdvanced
-                  ? "EIP-712 runtime attestation, indirect prompt injection screening, and PolicyGuard calldata wrapping on Monad parallel blocks."
-                  : "Analyzes agent prompts and input instructions in real time to prevent jailbreaks and malicious redirects."}
+                  ? "EIP-712 runtime attestation, prompt inspection screening, and PolicyGuard calldata wrapping on Monad parallel blocks."
+                  : "Analyzes agent prompts and input instructions in real time to detect jailbreaks and prompt manipulation."}
               </p>
             </div>
 
@@ -420,9 +449,14 @@ export function HomeTab({
                 <span className="text-[10px] text-[#836EF9] font-mono">{isAdvanced ? "SESSION SIGNER" : "PERMISSIONS"}</span>
               </div>
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                {isAdvanced
-                  ? "Supervisor wallet delegates scoped session authority to AI agents. Keys are held within the hardware enclave."
-                  : "You grant scoped authority to AI agents. Master keys are never exposed or directly accessible."}
+                {/* Wallet keys are managed by Privy, which documents using secure enclaves (AWS Nitro) and key sharding (docs.privy.io/security/overview). Rendered ONLY when walletClientType === 'privy'. */}
+                {isAdvanced ? (
+                  isPrivyWallet ? (
+                    "Wallet keys are managed by Privy, which documents using secure enclaves (AWS Nitro) and key sharding (docs.privy.io/security/overview)."
+                  ) : null
+                ) : (
+                  "You can give an AI agent limited permission to act for you."
+                )}
               </p>
             </div>
           </div>
@@ -508,7 +542,7 @@ export function HomeTab({
             <p className="text-xs text-muted-foreground">
               {isAdvanced
                 ? "Real-time threat stream, attack vector distribution, and Monad parallel throughput metrics."
-                : "Live security status, intercepted threats, and automated protection metrics."}
+                : "Live security status, recorded threats, and automated protection metrics."}
             </p>
           </div>
 
@@ -565,7 +599,7 @@ export function HomeTab({
             <h3 className="font-semibold text-sm text-foreground mb-1">{isAdvanced ? "Agent Directory" : "Protected Agents"}</h3>
             <p className="text-xs text-muted-foreground">
               {isAdvanced
-                ? "Manage active AI agents, ERC-8004 Soulbound Passports, and supervisor delegations."
+                ? "Manage active AI agents, Soulbound agent passports (ERC-5192), and supervisor delegations."
                 : "View protected AI agent architectures and their active security safeguards."}
             </p>
           </div>

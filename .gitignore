@@ -62,5 +62,5 @@ files (1)/
 *.patch
 guardian/config/one_click_runtime.yaml
 hack/
-
-
+/node_modules
+Claude outputs/

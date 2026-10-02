@@ -154,11 +154,11 @@
       <div class="wrap">
         <div class="section-head reveal">
           <span class="eyebrow">The trust suite</span>
-          <h2 class="section-title" id="cs-title">Eleven contracts. Each one job.</h2>
+          <h2 class="section-title" id="cs-title">Eleven contracts. Nine live on Monad testnet.</h2>
         </div>
         <div class="grid-3">
           <article class="card reveal"><span class="card-index">[01]</span><h3>PolicyGuard</h3><p>Monad Parallel EVM execution containment &amp; real-time pre-flight policy firewall.</p></article>
-          <article class="card reveal"><span class="card-index">[02]</span><h3>ThreatConsumer</h3><p>Chainlink Functions consumer bridging verified off-chain threat intel feeds onto Monad.</p></article>
+          <article class="card reveal"><span class="card-index">[02]</span><h3>ThreatConsumer</h3><p>Chainlink CRE consumer for signed threat-oracle reports. Tested in the CRE simulator; not deployed yet.</p></article>
           <article class="card reveal"><span class="card-index">[03]</span><h3>CortexAnchor</h3><p>Batches security-event hashes into Merkle roots and anchors them as tamper-evident timestamps.</p></article>
           <article class="card reveal"><span class="card-index">[04]</span><h3>PassportSBT</h3><p>ERC-5192 soulbound agent identity with trust tiers and score.</p></article>
           <article class="card reveal"><span class="card-index">[05]</span><h3>InterlockRegistry</h3><p>Explicit agent-to-agent authorization — no silent handshakes between machines.</p></article>
@@ -166,8 +166,8 @@
           <article class="card reveal"><span class="card-index">[07]</span><h3>ThreatFeedRegistry</h3><p>Publishes threat intelligence on-chain for cross-organization consumption.</p></article>
           <article class="card reveal"><span class="card-index">[08]</span><h3>RiskAttestation</h3><p>Records third-party risk attestations against registered agents.</p></article>
           <article class="card reveal"><span class="card-index">[09]</span><h3>Timelock</h3><p>24-hour OpenZeppelin delay controller before administrative changes execute.</p></article>
-          <article class="card reveal"><span class="card-index">[10]</span><h3>CircuitBreaker</h3><p>A kill switch that can halt the trust suite when anomalous activity is detected.</p></article>
-          <article class="card reveal"><span class="card-index">[11]</span><h3>ProtectedVault</h3><p>Escrow-style custody for value touching the trust suite.</p></article>
+          <article class="card reveal"><span class="card-index">[10]</span><h3>CircuitBreaker</h3><p>A kill switch that can halt the trust suite when anomalous activity is detected. In the repo; not deployed yet.</p></article>
+          <article class="card reveal"><span class="card-index">[11]</span><h3>ProtectedVault</h3><p>Escrow-style custody for value touching the trust suite. In the repo; not deployed yet.</p></article>
         </div>
       </div>
     </section>
@@ -207,8 +207,8 @@ out = guardian.<span class="tok-fn">scan_response</span>(reply, system_prompt=SY
             <p>The universal auth proxy sits in front of Ollama, vLLM, LocalAI, and other OpenAI-compatible endpoints, so unmodified clients get guarded without code changes.</p>
           </article>
           <article class="card reveal">
-            <h3>Interactive Live Dashboard</h3>
-            <p>Explore the full platform in your browser — live telemetry, agent policies, and audit logs are ready to test at <a href="/explorer/" target="_blank" rel="noopener noreferrer" style="color:var(--green);text-decoration:underline;">https://aiguardian.dev/explorer ↗</a>.</p>
+            <h3>Try it live</h3>
+            <p>Launch real attacks against a guarded agent and watch both gates refuse them on Monad testnet, then check every contract live in the proof ledger: <a href="/explorer/" target="_blank" rel="noopener noreferrer" style="color:var(--green);text-decoration:underline;">aiguardian.dev/explorer ↗</a>. No wallet needed.</p>
           </article>
         </div>
       </div>
@@ -242,9 +242,9 @@ out = guardian.<span class="tok-fn">scan_response</span>(reply, system_prompt=SY
         <div>
           <h4>Product &amp; Navigation</h4>
           <ul>
-            <li><a href="/explorer/" target="_blank" rel="noopener noreferrer">Live Dashboard (Web App) ↗</a></li>
-            <li><a href="/explorer/#dashboard" target="_blank" rel="noopener noreferrer">Threat Stream &amp; Telemetry ↗</a></li>
-            <li><a href="/explorer/#agents" target="_blank" rel="noopener noreferrer">Agent Directory &amp; Delegation ↗</a></li>
+            <li><a href="/explorer/#lab" target="_blank" rel="noopener noreferrer">Attack Lab (live on Monad) ↗</a></li>
+            <li><a href="/explorer/#proof" target="_blank" rel="noopener noreferrer">Live contract proof ↗</a></li>
+            <li><a href="/explorer/?view=console" target="_blank" rel="noopener noreferrer">Console &amp; agent ID cards ↗</a></li>
             <li><a href="/#demo">In-page scanner demo</a></li>
             <li><a href="/#platform">Platform overview</a></li>
             <li><a href="#contracts">Contract suite</a></li>

@@ -55,7 +55,7 @@ export class GuardianInterceptor {
   public readonly timeoutMs: number;
 
   constructor(config: GuardianConfig = {}) {
-    this.relayerUrl = (config.relayerUrl || "http://localhost:8000").replace(/\/$/, "");
+    this.relayerUrl = (config.relayerUrl || "http://localhost:8546").replace(/\/$/, "");
     this.policyGuardAddress = (config.policyGuardAddress || DEFAULT_MONAD_POLICY_GUARD).toLowerCase();
     this.chainId = config.chainId || DEFAULT_MONAD_CHAIN_ID;
     this.failClosed = config.failClosed !== false; // Default true (FAIL-CLOSED)

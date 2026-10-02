@@ -34,12 +34,12 @@ const config: HardhatUserConfig = {
       accounts: [DEPLOYER_KEY],
     },
     tenderly_virtual_testnet: {
-      url: process.env.TENDERLY_VIRTUAL_TESTNET_RPC || "https://virtual.mainnet.eu.rpc.tenderly.co/4cf9c1e0-1f56-413b-b7b9-340fe831e389",
+      url: process.env.TENDERLY_VIRTUAL_TESTNET_RPC || "http://127.0.0.1:8545",
       chainId: 1,
       accounts: [DEPLOYER_KEY],
     },
     tenderly_monad_testnet: {
-      url: process.env.TENDERLY_MONAD_VNET_RPC || "https://virtual.monad.eu.rpc.tenderly.co/8dd20f70-8f24-41ba-be72-e9778574d991",
+      url: process.env.TENDERLY_MONAD_VNET_RPC || "http://127.0.0.1:8545",
       chainId: 143,
       accounts: [DEPLOYER_KEY],
     },

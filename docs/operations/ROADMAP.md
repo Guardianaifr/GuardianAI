@@ -46,11 +46,11 @@ Goal: Production-ready, revenue-generating, EU-compliant.
 4. ~~**Sign-Off Document Completion**~~ ✅ **COMPLETE**
    - Updated all 5 sign-off documents with Phase 4 evidence, adversarial test results, benchmarks
 
-5. ~~**Usage Metering + Billing + Pricing Tiers**~~ ✅ **COMPLETE**
-   - 4 tiers: Free ($0) / Starter ($49/mo) / Pro ($299/mo) / Enterprise (custom)
-   - Per-tenant daily request + token metering with SQLite persistence
-   - Tier-based rate limiting, usage history, admin dashboard data
-   - 29 tests passing · Thread-safe · Concurrent metering verified
+5. **Usage Metering + Billing + Pricing Tiers** (partly built)
+   - 4 tier definitions in code: Free ($0) / Starter ($49/mo) / Pro ($299/mo) / Enterprise (custom); Stripe checkout runs in mock mode by default
+   - Per-tenant metering module (backend/metering.py) exists with tests but is not yet wired into request handling
+   - Pay-per-approval with x402 (USDC) works on Monad testnet: $0.01 per approved attestation, blocked actions not charged (tools/x402_e2e.py)
+   - Not yet: Stripe webhooks, live card billing, mainnet USDC
 
 ### Track 4.2 — Visibility & Developer Experience ✅ COMPLETE
 6. ~~**Security Dashboard & Analyst UI**~~ ✅ **COMPLETE**
@@ -201,7 +201,7 @@ Goal: Platform ecosystem with long-term enterprise lock-in and recurring revenue
 | OWASP Agentic Top 10 | 10/10 (100%) | 10/10 (100%) |
 | EU AI Act Readiness | 98% (8/8 articles passed) | 98%+ |
 | Deployment | Docker (Railway-ready) | Hosted multi-region |
-| Revenue / Billing | Metering & 4 pricing tiers live | Production Stripe live |
+| Revenue / Billing | x402 pay-per-approval on Monad testnet; card billing in mock mode | Mainnet USDC + production Stripe |
 
 ---
 

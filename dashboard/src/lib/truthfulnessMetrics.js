@@ -82,18 +82,6 @@ export async function evaluatePassportQuery(queryFn) {
 }
 
 /**
- * Calculate the share of blocked requests.
- * If totalRequests is 0, returns "--" (never a fabricated percentage).
- */
-export function calculateShareBlocked(blockedCount = 0, totalRequests = 0) {
-  if (!totalRequests || totalRequests <= 0) {
-    return "--";
-  }
-  const pct = Math.min(100, Math.max(0, (blockedCount / totalRequests) * 100));
-  return `${pct.toFixed(1)}%`;
-}
-
-/**
  * Calculate session average and peak risk scores.
  * Returns null if no valid events or numeric scores exist (never defaults to 14).
  */
@@ -115,28 +103,44 @@ export function calculateRiskScores(events = []) {
  * CRITICAL RULE: "Allowed" MUST require an explicit status (ALLOWED, EXECUTED, or SUCCESS).
  * severity: 'INFO' alone is NOT evidence. Non-request events are excluded from request counters.
  * 
- * ALL COUNTS COME FROM ONE SOURCE (Single Source of Truth):
- * - If indexer stats with valid requests are supplied OR events array is empty, all counts derive from stats.
- * - Otherwise, all counts derive exclusively from the classified requestEvents array.
- * In all cases, the invariant holds: allowedCount + blockedCount + couldntVerifyCount === totalRequests.
+ * In the stats path, returns actionsExecuted and threatsRegistered separately.
+ * Never labels threatsRegistered as "blocked".
  */
-export function classifyActionOutcomes(events = [], stats = null) {
+export function classifyActionOutcomes(events = [], stats = null, fetchFailed = false) {
   const requestEvents = (events || []).filter(evt => !isNonRequestEvent(evt));
 
+  // If fetch failed, return null numbers and signal error
+  if (fetchFailed) {
+    return {
+      fetchFailed: true,
+      actionsExecuted: null,
+      threatsRegistered: null,
+      couldntVerifyCount: null,
+      statusMessage: "Couldn't load data"
+    };
+  }
+
   // Determine single source of truth:
-  const hasIndexerStats = stats && typeof stats.requests === 'number' && (stats.requests > 0 || requestEvents.length === 0);
+  const hasIndexerStats = stats && (
+    typeof stats.actionsExecuted === 'number' ||
+    typeof stats.threatsRegistered === 'number' ||
+    typeof stats.allowed === 'number' ||
+    typeof stats.requests === 'number'
+  );
 
   if (hasIndexerStats) {
-    const totalRequests = Math.max(0, stats.requests || 0);
-    const blockedCount = Math.min(totalRequests, Math.max(0, stats.blocked ?? 0));
-    const allowedCount = Math.min(totalRequests - blockedCount, Math.max(0, stats.allowed ?? 0));
-    const couldntVerifyCount = totalRequests - blockedCount - allowedCount;
+    const rawActions = stats.actionsExecuted ?? stats.allowed;
+    const rawThreats = stats.threatsRegistered ?? stats.blocked;
+    const actionsExecuted = typeof rawActions === 'number' ? Math.max(0, rawActions) : null;
+    const threatsRegistered = typeof rawThreats === 'number' ? Math.max(0, rawThreats) : null;
 
     return {
-      totalRequests,
-      allowedCount,
-      blockedCount,
-      couldntVerifyCount
+      actionsExecuted,
+      threatsRegistered,
+      allowedCount: actionsExecuted,
+      blockedCount: threatsRegistered,
+      couldntVerifyCount: 0,
+      statusMessage: null
     };
   }
 
@@ -160,16 +164,14 @@ export function classifyActionOutcomes(events = [], stats = null) {
     return acc;
   }, { allowed: 0, blocked: 0, unverified: 0 });
 
-  const totalRequests = requestEvents.length;
-  const allowedCount = outcomeCounts.allowed;
-  const blockedCount = outcomeCounts.blocked;
-  const couldntVerifyCount = outcomeCounts.unverified;
-
   return {
-    totalRequests,
-    allowedCount,
-    blockedCount,
-    couldntVerifyCount
+    actionsExecuted: outcomeCounts.allowed,
+    threatsRegistered: outcomeCounts.blocked,
+    allowedCount: outcomeCounts.allowed,
+    blockedCount: outcomeCounts.blocked,
+    couldntVerifyCount: outcomeCounts.unverified,
+    totalRequests: requestEvents.length,
+    statusMessage: null
   };
 }
 
@@ -236,9 +238,11 @@ export function getSafetyContinuumStatus(avgRiskScore, couldntVerifyCount = 0) {
  */
 export function processTelemetryEvent(eventData, currentStats = { requests: 0, blocked: 0 }, isDemoMode = false) {
   if (!eventData) return { nextStats: currentStats, eventToRecord: null };
+  const isSimulated = eventData.isSimulated === true;
   const eventToRecord = {
     ...eventData,
-    isSimulated: Boolean(eventData.isSimulated || isDemoMode)
+    isSimulated,
+    source: eventData.source || (isSimulated ? 'simulation_probe' : 'telemetry')
   };
 
   // Exclude non-request administrative events from request counters
@@ -261,20 +265,34 @@ export function processTelemetryEvent(eventData, currentStats = { requests: 0, b
 }
 
 /**
- * Simple Mode Status Indicator.
- * Returns ONLY one of four strictly permitted states:
- * 1. "No data yet" (neutral gray) when avgRiskScore is null / empty
- * 2. "Couldn't verify" (neutral gray) when couldntVerifyCount > 0
- * 3. "Attention needed" (yellow) when avgRiskScore >= 30
- * 4. "Protected" (green) when avgRiskScore < 30 and couldntVerifyCount === 0
+ * Simple Mode Status Indicator & Fail-Closed Logic.
+ * Strict Evaluation Order:
+ * 1. HIGH/CRITICAL event, peak risk > maxAllowedRiskScore, avg risk > maxAllowedRiskScore, or blockedCount > 0 -> "Attention needed" (amber)
+ * 2. couldntVerifyCount > 0 -> "Couldn't verify" (neutral gray)
+ * 3. avgRiskScore is null/empty -> "No data yet" (neutral gray)
+ * 4. All nominal -> "No flagged on-chain actions" (green)
  * 
- * FAIL CLOSED INVARIANT: NEVER returns "Protected" or green when couldntVerifyCount > 0 or in empty state.
+ * FAIL CLOSED INVARIANT: NEVER returns green when threats exist, unverified events exist, or data is empty.
  */
-export function getSimpleStatusIndicator(avgRiskScore, couldntVerifyCount = 0) {
-  if (avgRiskScore === null || avgRiskScore === undefined) {
+export function getSimpleStatusIndicator(options = {}) {
+  // Support single options object
+  const {
+    avgRiskScore = null,
+    peakRiskScore = null,
+    events = [],
+    threatFeed = [],
+    fetchFailed = false,
+    couldntVerifyCount = 0,
+    blockedCount = 0,
+    maxAllowedRiskScore = 25
+  } = (typeof options === 'object' && options !== null && !Array.isArray(options)) ? options : {};
+
+  // 0. Fetch failure returns "Couldn't load data" (neutral gray)
+  if (fetchFailed) {
     return {
-      statusLabel: "No data yet",
-      tier: "none",
+      statusLabel: "Couldn't load data",
+      description: null,
+      tier: "failed",
       isClean: false,
       colorClass: "text-muted-foreground",
       badgeClass: "bg-muted/40 border-border/70 text-muted-foreground",
@@ -282,20 +300,24 @@ export function getSimpleStatusIndicator(avgRiskScore, couldntVerifyCount = 0) {
     };
   }
 
-  if (couldntVerifyCount > 0) {
-    return {
-      statusLabel: "Couldn't verify",
-      tier: "unverified",
-      isClean: false,
-      colorClass: "text-muted-foreground",
-      badgeClass: "bg-muted/40 border-border/70 text-muted-foreground",
-      dotClass: "bg-muted-foreground"
-    };
-  }
+  const effectiveThreshold = typeof maxAllowedRiskScore === 'number' ? maxAllowedRiskScore : 25;
 
-  if (avgRiskScore >= 30) {
+  // 1. Check if any recorded AgentAction target matches an ACTIVE threatFeed record
+  const activeThreatAddresses = new Set(
+    (Array.isArray(threatFeed) ? threatFeed : [])
+      .filter(t => t && t.active === true && typeof t.address === 'string')
+      .map(t => t.address.toLowerCase())
+  );
+
+  const matchedActiveThreat = (Array.isArray(events) ? events : []).find(e => {
+    const target = e?.details?.target || e?.target;
+    return typeof target === 'string' && activeThreatAddresses.has(target.toLowerCase());
+  });
+
+  if (matchedActiveThreat) {
     return {
       statusLabel: "Attention needed",
+      description: "An agent interacted with a listed address.",
       tier: "attention",
       isClean: false,
       colorClass: "text-amber-400",
@@ -304,9 +326,64 @@ export function getSimpleStatusIndicator(avgRiskScore, couldntVerifyCount = 0) {
     };
   }
 
+  // 2. Check for elevated threat / amber conditions:
+  // Contract boundary: GuardianPolicyGuard.sol:30, 48, 120 (maxAllowedRiskScore = 25 default)
+  // Amber = any HIGH/CRITICAL event, a blocked event in recorded activity, blockedCount > 0, or peak/avg > effectiveThreshold.
+  const hasHighOrCritical = Array.isArray(events) && events.some(e => {
+    const sev = (e?.severity || "").toUpperCase();
+    const risk = typeof e?.risk_score === "number" ? e.risk_score : (typeof e?.details?.riskScore === "number" ? e.details.riskScore : null);
+    return sev === "CRITICAL" || sev === "HIGH" || (typeof risk === "number" && risk > effectiveThreshold);
+  });
+  const hasBlockedEvent = (Array.isArray(events) && events.some(e => e?.isBlocked === true)) || (typeof blockedCount === 'number' && blockedCount > 0);
+  const isElevated = (typeof avgRiskScore === "number" && avgRiskScore > effectiveThreshold) ||
+                     (typeof peakRiskScore === "number" && peakRiskScore > effectiveThreshold) ||
+                     hasHighOrCritical ||
+                     hasBlockedEvent;
+
+  if (isElevated) {
+    return {
+      statusLabel: "Attention needed",
+      description: null,
+      tier: "attention",
+      isClean: false,
+      colorClass: "text-amber-400",
+      badgeClass: "bg-amber-950/60 border-amber-800 text-amber-300",
+      dotClass: "bg-amber-400"
+    };
+  }
+
+  // 3. Couldn't verify SECOND:
+  if (couldntVerifyCount > 0) {
+    return {
+      statusLabel: "Couldn't verify",
+      description: null,
+      tier: "unverified",
+      isClean: false,
+      colorClass: "text-muted-foreground",
+      badgeClass: "bg-muted/40 border-border/70 text-muted-foreground",
+      dotClass: "bg-muted-foreground"
+    };
+  }
+
+  // 4. No data THIRD:
+  if (avgRiskScore === null || avgRiskScore === undefined) {
+    return {
+      statusLabel: "No data yet",
+      description: null,
+      tier: "none",
+      isClean: false,
+      colorClass: "text-muted-foreground",
+      badgeClass: "bg-muted/40 border-border/70 text-muted-foreground",
+      dotClass: "bg-muted-foreground"
+    };
+  }
+
+  // 5. Green LAST:
+  // Because on-chain executed actions are <= the contract threshold by construction
   return {
-    statusLabel: "Protected",
-    tier: "protected",
+    statusLabel: "No flagged on-chain actions",
+    description: null,
+    tier: "clean",
     isClean: true,
     colorClass: "text-emerald-400",
     badgeClass: "bg-emerald-950/60 border-emerald-800 text-emerald-300",

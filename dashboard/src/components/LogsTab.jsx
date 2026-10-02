@@ -21,7 +21,7 @@ const EVENT_TYPE_CATEGORIES = [
   { id: 'all', label: 'All Events' },
   { id: 'injections', label: 'Prompt Injections', match: ['injection', 'injection_ai'] },
   { id: 'outflow', label: 'Outflow Caps & Policy', match: ['policy containment', 'policy_containment', 'policy violation', 'policy_violation', 'policy deployed', 'policy_deployed', 'policy'] },
-  { id: 'tamper', label: 'Tamper & Enclave', match: ['memory enclave', 'enclave', 'threat registered', 'threat_registered'] },
+  { id: 'tamper', label: 'Tamper Protection', match: ['memory enclave', 'enclave', 'threat registered', 'threat_registered'] },
   { id: 'pii', label: 'PII & Data Leaks', match: ['data_leak', 'data leak', 'pii'] },
   { id: 'onchain', label: 'On-Chain Actions', match: ['on-chain action', 'action', 'execute'] },
   { id: 'ratelimit', label: 'Rate Limits', match: ['rate_limit', 'rate limit'] },
@@ -352,10 +352,33 @@ export function LogsTab({ events, isBlockedEvent, isAdvanced = false }) {
                         )}
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap font-medium text-foreground">
-                        {evt.event_type}
+                        <div className="flex items-center gap-1.5">
+                          <span>{evt.event_type}</span>
+                          {evt.isSimulated && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-blue-950 text-blue-300 border border-blue-800 uppercase font-semibold">
+                              Simulated
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-xs text-muted-foreground leading-relaxed max-w-lg">
-                        {statusDesc}
+                        <div>{statusDesc}</div>
+                        {evt.details?.tx && (
+                          <div className="inline-flex items-center gap-1 mt-1 text-[11px] font-mono text-muted-foreground">
+                            <span>Tx: {`${evt.details.tx.slice(0, 6)}...${evt.details.tx.slice(-4)}`}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCopy(evt.details.tx, `simple_tx_${idx}`)
+                              }}
+                              className="text-muted-foreground hover:text-foreground p-0.5 rounded transition"
+                              title="Copy Tx Hash"
+                            >
+                              {copiedField === `simple_tx_${idx}` ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5" />}
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         <span className={cn(
@@ -414,6 +437,11 @@ export function LogsTab({ events, isBlockedEvent, isAdvanced = false }) {
                           <span className="font-semibold text-foreground text-[11px]">
                             {evt.event_type}
                           </span>
+                          {evt.isSimulated && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-950 text-blue-300 border border-blue-800 uppercase font-semibold">
+                              Simulated
+                            </span>
+                          )}
                           {isBlocked && (
                             <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-900/60 text-red-200 border border-red-700/50 uppercase font-bold">
                               Blocked

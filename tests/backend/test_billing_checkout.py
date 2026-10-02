@@ -11,6 +11,7 @@ def _load_backend(
     billing_mode: str = "mock",
     stripe_secret: str | None = None,
     stripe_price_starter: str | None = None,
+    stripe_price_pro: str | None = None,
 ):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GUARDIAN_ADMIN_USER", "admin")
@@ -27,7 +28,10 @@ def _load_backend(
         monkeypatch.delenv("GUARDIAN_STRIPE_PRICE_STARTER", raising=False)
     else:
         monkeypatch.setenv("GUARDIAN_STRIPE_PRICE_STARTER", stripe_price_starter)
-    monkeypatch.delenv("GUARDIAN_STRIPE_PRICE_PRO", raising=False)
+    if stripe_price_pro:
+        monkeypatch.setenv("GUARDIAN_STRIPE_PRICE_PRO", stripe_price_pro)
+    else:
+        monkeypatch.delenv("GUARDIAN_STRIPE_PRICE_PRO", raising=False)
     monkeypatch.delenv("GUARDIAN_STRIPE_PRICE_ENTERPRISE", raising=False)
     monkeypatch.delenv("GUARDIAN_CRYPTO_API_KEY", raising=False)
 
@@ -118,3 +122,37 @@ def test_live_card_checkout_uses_stripe(monkeypatch, tmp_path):
     import backend.routers.billing_routes
     print('TEST SEES BILLING_MODE=', backend.routers.billing_routes.BILLING_MODE)
 
+
+def test_live_card_checkout_charges_chosen_plan(monkeypatch, tmp_path):
+    """Pro must be charged the Pro price as a subscription, not the Starter price."""
+    backend = _load_backend(
+        monkeypatch,
+        tmp_path,
+        billing_mode="live",
+        stripe_secret="sk_test_123",
+        stripe_price_starter="price_starter",
+        stripe_price_pro="price_pro",
+    )
+    client = TestClient(backend.app)
+    seen = {}
+
+    class _Resp:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"url": "https://checkout.stripe.com/c/session_pro"}
+
+    def _fake_post(url, headers=None, data=None, timeout=None):
+        seen.update(data)
+        return _Resp()
+
+    monkeypatch.setattr(backend.requests, "post", _fake_post)
+    resp = client.post(
+        "/api/v1/billing/checkout",
+        json={"plan": "pro", "payment_method": "card"},
+        auth=(backend.ADMIN_USER, backend.ADMIN_PASS),
+    )
+    assert resp.status_code == 200
+    assert seen["line_items[0][price]"] == "price_pro"
+    assert seen["mode"] == "subscription"

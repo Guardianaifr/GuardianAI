@@ -10,6 +10,8 @@ import { AgentsTab } from './components/AgentsTab.jsx'
 import { LogsTab } from './components/LogsTab.jsx'
 import { isDemoModeActive } from './lib/demoMode.js'
 import { processTelemetryEvent } from './lib/truthfulnessMetrics.js'
+import { deriveSecurityStats } from './lib/statsModel.js'
+import { POLICY_GUARD_ADDRESS } from './lib/constants.js'
 
 const DEFAULT_WS_URL =
   typeof window !== 'undefined' && window.location.protocol === 'https:'
@@ -35,31 +37,35 @@ const DEFAULT_POLICY_ID =
   IS_DEMO_MODE ? "pol_guardian_monad_policyguard_01" : (import.meta.env.VITE_PRIVY_AGENT_POLICY_ID || "")
 
 const EMPTY_STATS = {
-  requests: 0,
-  blocked: 0,
-  allowed: 0,
-  redacted: 0,
-  admin: 0
+  status: "empty",
+  actionsExecuted: null,
+  threatsRegistered: null,
+  activeThreats: null,
+  passportsTracked: null,
+  cortexRootsAnchored: null,
+  errorMessage: null
 }
 
 const EMPTY_VECTOR_DATA = {
-  prompt: 0,
-  pii: 0,
-  admin: 0
+  threatsRegistered: 0,
+  activeThreats: 0,
+  passportsTracked: 0
 }
 
 const FALLBACK_STATS = {
-  requests: 1482,
-  blocked: 94,
-  allowed: 1380, // Demo only: explicit allowed count so demo mode displays truthful distribution
-  redacted: 17,
-  admin: 340
+  status: "loaded",
+  actionsExecuted: 1380,
+  threatsRegistered: 94,
+  activeThreats: 17,
+  passportsTracked: 340,
+  cortexRootsAnchored: 12,
+  errorMessage: null
 }
 
 const FALLBACK_VECTOR_DATA = {
-  prompt: 94,
-  pii: 17,
-  admin: 340
+  threatsRegistered: 94,
+  activeThreats: 17,
+  passportsTracked: 340
 }
 
 const getInitialFallbackEvents = () => {
@@ -94,8 +100,8 @@ const getInitialFallbackEvents = () => {
       timestamp: nowSec - 98,
       severity: "HIGH",
       details: {
-        reason: "Privy Policy Violation: Attempted 10.0 MON transfer exceeding 5 MON session limit. Intercepted off-chain before signing.",
-        target: "0x9999120485f8064Ff369DcDe4BA4ec1101f08e",
+        reason: "Policy Violation: Attempted 10.0 MON transfer exceeding 5 MON session limit. Evaluated against spend cap and rejected before execution.",
+        target: "0x9999120485f8064FF369dCDe4bA4eC1101f08E00",
         latency_ms: "1.2ms",
         path: "/v1/policy/preflight"
       }
@@ -105,19 +111,19 @@ const getInitialFallbackEvents = () => {
       timestamp: nowSec - 160,
       severity: "CRITICAL",
       details: {
-        target: "0x9999120485f8064Ff369DcDe4BA4ec1101f08e",
+        target: "0x9999120485f8064FF369dCDe4bA4eC1101f08E00",
         reason: "Known malicious phishing & drainer contract registered in PolicyGuard threat registry",
         status: "ACTIVE"
       }
     },
     {
-      event_type: "MEMORY ENCLAVE",
+      event_type: "MEMORY CHECK",
       timestamp: nowSec - 230,
       severity: "INFO",
       details: {
-        reason: "Category Labs MERA enclave: Simulated passkey PRF derivation. Memory tamper tripwire clean.",
+        reason: "Category Labs MERA memory check: Simulated passkey WebAuthn derivation. Memory state recorded.",
         latency_ms: "5.8ms",
-        path: "/v1/enclave/attest"
+        path: "/v1/auth/verify"
       }
     },
     {
@@ -125,7 +131,7 @@ const getInitialFallbackEvents = () => {
       timestamp: nowSec - 310,
       severity: "HIGH",
       details: {
-        reason: "Scrubbed raw private key mnemonic pattern from LLM reasoning trace before edge transmission",
+        reason: "Redacted private key mnemonic pattern from test reasoning trace before edge transmission",
         latency_ms: "1.9ms",
         path: "/v1/guard/redact"
       }
@@ -138,7 +144,7 @@ const getInitialFallbackEvents = () => {
         agent: "0x1142...c890",
         target: "0x90Fd...EF60 (PolicyGuard)",
         riskScore: 12,
-        tx: "0x3a51f89c02d1847c25e8391a27e771c56b72d2459a721d7b328a9b1c73f1101",
+        tx: "0x3a51f89c02d1847c25e8391a27e771c56b72d2459a721d7b328a9b1c73f01101",
         latency_ms: "3.4ms",
         path: "/v1/agent/execute"
       }
@@ -204,16 +210,25 @@ function App() {
 
   // Global Simple / Advanced Mode state (Default: Simple mode, persisted in localStorage)
   const [isAdvanced, setIsAdvanced] = useState(() => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const stored = window.localStorage.getItem('guardian_mode')
-      return stored === 'advanced'
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage?.getItem('guardian_mode')
+        return stored === 'advanced'
+      } catch (err) {
+        console.warn('localStorage read failed, defaulting to simple mode:', err)
+        return false
+      }
     }
     return false // Default is Simple mode
   })
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem('guardian_mode', isAdvanced ? 'advanced' : 'simple')
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage?.setItem('guardian_mode', isAdvanced ? 'advanced' : 'simple')
+      } catch (err) {
+        console.warn('localStorage write failed:', err)
+      }
     }
     // If switching to simple mode while on policy tab, navigate to dashboard
     if (!isAdvanced && activeTab === 'policy') {
@@ -281,6 +296,7 @@ function App() {
   const [isDemoMode] = useState(() => isDemoModeActive())
   const [stats, setStats] = useState(() => (isDemoModeActive() ? FALLBACK_STATS : EMPTY_STATS))
   const [events, setEvents] = useState(() => (isDemoModeActive() ? getInitialFallbackEvents() : []))
+  const [threatFeed, setThreatFeed] = useState([])
   const [isConnected, setIsConnected] = useState(false)
   const [isLiveSimulating, setIsLiveSimulating] = useState(() => isDemoModeActive())
   const [indexerStatus, setIndexerStatus] = useState(() => (isDemoModeActive() ? "standalone" : "disconnected"))
@@ -305,14 +321,14 @@ function App() {
       const signer = await ethersProvider.getSigner();
 
       const contract = new ethers.Contract(
-        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        POLICY_GUARD_ADDRESS,
         ["function executeWithAttestation(address,bytes,tuple(bytes32,address,bytes32,uint256,uint8,uint256,uint256),bytes) external payable"],
         signer
       );
 
       const dummyAttestation = [
         ethers.id("agent"),
-        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        POLICY_GUARD_ADDRESS,
         ethers.keccak256("0x"),
         ethers.parseEther("0.1"),
         5,
@@ -321,7 +337,7 @@ function App() {
       ];
 
       const tx = await contract.executeWithAttestation(
-        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        POLICY_GUARD_ADDRESS,
         "0x",
         dummyAttestation,
         "0x00",
@@ -335,7 +351,7 @@ function App() {
         action: "guarded",
         agentId: typeof agentId === 'string' ? agentId : null,
         title: "Guarded Execution Submitted (Monad Testnet)",
-        message: "Action pre-screened by GuardianAI (Risk: 5/100) -> Allowed by Privy Policy Engine -> Transaction submitted to Monad Testnet (10143).",
+        message: "Action pre-screened by GuardianAI (Risk: 5/100) -> Transaction submitted to Monad Testnet (10143).",
         tx: txHash,
         timestamp: new Date().toLocaleTimeString()
       })
@@ -355,7 +371,7 @@ function App() {
         }
       }
       setEvents(prev => [liveEvent, ...prev].slice(0, 50))
-      setStats(prev => ({ ...prev, requests: prev.requests + 1 }))
+      setStats(prev => ({ ...prev, actionsExecuted: (prev.actionsExecuted ?? 0) + 1 }))
     } catch (error) {
       console.error(error);
       setIsExecutingGuarded(false)
@@ -380,7 +396,7 @@ function App() {
       const ethersProvider = new ethers.BrowserProvider(provider);
       const signer = await ethersProvider.getSigner();
 
-      const policyGuardAddress = "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60";
+      const policyGuardAddress = POLICY_GUARD_ADDRESS;
       const targetContract = "0x9999120485f8064Ff369DcDe4BA4ec1101f08e";
       
       const contract = new ethers.Contract(
@@ -417,8 +433,8 @@ function App() {
         type: "error",
         action: "rogue",
         agentId: typeof agentId === 'string' ? agentId : null,
-        title: "Privy Policy Violation Blocked",
-        message: `Containment Engaged: Attempted 10 MON transfer to unapproved target. Rejected on Monad Testnet or off-chain policy. Reason: ${rejectionReason}`,
+        title: "Policy Violation Blocked",
+        message: `Containment Engaged: Attempted 10 MON transfer to unapproved target. Rejected on Monad Testnet. Reason: ${rejectionReason}`,
         timestamp: new Date().toLocaleTimeString()
       })
       setIsExecutingRogue(false)
@@ -439,12 +455,11 @@ function App() {
       setEvents(prev => [rogueEvent, ...prev].slice(0, 50))
       setStats(prev => ({
         ...prev,
-        requests: prev.requests + 1,
-        blocked: prev.blocked + 1
+        threatsRegistered: (prev.threatsRegistered ?? 0) + 1
       }))
       setVectorData(prev => ({
         ...prev,
-        prompt: prev.prompt + 1
+        threatsRegistered: (prev.threatsRegistered ?? 0) + 1
       }))
     } catch (error) {
       console.error(error);
@@ -455,7 +470,9 @@ function App() {
 
   const handleEmitTelemetryEvent = (eventData) => {
     if (!eventData) return
-    const { nextStats, eventToRecord } = processTelemetryEvent(eventData, stats, isDemoMode)
+    const isSimulated = eventData.isSimulated === true;
+    const source = eventData.source || (isSimulated ? 'simulation_probe' : 'telemetry');
+    const { nextStats, eventToRecord } = processTelemetryEvent({ ...eventData, isSimulated, source }, stats, isDemoMode)
     if (eventToRecord) {
       setEvents(prev => [eventToRecord, ...prev].slice(0, 50))
     }
@@ -490,6 +507,7 @@ function App() {
 
     const scheduleRetry = () => {
       if (isUnmounted) return
+      if (retryTimeout) clearTimeout(retryTimeout)
       setIsConnected(false)
       setIsLiveSimulating(isDemoMode)
       retryCount++
@@ -516,7 +534,7 @@ function App() {
         }
 
         ws.onerror = () => {
-          scheduleRetry()
+          // Handled by onclose
         }
 
         ws.onmessage = (event) => {
@@ -553,6 +571,9 @@ function App() {
     let isUnmounted = false
     let failureCount = 0
     let pollTimer = null
+    let lastGoodStats = null
+    let lastGoodVectorData = null
+    let lastUpdatedTime = null
 
     const fetchIndexerData = async () => {
       try {
@@ -566,6 +587,7 @@ function App() {
               totalThreatsRegistered
               activeThreatCount
               totalPassportsTracked
+              totalCortexRootsAnchored
             }
             AgentAction(limit: 25, order_by: {timestamp: desc}) {
               id
@@ -608,64 +630,45 @@ function App() {
 
         if (statsArr.length > 0) {
           const indexerStats = statsArr[0]
-          // Indexer endpoint: Envio GraphQL query GetDashboardData (metropolis/indexer/schema.graphql)
-          // - totalActionsExecuted (schema.graphql:58) -> stats.requests
-          // - totalThreatsRegistered (schema.graphql:59) -> stats.blocked
-          // - activeThreatCount (schema.graphql:60) -> stats.redacted
-          // - totalPassportsTracked (schema.graphql:61) -> stats.admin
-          // Envio GlobalSecurityStats entity has no separate allowed field;
-          // derive stats.allowed directly from real verified EXECUTED events (or 0 if none):
-          const realAllowedCount = actionsArr.filter(a => a && Number(a.riskScore) <= 65).length
-          setStats({
-            requests: parseInt(indexerStats.totalActionsExecuted || 0),
-            blocked: parseInt(indexerStats.totalThreatsRegistered || 0),
-            allowed: realAllowedCount,
-            redacted: parseInt(indexerStats.activeThreatCount || 0),
-            admin: parseInt(indexerStats.totalPassportsTracked || 0)
-          })
+          const derived = deriveSecurityStats(indexerStats, false)
+          lastGoodStats = derived
+          lastGoodVectorData = {
+            threatsRegistered: derived.threatsRegistered,
+            activeThreats: derived.activeThreats,
+            passportsTracked: derived.passportsTracked
+          }
+          lastUpdatedTime = new Date().toLocaleTimeString()
+          setStats(derived)
           
-          setVectorData({
-            prompt: parseInt(indexerStats.totalThreatsRegistered || 0),
-            pii: parseInt(indexerStats.activeThreatCount || 0),
-            admin: parseInt(indexerStats.totalPassportsTracked || 0)
-          })
+          setVectorData(lastGoodVectorData)
         }
 
         const combinedEvents = []
         actionsArr.forEach(action => {
           // Source: GuardianPolicyGuard.sol:166 ActionExecutedWithAttestation event indexed as AgentAction.
           // Emitted exclusively upon successful on-chain execution of executeWithAttestation on Monad Testnet.
-          // Ingested payload explicitly maps status: "EXECUTED" and isBlocked: false to reflect verified on-chain execution.
+          // Boundary aligned with GuardianPolicyGuard.sol:30, 48, 120 (maxAllowedRiskScore = 25): >25 is HIGH risk.
           combinedEvents.push({
             event_type: "ON-CHAIN ACTION",
-            timestamp: parseInt(action.timestamp),
-            severity: action.riskScore > 50 ? "HIGH" : "INFO",
+            timestamp: parseInt(action.timestamp) || Math.floor(Date.now() / 1000),
+            severity: Number(action.riskScore) > 25 ? "HIGH" : "INFO",
             isBlocked: false,
             details: {
               agent: action.agentId ? action.agentId.substring(0, 10) + '...' : '0x742d...f44e',
               target: action.target,
-              riskScore: action.riskScore,
+              riskScore: Number(action.riskScore) || 0,
               status: "EXECUTED", // Cites GuardianPolicyGuard.sol:166 ActionExecutedWithAttestation
               tx: action.txHash
             }
           })
         })
         
-        threatsArr.forEach(threat => {
-          // Source: GuardianThreatFeedRegistry.sol AddressAdded/StringAddressAdded indexed as ThreatRecord (schema.graphql:11-20).
-          // Emitted when a malicious target is registered; ingested payload is explicitly isBlocked: true.
-          combinedEvents.push({
-            event_type: "THREAT REGISTERED",
-            timestamp: parseInt(threat.addedAt),
-            severity: "CRITICAL",
-            isBlocked: true,
-            details: {
-              target: threat.id,
-              reason: threat.reason,
-              status: threat.active ? 'ACTIVE' : 'REMOVED'
-            }
-          })
-        })
+        setThreatFeed(threatsArr.map(threat => ({
+          address: threat.id,
+          reason: threat.reason,
+          active: Boolean(threat.active),
+          addedAt: parseInt(threat.addedAt, 10) || threat.addedAt
+        })))
 
         combinedEvents.sort((a, b) => b.timestamp - a.timestamp)
         
@@ -680,7 +683,30 @@ function App() {
       } catch {
         if (!isUnmounted) {
           failureCount++
-          setIndexerStatus("standalone")
+          if (lastGoodStats) {
+            setIndexerStatus("stale")
+            const staleMsg = `Last updated ${lastUpdatedTime}. Couldn't refresh`
+            setStats({
+              ...lastGoodStats,
+              isStale: true,
+              staleMessage: staleMsg
+            })
+            setVectorData({
+              ...lastGoodVectorData,
+              isStale: true,
+              staleMessage: staleMsg
+            })
+          } else {
+            setIndexerStatus("failed")
+            const derived = deriveSecurityStats(null, true)
+            setStats(derived)
+            setVectorData({
+              threatsRegistered: null,
+              activeThreats: null,
+              passportsTracked: null,
+              errorMessage: "Couldn't load data"
+            })
+          }
         }
       }
     }
@@ -736,8 +762,8 @@ function App() {
         event_type: "POLICY CONTAINMENT",
         severity: "HIGH",
         getDetails: () => ({
-          reason: "Privy Policy Guard: Transfer limit verification enforced before signing. Off-chain contained.",
-          target: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+          reason: "Policy Guard: Transfer limit verification evaluated against spend cap.",
+          target: POLICY_GUARD_ADDRESS,
           latency_ms: `${(1.1 + Math.random() * 1.0).toFixed(1)}ms`,
           path: "/v1/policy/preflight"
         }),
@@ -756,12 +782,12 @@ function App() {
         effect: "blocked_prompt"
       },
       {
-        event_type: "MEMORY ENCLAVE",
+        event_type: "MEMORY CHECK",
         severity: "INFO",
         getDetails: () => ({
-          reason: "Category Labs MERA enclave: Simulated passkey PRF derivation. Memory block state recorded.",
+          reason: "Category Labs MERA memory check: Simulated passkey WebAuthn derivation. Memory block state recorded.",
           latency_ms: `${(5.2 + Math.random() * 2.8).toFixed(1)}ms`,
-          path: "/v1/enclave/verify"
+          path: "/v1/auth/verify"
         }),
         isBlocked: false,
         effect: "admin"
@@ -770,7 +796,7 @@ function App() {
         event_type: "DATA_LEAK",
         severity: "HIGH",
         getDetails: () => ({
-          reason: "Scrubbed raw private key mnemonic pattern from LLM reasoning trace before edge transmission",
+          reason: "Redacted private key mnemonic pattern from test reasoning trace before edge transmission",
           latency_ms: `${(1.8 + Math.random() * 1.4).toFixed(1)}ms`,
           path: "/v1/guard/redact"
         }),
@@ -902,6 +928,7 @@ function App() {
         {activeTab === 'dashboard' && (
           <DashboardTab
             events={events}
+            threatFeed={threatFeed}
             stats={stats}
             vectorData={vectorData}
             indexerStatus={indexerStatus}
@@ -967,7 +994,7 @@ function App() {
             </a>
           </div>
           <span className="text-[11px] opacity-75">
-            Privy Policy Engine • Envio Hypersync Indexer • Category Labs MERA Enclave
+            GuardianPolicyGuard • Envio Hypersync Indexer • Monad Testnet
           </span>
         </div>
       </footer>

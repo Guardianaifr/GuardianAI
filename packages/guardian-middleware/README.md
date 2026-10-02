@@ -63,7 +63,7 @@ const baseClient = createWalletClient({
 // Decorate with Guardian Security
 const secureClient = withGuardianSecurity(baseClient, {
   agentId: "agent-alpha-01",
-  relayerUrl: "http://localhost:8000",
+  relayerUrl: "http://localhost:8546",
   policyGuardAddress: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
 });
 
@@ -91,7 +91,7 @@ from guardianai.middleware import (
 
 # 1. Initialize Middleware
 guard = GuardianMiddleware(
-    relayer_url="http://localhost:8000",
+    relayer_url="http://localhost:8546",
     policy_guard_address="0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
     chain_id=10143,
     fail_closed=True,

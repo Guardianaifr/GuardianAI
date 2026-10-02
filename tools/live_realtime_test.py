@@ -32,7 +32,7 @@ from guardian_middleware import GuardianMiddleware, DEFAULT_MONAD_POLICY_GUARD, 
 load_dotenv()
 
 MONAD_RPC_URL = os.getenv("MONAD_TESTNET_RPC") or os.getenv("MONAD_RPC_URL") or "https://testnet-rpc.monad.xyz"
-MONAD_WSS_URL = os.getenv("MONAD_TESTNET_WSS") or "wss://snowy-ultra-film.monad-testnet.quiknode.pro/e9b2075b87f936cab2a8777098e57a00a51c5673/"
+MONAD_WSS_URL = os.getenv("MONAD_TESTNET_WSS") or "wss://testnet-rpc.monad.xyz"
 DEPLOYER_KEY = os.getenv("GUARDIAN_DEPLOYER_PRIVATE_KEY") or os.getenv("GUARDIAN_ERC8004_REGISTRAR_KEY")
 
 POLICY_GUARD_ADDR = os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD", "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60")

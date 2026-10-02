@@ -172,6 +172,12 @@ class GuardianRPCRelay:
         self.app.add_url_rule('/stats', view_func=self.get_stats, methods=['GET'])
         self.app.add_url_rule('/', view_func=self.proxy, methods=['POST'])
         self.app.add_url_rule('/api/v1/attest', view_func=self.attest_transaction, methods=['POST'])
+        # Pay-per-approval (x402, USDC on Monad). No-op unless GUARDIAN_X402_ENABLED=true.
+        from guardian.payments.x402_gate import install_x402_gate
+        self.x402_config = install_x402_gate(self.app, self.db_path)
+        if self.x402_config and getattr(self.attestation_service, "ephemeral_signer", True):
+            # Never charge for attestations the on-chain PolicyGuard would reject.
+            raise RuntimeError("x402 is enabled but no attestation signer key is set (GUARDIAN_ATTESTATION_SIGNER_KEY)")
         # Management routes (backend → relay sync)
         self.app.add_url_rule('/rules', view_func=self.get_rules, methods=['GET'])
         self.app.add_url_rule('/rules', view_func=self.post_rules, methods=['POST'], endpoint='post_rules')
@@ -346,9 +352,12 @@ class GuardianRPCRelay:
             ttl_seconds=int(ttl) if ttl is not None else None,
         )
 
+        # With x402 on, a blocked action returns 403 so the payment is not settled:
+        # agents pay only for approvals.
+        status = 403 if (self.x402_config and result.status != "approved") else 200
         return Response(
             json.dumps(result.to_dict()),
-            status=200,
+            status=status,
             mimetype="application/json"
         )
 

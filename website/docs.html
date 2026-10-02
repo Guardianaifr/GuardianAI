@@ -73,7 +73,7 @@
       </div>
 
       <div class="docs-nav-group">
-        <div class="docs-nav-title">EDGE AI FIREWALL (LAYER 1)</div>
+        <div class="docs-nav-title">GATE 1 · AI FIREWALL (OFF-CHAIN)</div>
         <ul class="docs-nav-links">
           <li><a href="#firewall">10-Layer AI Prompt Firewall</a></li>
           <li><a href="#dlp-scanner">Output DLP &amp; Secret Scanner</a></li>
@@ -83,7 +83,7 @@
       </div>
 
       <div class="docs-nav-group">
-        <div class="docs-nav-title">SOVEREIGN ENCLAVE (LAYER 2)</div>
+        <div class="docs-nav-title">AGENT IDENTITY &amp; MEMORY (MERA)</div>
         <ul class="docs-nav-links">
           <li><a href="#mera-enclave">Mera Passkey PRF Enclave</a></li>
           <li><a href="#memory-poisoning">Memory Poisoning Guard</a></li>
@@ -91,9 +91,10 @@
       </div>
 
       <div class="docs-nav-group">
-        <div class="docs-nav-title">EXECUTION CONTAINMENT (LAYER 3)</div>
+        <div class="docs-nav-title">GATE 2 · POLICYGUARD (MONAD)</div>
         <ul class="docs-nav-links">
           <li><a href="#policy-guard">Monad PolicyGuard (Parallel EVM)</a></li>
+          <li><a href="#x402-billing">Pay per Approval (x402)</a></li>
           <li><a href="#threat-consumer">Chainlink Threat Consumer</a></li>
           <li><a href="#erc8004">ERC-8004 Agent Registries</a></li>
           <li><a href="#cortex-anchoring">Merkle Cortex State Anchoring</a></li>
@@ -133,7 +134,7 @@
       <!-- SECTION: Overview -->
       <section id="overview" class="docs-section">
         <h1>GuardianAI Technical Documentation</h1>
-        <p class="docs-lead">Dual-plane security for autonomous AI agents: sub-millisecond prompt injection firewalls off-chain, coupled with cryptographically verifiable ERC-8004 identity and evidence anchoring on-chain.</p>
+        <p class="docs-lead">Dual-plane security for autonomous AI agents: millisecond-scale prompt injection firewalls off-chain, coupled with cryptographically verifiable ERC-8004 identity and evidence anchoring on-chain.</p>
 
         <div class="docs-grid">
           <a href="#firewall" class="docs-card">
@@ -260,7 +261,7 @@ python demo/run_demo.py</code></pre>
       <!-- SECTION: 3-Layer Defense-in-Depth Architecture -->
       <section id="architecture" class="docs-section">
         <h2>3-Layer Defense-in-Depth Architecture</h2>
-        <p>GuardianAI separates agent security into three coordinated defense layers to deliver sub-millisecond threat filtering, hardware-bound sovereign memory isolation, and deterministic on-chain execution containment.</p>
+        <p>GuardianAI guards an agent with two gates: an off-chain AI firewall that filters threats in milliseconds, and PolicyGuard on Monad that refuses any payment GuardianAI didn't approve. Mera passkeys give the agent its identity and sealed memory.</p>
 
         <div class="docs-table-wrap">
           <table class="docs-table">
@@ -274,22 +275,22 @@ python demo/run_demo.py</code></pre>
             </thead>
             <tbody>
               <tr>
-                <td><strong>Layer 1: Edge AI Firewall</strong></td>
+                <td><strong>Gate 1: AI Firewall (off-chain)</strong></td>
                 <td>Off-Chain Ingress Proxy &amp; Gateway</td>
                 <td>10-layer prompt firewall, de-obfuscation pipeline, PII/secret DLP scrubber, honeypot canary tripwires, fail-closed token bucket</td>
                 <td><code>&lt; 42 ms</code> p95 under attack, 494 req/s blocking capacity</td>
               </tr>
               <tr>
-                <td><strong>Layer 2: Sovereign Agent Enclave</strong></td>
+                <td><strong>Agent identity &amp; sealed memory (Mera)</strong></td>
                 <td>WebAuthn PRF &amp; Hardware Memory Sealing</td>
                 <td>Category Labs Mera Passkey PRF key derivation, AES-256-GCM sealed memory with replay-protected AAD, active <code>MEMORY_POISONING_DETECTED</code> tamper tripwire</td>
                 <td>Sub-0.5ms P50 latency, 184/184 tests, 0 collisions across 4 GitHub corpora</td>
               </tr>
               <tr>
-                <td><strong>Layer 3: Execution Containment</strong></td>
+                <td><strong>Gate 2: PolicyGuard (on Monad)</strong></td>
                 <td>Monad Parallel EVM Smart Contracts</td>
-                <td><code>GuardianPolicyGuard.sol</code> pre-flight execution firewall, <code>GuardianThreatConsumer.sol</code> Chainlink oracle sync, ERC-8004 identity, Merkle Cortex state anchoring</td>
-                <td>207/207 Hardhat tests (11 suites), zero-contention parallel execution up to 10k TPS</td>
+                <td><code>GuardianPolicyGuard.sol</code> pre-flight execution firewall, <code>GuardianThreatConsumer.sol</code> Chainlink CRE oracle (simulated), ERC-8004 identity, Merkle Cortex state anchoring</td>
+                <td>207/207 Hardhat tests (11 suites), per-agent nonces for parallel execution</td>
               </tr>
             </tbody>
           </table>
@@ -448,7 +449,7 @@ if honeypot.is_tripped(response_text):
 
       <!-- SECTION: Mera Passkey PRF Sovereign Enclave -->
       <section id="mera-enclave" class="docs-section">
-        <h2>Mera Passkey PRF Sovereign Enclave (Layer 2)</h2>
+        <h2>Mera Passkey PRF Sovereign Enclave (agent identity &amp; memory)</h2>
         <p>Built in collaboration with Category Labs, GuardianAI’s Sovereign Agent Enclave harnesses client-side <strong>WebAuthn Pseudo-Random Functions (PRF)</strong> (FaceID, TouchID, and FIDO2 hardware authenticators) to generate deterministic, unlinkable agent identities without storing raw private keys or master secrets on any server.</p>
 
         <div class="docs-grid">
@@ -466,7 +467,7 @@ if honeypot.is_tripped(response_text):
           </div>
           <div class="docs-card">
             <h4>Live Benchmark Receipts</h4>
-            <p>184/184 tests passing (18 core Vitest + 166 hard audit assertions on 4 live GitHub corpora), sub-0.5ms P50 latency, 0 collisions.</p>
+            <p>184/184 tests passing (18 core Vitest + 166 hard audit assertions on 4 corpora), sub-0.5ms P50 latency, 0 collisions.</p>
           </div>
         </div>
       </section>
@@ -501,38 +502,60 @@ try {
 
       <!-- SECTION: Monad PolicyGuard EVM Execution Containment -->
       <section id="policy-guard" class="docs-section">
-        <h2>Monad PolicyGuard (Layer 3 Execution Containment)</h2>
-        <p>GuardianAI deploys native smart contracts to the <strong>Monad Parallel EVM</strong> (Chain ID <code>10143</code>). The flagship execution firewall, <code>GuardianPolicyGuard.sol</code>, enforces 10 deterministic on-chain invariants before autonomous agent transactions are broadcast.</p>
+        <h2>Monad PolicyGuard (Gate 2: on-chain payment guard)</h2>
+        <p>GuardianAI deploys native smart contracts to the <strong>Monad Parallel EVM</strong> (Chain ID <code>10143</code>). The flagship execution firewall, <code>GuardianPolicyGuard.sol</code>, checks every agent payment against a GuardianAI-signed approval before it runs: exact target, calldata and value, a deadline, a risk limit, an active agent ID card, and a one-time nonce.</p>
 
         <div class="docs-callout tip">
-          <div class="docs-callout-title">&#128279; Deployed &amp; Verified on MonadScan</div>
-          <code>GuardianPolicyGuard</code> is deployed and verified at <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0x90Fd...EF60 ↗</a>. Verified test suite: 215 Hardhat unit, stress, and reorg tests (100% passing across 12 suites).
+          <div class="docs-callout-title">&#128279; Deployed on Monad testnet</div>
+          <code>GuardianPolicyGuard</code> is deployed at <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0x90Fd...EF60 ↗</a>. Source verification on MonadScan is pending. Hardhat suite: 207 tests across 11 suites in our last local run (<code>cd contracts &amp;&amp; npx hardhat test</code>).
         </div>
 
         <div class="docs-grid">
           <div class="docs-card">
             <h4>Storage Slot Isolation</h4>
-            <p>Nonces keyed by <code>keccak256(agentId, nonce)</code> ensure independent agents execute concurrently on Monad with zero storage slot contention (up to 10k TPS).</p>
+            <p>Nonces are tracked per agent in <code>usedNonces[agentId][nonce]</code>, so independent agents write to different storage slots and don't contend on Monad's parallel EVM.</p>
           </div>
           <div class="docs-card">
-            <h4>128 KB Bytecode Capacity</h4>
-            <p>Leverages Monad's 128 KB bytecode limit to bundle complete policy matrices, parameter checks, and signature verifications without proxy fragmentation.</p>
+            <h4>On-chain Risk Limit</h4>
+            <p>Payments GuardianAI scored above <code>maxAllowedRiskScore</code> (currently 25/100) revert with <code>RiskScoreExceedsThreshold</code>, even if the agent itself was fooled.</p>
           </div>
           <div class="docs-card">
-            <h4>24h Outflow Volume Caps</h4>
-            <p>Enforces strict per-agent rolling expenditure thresholds; blocks automated wallet drains if an agent is tricked into over-spending.</p>
+            <h4>Revocable Agent Identity</h4>
+            <p>A payment only runs while the agent's <code>GuardianPassportSBT</code> card is active. Revoke the card and the agent can't pay (<code>PassportRevokedOrInactive</code>).</p>
           </div>
           <div class="docs-card">
-            <h4>Sub-Second EIP-712 Attestation</h4>
-            <p>Python relayer signs EIP-712 security tickets in P50 = 2.68 ms, aligning perfectly within Monad's ~400ms block intervals.</p>
+            <h4>EIP-712 Signed Approvals</h4>
+            <p>Each approval is a <code>SafetyAttestation</code> bound to the target, calldata hash, value, risk score, nonce and deadline. Change one byte, or sign with any other key, and it fails (<code>InvalidAttestationSignature</code>).</p>
           </div>
+        </div>
+      </section>
+
+      <!-- SECTION: x402 pay per approval -->
+      <section id="x402-billing" class="docs-section">
+        <h2>Pay per Approval (x402, USDC on Monad)</h2>
+        <p>The relay can charge agents per signed approval with <a href="https://www.x402.org" target="_blank" rel="noreferrer">x402</a>. No account or API key: the agent's first call to <code>/api/v1/attest</code> gets HTTP 402 with the price, the agent signs a USDC authorization, and the request is retried with payment attached. Only an approved attestation is settled on-chain. A blocked action returns 403 and the agent is not charged.</p>
+        <p>Status: works on Monad testnet ($0.01 USDC per approval). Example settlement: <a href="https://testnet.monadscan.com/tx/0xc6c604d0b00acf433812cf195b9e8d5eab627941f309b66a43738a182cf1d57b" target="_blank" rel="noreferrer"><code>0xc6c604d0…f1d57b</code></a>. Off by default; mainnet USDC is not enabled yet.</p>
+        <div class="docs-code-box">
+          <div class="docs-code-header">
+            <span style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono)">.env</span>
+            <button class="docs-copy-btn">Copy</button>
+          </div>
+          <pre class="docs-code-block"><code>GUARDIAN_X402_ENABLED=true
+GUARDIAN_X402_PAY_TO=0xYourWallet          # receives the USDC
+GUARDIAN_X402_PRICE=$0.01
+GUARDIAN_X402_NETWORK=eip155:10143         # Monad testnet
+GUARDIAN_X402_FREE_PER_AGENT_MONTH=0       # optional free approvals per agent
+GUARDIAN_ATTESTATION_SIGNER_KEY=0x...      # required: relay refuses to charge without it
+
+# end-to-end test with a funded testnet payer
+python tools/x402_e2e.py</code></pre>
         </div>
       </section>
 
       <!-- SECTION: Chainlink Threat Consumer -->
       <section id="threat-consumer" class="docs-section">
         <h2>Chainlink Threat Consumer (GuardianThreatConsumer)</h2>
-        <p><code>GuardianThreatConsumer.sol</code> is verified on Monad Testnet (<a href="https://testnet.monadvision.com/contracts/full_match/10143/0xF8B20725b7A35d32c903Af9899FDEFa18bbc44F8/" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0xF8B2...44F8 ↗</a>). Using Chainlink Functions consensus, it bridges off-chain global threat intelligence feeds onto Monad, allowing smart contracts to pause compromised agent credentials autonomously.</p>
+        <p><code>GuardianThreatConsumer.sol</code> receives signed reports from a Chainlink CRE workflow that fetches GuardianAI's threat stats, reaches consensus across nodes, and writes the result on Monad. Status: the workflow runs in the CRE simulator (<code>cre workflow simulate guardian-threat-sync --target staging-settings</code>); the consumer contract is not deployed to Monad testnet yet.</p>
       </section>
 
       <!-- SECTION: ERC-8004 Agent Registries -->
@@ -686,7 +709,7 @@ const rawClient = createWalletClient({
 
 export const secureWallet = wrapViemWalletClient(rawClient, {
   agentId: "0xagent_482c",
-  relayerUrl: "https://aiguardian.dev/api/v1/attest"
+  relayerUrl: "http://localhost:8546" // your GuardianAI relay (python -m guardian.web3sec.rpc_relay)
 });</code></pre>
         </div>
       </section>
@@ -858,4 +881,4 @@ firewall:
 
   <script src="js/docs.js"></script>
 </body>
-</html>
+</html>

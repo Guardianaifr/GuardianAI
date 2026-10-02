@@ -25,6 +25,8 @@ import {
 import { cn } from "@/lib/utils"
 import { isDemoModeActive } from "@/lib/demoMode"
 import { evaluatePassportQuery } from "@/lib/truthfulnessMetrics"
+import { sanitizeJargon } from "@/lib/glossary"
+import { POLICY_GUARD_ADDRESS, PASSPORT_REGISTRY_ADDRESS } from "@/lib/constants"
 
 export function AgentsTab({
   isConnectedSupervisor,
@@ -84,8 +86,17 @@ export function AgentsTab({
     setProbeState(probeKey, true)
     setLocalFeedback(null)
     
-    if (!authenticated || wallets.length === 0) {
-      alert("Please connect your wallet first.");
+    if (!isDemoModeActive()) {
+      setLocalFeedback({
+        type: "warning",
+        agentId: "eliza-monad-01",
+        title: "Attestation Relayer Required",
+        message: "Live autonomous execution on Monad requires an EIP-712 signature from the backend relayer (GuardianPolicyGuard.sol:142-143). Switch to Demo Mode (?demo=true) to test adversarial attack probes.",
+        guard: "GuardianPolicyGuard.executeWithAttestation()",
+        riskScore: null,
+        tx: null,
+        timestamp: new Date().toLocaleTimeString()
+      });
       setProbeState(probeKey, false);
       return;
     }
@@ -99,13 +110,13 @@ export function AgentsTab({
       let rejectionReason = "Unknown";
       try {
         const contract = new ethers.Contract(
-          "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+          POLICY_GUARD_ADDRESS,
           ["function executeWithAttestation(address,bytes,tuple(bytes32,address,bytes32,uint256,uint8,uint256,uint256),bytes) external payable"],
           await ethersProvider.getSigner()
         );
         const dummyAttestation = [
           ethers.id("agent"),
-          "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+          POLICY_GUARD_ADDRESS,
           ethers.keccak256("0x"),
           ethers.parseEther("50"),
           96,
@@ -113,7 +124,7 @@ export function AgentsTab({
           Math.floor(Date.now() / 1000) + 3600
         ];
         await contract.executeWithAttestation.staticCall(
-          "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+          POLICY_GUARD_ADDRESS,
           "0x",
           dummyAttestation,
           "0x00",
@@ -208,7 +219,7 @@ export function AgentsTab({
     const probeKey = "mera-memory-01-tamper"
     setProbeState(probeKey, true)
     setLocalFeedback(null)
-    
+
     try {
       const provider = new ethers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
       try {
@@ -307,7 +318,7 @@ export function AgentsTab({
     try {
       const provider = new ethers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
       const abi = ["function isPassportActive(bytes32 agentId) external view returns (bool)"];
-      const registry = new ethers.Contract("0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff", abi, provider);
+      const registry = new ethers.Contract(PASSPORT_REGISTRY_ADDRESS, abi, provider);
       const revokedAgentId = ethers.id('revoked-agent-01');
 
       // Three states: active / revoked / Couldn't verify (network error). Catch does NOT set revoked.
@@ -392,7 +403,7 @@ export function AgentsTab({
     try {
       const provider = new ethers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
       const abi = ["function isPassportActive(bytes32 agentId) external view returns (bool)"];
-      const registry = new ethers.Contract("0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff", abi, provider);
+      const registry = new ethers.Contract(PASSPORT_REGISTRY_ADDRESS, abi, provider);
       const agentId = ethers.id('passport-agent-01');
 
       // Three states: active / revoked / Couldn't verify (network error). Catch does NOT set active or revoked.
@@ -463,13 +474,13 @@ const trader = withGuardianSecurity(new AgentRuntime({
   model: 'gpt-4o',
   character: 'monad-arbitrage-trader',
 }), {
-  policyGuardAddress: '0x90Fdc8E1e5C951701eCd84677038B38560CdEF60',
+  policyGuardAddress: '${POLICY_GUARD_ADDRESS}',
   maxSpendPerTx: '1.0 MON',
   requireAttestation: true,
   chainId: 10143 // Monad Testnet
 });
 
-// Guarded swap execution intercepted before mempool submission
+// Guarded swap execution validated against policy rules
 const tx = await trader.executeSwap({
   tokenIn: 'MON',
   tokenOut: 'USDC',
@@ -499,9 +510,9 @@ const sealedBlob = await memory.sealState({
     "passport-agent-01": `import { GuardianPassportRegistry } from '@guardianai/middleware';
 import { ethers } from 'ethers';
 
-// Connect to ERC-8004 Passport Registry on Monad Testnet (10143)
+// Connect to Soulbound Agent Passport Registry (ERC-5192) on Monad Testnet (10143)
 const passportRegistry = new GuardianPassportRegistry({
-  registryAddress: '0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff',
+  registryAddress: '${PASSPORT_REGISTRY_ADDRESS}',
   rpcUrl: 'https://testnet-rpc.monad.xyz'
 });
 
@@ -510,7 +521,7 @@ const agentId = ethers.id('passport-agent-01');
 const isActive = await passportRegistry.isPassportActive(agentId);
 const passport = await passportRegistry.getPassport(agentId);
 
-console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.trustScore / 100}/100, Tier: \${passport.tier}\`);
+console.log('Status: ' + (isActive ? 'ACTIVE' : 'REVOKED') + ', Score: ' + (passport.trustScore / 100) + '/100, Tier: ' + passport.tier);
 // GuardianPolicyGuard automatically reverts with PassportRevokedOrInactive if isActive == false`
   }
 
@@ -527,13 +538,13 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
       score: "94/100",
       tier: "GOLD",
       passportId: "#10143-001",
-      explorerUrl: "https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+      explorerUrl: `https://testnet.monadscan.com/address/${POLICY_GUARD_ADDRESS}`,
       specs: [
         { label: "Runtime", value: "ElizaOS v2.4 + @guardianai/middleware" },
         { label: "Execution Cap", value: "Max 1.0 MON swap per execution" },
         { label: "Slippage Bound", value: "Strict <= 1.5% max slippage" },
         { label: "Protocol Guard", value: "GuardianPolicyGuard (EIP-712)" },
-        { label: "Guard Address", value: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" },
+        { label: "Guard Address", value: POLICY_GUARD_ADDRESS },
         { label: "Total Executions", value: "1,482 Swaps (Example)" },
         { label: "Contained Injections", value: "94 Blocked (Example)" },
       ],
@@ -553,9 +564,9 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
     {
       id: "mera-memory-01",
       name: "Mera Cross-App Persistent Memory",
-      role: "Cross-App Persistent Memory Enclave on Monad",
+      role: "Cross-App Persistent Memory Protection on Monad",
       badge: "PERSISTENT MEMORY",
-      address: "0x1142F8C90aB361B8c764b85994fCdA30089eC890",
+      address: "0x1142f8c90Ab361B8c764b85994FCda30089eC890",
       policyId: "pol_mera_memory_seal_02",
       status: "STATE RECORDED",
       statusType: "active",
@@ -563,7 +574,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
       tier: "DIAMOND",
       passportId: "#10143-002",
       specs: [
-        { label: "Hardware Enclave", value: "Category Labs Mera WebAuthn Passkey PRF" },
+        { label: "Passkey PRF (WebAuthn)", value: "Category Labs Mera WebAuthn Passkey PRF" },
         { label: "Cryptographic Seal", value: "AES-256-GCM memory sealing with PRF salt" },
         { label: "Curve Precompile", value: "Native Monad RIP-7212 (0x100)" },
         { label: "State Scope", value: "Cross-App persistent state across Monad dApps" },
@@ -585,20 +596,23 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
     },
     {
       id: "passport-agent-01",
-      name: "ERC-8004 Sovereign Identity",
-      role: "ERC-8004 Sovereign Identity & Reputation Score on Monad",
+      name: "Soulbound Sovereign Identity (ERC-5192)",
+      simpleName: "Digital Identity Passport",
+      role: "Soulbound Identity (ERC-5192) & Reputation Score on Monad",
+      simpleRole: "Digital Passport & Identity Verification on Monad",
       badge: "SOVEREIGN PASSPORT",
-      address: "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
-      policyId: "pol_erc8004_passport_03",
+      simpleBadge: "DIGITAL PASSPORT",
+      address: "0x51b981E8fc89011424e650A1E704b1EC4dF7166e",
+      policyId: "pol_erc5192_passport_03",
       status: "SOULBOUND (LOCKED)",
       statusType: "soulbound",
       score: "98/100",
       tier: "DIAMOND",
       passportId: "#10143-003",
-      explorerUrl: "https://testnet.monadscan.com/address/0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
+      explorerUrl: `https://testnet.monadscan.com/address/${PASSPORT_REGISTRY_ADDRESS}`,
       specs: [
-        { label: "Identity Standard", value: "ERC-8004 + ERC-5192 Soulbound Token" },
-        { label: "Registry Contract", value: "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff" },
+        { label: "Identity Standard", value: "Soulbound Token (ERC-5192)" },
+        { label: "Registry Contract", value: PASSPORT_REGISTRY_ADDRESS },
         { label: "Reputation Score", value: "98/100 (DIAMOND Tier, 9800 bips) (Example)" },
         { label: "Tombstone Gating", value: "GuardianPolicyGuard atomically reverts revoked" },
         { label: "Attestations", value: "2,410 Executions (Example)" },
@@ -633,7 +647,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {isAdvanced 
-              ? "Trust & execution primitives for autonomous agents on Monad: ElizaOS guardrails, Mera passkey memory sealing, and ERC-8004 sovereign passports."
+              ? "Trust & execution primitives for autonomous agents on Monad: ElizaOS guardrails, Mera passkey memory sealing, and Soulbound agent passports (ERC-5192)."
               : "Manage authorized AI agents, monitor real-time protection, and enforce security guardrails."}
           </p>
         </div>
@@ -668,7 +682,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                   Automated Security Checks: Active & Monitored
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  All AI agents are continuously protected with spending caps, prompt injection firewalls, and data leak prevention.
+                  AI agents are monitored with spending caps, prompt screening, and leak detection.
                 </p>
               </div>
             </div>
@@ -759,10 +773,10 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                   🔐 Native Monad RIP-7212 (0x100)
                 </span>
                 <span className="px-2 py-0.5 rounded bg-muted/40 border border-border/60">
-                  🪪 ERC-8004 Soulbound Passports
+                  🪪 Soulbound Agent Passports (ERC-5192)
                 </span>
                 <span className="px-2 py-0.5 rounded bg-muted/40 border border-border/60">
-                  🛡️ Privy Policy Isolation
+                  🛡️ Scoped Session Signers
                 </span>
               </div>
             </CardContent>
@@ -773,7 +787,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
             <CardHeader className="pb-3 border-b border-border/50">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#836EF9]/20 text-[#836EF9] border border-[#836EF9]/30">
+                  <div className="p-2.5 rounded-xl bg-[#836EF9]/20 text-[#836EF9] border border-[#836EF9]/35">
                     <Shield className="h-6 w-6" />
                   </div>
                   <div>
@@ -784,7 +798,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                       </span>
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      Grants scoped session keys under Privy Policy Engine rules. Designed to minimize master key exposure.
+                      Grants scoped session keys under policy rules. Designed with scoped permissions.
                     </p>
                   </div>
                 </div>
@@ -839,8 +853,9 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                 </div>
 
                 <div className="p-3 rounded-xl bg-background/50 border border-border/70">
-                  <span className="text-muted-foreground block mb-1">Key Isolation:</span>
-                  <span className="text-emerald-400 font-semibold">Privy Policy Engine</span>
+                  {/* Keys managed by Privy: https://docs.privy.io/guide/security/ */}
+                  <span className="text-muted-foreground block mb-1">Key Management:</span>
+                  <span className="text-emerald-400 font-semibold">Managed by Privy</span>
                 </div>
 
                 <div className="p-3 rounded-xl bg-background/50 border border-border/70">
@@ -960,14 +975,14 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <CardTitle className="text-sm font-bold text-foreground">
-                            {agent.name}
+                            {isAdvanced ? agent.name : (agent.simpleName || sanitizeJargon(agent.name, false))}
                           </CardTitle>
                           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#836EF9]/20 text-[#836EF9] border border-[#836EF9]/35 font-semibold">
-                            {agent.badge}
+                            {isAdvanced ? agent.badge : (agent.simpleBadge || sanitizeJargon(agent.badge, false))}
                           </span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
-                          {agent.role}
+                          {isAdvanced ? agent.role : (agent.simpleRole || sanitizeJargon(agent.role, false))}
                         </p>
                       </div>
                       <span className="flex h-2 w-2 relative mt-1 shrink-0">
@@ -1043,6 +1058,20 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                                 ? "Secure Encrypted Storage" 
                                 : "Verified Agent Passport"}
                             </span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1 border-t border-border/50">
+                            <span className="text-muted-foreground">Agent Address:</span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-foreground font-mono text-[11px]">{`${agent.address.slice(0, 6)}...${agent.address.slice(-4)}`}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => handleCopy(agent.address, `simple-${agent.id}`, e)}
+                                className="text-muted-foreground hover:text-foreground p-0.5 rounded transition"
+                                title="Copy Address"
+                              >
+                                {copiedField === `simple-${agent.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -1285,13 +1314,13 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
         </div>
       </section>
 
-      {/* ── ERC-8004 Soulbound Passport Specification Section ───────────────── */}
+      {/* ── Soulbound Passport Specification Section (ERC-5192) ───────────────── */}
       <section className="space-y-4">
         {isAdvanced ? (
           <>
             <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2 font-mono">
               <Lock className="h-4 w-4 text-blue-400" />
-              ERC-8004 Soulbound Agent Passport Specification (Monad 10143)
+              Soulbound Agent Passport Specification (ERC-5192, Monad 10143)
             </h2>
 
             <div className="grid gap-6 md:grid-cols-12">
@@ -1308,7 +1337,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                         <span className="text-[10px] font-mono tracking-widest text-blue-400 uppercase font-bold">
                           SOULBOUND PASSPORT
                         </span>
-                        <h3 className="font-bold text-sm text-white">ERC-8004 Sovereign Identity</h3>
+                        <h3 className="font-bold text-sm text-white">Soulbound Sovereign Identity (ERC-5192)</h3>
                       </div>
                     </div>
                     <span className="font-mono text-xs font-bold text-blue-300 bg-blue-950/80 px-2.5 py-1 rounded-full border border-blue-800">
@@ -1321,7 +1350,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                       <div className="flex justify-between">
                         <span className="text-slate-400">Registry Contract:</span>
                         <a
-                          href="https://testnet.monadscan.com/address/0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff"
+                          href={`https://testnet.monadscan.com/address/${PASSPORT_REGISTRY_ADDRESS}`}
                           target="_blank"
                           rel="noreferrer"
                           className="text-blue-300 font-semibold hover:underline flex items-center gap-1"
@@ -1339,7 +1368,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                         <span className="text-purple-300">10143 (Monad Testnet)</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Enclave Attestation:</span>
+                        <span className="text-slate-400">Passkey Attestation:</span>
                         <span className="text-amber-300">Mera WebAuthn PRF (RIP-7212)</span>
                       </div>
                     </div>
@@ -1365,7 +1394,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                 </CardHeader>
                 <CardContent className="space-y-3.5 text-xs text-muted-foreground leading-relaxed font-sans">
                   <p>
-                    Under the GuardianAI architecture, autonomous agents transact on Monad using <strong className="text-foreground">EIP-712 Safety Attestations</strong>, <strong className="text-foreground">Category Labs Mera PRF Passkey Memory</strong>, and <strong className="text-foreground">ERC-8004 Sovereign Passports</strong>.
+                    Under the GuardianAI architecture, autonomous agents transact on Monad using <strong className="text-foreground">EIP-712 Safety Attestations</strong>, <strong className="text-foreground">Category Labs Mera PRF Passkey Memory</strong>, and <strong className="text-foreground">Soulbound Agent Passports (ERC-5192)</strong>.
                   </p>
 
                   <div className="space-y-2">
@@ -1392,7 +1421,7 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                     <div className="p-3 rounded-lg bg-background/50 border border-border/60">
                       <div className="font-semibold text-foreground mb-0.5 flex items-center gap-2 font-mono text-xs">
                         <span className="text-blue-400">3.</span>
-                        <span>ERC-8004 Soulbound Identity & Atomic Revocation</span>
+                        <span>Soulbound Identity (ERC-5192) & Atomic Revocation</span>
                       </div>
                       <p className="text-[11px]">
                         GuardianPolicyGuard checks the on-chain passport registry before executing any transaction. If an agent is tombstoned or revoked, execution reverts atomically with <code className="text-red-400">PassportRevokedOrInactive</code>.
@@ -1414,14 +1443,14 @@ console.log(\`Status: \${isActive ? 'ACTIVE' : 'REVOKED'}, Score: \${passport.tr
                   Agent Identity & Passport Verification
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed font-sans">
-                  Every connected agent holds a verifiable digital passport. If an agent is ever compromised or attempts an unauthorized action, its passport is instantly suspended to safeguard your funds and sensitive operations.
+                  Connected agents hold digital passports. If an agent is suspended or attempts an unauthorized action, its passport status can be updated on-chain to restrict operations.
                 </p>
                 <div className="flex items-center gap-2 pt-2">
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 font-medium font-sans">
-                    3 of 3 Agents Verified
+                    3 Agents Registered
                   </span>
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium font-sans">
-                    Instant Threat Containment Ready
+                    Containment Policy Configured
                   </span>
                 </div>
               </div>

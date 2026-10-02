@@ -1,5 +1,12 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ethers } from '../dashboard/node_modules/ethers/lib.esm/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // REAL logic imported directly from shared dashboard modules:
 import {
@@ -17,10 +24,10 @@ import {
   getSafetyContinuumStatus,
   processTelemetryEvent,
   evaluatePassportQuery,
-  calculateShareBlocked,
   getSimpleStatusIndicator
 } from '../dashboard/src/lib/truthfulnessMetrics.js';
 
+import { deriveSecurityStats } from '../dashboard/src/lib/statsModel.js';
 import { t, GLOSSARY } from '../dashboard/src/lib/glossary.js';
 
 describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
@@ -200,7 +207,7 @@ describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
       assert.equal(nextStats.requests, 10, "processTelemetryEvent must not increment requests for POLICY DEPLOYED");
     });
 
-    test('allowedCount requires explicit status (ALLOWED/EXECUTED/SUCCESS)', () => {
+    test('actionsExecuted requires explicit status (ALLOWED/EXECUTED/SUCCESS)', () => {
       const events = [
         // Positively verified allowed:
         { event_type: "ON-CHAIN ACTION", severity: "INFO", isBlocked: false, details: { status: "EXECUTED" } },
@@ -214,13 +221,12 @@ describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
 
       const outcomes = classifyActionOutcomes(events);
 
-      assert.equal(outcomes.allowedCount, 3, "Only explicitly allowed/executed/success events count as allowed");
-      assert.equal(outcomes.blockedCount, 1, "The blocked event must count as blocked");
+      assert.equal(outcomes.actionsExecuted, 3, "Only explicitly allowed/executed/success events count as actionsExecuted");
+      assert.equal(outcomes.threatsRegistered, 1, "The blocked event must count as threatsRegistered");
       assert.equal(outcomes.couldntVerifyCount, 1, "The pending/unverified event must count as couldn't verify");
-      assert.equal(outcomes.totalRequests, 5);
     });
 
-    test('Item 1 Invariant: allowed + blocked + couldn\'t verify === totalRequests, with and without indexer stats present', () => {
+    test('Part E Item 2: actionsExecuted and threatsRegistered are returned separately without summed totalRequests', () => {
       // 1. Without indexer stats (stats is null / empty)
       const mixedEvents = [
         { event_type: "ON-CHAIN ACTION", severity: "INFO", isBlocked: false, details: { status: "EXECUTED" } },
@@ -232,49 +238,44 @@ describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
       ];
 
       const outcomesNoStats = classifyActionOutcomes(mixedEvents, null);
-      assert.equal(
-        outcomesNoStats.allowedCount + outcomesNoStats.blockedCount + outcomesNoStats.couldntVerifyCount,
-        outcomesNoStats.totalRequests,
-        "Invariant violation: allowed + blocked + couldn't verify must equal totalRequests (without indexer stats)"
-      );
-      assert.equal(outcomesNoStats.totalRequests, 5); // 6 events minus 1 non-request event
-      assert.equal(outcomesNoStats.allowedCount, 2);
-      assert.equal(outcomesNoStats.blockedCount, 1);
+      assert.equal(outcomesNoStats.actionsExecuted, 2);
+      assert.equal(outcomesNoStats.threatsRegistered, 1);
       assert.equal(outcomesNoStats.couldntVerifyCount, 2);
+      assert.equal(outcomesNoStats.totalRequests, 5);
 
       // 2. With indexer stats present
-      const indexerStats = { requests: 250, blocked: 45, allowed: 180 };
+      const indexerStats = { actionsExecuted: 180, threatsRegistered: 45 };
       const outcomesWithStats = classifyActionOutcomes(mixedEvents, indexerStats);
-      assert.equal(
-        outcomesWithStats.allowedCount + outcomesWithStats.blockedCount + outcomesWithStats.couldntVerifyCount,
-        outcomesWithStats.totalRequests,
-        "Invariant violation: allowed + blocked + couldn't verify must equal totalRequests (with indexer stats)"
-      );
-      assert.equal(outcomesWithStats.totalRequests, 250);
-      assert.equal(outcomesWithStats.blockedCount, 45);
-      assert.equal(outcomesWithStats.allowedCount, 180);
-      assert.equal(outcomesWithStats.couldntVerifyCount, 25);
+      assert.equal(outcomesWithStats.actionsExecuted, 180);
+      assert.equal(outcomesWithStats.threatsRegistered, 45);
+      assert.equal(outcomesWithStats.couldntVerifyCount, 0);
+      assert.equal(outcomesWithStats.totalRequests, undefined);
 
-      // 3. With indexer stats having no explicit allowed count (only requests & blocked)
-      const partialIndexerStats = { requests: 100, blocked: 15 };
-      const outcomesPartial = classifyActionOutcomes([], partialIndexerStats);
-      assert.equal(
-        outcomesPartial.allowedCount + outcomesPartial.blockedCount + outcomesPartial.couldntVerifyCount,
-        outcomesPartial.totalRequests,
-        "Invariant violation: allowed + blocked + couldn't verify must equal totalRequests (partial indexer stats)"
-      );
-      assert.equal(outcomesPartial.totalRequests, 100);
-      assert.equal(outcomesPartial.blockedCount, 15);
-      assert.equal(outcomesPartial.allowedCount, 0);
-      assert.equal(outcomesPartial.couldntVerifyCount, 85);
-
-      // 4. Edge case: completely empty
+      // 3. Edge case: completely empty
       const outcomesEmpty = classifyActionOutcomes([], null);
-      assert.equal(
-        outcomesEmpty.allowedCount + outcomesEmpty.blockedCount + outcomesEmpty.couldntVerifyCount,
-        outcomesEmpty.totalRequests
-      );
-      assert.equal(outcomesEmpty.totalRequests, 0);
+      assert.equal(outcomesEmpty.actionsExecuted, 0);
+      assert.equal(outcomesEmpty.threatsRegistered, 0);
+      assert.equal(outcomesEmpty.couldntVerifyCount, 0);
+    });
+
+    test('B.1.1: allowed count does not depend on the length of actionsArr (independent of limit-25)', () => {
+      // 50 events in actionsArr, but totalActionsExecuted is 350
+      const actionsArr = Array.from({ length: 50 }, (_, i) => ({ id: `act-${i}`, details: { status: "ALLOWED" } }));
+      const indexerStats = { actionsExecuted: 350, threatsRegistered: 50 };
+      const outcomes = classifyActionOutcomes(actionsArr, indexerStats, false);
+      assert.equal(outcomes.actionsExecuted, 350, "actionsExecuted must equal totalActionsExecuted, NOT actionsArr.length");
+      assert.notEqual(outcomes.actionsExecuted, actionsArr.length);
+      assert.equal(outcomes.threatsRegistered, 50);
+      assert.equal(outcomes.couldntVerifyCount, 0);
+    });
+
+    test('B.1.1: failed fetch renders couldn\'t load data with null numbers', () => {
+      const someStats = { actionsExecuted: 100, threatsRegistered: 20 };
+      const outcomes = classifyActionOutcomes([], someStats, true); // fetchFailed = true
+      assert.equal(outcomes.fetchFailed, true);
+      assert.equal(outcomes.statusMessage, "Couldn't load data");
+      assert.equal(outcomes.actionsExecuted, null, "When fetch fails, actionsExecuted must be null");
+      assert.equal(outcomes.threatsRegistered, null, "When fetch fails, threatsRegistered must be null");
     });
   });
 
@@ -373,22 +374,6 @@ describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
     });
   });
 
-  describe('Item 7: DashboardTab Share Blocked Metric', () => {
-    test('if totalRequests is 0, returns "--", not a fabricated percentage', () => {
-      assert.equal(calculateShareBlocked(0, 0), "--");
-      assert.equal(calculateShareBlocked(5, 0), "--");
-      assert.equal(calculateShareBlocked(0, null), "--");
-      assert.equal(calculateShareBlocked(0, -1), "--");
-    });
-
-    test('if totalRequests > 0, returns accurate formatted percentage', () => {
-      assert.equal(calculateShareBlocked(3, 10), "30.0%");
-      assert.equal(calculateShareBlocked(5, 20), "25.0%");
-      assert.equal(calculateShareBlocked(0, 50), "0.0%");
-      assert.equal(calculateShareBlocked(100, 100), "100.0%");
-    });
-  });
-
   describe('Part B.1: Glossary & Plain English Translation Function t()', () => {
     test('contains all Phase 0 audit terms in GLOSSARY dictionary', () => {
       const requiredTerms = [
@@ -418,18 +403,22 @@ describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
 
       for (const term of requiredTerms) {
         assert.ok(GLOSSARY[term], `GLOSSARY missing required audit term: ${term}`);
-        assert.ok(GLOSSARY[term].simple, `GLOSSARY[${term}] missing simple translation`);
+        if (!GLOSSARY[term].hideInSimple) {
+          assert.ok(GLOSSARY[term].simple, `GLOSSARY[${term}] missing simple translation`);
+        } else {
+          assert.equal(GLOSSARY[term].simple, null, `GLOSSARY[${term}] must have simple: null for hidden term`);
+        }
         assert.ok(GLOSSARY[term].advanced, `GLOSSARY[${term}] missing advanced definition`);
       }
     });
 
     test('t() returns plain English in Simple mode (isAdvanced=false)', () => {
-      assert.equal(t("TEE", false), "Hardware-secured vault");
-      assert.equal(t("Attestation", false), "Cryptographic proof of integrity");
-      assert.equal(t("RIP-7212", false), "Hardware passkey accelerator");
-      assert.equal(t("Gas", false), "Network fee");
-      assert.equal(t("ERC-8004", false), "Agent digital ID");
-      assert.equal(t("Session Signer", false), "Automated trading permission");
+      assert.equal(t("TEE", false), "Protected environment");
+      assert.equal(t("Attestation", false), "Signed safety check");
+      assert.equal(t("RIP-7212", false), "Passkey check");
+      assert.equal(t("Gas", false), "Execution fee");
+      assert.equal(t("ERC-8004", false), "Registered agent ID");
+      assert.equal(t("Session Signer", false), "Delegated agent key");
     });
 
     test('t() returns technical term in Advanced mode (isAdvanced=true)', () => {
@@ -437,47 +426,471 @@ describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
       assert.equal(t("Attestation", true), "Cryptographic Attestation");
       assert.equal(t("RIP-7212", true), "RIP-7212 Precompile");
       assert.equal(t("Gas", true), "Gas");
-      assert.equal(t("ERC-8004", true), "ERC-8004 Trustless Agent Passport");
+      assert.equal(t("ERC-8004", true), "Soulbound agent passport (ERC-5192)");
     });
   });
 
   describe('Part B.3: Simple Mode Fail-Closed Status Indicator', () => {
     test('empty / null risk score returns "No data yet" (neutral gray, not green)', () => {
-      const status = getSimpleStatusIndicator(null, 0);
+      const status = getSimpleStatusIndicator({ avgRiskScore: null, couldntVerifyCount: 0 });
       assert.equal(status.statusLabel, "No data yet");
       assert.equal(status.isClean, false);
       assert.equal(status.colorClass, "text-muted-foreground");
     });
 
     test('when couldntVerifyCount > 0, returns "Couldn\'t verify" (never green)', () => {
-      const status = getSimpleStatusIndicator(10, 2);
+      const status = getSimpleStatusIndicator({ avgRiskScore: 10, couldntVerifyCount: 2 });
       assert.equal(status.statusLabel, "Couldn't verify");
       assert.equal(status.isClean, false);
       assert.equal(status.colorClass, "text-muted-foreground");
     });
 
-    test('when avgRiskScore >= 30, returns "Attention needed" (yellow)', () => {
-      const status = getSimpleStatusIndicator(45, 0);
+    test('when avgRiskScore >= 30, returns "Attention needed" (amber)', () => {
+      const status = getSimpleStatusIndicator({ avgRiskScore: 45, couldntVerifyCount: 0 });
       assert.equal(status.statusLabel, "Attention needed");
       assert.equal(status.isClean, false);
       assert.equal(status.colorClass, "text-amber-400");
     });
 
-    test('when avgRiskScore < 30 and couldntVerifyCount === 0, returns "Protected" (green)', () => {
-      const status = getSimpleStatusIndicator(12, 0);
-      assert.equal(status.statusLabel, "Protected");
+    test('B.1.2: one CRITICAL event among 50 low events produces amber (Attention needed)', () => {
+      const lowEvents = Array.from({ length: 50 }, (_, i) => ({
+        id: `evt-${i}`,
+        severity: "LOW",
+        details: { riskScore: 5 }
+      }));
+      const criticalEvent = {
+        id: "evt-crit",
+        severity: "CRITICAL",
+        details: { riskScore: 95 }
+      };
+      const allEvents = [...lowEvents, criticalEvent];
+      const avgRisk = (50 * 5 + 95) / 51; // ~6.76 (well below 30)
+      const peakRisk = 95;
+
+      const status = getSimpleStatusIndicator({ avgRiskScore: avgRisk, couldntVerifyCount: 0, peakRiskScore: peakRisk, events: allEvents });
+      assert.equal(status.statusLabel, "Attention needed", "A single CRITICAL event must trigger Attention needed even with low average");
+      assert.equal(status.tier, "attention");
+      assert.equal(status.isClean, false);
+      assert.equal(status.colorClass, "text-amber-400");
+    });
+
+    test('when avgRiskScore <= 25 and couldntVerifyCount === 0 with no high events, returns "No flagged on-chain actions" (green)', () => {
+      const status = getSimpleStatusIndicator({ avgRiskScore: 12, couldntVerifyCount: 0, peakRiskScore: 15, events: [] });
+      assert.equal(status.statusLabel, "No flagged on-chain actions");
       assert.equal(status.isClean, true);
       assert.equal(status.colorClass, "text-emerald-400");
     });
 
-    test('INVARIANT: NEVER returns "Protected" or green when unverified events exist', () => {
+    test('CONTRACT BOUNDARY: peakRiskScore > 25 triggers Attention needed (amber) (GuardianPolicyGuard.sol:30, 48, 120)', () => {
+      const status = getSimpleStatusIndicator({ avgRiskScore: 12, couldntVerifyCount: 0, peakRiskScore: 26, events: [] });
+      assert.equal(status.statusLabel, "Attention needed");
+      assert.equal(status.isClean, false);
+      assert.equal(status.colorClass, "text-amber-400");
+    });
+
+    test('GLOBAL THREATS INFO-ONLY: global threatsRegistered alone does NOT trigger amber when recorded activity is nominal', () => {
+      const statusThreats = getSimpleStatusIndicator({ avgRiskScore: 10, couldntVerifyCount: 0, peakRiskScore: 10, events: [] });
+      assert.equal(statusThreats.statusLabel, "No flagged on-chain actions", "Global threatsRegistered is info-only and must not make clean session amber");
+      assert.equal(statusThreats.isClean, true);
+    });
+
+    test('BLOCKED EVENT IN ACTIVITY: a blocked event (isBlocked: true) triggers Attention needed (amber) immediately', () => {
+      const statusBlocked = getSimpleStatusIndicator({ avgRiskScore: 10, couldntVerifyCount: 0, peakRiskScore: 10, events: [{ isBlocked: true }] });
+      assert.equal(statusBlocked.statusLabel, "Attention needed");
+      assert.equal(statusBlocked.isClean, false);
+      assert.equal(statusBlocked.colorClass, "text-amber-400");
+    });
+
+    test('INVARIANT: NEVER returns "No flagged on-chain actions" or green when unverified events exist', () => {
       for (let risk = 0; risk <= 100; risk += 10) {
-        const status = getSimpleStatusIndicator(risk, 1);
-        assert.notEqual(status.statusLabel, "Protected", `Risk ${risk} with 1 unverified must not be Protected`);
+        const status = getSimpleStatusIndicator({ avgRiskScore: risk, couldntVerifyCount: 1 });
+        assert.notEqual(status.statusLabel, "No flagged on-chain actions", `Risk ${risk} with 1 unverified must not be clean`);
         assert.notEqual(status.colorClass, "text-emerald-400");
         assert.equal(status.isClean, false);
       }
     });
+
+    test('INVARIANT: NEVER returns "Protected" anywhere', () => {
+      for (let risk = 0; risk <= 100; risk += 5) {
+        const status0 = getSimpleStatusIndicator({ avgRiskScore: risk, couldntVerifyCount: 0 });
+        assert.notEqual(status0.statusLabel, "Protected", `Status label must never be Protected`);
+        const status1 = getSimpleStatusIndicator({ avgRiskScore: risk, couldntVerifyCount: 2 });
+        assert.notEqual(status1.statusLabel, "Protected", `Status label must never be Protected`);
+      }
+    });
+
+    test('STRICT EVALUATION ORDER: 1. Elevated risk / blocked events trigger amber before couldntVerify', () => {
+      // Case 1a: peakRiskScore > 25 triggers Attention needed even if couldntVerifyCount > 0
+      const statusPeak = getSimpleStatusIndicator({ avgRiskScore: 10, couldntVerifyCount: 5, peakRiskScore: 26, events: [] });
+      assert.equal(statusPeak.statusLabel, "Attention needed");
+      assert.equal(statusPeak.tier, "attention");
+
+      // Case 1b: HIGH event triggers Attention needed even if couldntVerifyCount > 0
+      const statusHigh = getSimpleStatusIndicator({ avgRiskScore: 10, couldntVerifyCount: 5, peakRiskScore: 10, events: [{ severity: "HIGH" }] });
+      assert.equal(statusHigh.statusLabel, "Attention needed");
+      assert.equal(statusHigh.tier, "attention");
+
+      // Case 1c: Blocked event triggers Attention needed even if couldntVerifyCount > 0
+      const statusBlocked = getSimpleStatusIndicator({ avgRiskScore: 10, couldntVerifyCount: 5, peakRiskScore: 10, events: [{ isBlocked: true }] });
+      assert.equal(statusBlocked.statusLabel, "Attention needed");
+      assert.equal(statusBlocked.tier, "attention");
+    });
+
+    test('STRICT EVALUATION ORDER: 2. couldntVerify triggers second when 0 threats', () => {
+      const status = getSimpleStatusIndicator({ avgRiskScore: 10, couldntVerifyCount: 4, peakRiskScore: 15, events: [] });
+      assert.equal(status.statusLabel, "Couldn't verify");
+      assert.equal(status.tier, "unverified");
+      assert.equal(status.isClean, false);
+    });
+
+    test('STRICT EVALUATION ORDER: 3. No data triggers third when 0 threats and 0 unverified', () => {
+      const status = getSimpleStatusIndicator({ avgRiskScore: null, couldntVerifyCount: 0, peakRiskScore: null, events: [] });
+      assert.equal(status.statusLabel, "No data yet");
+      assert.equal(status.tier, "none");
+      assert.equal(status.isClean, false);
+    });
+
+    test('STRICT EVALUATION ORDER: 4. Nominal activity triggers green last', () => {
+      const status = getSimpleStatusIndicator({ avgRiskScore: 15, couldntVerifyCount: 0, peakRiskScore: 20, events: [] });
+      assert.equal(status.statusLabel, "No flagged on-chain actions");
+      assert.equal(status.tier, "clean");
+      assert.equal(status.isClean, true);
+      assert.equal(status.colorClass, "text-emerald-400");
+    });
+
+    test('Part F Item 2: fetchFailed returns "Couldn\'t load data" (neutral gray, never "No data yet")', () => {
+      const statusFailed = getSimpleStatusIndicator({
+        fetchFailed: true,
+        avgRiskScore: null,
+        couldntVerifyCount: 0,
+        events: []
+      });
+      assert.equal(statusFailed.statusLabel, "Couldn't load data");
+      assert.equal(statusFailed.tier, "failed");
+      assert.equal(statusFailed.isClean, false);
+      assert.equal(statusFailed.colorClass, "text-muted-foreground");
+    });
+
+    test('Part F Item 1: target matches ACTIVE threatFeed record -> "Attention needed" + copy', () => {
+      const threatFeed = [
+        { address: "0xdead000000000000000000000000000000000001", reason: "Phishing drainer", active: true },
+        { address: "0xdead000000000000000000000000000000000002", reason: "Malicious contract", active: false }
+      ];
+      const events = [
+        {
+          event_type: "ON-CHAIN ACTION",
+          details: { target: "0xDEAD000000000000000000000000000000000001", riskScore: 5 },
+          severity: "INFO",
+          isBlocked: false
+        }
+      ];
+
+      const status = getSimpleStatusIndicator({
+        avgRiskScore: 5,
+        peakRiskScore: 5,
+        events,
+        threatFeed,
+        couldntVerifyCount: 0
+      });
+
+      assert.equal(status.statusLabel, "Attention needed");
+      assert.equal(status.description, "An agent interacted with a listed address.");
+      assert.equal(status.tier, "attention");
+      assert.equal(status.isClean, false);
+      assert.equal(status.colorClass, "text-amber-400");
+    });
+
+    test('Part F Item 1: target matches only REMOVED threatFeed record -> not amber (green)', () => {
+      const threatFeed = [
+        { address: "0xdead000000000000000000000000000000000002", reason: "Cleared address", active: false }
+      ];
+      const events = [
+        {
+          event_type: "ON-CHAIN ACTION",
+          details: { target: "0xdead000000000000000000000000000000000002", riskScore: 5 },
+          severity: "INFO",
+          isBlocked: false
+        }
+      ];
+
+      const status = getSimpleStatusIndicator({
+        avgRiskScore: 5,
+        peakRiskScore: 5,
+        events,
+        threatFeed,
+        couldntVerifyCount: 0
+      });
+
+      assert.equal(status.statusLabel, "No flagged on-chain actions");
+      assert.equal(status.tier, "clean");
+      assert.equal(status.isClean, true);
+    });
+
+    test('Part F Item 1: 3 ThreatRecords (2 active, 1 removed), no match -> "No flagged on-chain actions"', () => {
+      const threatFeed = [
+        { address: "0x1111111111111111111111111111111111111111", reason: "Active 1", active: true },
+        { address: "0x2222222222222222222222222222222222222222", reason: "Active 2", active: true },
+        { address: "0x3333333333333333333333333333333333333333", reason: "Removed 1", active: false }
+      ];
+      const events = [
+        {
+          event_type: "ON-CHAIN ACTION",
+          details: { target: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60", riskScore: 5 },
+          severity: "INFO",
+          isBlocked: false
+        }
+      ];
+
+      const status = getSimpleStatusIndicator({
+        avgRiskScore: 5,
+        peakRiskScore: 5,
+        events,
+        threatFeed,
+        couldntVerifyCount: 0
+      });
+
+      assert.equal(status.statusLabel, "No flagged on-chain actions");
+      assert.equal(status.tier, "clean");
+      assert.equal(status.isClean, true);
+      assert.equal(status.colorClass, "text-emerald-400");
+    });
   });
 
+  describe('Part B.2: Shared statsModel (deriveSecurityStats)', () => {
+    test('keeps Actions executed and Threats registered strictly separate with no summed requests', () => {
+      const raw = {
+        totalActionsExecuted: 1250,
+        totalThreatsRegistered: 48,
+        activeThreatCount: 12,
+        totalPassportsTracked: 85,
+        totalCortexRootsAnchored: 6
+      };
+      const stats = deriveSecurityStats(raw, false);
+      assert.equal(stats.status, "loaded");
+      assert.equal(stats.actionsExecuted, 1250);
+      assert.equal(stats.threatsRegistered, 48);
+      assert.equal(stats.activeThreats, 12);
+      assert.equal(stats.passportsTracked, 85);
+      assert.equal(stats.cortexRootsAnchored, 6);
+      assert.equal(stats.errorMessage, null);
+      // No summed requests property exists
+      assert.equal(stats.requests, undefined);
+    });
+
+    test('on fetch failure or null input, returns null numbers and errorMessage: "Couldn\'t load data"', () => {
+      const failedStats = deriveSecurityStats(null, true);
+      assert.equal(failedStats.status, "failed");
+      assert.equal(failedStats.actionsExecuted, null);
+      assert.equal(failedStats.threatsRegistered, null);
+      assert.equal(failedStats.activeThreats, null);
+      assert.equal(failedStats.passportsTracked, null);
+      assert.equal(failedStats.errorMessage, "Couldn't load data");
+
+      const emptyStats = deriveSecurityStats(null, false);
+      assert.equal(emptyStats.status, "empty");
+      assert.equal(emptyStats.actionsExecuted, null);
+      assert.equal(emptyStats.threatsRegistered, null);
+    });
+
+    test('normalizes demo fallback stats cleanly', () => {
+      const fallback = {
+        actionsExecuted: 1380,
+        threatsRegistered: 94,
+        activeThreats: 17,
+        passportsTracked: 340
+      };
+      const stats = deriveSecurityStats(fallback, false);
+      assert.equal(stats.actionsExecuted, 1380);
+      assert.equal(stats.threatsRegistered, 94);
+      assert.equal(stats.activeThreats, 17);
+      assert.equal(stats.passportsTracked, 340);
+    });
+
+    test('Part D Item 1: GraphQL response fixture with activeThreatCount parses non-null and equals source values', () => {
+      const fixture = {
+        GlobalSecurityStats: [{
+          totalActionsExecuted: "350",
+          totalThreatsRegistered: "12",
+          activeThreatCount: "4",
+          totalPassportsTracked: "7"
+        }]
+      };
+      const rawStats = fixture.GlobalSecurityStats[0];
+      const stats = deriveSecurityStats(rawStats);
+      assert.notEqual(stats.actionsExecuted, null);
+      assert.notEqual(stats.threatsRegistered, null);
+      assert.notEqual(stats.activeThreats, null);
+      assert.notEqual(stats.passportsTracked, null);
+      assert.equal(stats.actionsExecuted, 350);
+      assert.equal(stats.threatsRegistered, 12);
+      assert.equal(stats.activeThreats, 4);
+      assert.equal(stats.passportsTracked, 7);
+    });
+  });
+
+  describe('Part B.2: classifyActionOutcomes Truthfulness & Invariants', () => {
+    test('on fetch failure, returns null numbers and statusMessage "Couldn\'t load data"', () => {
+      const outcomes = classifyActionOutcomes([], null, true);
+      assert.equal(outcomes.fetchFailed, true);
+      assert.equal(outcomes.actionsExecuted, null);
+      assert.equal(outcomes.threatsRegistered, null);
+      assert.equal(outcomes.couldntVerifyCount, null);
+      assert.equal(outcomes.statusMessage, "Couldn't load data");
+    });
+
+    test('invariant: actionsExecuted and threatsRegistered are returned separately without summed totalRequests', () => {
+      const stats = { actionsExecuted: 120, threatsRegistered: 30 };
+      const outcomes = classifyActionOutcomes([], stats, false);
+      assert.equal(outcomes.actionsExecuted, 120);
+      assert.equal(outcomes.threatsRegistered, 30);
+      assert.equal(outcomes.couldntVerifyCount, 0);
+      assert.equal(outcomes.totalRequests, undefined);
+    });
+  });
+
+  describe('Part B.2 Item 9: Glossary Hidden Terms in Simple Mode', () => {
+    const hiddenTerms = [
+      'precompile',
+      'Merkle root',
+      'PRF',
+      'relayer',
+      'entropy',
+      'bips',
+      'BFT consensus'
+    ];
+
+    test('in Simple mode (isAdvanced=false), returns null (hidden from users)', () => {
+      for (const term of hiddenTerms) {
+        assert.equal(
+          t(term, false),
+          null,
+          `Term "${term}" must be hidden (null) in Simple mode`
+        );
+      }
+    });
+
+    test('in Advanced mode (isAdvanced=true), returns proper technical string', () => {
+      for (const term of hiddenTerms) {
+        const val = t(term, true);
+        assert.ok(val, `Term "${term}" must not be empty in Advanced mode`);
+        assert.equal(typeof val, 'string');
+      }
+    test('Part C Item 1: missing or NaN fields return null, not 0', () => {
+      const raw = {
+        totalActionsExecuted: "not-a-number",
+        totalThreatsRegistered: null,
+        activeThreatCount: undefined,
+        totalPassportsTracked: NaN
+      };
+      const stats = deriveSecurityStats(raw, false);
+      assert.strictEqual(stats.actionsExecuted, null);
+      assert.strictEqual(stats.threatsRegistered, null);
+      assert.strictEqual(stats.activeThreats, null);
+      assert.strictEqual(stats.passportsTracked, null);
+      assert.strictEqual(stats.cortexRootsAnchored, null);
+    });
+  });
+
+  describe('Part C Item 1: Stale Polling & Failed Poll Preservation', () => {
+    test('failed poll after success preserves last good stats and vectorData with stale label', () => {
+      // Simulate state machine from App.jsx polling effect
+      let lastGoodStats = null;
+      let lastGoodVectorData = null;
+      let lastUpdatedTime = null;
+      let stats = null;
+      let vectorData = null;
+      let indexerStatus = "idle";
+
+      // 1. Initial success:
+      const initialRaw = { totalActionsExecuted: 100, totalThreatsRegistered: 5, activeThreatCount: 2, totalPassportsTracked: 10, totalCortexRootsAnchored: 1 };
+      const derived = deriveSecurityStats(initialRaw, false);
+      lastGoodStats = derived;
+      lastGoodVectorData = {
+        threatsRegistered: derived.threatsRegistered,
+        activeThreats: derived.activeThreats,
+        passportsTracked: derived.passportsTracked
+      };
+      lastUpdatedTime = "12:00:00 PM";
+      stats = derived;
+      vectorData = lastGoodVectorData;
+      indexerStatus = "connected";
+
+      assert.equal(stats.actionsExecuted, 100);
+      assert.equal(stats.threatsRegistered, 5);
+
+      // 2. Poll failure after success:
+      if (lastGoodStats) {
+        indexerStatus = "stale";
+        const staleMsg = `Last updated ${lastUpdatedTime}. Couldn't refresh`;
+        stats = {
+          ...lastGoodStats,
+          isStale: true,
+          staleMessage: staleMsg
+        };
+        vectorData = {
+          ...lastGoodVectorData,
+          isStale: true,
+          staleMessage: staleMsg
+        };
+      }
+
+      assert.equal(indexerStatus, "stale");
+      assert.equal(stats.isStale, true);
+      assert.equal(stats.actionsExecuted, 100, "Last good actionsExecuted must be preserved");
+      assert.equal(stats.threatsRegistered, 5, "Last good threatsRegistered must be preserved");
+      assert.equal(vectorData.threatsRegistered, 5, "Last good vectorData must be preserved");
+      assert.equal(stats.staleMessage, "Last updated 12:00:00 PM. Couldn't refresh");
+      assert.equal(vectorData.staleMessage, "Last updated 12:00:00 PM. Couldn't refresh");
+    });
+  });
+
+  describe('Part E Item 8: Sample hashes and addresses validation', () => {
+    test('every sample hash matches /^0x[0-9a-f]{64}$/ and every sample address passes ethers.isAddress', () => {
+      const sampleHashes = [
+        "0x8c74e2d35cc6634c0532925a3b844bc454e4438f44e19d7b420f129ad4ec1101",
+        "0x3a51f89c02d1847c25e8391a27e771c56b72d2459a721d7b328a9b1c73f01101"
+      ];
+      for (const hash of sampleHashes) {
+        assert.ok(/^0x[0-9a-f]{64}$/.test(hash), `Hash "${hash}" does not match /^0x[0-9a-f]{64}$/`);
+      }
+
+      const sampleAddresses = [
+        "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+        "0x1142f8c90Ab361B8c764b85994FCda30089eC890",
+        "0x51b981E8fc89011424e650A1E704b1EC4dF7166e",
+        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+        "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
+        "0x9999120485f8064FF369dCDe4bA4eC1101f08E00",
+        "0x0000000000000000000000000000000000000100"
+      ];
+      for (const addr of sampleAddresses) {
+        assert.ok(ethers.isAddress(addr), `Address "${addr}" is not a valid Ethereum address according to ethers.isAddress`);
+      }
+    });
+  });
+
+  describe('Part F Item 6: Static verification of probe events in AgentsTab.jsx', () => {
+    test('all onEmitTelemetryEvent calls in AgentsTab.jsx include isSimulated: true (expect 9)', () => {
+      const agentsTabPath = path.resolve(__dirname, '../dashboard/src/components/AgentsTab.jsx');
+      const content = fs.readFileSync(agentsTabPath, 'utf8');
+
+      // Find all onEmitTelemetryEvent call blocks
+      const regex = /onEmitTelemetryEvent\?\.\(\s*\{([\s\S]*?)\}\s*\)/g;
+      let match;
+      let callCount = 0;
+
+      while ((match = regex.exec(content)) !== null) {
+        callCount++;
+        const callBody = match[1];
+        const hasIsSimulatedTrue = /isSimulated:\s*true/.test(callBody);
+        assert.ok(
+          hasIsSimulatedTrue,
+          `onEmitTelemetryEvent call #${callCount} is missing 'isSimulated: true': ${callBody.slice(0, 120)}`
+        );
+      }
+
+      assert.equal(callCount, 9, `Expected exactly 9 onEmitTelemetryEvent calls in AgentsTab.jsx, found ${callCount}`);
+    });
+  });
+});
 });

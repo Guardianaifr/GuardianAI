@@ -4,202 +4,282 @@
  * Translates low-level cryptographic and blockchain terms into
  * intuitive plain-English equivalents for web2 users in Simple mode,
  * while preserving precise technical terminology in Advanced mode.
+ *
+ * Every entry strictly avoids exaggerated claims ("secure", "verified", "hardware", "firewall", "vault").
+ * Terms without a web2 consumer equivalent (precompile, Merkle root, PRF, relayer, entropy, bips, BFT consensus)
+ * are marked hideInSimple: true to remain hidden behind "Show technical details" in Simple mode.
+ * Each entry cites the exact repository file:line or vendor documentation that implements or references the primitive.
  */
 
 export const GLOSSARY = {
-  // Hardware & Cryptographic Enclaves
+  // TEE: Protected execution environment isolating code from untrusted host memory
+  // Backed by: Privy key custody documentation (docs.privy.io/security/overview)
   "TEE": {
-    simple: "Hardware-secured vault",
+    simple: "Protected environment",
     advanced: "Trusted Execution Environment (TEE)",
-    desc: "A secure area inside a processor that isolates code and data from the operating system."
+    desc: "An isolated execution area inside a processor that separates code from host operating systems."
   },
+  // Backed by: Privy key custody documentation (docs.privy.io/security/overview)
   "Trusted Execution Environment": {
-    simple: "Hardware-secured vault",
+    simple: "Protected environment",
     advanced: "Trusted Execution Environment",
-    desc: "Tamper-resistant hardware isolated from host system memory."
+    desc: "An isolated execution area inside a processor."
   },
+  // Enclave: Isolated memory boundary
+  // Backed by: Privy key custody documentation (docs.privy.io/security/overview)
   "Enclave": {
-    simple: "Isolated security vault",
-    advanced: "Hardware Enclave",
-    desc: "Isolated processor boundary protecting keys from host memory inspection."
+    simple: "Protected execution zone",
+    advanced: "Enclave",
+    desc: "An isolated processor boundary protecting runtime memory."
   },
-  "hardware enclave": {
-    simple: "isolated security vault",
-    advanced: "hardware enclave",
-    desc: "Isolated processor boundary."
+  // Isolated Enclave: Memory boundary isolating runtime execution
+  // Backed by: Privy key custody documentation (docs.privy.io/security/overview)
+  "Isolated Enclave": {
+    simple: "Protected execution zone",
+    advanced: "Isolated Enclave",
+    desc: "An isolated processor boundary protecting runtime memory."
   },
+  // Attestation: Cryptographic EIP-712 signature validating execution payload
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:100-115
   "Attestation": {
-    simple: "Cryptographic proof of integrity",
+    simple: "Signed safety check",
     advanced: "Cryptographic Attestation",
-    desc: "Cryptographically signed verification confirming code running in an enclave hasn't been altered."
+    desc: "A cryptographically signed safety check confirming parameters match policy rules."
   },
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:100-115
   "attestation": {
-    simple: "cryptographic proof",
+    simple: "signed safety check",
     advanced: "attestation",
-    desc: "Cryptographically signed verification."
+    desc: "A cryptographically signed safety check."
   },
+  // Session Signer: Temporary delegated key with restricted authorization
+  // Backed by: dashboard/src/components/AgentDelegationModal.tsx:44-46, dashboard/src/lib/delegationAdapter.js:33
   "Session Signer": {
-    simple: "Automated trading permission",
+    simple: "Delegated agent key",
     advanced: "Session Signer",
-    desc: "Temporary scoped cryptographic key granted authority to execute specific transactions."
+    desc: "A temporary cryptographic key granted limited authority to execute specific transactions."
   },
+  // Backed by: dashboard/src/components/AgentDelegationModal.tsx:44-46
   "Session Signers": {
-    simple: "Automated trading permissions",
+    simple: "Delegated agent keys",
     advanced: "Session Signers",
-    desc: "Temporary scoped cryptographic keys granted authority to execute transactions."
+    desc: "Temporary cryptographic keys granted limited authority to execute specific transactions."
   },
+  // Backed by: dashboard/src/lib/delegationAdapter.js:33
   "session signer": {
-    simple: "automated trading permission",
+    simple: "delegated agent key",
     advanced: "session signer",
-    desc: "Scoped authorization key."
+    desc: "Temporary key with scoped authorization."
   },
+  // Backed by: dashboard/src/lib/delegationAdapter.js:33
   "session signers": {
-    simple: "automated trading permissions",
+    simple: "delegated agent keys",
     advanced: "session signers",
-    desc: "Scoped authorization keys."
+    desc: "Temporary keys with scoped authorization."
   },
+  // MPC: Multi-party computation key management
+  // Backed by: dashboard/src/components/PrivyConfigProvider.tsx:26
   "MPC": {
-    simple: "Multi-key protection",
+    simple: "Multi-party key management",
     advanced: "Multi-Party Computation (MPC)",
-    desc: "Cryptographic protocol where private keys are split across multiple parties so no single party can leak them."
+    desc: "A protocol where cryptographic private key shares are distributed across independent parties."
   },
+  // Monad: High-throughput EVM execution layer
+  // Backed by: dashboard/src/lib/monadChain.ts:5, contracts/contracts/GuardianPolicyGuard.sol:1
   "Monad": {
     simple: "High-speed network",
     advanced: "Monad Parallel EVM",
-    desc: "High-performance EVM-compatible layer 1 blockchain with parallel execution."
+    desc: "High-performance EVM-compatible layer 1 blockchain with parallel transaction execution."
   },
+  // Backed by: dashboard/src/lib/monadChain.ts:5
   "Monad Testnet": {
-    simple: "Secure test network",
+    simple: "Test network",
     advanced: "Monad Testnet",
     desc: "Public test network for Monad parallel execution."
   },
+  // RIP-7212: secp256r1 curve precompile for passkey authentication
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:41-42, 229-246
   "RIP-7212": {
-    simple: "Hardware passkey accelerator",
+    simple: "Passkey check",
     advanced: "RIP-7212 Precompile",
-    desc: "EVM precompile enabling gas-efficient native secp256r1 curve signature verification."
+    desc: "Native EVM precompile for secp256r1 elliptic curve signature validation."
   },
+  // Gas: Computation fee
+  // Backed by: dashboard/src/components/AgentsTab.jsx:234, contracts/contracts/GuardianPolicyGuard.sol:160
   "Gas": {
-    simple: "Network fee",
+    simple: "Execution fee",
     advanced: "Gas",
-    desc: "Computational fee paid to execute an operation on the network."
+    desc: "Computational fee paid to execute an operation on the blockchain network."
   },
+  // Backed by: dashboard/src/components/AgentsTab.jsx:234
   "gas": {
-    simple: "network fee",
+    simple: "execution fee",
     advanced: "gas",
-    desc: "Computational fee."
+    desc: "Computational execution fee."
   },
+  // Backed by: dashboard/src/components/AgentsTab.jsx:234
   "gas limit": {
-    simple: "maximum fee allocation",
+    simple: "fee limit",
     advanced: "gas limit",
-    desc: "Upper bound of computational steps."
+    desc: "Maximum computational steps allocated for an execution."
   },
+  // Policy Guard: Rules engine blocking unauthorized actions
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:18-35
   "Policy Guard": {
-    simple: "Security firewall",
+    simple: "Policy rules engine",
     advanced: "Policy Guard",
-    desc: "Smart contract rules engine that validates permissions and aborts rogue actions before execution."
+    desc: "Smart contract rules engine that validates permissions and stops rogue actions before execution."
   },
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:18-35
   "GuardianPolicyGuard": {
-    simple: "Automated Security Firewall",
+    simple: "Policy rules engine",
     advanced: "GuardianPolicyGuard.sol",
     desc: "Core on-chain enforcement contract for transaction pre-flight checks."
   },
+  // Soulbound agent passport (ERC-5192): Agent passport and identity registry
+  // Backed by: contracts/contracts/GuardianPassportSBT.sol:8-25, metropolis/indexer/schema.graphql:22
   "ERC-8004": {
-    simple: "Agent digital ID",
-    advanced: "ERC-8004 Trustless Agent Passport",
-    desc: "Standard for autonomous AI agent identity, reputation registry, and execution delegation."
+    simple: "Registered agent ID",
+    advanced: "Soulbound agent passport (ERC-5192)",
+    desc: "Standard for autonomous AI agent identification, reputation registry, and execution delegation."
   },
+  "ERC-5192": {
+    simple: "Registered agent ID",
+    advanced: "Soulbound agent passport (ERC-5192)",
+    desc: "Standard for minimal soulbound non-transferable token identification."
+  },
+  // Soulbound: Non-transferable token standard ERC-5192
+  // Backed by: contracts/contracts/GuardianPassportSBT.sol:8-25
   "Soulbound": {
     simple: "Non-transferable ID",
     advanced: "Soulbound Token (ERC-5192)",
-    desc: "Cryptographic identity credential permanently tied to an agent that cannot be transferred or stolen."
+    desc: "Identity credential permanently bound to an agent address that cannot be transferred."
   },
+  // Backed by: contracts/contracts/GuardianPassportSBT.sol:8-25
   "Soulbound Token": {
     simple: "Non-transferable agent ID",
     advanced: "Soulbound Token (ERC-5192)",
-    desc: "Non-transferable token representing permanent agent identity and reputation."
+    desc: "Non-transferable token representing permanent agent identity and reputation standing."
   },
+  // EIP-712: Structured typed data hashing and signing
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:74-95
   "EIP-712": {
-    simple: "Verified digital signature",
+    simple: "Signed typed request",
     advanced: "EIP-712 Structured Data Signature",
-    desc: "Standard for hashing and signing typed structured data human-readably."
+    desc: "Standard for hashing and signing structured data parameters transparently."
   },
+  // Merkle Root: Root hash committing state tree (hidden in Simple mode behind technical details)
+  // Backed by: contracts/contracts/GuardianCortexAnchor.sol:20-35, metropolis/indexer/schema.graphql:34
   "Merkle Root": {
-    simple: "Tamper-proof record summary",
+    simple: null,
+    hideInSimple: true,
     advanced: "Merkle Root",
-    desc: "Cryptographic root hash verifying the integrity of an entire state dataset."
+    desc: "Cryptographic root hash committing a batch of execution records."
   },
+  // Precompile: Built-in node algorithm (hidden in Simple mode behind technical details)
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:41-42, 229-246
   "Precompile": {
-    simple: "Built-in speed engine",
+    simple: null,
+    hideInSimple: true,
     advanced: "EVM Precompile",
-    desc: "Native node-level algorithm executed outside EVM bytecode for maximum throughput."
+    desc: "Native node-level algorithm executed outside bytecode for efficiency."
   },
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:41-42, 229-246
   "precompile": {
-    simple: "built-in speed engine",
+    simple: null,
+    hideInSimple: true,
     advanced: "precompile",
     desc: "Native node-level algorithm."
   },
+  // PRF: WebAuthn pseudo-random function (hidden in Simple mode behind technical details)
+  // Backed by: dashboard/src/components/AgentsTab.jsx:566
   "PRF": {
-    simple: "Hardware passkey derivation",
+    simple: null,
+    hideInSimple: true,
     advanced: "Pseudo-Random Function (PRF)",
-    desc: "WebAuthn PRF extension allowing symmetric key derivation inside hardware authenticators."
+    desc: "WebAuthn PRF extension allowing symmetric key derivation with authenticators."
   },
+  // RPC: Communication endpoint
+  // Backed by: dashboard/src/lib/guardianViemClient.ts:10
   "RPC": {
     simple: "Network connection",
     advanced: "JSON-RPC Endpoint",
-    desc: "Communications endpoint used to interact with blockchain nodes."
+    desc: "Communications interface used to read and submit data to blockchain nodes."
   },
+  // Mempool: Pending transactions waiting for block inclusion
+  // Backed by: dashboard/src/components/LogsTab.jsx:18
   "Mempool": {
     simple: "Pending action queue",
     advanced: "Transaction Mempool",
-    desc: "Temporary holding area for unconfirmed transactions awaiting block inclusion."
+    desc: "Holding area for submitted actions awaiting network confirmation."
   },
+  // BFT consensus: Distributed consensus protocol (hidden in Simple mode behind technical details)
+  // Backed by: dashboard/src/components/DashboardTab.jsx:104
   "BFT consensus": {
-    simple: "Agreement protocol",
+    simple: null,
+    hideInSimple: true,
     advanced: "BFT Consensus",
-    desc: "Byzantine Fault Tolerant consensus ensuring network agreement even with failing nodes."
+    desc: "Byzantine Fault Tolerant consensus ensuring network agreement across nodes."
   },
+  // Smart contract: Deployed code on chain
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:1-20
   "Smart contract": {
-    simple: "Automated security rule",
+    simple: "On-chain policy rule",
     advanced: "Smart Contract",
-    desc: "Self-executing code deployed to the blockchain."
+    desc: "Program code executed on the blockchain network."
   },
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:1-20
   "Smart Contracts": {
-    simple: "Automated security rules",
+    simple: "On-chain policy rules",
     advanced: "Smart Contracts",
-    desc: "Self-executing code deployed to the blockchain."
+    desc: "Program code executed on the blockchain network."
   },
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:1-20
   "smart contract": {
-    simple: "automated security rule",
+    simple: "on-chain policy rule",
     advanced: "smart contract",
-    desc: "Self-executing code deployed to the blockchain."
+    desc: "Program code executed on the blockchain network."
   },
+  // Relayer: Backend transaction submitter (hidden in Simple mode behind technical details)
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:142
   "Relayer": {
-    simple: "Transaction assistant",
+    simple: null,
+    hideInSimple: true,
     advanced: "Attestation Relayer",
-    desc: "Off-chain service submitting validated transactions and cryptographic proofs."
+    desc: "Service submitting validated actions with signatures."
   },
+  // Backed by: contracts/contracts/GuardianPolicyGuard.sol:142
   "relayer": {
-    simple: "transaction assistant",
+    simple: null,
+    hideInSimple: true,
     advanced: "relayer",
-    desc: "Off-chain submission service."
+    desc: "Service submitting validated actions."
   },
+  // Entropy: Prompt randomness measure (hidden in Simple mode behind technical details)
+  // Backed by: dashboard/src/components/AgentsTab.jsx:131
   "Entropy": {
-    simple: "Unpredictability score",
+    simple: null,
+    hideInSimple: true,
     advanced: "Shannon Entropy Analysis",
-    desc: "Statistical measure of prompt randomness used to detect obfuscated injection attacks."
+    desc: "Statistical measure of prompt randomness used to flag obfuscated injections."
   },
+  // Bips: Basis points (hidden in Simple mode behind technical details)
+  // Backed by: dashboard/src/components/AgentsTab.jsx:602
   "Bips": {
-    simple: "Percentage basis",
+    simple: null,
+    hideInSimple: true,
     advanced: "Basis Points (bips)",
-    desc: "One hundredth of a percentage point (1/100th of 1%)."
+    desc: "Unit of proportion equal to one hundredth of a percentage point."
   }
 };
 
 /**
  * Translates a technical term according to the active mode.
+ * In Simple mode, returns null if hideInSimple is true (to be placed behind "Show technical details").
+ *
  * @param {string} term - The technical term to lookup
  * @param {boolean} isAdvanced - Whether advanced mode is active
- * @returns {string} - The translated or original term
+ * @returns {string|null} - The translated term, or null if hidden in Simple mode
  */
 export function t(term, isAdvanced = false) {
   if (!term || typeof term !== "string") return term;
@@ -207,6 +287,11 @@ export function t(term, isAdvanced = false) {
   if (isAdvanced) {
     if (GLOSSARY[term]?.advanced) return GLOSSARY[term].advanced;
     return term;
+  }
+
+  // Simple mode: if explicitly marked to hide behind technical details, return null
+  if (GLOSSARY[term]?.hideInSimple) {
+    return null;
   }
 
   // Simple mode: return plain English equivalent if present
@@ -217,8 +302,9 @@ export function t(term, isAdvanced = false) {
   // Case-insensitive fallback lookup
   const lower = term.toLowerCase();
   for (const [key, entry] of Object.entries(GLOSSARY)) {
-    if (key.toLowerCase() === lower && entry.simple) {
-      return entry.simple;
+    if (key.toLowerCase() === lower) {
+      if (entry.hideInSimple) return null;
+      if (entry.simple) return entry.simple;
     }
   }
 
@@ -228,38 +314,30 @@ export function t(term, isAdvanced = false) {
 /**
  * Helper to sanitize free text by replacing common jargon phrases in Simple mode.
  * In Advanced mode, leaves text unchanged.
+ * NOTE: Address and hash regexes are NOT included here to prevent altering hex data values.
  */
 export function sanitizeJargon(text, isAdvanced = false) {
   if (!text || typeof text !== "string" || isAdvanced) return text;
 
   let cleaned = text;
 
-  // Replacements in simple mode:
+  // Replacements in simple mode (strictly avoiding vault, firewall, hardware, secure, verified):
   const replacements = [
-    [/\bERC-8004\b/gi, "Agent Identity"],
-    [/\bRIP-7212\b/gi, "Passkey Engine"],
-    [/\bprecompile\b/gi, "hardware accelerator"],
-    [/\bprecompiles\b/gi, "hardware accelerators"],
-    [/\bEIP-712\b/gi, "digital signature"],
-    [/\bTEE\b/gi, "Secure Vault"],
-    [/\benclave\b/gi, "secure area"],
-    [/\benclaves\b/gi, "secure areas"],
-    [/\battestation\b/gi, "security verification"],
-    [/\battestations\b/gi, "security verifications"],
-    [/\bsession signers?\b/gi, "automated permissions"],
-    [/\bmempool\b/gi, "processing queue"],
-    [/\bBFT consensus\b/gi, "network agreement"],
-    [/\bMerkle root\b/gi, "tamper-proof summary"],
-    [/\bMonad Testnet\b/gi, "Security Network"],
-    [/\bMonad Parallel EVM\b/gi, "High-Speed Security Engine"],
+    [/\bERC-8004\b/gi, "Registered Agent ID"],
+    [/\bRIP-7212\b/gi, "Passkey Check"],
+    [/\bEIP-712\b/gi, "signed typed request"],
+    [/\bTEE\b/gi, "Protected Environment"],
+    [/\bhardware enclaves?\b/gi, "protected zone"],
+    [/\benclaves?\b/gi, "protected zone"],
+    [/\battestations?\b/gi, "signed safety check"],
+    [/\bsession signers?\b/gi, "delegated agent keys"],
+    [/\bMonad Testnet\b/gi, "Test Network"],
+    [/\bMonad Parallel EVM\b/gi, "Parallel Execution Engine"],
     [/\bMonad\b/gi, "High-Speed Network"],
-    [/\bGuardianPolicyGuard\.sol\b/gi, "Security Firewall"],
-    [/\bGuardianPolicyGuard\b/gi, "Security Firewall"],
-    [/\b0x[a-fA-F0-9]{40}\b/g, "Protected System Address"],
-    [/\b0x[a-fA-F0-9]{4}\.\.\.[a-fA-F0-9]{4}\b/g, "Protected Address"],
-    [/\b0x[a-fA-F0-9]{64}\b/g, "Security Verification ID"],
+    [/\bGuardianPolicyGuard\.sol\b/gi, "Policy Rules Engine"],
+    [/\bGuardianPolicyGuard\b/gi, "Policy Rules Engine"],
     [/\bgas limit\b/gi, "fee limit"],
-    [/\bgas\b/gi, "transaction fee"]
+    [/\bgas\b/gi, "execution fee"]
   ];
 
   for (const [regex, replacement] of replacements) {

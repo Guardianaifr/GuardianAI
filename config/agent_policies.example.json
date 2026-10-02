@@ -1,0 +1,18 @@
+{
+  "default": {
+    "max_value_per_tx_mon": "1",
+    "max_daily_outflow_mon": "5",
+    "max_token_per_tx": { "0x534b2f3a21130d7a60830c2df862319e593943a3": "100" },
+    "token_decimals": { "0x534b2f3a21130d7a60830c2df862319e593943a3": 6 },
+    "allowed_recipients": null,
+    "allowed_selectors": null,
+    "require_prompt": false
+  },
+  "agents": {
+    "payroll-bot": {
+      "allowed_recipients": ["0x1111111111111111111111111111111111111111"],
+      "max_value_per_tx_mon": "0.5",
+      "require_prompt": true
+    }
+  }
+}

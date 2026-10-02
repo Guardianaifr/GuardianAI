@@ -12,11 +12,12 @@ import { Section, StatusPill } from './ui.jsx'
 /* ------------------------------------------------------------------ */
 
 const GATE_1 = [
-  'Spots instructions hidden in emails, chats and web pages',
+  'Flags common prompt-injection phrasing in emails, chats and web pages',
   'Decodes disguised text first: Base64, hex, ROT13, Braille, Morse, look-alike letters',
-  'An AI model compares meaning with known attacks, so reworded tricks are caught too',
+  'An AI model compares meaning with known attacks to catch some reworded tricks (not yet every language or disguise)',
   'Strips API keys, tokens and personal data from what the AI sends out',
-  'Checks a transaction before it’s sent: unlimited approvals, admin-role changes, scam wallets',
+  'Checks a transaction before it’s signed: unlimited approvals, NFT operator grants, and every recipient against the on-chain scam list',
+  'Applies each agent’s limits before signing: per-payment and daily caps (1 MON and 5 MON by default), and an optional list of allowed recipients',
 ]
 
 const GATE_2 = [

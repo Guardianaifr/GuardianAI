@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Play } from 'lucide-react'
 import './theme.css'
 import { AttackLab } from './demos.jsx'
+import { ThreeSteps } from './steps.jsx'
 import { TwoGates, Architecture, ProofLedger, Developers, Readiness } from './sections.jsx'
 import { VIDEO_URL } from './siteConfig.js'
 import { Header, Footer, useTheme } from './layout.jsx'
@@ -59,6 +60,7 @@ export default function SimpleExplorer() {
       <Header page="home" theme={theme} toggleTheme={toggleTheme} />
       <main>
         <LabHero />
+        <ThreeSteps />
         <TwoGates />
         <Architecture />
         <ProofLedger />

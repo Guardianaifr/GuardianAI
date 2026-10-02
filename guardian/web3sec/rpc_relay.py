@@ -135,8 +135,9 @@ class GuardianRPCRelay:
         self.attestation_service: Optional[Any] = None
         try:
             from guardian.relayer import SafetyAttestationService
-            self.attestation_service = SafetyAttestationService(
-                tx_analyzer_config=self.config
+            from guardian.relayer.attestation_service import service_from_env
+            self.attestation_service = service_from_env(
+                self.upstream_rpc, tx_analyzer_config=self.config,
             )
         except Exception as e:
             logger.warning(f"Attestation Service unavailable: {e}")
@@ -172,6 +173,9 @@ class GuardianRPCRelay:
         self.app.add_url_rule('/stats', view_func=self.get_stats, methods=['GET'])
         self.app.add_url_rule('/', view_func=self.proxy, methods=['POST'])
         self.app.add_url_rule('/api/v1/attest', view_func=self.attest_transaction, methods=['POST'])
+        # Per-agent rules: read is public (an agent can see its limits); writes need the admin token.
+        self.app.add_url_rule('/api/v1/agents/<agent_id>/rules', view_func=self.get_agent_rules, methods=['GET'])
+        self.app.add_url_rule('/api/v1/agents/<agent_id>/rules', view_func=self.put_agent_rules, methods=['PUT'], endpoint='put_agent_rules')
         # Pay-per-approval (x402, USDC on Monad). No-op unless GUARDIAN_X402_ENABLED=true.
         from guardian.payments.x402_gate import install_x402_gate
         self.x402_config = install_x402_gate(self.app, self.db_path)
@@ -360,6 +364,32 @@ class GuardianRPCRelay:
             status=status,
             mimetype="application/json"
         )
+
+    def get_agent_rules(self, agent_id):
+        store = getattr(self.attestation_service, "rules_store", None)
+        if store is None:
+            return Response(json.dumps({"error": "Agent rules unavailable"}), status=503, mimetype="application/json")
+        rules, custom = store.rules_for(agent_id)
+        return Response(json.dumps({"agent_id": agent_id, "custom": custom, "rules": rules}),
+                        status=200, mimetype="application/json")
+
+    def put_agent_rules(self, agent_id):
+        auth_err = self._check_management_auth()
+        if auth_err:
+            return auth_err
+        store = getattr(self.attestation_service, "rules_store", None)
+        if store is None:
+            return Response(json.dumps({"error": "Agent rules unavailable"}), status=503, mimetype="application/json")
+        spec = request.get_json(silent=True)
+        if not isinstance(spec, dict):
+            return Response(json.dumps({"error": "Body must be a JSON object of rule fields"}), status=400, mimetype="application/json")
+        try:
+            store.set_agent(agent_id, spec)
+        except (ValueError, TypeError, ArithmeticError) as e:
+            return Response(json.dumps({"error": f"Invalid rules: {e}"}), status=400, mimetype="application/json")
+        rules, _ = store.rules_for(agent_id)
+        return Response(json.dumps({"agent_id": agent_id, "custom": True, "rules": rules}),
+                        status=200, mimetype="application/json")
 
     def get_rules(self):
         """Relay-side endpoint: return current rules from DB."""

@@ -64,3 +64,6 @@ guardian/config/one_click_runtime.yaml
 hack/
 /node_modules
 Claude outputs/
+config/agent_policies.json
+# Cleanverse bounty docs: contain the hackathon API key and unverified notes
+docs/cleanverse/

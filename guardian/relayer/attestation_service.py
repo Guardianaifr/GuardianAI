@@ -105,6 +105,12 @@ class AgentPolicy:
     allowed_selectors: Optional[Set[str]] = None
     max_value_per_tx: Optional[int] = None
     max_daily_outflow: Optional[int] = None
+    # Lowercased addresses the agent may send value/token rights to. None = anyone not on the scam list.
+    allowed_recipients: Optional[Set[str]] = None
+    # Lowercased token address -> max raw units per transfer/approve. Tokens not listed are uncapped.
+    max_token_per_tx: Optional[Dict[str, int]] = None
+    # Refuse requests that don't include the prompt/context the agent acted on.
+    require_prompt: bool = False
 
 
 class OutflowTracker:
@@ -168,14 +174,23 @@ class SafetyAttestationService:
         ttl_seconds: int = 300,
         tx_analyzer_config: Optional[Dict[str, Any]] = None,
         agent_policies: Optional[Dict[str, AgentPolicy]] = None,
+        default_policy: Optional[AgentPolicy] = None,
+        threat_checker: Optional[Any] = None,
+        fail_closed_on_feed_error: bool = True,
     ):
         self._w3 = Web3()
         self.max_allowed_risk_score = max_allowed_risk_score
         self.ttl_seconds = ttl_seconds
 
         # Agent-specific security policies (allowlists + spending caps)
-        self.agent_policies: Dict[str, AgentPolicy] = agent_policies or {}
+        self.agent_policies: Dict[str, AgentPolicy] = agent_policies if agent_policies is not None else {}  # keep the caller's dict so live rule updates apply
+        # Applies to agents without their own policy (None = no default limits).
+        self.default_policy: Optional[AgentPolicy] = default_policy
         self.outflow_tracker = OutflowTracker()
+
+        # On-chain scam list (GuardianThreatFeedRegistry). None = not consulted.
+        self.threat_checker = threat_checker
+        self.fail_closed_on_feed_error = fail_closed_on_feed_error
 
         # 1. Signer Key Configuration (Audit M-01)
         raw_key = (
@@ -260,9 +275,47 @@ class SafetyAttestationService:
         if target.lower() == self.verifying_contract.lower() and self.verifying_contract != "0x0000000000000000000000000000000000000000":
             return 100, ["Self-call to GuardianPolicyGuard is prohibited"]
 
+        # ── On-chain scam list: target and every recipient/spender in the calldata ──
+        if self.threat_checker is not None:
+            from guardian.relayer.threat_feed import value_destinations
+            for dest in value_destinations(target, calldata_hex):
+                try:
+                    flagged, why = self.threat_checker.is_malicious(dest)
+                except Exception as e:
+                    if self.fail_closed_on_feed_error:
+                        return 100, [f"Scam list unavailable, failing closed: {type(e).__name__}"]
+                    logger.error(f"Threat feed lookup failed: {e}")
+                    continue
+                if flagged:
+                    return 100, [f"{dest} is on GuardianAI's on-chain scam list: {why or 'malicious'}"]
+
         # ── Agent Policy Enforcement ──────────────────────────────────────
-        policy = self.agent_policies.get(agent_id)
+        policy = self.agent_policies.get(agent_id) or self.default_policy
         if policy:
+            from guardian.relayer.threat_feed import value_destinations
+
+            # 0. Context required
+            if policy.require_prompt and not (prompt and prompt.strip()):
+                return 100, ["This agent's rules require the prompt/context with every request"]
+
+            # 0b. Recipient allowlist (native payee and token recipients/spenders/operators)
+            dests = value_destinations(target, calldata_hex)
+            payees = dests[1:] if len(dests) > 1 else ([dests[0]] if value > 0 else [])
+            if policy.allowed_recipients is not None:
+                for dest in payees:
+                    if dest not in policy.allowed_recipients:
+                        return 100, [f"Recipient {dest} is not on this agent's allowed list"]
+
+            # 0c. Token amount cap (transfer / approve / transferFrom amounts)
+            if policy.max_token_per_tx and len(calldata_hex) >= 138:
+                cap = policy.max_token_per_tx.get(target.lower())
+                sel = calldata_hex[:10].lower()
+                amount_word = {"0xa9059cbb": 1, "0x095ea7b3": 1, "0x39509351": 1, "0x23b872dd": 2}.get(sel)
+                if cap is not None and amount_word is not None:
+                    w = calldata_hex[10 + 64 * amount_word: 10 + 64 * (amount_word + 1)]
+                    if len(w) == 64 and int(w, 16) > cap:
+                        return 100, [f"Token amount {int(w, 16)} exceeds this agent's cap of {cap} for {target.lower()}"]
+
             # 1. Function Selector Allowlist (zero-trust: deny-by-default)
             if policy.allowed_selectors is not None:
                 selector = calldata_hex[:10].lower() if len(calldata_hex) >= 10 else "0x"
@@ -287,6 +340,11 @@ class SafetyAttestationService:
                         f"Transaction would push 24h outflow to {current + value} wei, "
                         f"exceeding daily cap of {policy.max_daily_outflow} wei"
                     ]
+
+        # ── NFT operator grants (setApprovalForAll(op, true)) are high risk ──
+        if calldata_hex[:10].lower() == "0xa22cb465" and len(calldata_hex) >= 138 and int(calldata_hex[74:138] or "0", 16) == 1:
+            score += 30
+            reasons.append("setApprovalForAll grants control of every NFT in the collection")
 
         # ── Standard Checks (blocklist layer) ─────────────────────────────
 
@@ -498,3 +556,18 @@ class SafetyAttestationService:
             policy_guard=self.verifying_contract,
             wrapped_calldata=wrapped_calldata,
         )
+
+
+def service_from_env(rpc_url: Optional[str] = None, rules_store: Optional[Any] = None, **kwargs: Any) -> "SafetyAttestationService":
+    """The relay's production wiring: on-chain scam list + per-agent rules (default rules apply to every agent)."""
+    from guardian.relayer.agent_rules import AgentRulesStore
+    from guardian.relayer.threat_feed import ThreatFeedChecker
+    store = rules_store or AgentRulesStore()
+    svc = SafetyAttestationService(
+        agent_policies=store.per_agent,
+        default_policy=store.default,
+        threat_checker=ThreatFeedChecker.from_env(rpc_url),
+        **kwargs,
+    )
+    svc.rules_store = store
+    return svc

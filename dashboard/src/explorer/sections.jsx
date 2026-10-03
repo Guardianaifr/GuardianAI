@@ -3,7 +3,7 @@ import {
   Brain, Lock, Inbox, Shield, Bot, Landmark, Database, ExternalLink, RefreshCw, Loader2, CheckCircle2, AlertTriangle,
   Code2, Copy, Check, ArrowRight, Users, Coins, Flag,
 } from 'lucide-react'
-import { ALL_CONTRACTS, CONTRACTS, APPROVED_PAYMENT_TX, X402_FEE_TX, TEAM_WALLET, addressUrl, txUrl, checkDeployed, readLiveStats, listPassports } from './chain.js'
+import { ALL_CONTRACTS, CONTRACTS, REAL_PAYMENT_TX, X402_FEE_TX, TEAM_WALLET, addressUrl, txUrl, checkDeployed, readLiveStats, listPassports } from './chain.js'
 import { SPONSORS, REPO_PUBLIC, repoLink, FOUNDER, AUDIENCE, BUSINESS, NEXT } from './siteConfig.js'
 import { Section, StatusPill } from './ui.jsx'
 
@@ -263,10 +263,10 @@ export function ProofLedger() {
       <div className="gx-card mt-4 flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5">
         <span className="min-w-0">
           <span className="gx-t1 block font-semibold">And one that got through</span>
-          <span className="gx-t2 block text-sm">A real payment that passed every PolicyGuard check and executed on Monad testnet (executeWithAttestation, block #{APPROVED_PAYMENT_TX.block.toLocaleString()}).</span>
+          <span className="gx-t2 block text-sm">A real 1 USDC payment from the agent’s Privy wallet that passed every PolicyGuard check on Monad testnet (block #{REAL_PAYMENT_TX.block.toLocaleString()}).</span>
         </span>
-        <a href={txUrl(APPROVED_PAYMENT_TX.hash)} target="_blank" rel="noreferrer" className="gx-link inline-flex items-center gap-1 font-mono text-xs">
-          {APPROVED_PAYMENT_TX.hash.slice(0, 10)}…{APPROVED_PAYMENT_TX.hash.slice(-6)} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+        <a href={txUrl(REAL_PAYMENT_TX.hash)} target="_blank" rel="noreferrer" className="gx-link inline-flex items-center gap-1 font-mono text-xs">
+          {REAL_PAYMENT_TX.hash.slice(0, 10)}…{REAL_PAYMENT_TX.hash.slice(-6)} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
         </a>
       </div>
       <div className="gx-card mt-4 flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5">

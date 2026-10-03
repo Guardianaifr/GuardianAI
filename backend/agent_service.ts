@@ -45,7 +45,7 @@ export interface AgentRunnerConfig {
   privyAppSecret: string;
   /** Human-readable agent identifier for Guardian nonce namespacing */
   agentId: string;
-  /** Optional: GuardianAI relayer URL. Defaults to http://localhost:8000 */
+  /** Optional: GuardianAI relayer URL. Defaults to http://localhost:8546 */
   relayerUrl?: string;
   /** Reject transactions if the relayer is unreachable. Defaults to true. */
   failClosed?: boolean;
@@ -62,7 +62,7 @@ export class GuardianPrivyAgentRunner {
     this.privy = new PrivyClient({ appId: config.privyAppId, appSecret: config.privyAppSecret });
     this.config = {
       agentId: config.agentId,
-      relayerUrl: config.relayerUrl ?? "http://localhost:8000",
+      relayerUrl: config.relayerUrl ?? "http://localhost:8546",
       failClosed: config.failClosed ?? true,
       timeoutMs: config.timeoutMs ?? 5_000,
     };

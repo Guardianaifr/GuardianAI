@@ -20,11 +20,15 @@ export const CONTRACTS = {
 export const addressUrl = (a) => `${EXPLORER}/address/${a}`
 export const txUrl = (h) => `${EXPLORER}/tx/${h}`
 
-// A real payment that passed every PolicyGuard check: status Success, sent to GuardianPolicyGuard,
+// An approved agent action that passed every PolicyGuard check (calls a test contract's doSomething(42), no funds moved): status Success, sent to GuardianPolicyGuard,
 // selector 0x3cb7461c = executeWithAttestation(address,bytes,(bytes32,address,bytes32,uint256,uint8,uint256,uint256),bytes).
 export const APPROVED_PAYMENT_TX = { hash: '0xda14b65c639fe6fe7b160bb8610524c429b1bdb9b73f208ba9ae1e6d67481c87', block: 66451553 }
 // x402 pay-per-approval: an agent paid $0.01 USDC for one approved attestation (tools/x402_e2e.py)
-export const X402_FEE_TX = { hash: '0xc6c604d0b00acf433812cf195b9e8d5eab627941f309b66a43738a182cf1d57b', block: 67592087 }
+// A real payment: the GuardianAI agent's Privy wallet paid 1 USDC to a vendor through PolicyGuard (transferFrom),
+// after GuardianAI approved it; Privy's policy only lets this wallet sign calls to PolicyGuard (tools/privy-agent).
+export const REAL_PAYMENT_TX = { hash: '0x96ffc13e35866c43ffdc37300319037f4fc5f8eeb090f55754b79a798eadf22a', block: 67838692 }
+export const PRIVY_AGENT_WALLET = '0x27FFBa14315383f61B4F9F9244a95fEdEA459923'
+export const X402_FEE_TX = { hash: '0xe2e0238a8a431325a6ff9b480e939275e28c173053aa759c5eea77004681173b', block: 67838677 } // paid from the agent's Privy wallet
 
 // The deployer / attestation signer. Passports owned by any other wallet are external integrations.
 export const TEAM_WALLET = '0x1D4549B95dccAC8203393543187b25B3137D0bf6'

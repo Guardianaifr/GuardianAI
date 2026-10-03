@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ShieldX, CheckCircle2, Coins, ExternalLink, Loader2 } from 'lucide-react'
-import { APPROVED_PAYMENT_TX, X402_FEE_TX, CONTRACTS, addressUrl, txUrl, checkAddress } from './chain.js'
+import { REAL_PAYMENT_TX, PRIVY_AGENT_WALLET, X402_FEE_TX, CONTRACTS, addressUrl, txUrl, checkAddress } from './chain.js'
 import { Section, IconBadge } from './ui.jsx'
 
 const SCAM_WALLET = '0x535eA8d8eABA5D072f7DfCef98C32d8D1d8E1CBd'
@@ -52,18 +52,18 @@ export function ThreeSteps() {
     {
       icon: CheckCircle2, tone: 'good', label: 'Approved',
       title: 'A normal payment goes through',
-      body: 'GuardianAI signs an approval for that exact recipient, amount and data. PolicyGuard on Monad checks the signature, the risk score and the agent’s ID card, then runs the payment.',
+      body: 'The agent pays a vendor 1 USDC. GuardianAI approves that exact payment, the agent’s Privy wallet signs it (Privy’s policy only lets this wallet sign calls to PolicyGuard), and PolicyGuard checks the approval and the agent’s ID card before the USDC moves.',
       proof: (
         <>
-          <span className="gx-muted block text-xs">executeWithAttestation · status Success · block #{APPROVED_PAYMENT_TX.block.toLocaleString()}</span>
-          <ProofLink href={txUrl(APPROVED_PAYMENT_TX.hash)}>{short(APPROVED_PAYMENT_TX.hash)}</ProofLink>
+          <span className="gx-muted block text-xs">1 USDC paid by the Privy wallet {short(PRIVY_AGENT_WALLET)} · block #{REAL_PAYMENT_TX.block.toLocaleString()}</span>
+          <ProofLink href={txUrl(REAL_PAYMENT_TX.hash)}>{short(REAL_PAYMENT_TX.hash)}</ProofLink>
         </>
       ),
     },
     {
       icon: Coins, tone: 'accent', label: 'Paid',
       title: 'The agent pays for its approval',
-      body: 'With x402, the agent pays $0.01 in USDC for the approval, with no account or API key. Only approvals are charged: a blocked action costs nothing.',
+      body: 'With x402, the agent pays $0.01 in USDC for the approval from its Privy wallet, with no account or API key. Only approvals are charged: the blocked scam payment cost nothing.',
       proof: (
         <>
           <span className="gx-muted block text-xs">USDC settlement via x402 · block #{X402_FEE_TX.block.toLocaleString()}</span>

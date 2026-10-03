@@ -1,0 +1,20 @@
+{
+  "name": "guardianai-privy-agent",
+  "private": true,
+  "description": "GuardianAI agent wallet on Privy: a Privy policy locks it to PolicyGuard, so it can only move money with a GuardianAI approval",
+  "scripts": {
+    "setup": "node agent.cjs setup",
+    "status": "node agent.cjs status",
+    "lock-test": "node agent.cjs lock-test",
+    "approve": "node agent.cjs approve",
+    "pay": "node agent.cjs pay"
+  },
+  "dependencies": {
+    "@privy-io/node": "^0.35.0",
+    "@solana/kit": "^5.5.1",
+    "@x402/evm": "^2.28.0",
+    "@x402/fetch": "^2.28.0",
+    "@x402/svm": "^2.28.0",
+    "viem": "^2.57.2"
+  }
+}

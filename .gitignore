@@ -65,8 +65,6 @@ hack/
 /node_modules
 Claude outputs/
 config/agent_policies.json
-# Cleanverse bounty docs: contain the hackathon API key and unverified notes
-docs/cleanverse/
 tools/privy-agent/node_modules/
 tools/privy-agent/.state.json
 .fuse_hidden*

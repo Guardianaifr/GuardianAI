@@ -2,7 +2,7 @@
   "network": "monad_testnet",
   "chainId": 10143,
   "deployer": "0x1D4549B95dccAC8203393543187b25B3137D0bf6",
-  "attestationSigner": "0x1D4549B95dccAC8203393543187b25B3137D0bf6",
+  "attestationSigner": "0x9bA531633087fE75D5992723003Be0A40eA02209",
   "timestamp": "2026-09-28T16:06:39.990Z",
   "contracts": {
     "GuardianThreatFeedRegistry": "0x576CC248D8c406ac302b74e7BFd571E9F989f467",
@@ -13,7 +13,9 @@
     "GuardianCortexAnchor": "0x78aFC34a9653c762cA9827370A94a02f7412dBfa",
     "GuardianInterlockRegistry": "0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d",
     "GuardianRiskAttestation": "0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87",
-    "GuardianTimelock": "0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc"
+    "GuardianTimelock": "0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc",
+    "GuardianThreatOracle": "0x26144375c4f846174A386C464aC5F2e671EbdA95",
+    "GuardianAgentWalletFactory": "0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6"
   },
   "explorerUrls": {
     "GuardianPolicyGuard": "https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
@@ -24,6 +26,18 @@
     "GuardianCortexAnchor": "https://testnet.monadscan.com/address/0x78aFC34a9653c762cA9827370A94a02f7412dBfa",
     "GuardianInterlockRegistry": "https://testnet.monadscan.com/address/0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d",
     "GuardianRiskAttestation": "https://testnet.monadscan.com/address/0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87",
-    "GuardianTimelock": "https://testnet.monadscan.com/address/0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc"
-  }
+    "GuardianTimelock": "https://testnet.monadscan.com/address/0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc",
+    "GuardianThreatOracle": "https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95",
+    "GuardianAgentWalletFactory": "https://testnet.monadscan.com/address/0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6",
+    "GuardianAgentWallet": "https://testnet.monadscan.com/address/0xCCb137694f2910c8Ec4883d108c989648019D335"
+  },
+  "agentWallets": {
+    "privy-agent:0x27ffba14315383f61b4f9f9244a95fedea459923": {
+      "wallet": "0xCCb137694f2910c8Ec4883d108c989648019D335",
+      "owner": "0x1D4549B95dccAC8203393543187b25B3137D0bf6",
+      "operator": "0x27FFBa14315383f61B4F9F9244a95fEdEA459923",
+      "agentId": "0x9e0a7f83e3630078bd5bc87889e117942f48c6d2d29f7fff508c5cb6cf4fb548"
+    }
+  },
+  "creForwarder": "0xB9F79d863261869B234c481D1f9A7af84AeAd192"
 }

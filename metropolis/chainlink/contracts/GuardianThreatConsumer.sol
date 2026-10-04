@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+// SUPERSEDED: this stats-only consumer has the wrong onReport signature for the Chainlink Forwarder.
+// Use contracts/contracts/GuardianThreatOracle.sol (IReceiver, deployed at 0x26144375c4f846174A386C464aC5F2e671EbdA95).
 pragma solidity ^0.8.20;
 
 /**

@@ -1,174 +1,144 @@
+/**
+ * GuardianAI × Chainlink CRE — decentralized threat oracle for Monad.
+ *
+ *   Cron ─▶ every DON node fetches GuardianAI's threat feed (HTTP)
+ *        ─▶ consensus: scam list + digest must be IDENTICAL on all nodes, counters use the MEDIAN
+ *        ─▶ the workflow re-checks the digest, encodes the report, the DON signs it
+ *        ─▶ Chainlink Forwarder delivers it to GuardianThreatOracle.onReport() on Monad
+ *
+ * GuardianAgentWallets read GuardianThreatOracle.isFlagged() before every call, so an address the DON
+ * agreed on is refused on-chain. No GuardianAI hot key can write the list: only the Forwarder can.
+ *
+ * Report ABI (must match GuardianThreatOracle.sol):
+ *   (uint64 asOf, uint256 blocked, uint256 intercepted, uint256 passed, bytes32 feedDigest,
+ *    address[] addrs, bool[] flagged)
+ */
 import {
-  CronCapability,
-  HTTPClient,
-  EVMClient,
-  handler,
-  ConsensusAggregationByFields,
-  median,
-  identical,
-  Runner,
-  type NodeRuntime,
-  type Runtime,
-  getNetwork,
   bytesToHex,
+  ConsensusAggregationByFields,
+  cre,
+  getNetwork,
   hexToBase64,
+  identical,
+  median,
+  ok,
+  text,
+  type HTTPSendRequester,
+  type Runtime,
+  Runner,
 } from "@chainlink/cre-sdk"
-import { encodeAbiParameters, parseAbiParameters } from "viem"
-
-// ---------------------------------------------------------------------------
-// Configuration & Types
-// ---------------------------------------------------------------------------
-
-type EvmConfig = {
-  chainName: string
-  consumerAddress: string
-  gasLimit: string
-}
+import { encodeAbiParameters, getAddress, keccak256, parseAbiParameters, stringToHex, type Address, type Hex } from "viem"
 
 type Config = {
   schedule: string
-  apiUrl: string
-  evms: EvmConfig[]
+  feedUrl: string
+  evms: { chainName: string; oracleAddress: string; gasLimit: string }[]
 }
 
-/**
- * ThreatReport represents the verified threat telemetry from GuardianAI.
- * Each field maps to a counter tracked by the off-chain security engine.
- */
-type ThreatReport = {
+type Feed = {
   blocked: bigint
   intercepted: bigint
   passed: bigint
-  threatDigest: string
+  entriesJson: string
+  digest: string
 }
 
-// ---------------------------------------------------------------------------
-// Node-Level Execution: Fetch Threat Stats
-// ---------------------------------------------------------------------------
+type Entry = { address: string; flagged: boolean }
 
-/**
- * fetchThreatStats runs independently on each DON node.
- * Each node fetches the latest threat statistics from the GuardianAI API,
- * then consensus aggregates the results for reliability.
- */
-const fetchThreatStats = (nodeRuntime: NodeRuntime<Config>): ThreatReport => {
-  const httpClient = new HTTPClient()
+const MAX_ENTRIES = 100
 
-  const resp = httpClient
-    .sendRequest(nodeRuntime, {
-      url: nodeRuntime.config.apiUrl,
-      method: "GET" as const,
-    })
-    .result()
-
-  const body = JSON.parse(new TextDecoder().decode(resp.body))
-
-  // Map the GuardianAI /stats response to our ThreatReport shape
-  const stats = body.stats || body
+// ── Node mode: each DON node fetches the feed on its own ──────────────────
+const fetchFeed = (sendRequester: HTTPSendRequester, config: Config): Feed => {
+  const response = sendRequester.sendRequest({ url: config.feedUrl, method: "GET" }).result()
+  if (!ok(response)) {
+    throw new Error(`GuardianAI feed request failed with status ${response.statusCode}`)
+  }
+  const body = JSON.parse(text(response))
   return {
-    blocked: BigInt(stats.blocked || 0),
-    intercepted: BigInt(stats.intercepted || 0),
-    passed: BigInt(stats.passed || 0),
-    threatDigest: body.threat_digest || "0x" + "0".repeat(64),
+    blocked: BigInt(body.stats?.blocked ?? 0),
+    intercepted: BigInt(body.stats?.intercepted ?? 0),
+    passed: BigInt(body.stats?.passed ?? 0),
+    entriesJson: String(body.entries_json ?? "[]"),
+    digest: String(body.digest ?? ""),
   }
 }
 
-// ---------------------------------------------------------------------------
-// DON-Level Execution: Orchestrate & Write On-Chain
-// ---------------------------------------------------------------------------
+// ── DON mode: verify, encode, sign, write ─────────────────────────────────
+const onCronTrigger = (runtime: Runtime<Config>): string => {
+  const evm = runtime.config.evms[0]
+  const network = getNetwork({ chainFamily: "evm", chainSelectorName: evm.chainName, isTestnet: true })
+  if (!network) throw new Error(`Unknown chain: ${evm.chainName}`)
 
-/**
- * onCronTrigger is the main callback executed when the cron trigger fires.
- * It orchestrates the full pipeline:
- *   1. Fetch threat stats (each node independently via runInNodeMode)
- *   2. Reach consensus across DON nodes
- *   3. Generate a signed report
- *   4. Write the verified report to the consumer contract on Monad
- */
-const onCronTrigger = (runtime: Runtime<Config>): ThreatReport => {
-  const evmConfig = runtime.config.evms[0]
+  const http = new cre.capabilities.HTTPClient()
+  const feed = http
+    .sendRequest(
+      runtime,
+      fetchFeed,
+      ConsensusAggregationByFields<Feed>({
+        blocked: median,
+        intercepted: median,
+        passed: median,
+        entriesJson: identical,
+        digest: identical,
+      }),
+    )(runtime.config)
+    .result()
 
-  // Resolve the chain selector for Monad Testnet
-  const network = getNetwork({
-    chainFamily: "evm",
-    chainSelectorName: evmConfig.chainName,
-  })
-  if (!network) {
-    throw new Error(`Unknown chain: ${evmConfig.chainName}`)
+  // Integrity: the list the nodes agreed on must hash to the digest GuardianAI published.
+  const computed = keccak256(stringToHex(feed.entriesJson))
+  if (computed.toLowerCase() !== feed.digest.toLowerCase()) {
+    throw new Error(`Feed digest mismatch: computed ${computed}, feed says ${feed.digest}`)
   }
 
-  // Step 1: Fetch + Consensus
-  // Each DON node calls the GuardianAI API independently.
-  // Field-level consensus ensures numeric counters use median aggregation
-  // while the cryptographic threat digest uses identical aggregation.
-  const report = runtime
-    .runInNodeMode(
-      fetchThreatStats,
-      ConsensusAggregationByFields<ThreatReport>({
-        blocked: () => median(),
-        intercepted: () => median(),
-        passed: () => median(),
-        threatDigest: () => identical(),
-      })
-    )()
-    .result()
+  const entries = JSON.parse(feed.entriesJson) as Entry[]
+  if (entries.length > MAX_ENTRIES) throw new Error(`Feed has ${entries.length} entries, max ${MAX_ENTRIES}`)
+  const addrs = entries.map((e) => getAddress(e.address) as Address)
+  const flags = entries.map((e) => Boolean(e.flagged))
+
+  // DON time, identical on every node; GuardianThreatOracle rejects anything not newer than the last report.
+  const asOf = BigInt(Math.floor(runtime.now().getTime() / 1000))
 
   runtime.log(
-    `Guardian threat stats verified — blocked: ${report.blocked}, ` +
-      `intercepted: ${report.intercepted}, passed: ${report.passed}`
+    `Consensus reached — blocked=${feed.blocked} intercepted=${feed.intercepted} passed=${feed.passed}, ` +
+      `${addrs.length} addresses (${flags.filter(Boolean).length} flagged), digest ${feed.digest}`,
   )
 
-  // Step 2: Encode the report for the on-chain consumer contract
-  const evmClient = new EVMClient(network.chainSelector.selector)
-
-  const reportData = encodeAbiParameters(
-    parseAbiParameters(
-      "uint256 blocked, uint256 intercepted, uint256 passed, string threatDigest"
-    ),
-    [report.blocked, report.intercepted, report.passed, report.threatDigest]
+  const payload = encodeAbiParameters(
+    parseAbiParameters("uint64, uint256, uint256, uint256, bytes32, address[], bool[]"),
+    [asOf, feed.blocked, feed.intercepted, feed.passed, feed.digest as Hex, addrs, flags],
   )
 
-  // Step 3: Generate a cryptographically signed report via DON consensus
-  const signedReport = runtime
+  const report = runtime
     .report({
-      encodedPayload: hexToBase64(reportData),
+      encodedPayload: hexToBase64(payload),
       encoderName: "evm",
       signingAlgo: "ecdsa",
       hashingAlgo: "keccak256",
     })
     .result()
 
-  runtime.log(
-    `Signed report generated — writing to consumer ${evmConfig.consumerAddress}`
-  )
-
-  // Step 4: Write the signed report to the GuardianThreatConsumer on Monad
-  const writeResult = evmClient
+  const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector)
+  const write = evmClient
     .writeReport(runtime, {
-      receiver: evmConfig.consumerAddress,
-      report: signedReport,
-      gasConfig: {
-        gasLimit: evmConfig.gasLimit,
-      },
+      receiver: evm.oracleAddress,
+      report,
+      gasConfig: { gasLimit: evm.gasLimit },
     })
     .result()
 
-  const txHash = bytesToHex(writeResult.txHash || new Uint8Array(32))
-  runtime.log(`✅ Threat report committed to Monad — TX: ${txHash}`)
-
-  return report
+  const txHash = bytesToHex(write.txHash || new Uint8Array(32))
+  runtime.log(`Report delivered to GuardianThreatOracle ${evm.oracleAddress} on ${evm.chainName} — tx ${txHash}`)
+  return txHash
 }
 
-// ---------------------------------------------------------------------------
-// Workflow Registration
-// ---------------------------------------------------------------------------
-
 const initWorkflow = (config: Config) => {
-  const cron = new CronCapability()
-  return [handler(cron.trigger({ schedule: config.schedule }), onCronTrigger)]
+  const cron = new cre.capabilities.CronCapability()
+  return [cre.handler(cron.trigger({ schedule: config.schedule }), onCronTrigger)]
 }
 
 export async function main() {
   const runner = await Runner.newRunner<Config>()
   await runner.run(initWorkflow)
 }
+
+main()

@@ -1,11 +1,11 @@
 {
-  "schedule": "*/10 * * * *",
-  "apiUrl": "https://api.guardianai.xyz/api/v1/stats",
+  "schedule": "0 */10 * * * *",
+  "feedUrl": "https://aiguardian.dev/api/v1/threat-oracle/feed",
   "evms": [
     {
       "chainName": "monad-testnet",
-      "consumerAddress": "0x0000000000000000000000000000000000000000",
-      "gasLimit": "500000"
+      "oracleAddress": "0x0000000000000000000000000000000000000000",
+      "gasLimit": "600000"
     }
   ]
 }

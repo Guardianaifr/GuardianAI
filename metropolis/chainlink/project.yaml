@@ -1,22 +1,17 @@
 # yaml-language-server: $schema=https://docs.chain.link/schemas/cre-project-v1.json
 
 # ==========================================================================
-# GuardianAI Decentralized Threat Oracle — CRE Project Configuration
+# GuardianAI Decentralized Threat Oracle - CRE Project Configuration
 # ==========================================================================
-# This file defines shared settings for all workflows in this project.
-# RPC URLs and other environment-specific values are configured here.
+# Shared settings for all workflows in this project (RPC URLs per target).
 # ==========================================================================
 
 staging-settings:
-  targets:
-    monad-testnet:
-      chain-family: evm
-      chain-selector-name: monad-testnet
-      rpc-url: "https://testnet-rpc.monad.xyz"
+  rpcs:
+    - chain-name: monad-testnet
+      url: https://testnet-rpc.monad.xyz
 
 production-settings:
-  targets:
-    monad-testnet:
-      chain-family: evm
-      chain-selector-name: monad-testnet
-      rpc-url: "${MONAD_RPC_URL:-https://testnet-rpc.monad.xyz}"
+  rpcs:
+    - chain-name: monad-testnet
+      url: https://testnet-rpc.monad.xyz

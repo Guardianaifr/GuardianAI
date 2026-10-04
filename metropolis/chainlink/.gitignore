@@ -4,3 +4,5 @@ node_modules/
 dist/
 *.wasm
 bun.lockb
+.cre_build_tmp.js
+cre_simulate_output.txt

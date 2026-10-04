@@ -4,14 +4,18 @@ import sys
 import hashlib
 
 # --- MOCKING STRATEGY ---
-mock_psutil = MagicMock()
-sys.modules['psutil'] = mock_psutil
-
+# Patch psutil only inside guardian.runtime.monitor, per test (monkeypatch restores it).
+# Replacing sys.modules['psutil'] globally leaked the mock into later tests (backend /metrics).
+import guardian.runtime.monitor as monitor_module
 from guardian.runtime.monitor import RuntimeMonitor
 
+mock_psutil = MagicMock()
+
 @pytest.fixture
-def setup_mocks():
+def setup_mocks(monkeypatch):
     mock_psutil.reset_mock()
+    monkeypatch.setattr(monitor_module, "psutil", mock_psutil)
+    mock_psutil.Error = Exception
     # Ensure exception attributes are valid exception classes for except blocks.
     mock_psutil.NoSuchProcess = ProcessLookupError
     mock_psutil.AccessDenied = PermissionError

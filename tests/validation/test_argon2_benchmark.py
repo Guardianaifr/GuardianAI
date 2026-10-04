@@ -25,10 +25,15 @@ class TestArgon2Benchmark:
         
         avg_ms = statistics.mean(times) * 1000
         print(f"\nArgon2 average hash time: {avg_ms:.1f}ms")
-        assert avg_ms >= 100, (
-            f"Argon2 too fast ({avg_ms:.1f}ms) — "
-            f"increase time_cost or memory_cost"
-        )
+        # Wall-clock time depends on the CPU (multi-core CI runners hash in <100ms with p=4),
+        # so assert the cost parameters encoded in the hash against OWASP minimums instead.
+        import re
+        m = re.search(r"\$argon2id\$v=\d+\$m=(\d+),t=(\d+),p=(\d+)\$", hash_password(password))
+        assert m, "expected an argon2id hash"
+        memory_kib, time_cost, parallelism = (int(x) for x in m.groups())
+        assert memory_kib >= 19456, f"memory_cost too low: {memory_kib} KiB (OWASP min 19 MiB)"
+        assert time_cost >= 2, f"time_cost too low: {time_cost} (OWASP min 2)"
+        assert avg_ms >= 20, f"Argon2 implausibly fast ({avg_ms:.1f}ms): hashing may be bypassed"
 
     def test_sha256_hash_time_maximum(self):
         """SHA-256 should be < 1ms — confirms why we replaced it"""

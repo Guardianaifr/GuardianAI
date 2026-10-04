@@ -67,8 +67,9 @@ contracts:
 
 chains:
   - id: 10143
-    start_block: 0
-    rpc: ${ENVIO_MONAD_RPC_URL:-https://testnet-rpc.monad.xyz}
+    # Core contracts were deployed 2026-09-28; start one day earlier instead of block 0.
+    start_block: 65970000
+    # No rpc: entry, so Envio uses HyperSync for Monad testnet (https://10143.hypersync.xyz).
     contracts:
       - name: GuardianPolicyGuard
         address: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"

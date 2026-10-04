@@ -14,6 +14,15 @@
  *   node agent.cjs lock-test             try to make the wallet sign forbidden things; Privy must refuse
  *   node agent.cjs approve [usdc]        let PolicyGuard pull up to N USDC (default 20)
  *   node agent.cjs pay <to> <usdc> [prompt]   pay through GuardianAI (x402 fee from the Privy wallet)
+ *   node agent.cjs update-policy         push policy.cjs (adds the GuardianAgentWallet + pull authorization)
+ *
+ * GuardianAgentWallet (funds live in a contract; every call needs this key AND a GuardianAI approval):
+ *   node agent.cjs wallet-status
+ *   node agent.cjs wallet-pay <to> <mon> [prompt]       approved by GuardianAI, executed by the wallet
+ *   node agent.cjs wallet-pay-usdc <to> <usdc> [prompt]
+ *   node agent.cjs wallet-fund <usdc>                    move USDC from this key into the wallet (via PolicyGuard)
+ *   node agent.cjs wallet-bypass [to] [mon]              skip GuardianAI: send execute() with a forged approval;
+ *                                                        the chain must revert it (InvalidAttestationSignature)
  *
  * Env (.env at repo root, or dashboard/.env): PRIVY_APP_ID or VITE_PRIVY_APP_ID, PRIVY_APP_SECRET,
  * GUARDIAN_X402_PAY_TO, MONAD_TESTNET_RPC (optional), GUARDIAN_RELAY_URL (default http://127.0.0.1:8546)
@@ -38,7 +47,7 @@ loadEnv(path.join(ROOT, 'dashboard', '.env'));
 
 const { PrivyClient } = require('@privy-io/node');
 const {
-  createPublicClient, http, getAddress, encodeFunctionData, parseAbi, keccak256, toBytes, formatEther, formatUnits,
+  createPublicClient, http, getAddress, encodeFunctionData, parseAbi, keccak256, toBytes, formatEther, formatUnits, parseEther, decodeErrorResult,
 } = require('viem');
 const { guardianAgentPolicy } = require('./policy.cjs');
 
@@ -51,6 +60,19 @@ const RELAY = (process.env.GUARDIAN_RELAY_URL || 'http://127.0.0.1:8546').replac
 const STATE = path.join(__dirname, '.state.json');
 const SCAN = 'https://testnet.monadscan.com';
 const STRANGER = getAddress('0x7a3b9c1d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b');
+const DEPLOYMENTS = path.join(ROOT, 'metropolis', 'deployments-monad.json');
+const WALLET_ABI = parseAbi([
+  'function execute(address target,uint256 value,bytes data,(bytes32 agentId,address targetContract,bytes32 calldataHash,uint256 value,uint8 riskScore,uint256 nonce,uint256 deadline) attestation,bytes signature) returns (bytes)',
+  'function operator() view returns (address)',
+  'function guardianSigner() view returns (address)',
+  'function threatOracle() view returns (address)',
+  'function paused() view returns (bool)',
+  'error InvalidAttestationSignature()',
+  'error NotOperator(address caller)',
+  'error FlaggedDestination(address account)',
+  'error CalldataHashMismatch()',
+  'error AgentMismatch(bytes32 expected, bytes32 actual)',
+]);
 
 const monad = { id: CHAIN_ID, name: 'Monad Testnet', nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 }, rpcUrls: { default: { http: [RPC] } } };
 const pub = createPublicClient({ chain: monad, transport: http(RPC) });
@@ -80,11 +102,18 @@ function wallet() {
 }
 const agentIdFor = (address) => `privy-agent:${address.toLowerCase()}`;
 
+function agentWalletFor(address) {
+  const dep = fs.existsSync(DEPLOYMENTS) ? JSON.parse(fs.readFileSync(DEPLOYMENTS, 'utf8')) : {};
+  const w = (dep.agentWallets || {})[agentIdFor(address)];
+  return w ? getAddress(w.wallet) : null;
+}
+
 async function signAndSend(client, s, tx) {
   const [nonce, fees, gas] = await Promise.all([
     pub.getTransactionCount({ address: s.address, blockTag: 'pending' }),
     pub.estimateFeesPerGas(),
-    pub.estimateGas({ account: s.address, to: tx.to, data: tx.data, value: 0n }),
+    // tx.gas lets a demo send a transaction the chain will revert (estimateGas would refuse it first).
+    tx.gas ? Promise.resolve((BigInt(tx.gas) * 10n) / 12n) : pub.estimateGas({ account: s.address, to: tx.to, data: tx.data, value: 0n }),
   ]);
   const unsigned = {
     to: tx.to, data: tx.data, value: '0x0', chain_id: CHAIN_ID, type: 2,
@@ -187,9 +216,29 @@ const commands = {
     } catch (e) {
       console.log(`(x402 client unavailable, calling the relay without payment: ${e.message})`);
     }
+    // Prove this pull is ours: the relay refuses transferFrom through the shared PolicyGuard without it.
+    const deadline = Math.floor(Date.now() / 1000) + 120;
+    const pullAuth = await client.wallets().ethereum().signTypedData(s.walletId, {
+      params: {
+        typed_data: {
+          domain: { name: 'GuardianAI Pull Authorization', version: '1', chainId: CHAIN_ID, verifyingContract: POLICY_GUARD },
+          types: {
+            PullAuthorization: [
+              { name: 'from', type: 'address' }, { name: 'target', type: 'address' }, { name: 'calldataHash', type: 'bytes32' },
+              { name: 'value', type: 'uint256' }, { name: 'deadline', type: 'uint256' },
+            ],
+          },
+          primary_type: 'PullAuthorization',
+          message: { from: s.address, target: USDC, calldataHash: keccak256(inner), value: 0, deadline },
+        },
+      },
+    });
     const res = await doFetch(`${RELAY}/api/v1/attest`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agent_id: agentIdFor(s.address), target: USDC, data: inner, value: 0, prompt }),
+      body: JSON.stringify({
+        agent_id: agentIdFor(s.address), target: USDC, data: inner, value: 0, prompt,
+        owner_authorization: { signature: pullAuth.signature, deadline },
+      }),
     });
     const fee = res.headers.get('payment-response');
     if (fee) {
@@ -203,11 +252,129 @@ const commands = {
     const { hash, receipt } = await signAndSend(client, s, { to: POLICY_GUARD, data: body.wrapped_calldata });
     console.log(`PolicyGuard executeWithAttestation: ${receipt.status} block ${receipt.blockNumber} ${SCAN}/tx/${hash}`);
   },
+
+  async 'update-policy'() {
+    const client = privy();
+    const s = wallet();
+    const agentWallet = agentWalletFor(s.address);
+    const policy = guardianAgentPolicy({
+      policyGuard: POLICY_GUARD, usdc: USDC, payTo: process.env.GUARDIAN_X402_PAY_TO, agentWallets: agentWallet ? [agentWallet] : [],
+    });
+    const p = await client.policies().update(s.policyId, { name: policy.name, rules: policy.rules });
+    console.log(`policy ${p.id} updated: ${p.rules.length} rules`);
+    for (const r of p.rules) console.log(`  ${r.action}  ${r.method}  ${r.name}`);
+  },
+
+  async 'wallet-status'() {
+    const s = wallet();
+    const w = agentWalletFor(s.address);
+    if (!w) { console.error('No GuardianAgentWallet for this agent in metropolis/deployments-monad.json'); process.exit(2); }
+    const read = (functionName) => pub.readContract({ address: w, abi: WALLET_ABI, functionName });
+    const [mon, usdc, operator, signer, oracle, paused] = await Promise.all([
+      pub.getBalance({ address: w }),
+      pub.readContract({ address: USDC, abi: erc20, functionName: 'balanceOf', args: [w] }),
+      read('operator'), read('guardianSigner'), read('threatOracle'), read('paused'),
+    ]);
+    console.log(JSON.stringify({ wallet: w, mon: formatEther(mon), usdc: formatUnits(usdc, 6), operator, guardianSigner: signer, threatOracle: oracle, paused, scan: `${SCAN}/address/${w}` }, null, 2));
+  },
+
+  async 'wallet-pay'(to, amount, ...promptWords) {
+    if (!to || !amount) { console.error('usage: node agent.cjs wallet-pay <to> <mon> [prompt]'); process.exit(2); }
+    return walletAct({ to: getAddress(to), value: parseEther(amount), data: '0x', prompt: promptWords.join(' ') || `Send ${amount} MON to ${to}` });
+  },
+
+  async 'wallet-pay-usdc'(to, amount, ...promptWords) {
+    if (!to || !amount) { console.error('usage: node agent.cjs wallet-pay-usdc <to> <usdc> [prompt]'); process.exit(2); }
+    const data = encodeFunctionData({ abi: erc20, functionName: 'transfer', args: [getAddress(to), BigInt(Math.round(Number(amount) * 1e6))] });
+    return walletAct({ to: USDC, value: 0n, data, prompt: promptWords.join(' ') || `Pay ${amount} USDC to ${to}` });
+  },
+
+  async 'wallet-fund'(amount = '10') {
+    const s = wallet();
+    const w = agentWalletFor(s.address);
+    if (!w) { console.error('No GuardianAgentWallet for this agent'); process.exit(2); }
+    return commands.pay(w, amount, `Move ${amount} USDC into my GuardianAgentWallet`);
+  },
+
+  async 'wallet-bypass'(to = STRANGER, amount = '0.05') {
+    const client = privy();
+    const s = wallet();
+    const w = agentWalletFor(s.address);
+    if (!w) { console.error('No GuardianAgentWallet for this agent'); process.exit(2); }
+    const value = parseEther(amount);
+    // The agent skips GuardianAI and approves itself: a well-formed attestation with a signature GuardianAI never made.
+    const forged = {
+      agentId: keccak256(toBytes(agentIdFor(s.address))), targetContract: getAddress(to), calldataHash: keccak256('0x'),
+      value, riskScore: 0, nonce: BigInt(Date.now()), deadline: BigInt(Math.floor(Date.now() / 1000) + 300),
+    };
+    // Signed with a throwaway key (a perfectly valid ECDSA signature), just not GuardianAI's.
+    const { privateKeyToAccount, generatePrivateKey } = require('viem/accounts');
+    const selfSigner = privateKeyToAccount(generatePrivateKey());
+    const fakeSig = await selfSigner.signTypedData({
+      domain: { name: 'GuardianAgentWallet', version: '1', chainId: CHAIN_ID, verifyingContract: w },
+      types: {
+        SafetyAttestation: [
+          { name: 'agentId', type: 'bytes32' }, { name: 'targetContract', type: 'address' }, { name: 'calldataHash', type: 'bytes32' },
+          { name: 'value', type: 'uint256' }, { name: 'riskScore', type: 'uint8' }, { name: 'nonce', type: 'uint256' }, { name: 'deadline', type: 'uint256' },
+        ],
+      },
+      primaryType: 'SafetyAttestation',
+      message: forged,
+    });
+    console.log(`agent self-signs an approval with ${selfSigner.address} (GuardianAI's signer is ${await pub.readContract({ address: w, abi: WALLET_ABI, functionName: 'guardianSigner' })})`);
+    const data = encodeFunctionData({ abi: WALLET_ABI, functionName: 'execute', args: [getAddress(to), value, '0x', forged, fakeSig] });
+    try {
+      await pub.call({ account: s.address, to: w, data });
+      console.log('UNEXPECTED: simulation succeeded');
+    } catch (e) {
+      console.log(`eth_call says: ${revertName(e)}`);
+    }
+    const { hash, receipt } = await signAndSend(client, s, { to: w, data, gas: 200000 });
+    console.log(`bypass tx mined: status=${receipt.status} (expected: reverted) ${SCAN}/tx/${hash}`);
+    const bal = await pub.getBalance({ address: w });
+    console.log(`wallet still holds ${formatEther(bal)} MON`);
+    process.exitCode = receipt.status === 'reverted' ? 0 : 1;
+  },
 };
+
+function revertName(e) {
+  const raw = e?.cause?.data ?? e?.data ?? e?.cause?.cause?.data;
+  const hex = typeof raw === 'string' ? raw : raw?.data;
+  if (hex && hex.length >= 10) {
+    try { return `reverted with ${decodeErrorResult({ abi: WALLET_ABI, data: hex }).errorName}`; } catch {}
+    return `reverted with ${hex.slice(0, 10)}`;
+  }
+  return (e?.shortMessage || e?.message || String(e)).slice(0, 200);
+}
+
+async function walletAct({ to, value, data, prompt }) {
+  const client = privy();
+  const s = wallet();
+  const w = agentWalletFor(s.address);
+  if (!w) { console.error('No GuardianAgentWallet for this agent'); process.exit(2); }
+  const res = await fetch(`${RELAY}/api/v1/attest`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent_id: agentIdFor(s.address), wallet: w, target: to, data, value: value.toString(), prompt }),
+  });
+  const body = await res.json().catch(() => ({}));
+  console.log(`GuardianAI: HTTP ${res.status} ${body.status || ''} risk=${body.risk_score ?? '-'} ${(body.reasons || []).join('; ')}`);
+  if (body.status !== 'approved') { console.log('No approval, so nothing is signed or sent.'); process.exitCode = 1; return; }
+  try {
+    await pub.call({ account: s.address, to: w, data: body.wrapped_calldata });
+  } catch (e) {
+    console.log(`The chain refuses it before sending: ${revertName(e)}`);
+    const { hash, receipt } = await signAndSend(client, s, { to: w, data: body.wrapped_calldata, gas: 250000 });
+    console.log(`sent anyway to prove it on-chain: status=${receipt.status} ${SCAN}/tx/${hash}`);
+    process.exitCode = 1;
+    return;
+  }
+  const { hash, receipt } = await signAndSend(client, s, { to: w, data: body.wrapped_calldata });
+  console.log(`GuardianAgentWallet.execute: ${receipt.status} block ${receipt.blockNumber} ${SCAN}/tx/${hash}`);
+}
 
 const [cmd, ...args] = process.argv.slice(2);
 if (!commands[cmd]) {
-  console.log('usage: node agent.cjs <setup|status|lock-test|approve|pay> ...');
+  console.log('usage: node agent.cjs <setup|status|lock-test|approve|pay|update-policy|wallet-status|wallet-pay|wallet-pay-usdc|wallet-fund|wallet-bypass> ...');
   process.exit(cmd ? 2 : 0);
 }
 commands[cmd](...args).catch((e) => { console.error(e?.status || '', e?.message || e); process.exit(1); });

@@ -20,14 +20,17 @@ const TRANSFER_WITH_AUTH_TYPES = {
   primary_type: 'TransferWithAuthorization',
 };
 
-function guardianAgentPolicy({ policyGuard, usdc, payTo, chainId = 10143, maxApproveUnits = '20000000', maxFeeUnits = '50000' }) {
+function guardianAgentPolicy({ policyGuard, usdc, payTo, agentWallets = [], chainId = 10143, maxApproveUnits = '20000000', maxFeeUnits = '50000' }) {
   const chain = String(chainId);
+  // GuardianAgentWallets this key operates. The wallet itself refuses any call without a GuardianAI approval,
+  // so the Privy lock and the on-chain lock are two independent layers.
+  const guarded = [...both(policyGuard), ...agentWallets.flatMap(both)];
   const txRules = (method) => [
     {
-      name: `${method.replace('eth_', '')}: PolicyGuard only, no MON`,
+      name: `${method.replace('eth_', '')}: Guardian contracts, no MON`,
       method, action: 'ALLOW',
       conditions: [
-        { field_source: 'ethereum_transaction', field: 'to', operator: 'in', value: both(policyGuard) },
+        { field_source: 'ethereum_transaction', field: 'to', operator: 'in', value: guarded },
         { field_source: 'ethereum_transaction', field: 'chain_id', operator: 'eq', value: chain },
         { field_source: 'ethereum_transaction', field: 'value', operator: 'lte', value: '0x0' },
       ],
@@ -44,6 +47,16 @@ function guardianAgentPolicy({ policyGuard, usdc, payTo, chainId = 10143, maxApp
     },
   ];
   const rules = [...txRules('eth_signTransaction'), ...txRules('eth_sendTransaction')];
+  // Owner authorization for pulls through the shared PolicyGuard (GuardianAI Pull Authorization, EIP-712).
+  // Only typed data bound to PolicyGuard on this chain; it moves nothing by itself.
+  rules.push({
+    name: 'GuardianAI pull authorization',
+    method: 'eth_signTypedData_v4', action: 'ALLOW',
+    conditions: [
+      { field_source: 'ethereum_typed_data_domain', field: 'verifyingContract', operator: 'in', value: both(policyGuard) },
+      { field_source: 'ethereum_typed_data_domain', field: 'chainId', operator: 'eq', value: chain },
+    ],
+  });
   if (payTo) {
     rules.push({
       name: 'x402: small USDC fees to GuardianAI only',

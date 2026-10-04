@@ -173,6 +173,8 @@ class GuardianRPCRelay:
         self.app.add_url_rule('/stats', view_func=self.get_stats, methods=['GET'])
         self.app.add_url_rule('/', view_func=self.proxy, methods=['POST'])
         self.app.add_url_rule('/api/v1/attest', view_func=self.attest_transaction, methods=['POST'])
+        # Read by the Chainlink CRE workflow (metropolis/chainlink) to write the scam list on-chain.
+        self.app.add_url_rule('/api/v1/threat-oracle/feed', view_func=self.threat_oracle_feed, methods=['GET'])
         # Per-agent rules: read is public (an agent can see its limits); writes need the admin token.
         self.app.add_url_rule('/api/v1/agents/<agent_id>/rules', view_func=self.get_agent_rules, methods=['GET'])
         self.app.add_url_rule('/api/v1/agents/<agent_id>/rules', view_func=self.put_agent_rules, methods=['PUT'], endpoint='put_agent_rules')
@@ -354,7 +356,12 @@ class GuardianRPCRelay:
             prompt=prompt,
             nonce=int(nonce) if nonce is not None else None,
             ttl_seconds=int(ttl) if ttl is not None else None,
+            wallet=req_data.get("wallet") or None,
+            owner_authorization=req_data.get("owner_authorization"),
         )
+
+        key = "attest_approved" if result.status == "approved" else "attest_blocked"
+        self.stats[key] = self.stats.get(key, 0) + 1
 
         # With x402 on, a blocked action returns 403 so the payment is not settled:
         # agents pay only for approvals.
@@ -364,6 +371,21 @@ class GuardianRPCRelay:
             status=status,
             mimetype="application/json"
         )
+
+    def threat_oracle_feed(self):
+        """GET /api/v1/threat-oracle/feed: deterministic feed for the Chainlink CRE DON (see threat_oracle_feed.py)."""
+        from guardian.relayer.threat_oracle_feed import build_feed
+        s = self.stats
+        stats = {
+            "blocked": s.get("blocked", 0) + s.get("attest_blocked", 0),
+            "passed": s.get("passed", 0) + s.get("attest_approved", 0),
+            "intercepted": s.get("intercepted", 0) + s.get("attest_approved", 0) + s.get("attest_blocked", 0),
+        }
+        try:
+            feed = build_feed(stats)
+        except (ValueError, OSError) as e:
+            return Response(json.dumps({"error": f"Threat oracle feed unavailable: {e}"}), status=503, mimetype="application/json")
+        return Response(json.dumps(feed), status=200, mimetype="application/json")
 
     def get_agent_rules(self, agent_id):
         store = getattr(self.attestation_service, "rules_store", None)

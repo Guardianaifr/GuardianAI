@@ -1,0 +1,7 @@
+{
+  "_comment": "Addresses GuardianAI flags for the Chainlink CRE threat oracle (GuardianThreatOracle on Monad). These are demo addresses used in the hackathon demo, not claims about real third parties. flagged:false un-flags an address on-chain.",
+  "entries": [
+    {"address": "0x7a3b9c1d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b", "flagged": true, "reason": "demo: drain recipient used in tools/privy-agent lock-test"},
+    {"address": "0x000000000000000000000000000000000000dEaD", "flagged": true, "reason": "demo: burn address, funds sent here are lost"}
+  ]
+}

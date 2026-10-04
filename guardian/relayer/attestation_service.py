@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import os
 import secrets
+import threading
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
@@ -50,6 +51,71 @@ EXECUTE_WITH_ATTESTATION_ABI = [
         "outputs": [{"name": "", "type": "bytes"}],
     }
 ]
+
+
+_ATTESTATION_TUPLE = {
+    "name": "attestation",
+    "type": "tuple",
+    "components": [
+        {"name": "agentId", "type": "bytes32"},
+        {"name": "targetContract", "type": "address"},
+        {"name": "calldataHash", "type": "bytes32"},
+        {"name": "value", "type": "uint256"},
+        {"name": "riskScore", "type": "uint8"},
+        {"name": "nonce", "type": "uint256"},
+        {"name": "deadline", "type": "uint256"},
+    ],
+}
+
+# GuardianAgentWallet.execute(target, value, data, attestation, signature)
+AGENT_WALLET_EXECUTE_ABI = [
+    {
+        "name": "execute",
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "inputs": [
+            {"name": "target", "type": "address"},
+            {"name": "value", "type": "uint256"},
+            {"name": "data", "type": "bytes"},
+            _ATTESTATION_TUPLE,
+            {"name": "signature", "type": "bytes"},
+        ],
+        "outputs": [{"name": "", "type": "bytes"}],
+    }
+]
+
+POLICY_GUARD_DOMAIN_NAME = "GuardianPolicyGuard"
+AGENT_WALLET_DOMAIN_NAME = "GuardianAgentWallet"
+
+# Calls that move a THIRD PARTY's assets using an allowance granted to the caller. Through the shared
+# PolicyGuard the caller is PolicyGuard itself, so these can spend any agent's PolicyGuard allowance.
+# Value: index of the `from` argument.
+PULL_SELECTORS: Dict[str, int] = {
+    "0x23b872dd": 0,  # ERC-20 / ERC-721 transferFrom(from,to,amount|id)
+    "0x42842e0e": 0,  # ERC-721 safeTransferFrom(from,to,id)
+    "0xb88d4fde": 0,  # ERC-721 safeTransferFrom(from,to,id,data)
+    "0xf242432a": 0,  # ERC-1155 safeTransferFrom(from,to,id,amount,data)
+    "0x2eb2c2d6": 0,  # ERC-1155 safeBatchTransferFrom(from,to,ids,amounts,data)
+}
+PULL_AUTH_DOMAIN_NAME = "GuardianAI Pull Authorization"
+PULL_AUTH_TYPE = [
+    {"name": "from", "type": "address"},
+    {"name": "target", "type": "address"},
+    {"name": "calldataHash", "type": "bytes32"},
+    {"name": "value", "type": "uint256"},
+    {"name": "deadline", "type": "uint256"},
+]
+PULL_AUTH_MAX_TTL = 600  # seconds
+
+
+def pull_source(calldata_hex: str) -> Optional[str]:
+    """For a pull-style call, the address whose assets it moves (lowercased); otherwise None."""
+    data = (calldata_hex or "0x").lower()
+    idx = PULL_SELECTORS.get(data[:10])
+    if idx is None:
+        return None
+    word = data[10 + 64 * idx: 10 + 64 * (idx + 1)]
+    return "0x" + word[24:] if len(word) == 64 else "0x" + "0" * 40
 
 
 @dataclass
@@ -193,11 +259,9 @@ class SafetyAttestationService:
         self.fail_closed_on_feed_error = fail_closed_on_feed_error
 
         # 1. Signer Key Configuration (Audit M-01)
-        raw_key = (
-            private_key
-            or os.environ.get("GUARDIAN_ATTESTATION_SIGNER_KEY")
-            or os.environ.get("GUARDIAN_DEPLOYER_PRIVATE_KEY")
-        )
+        # Never fall back to the deployer/owner key: the attestation signer must be a separate key, so a
+        # leaked signer cannot also call owner-only functions (setAttestationSigner, sweep, unpause).
+        raw_key = private_key or os.environ.get("GUARDIAN_ATTESTATION_SIGNER_KEY")
         if not raw_key:
             # Ephemeral key fallback for testing/development
             logger.warning("No GUARDIAN_ATTESTATION_SIGNER_KEY set. Generating ephemeral key for testing.")
@@ -209,6 +273,24 @@ class SafetyAttestationService:
             self.account = Account.from_key(normalized_key)
 
         self.signer_address = self.account.address
+        self.signer_is_owner_key = False
+        deployer_key = os.environ.get("GUARDIAN_DEPLOYER_PRIVATE_KEY")
+        if deployer_key and not self.ephemeral_signer:
+            try:
+                dk = deployer_key if deployer_key.startswith("0x") else "0x" + deployer_key
+                self.signer_is_owner_key = Account.from_key(dk).address == self.signer_address
+            except Exception:
+                pass
+        if self.signer_is_owner_key:
+            msg = ("GUARDIAN_ATTESTATION_SIGNER_KEY is the same key as GUARDIAN_DEPLOYER_PRIVATE_KEY. One leaked key "
+                   "could then both approve any transaction and change the contracts' signer. Rotate the signer "
+                   "(tools/rotate_attestation_signer.py).")
+            if os.environ.get("GUARDIAN_ENV", "").strip().lower() == "production":
+                raise RuntimeError(msg)
+            logger.critical(msg)
+        self._consumed_pull_auths: Dict[str, int] = {}
+        self._pull_lock = threading.Lock()
+        self._agent_wallet_contract = self._w3.eth.contract(abi=AGENT_WALLET_EXECUTE_ABI)
 
         # 2. Verifying Contract Address (Audit L-02)
         raw_guard = (
@@ -385,8 +467,12 @@ class SafetyAttestationService:
         clamped = min(100, max(0, score))
         return clamped, reasons
 
-    def build_eip712_data(self, attestation: SafetyAttestation) -> Dict[str, Any]:
-        """Constructs the exact EIP-712 structured payload dictionary."""
+    def build_eip712_data(self, attestation: SafetyAttestation, wallet: Optional[str] = None) -> Dict[str, Any]:
+        """Constructs the exact EIP-712 structured payload dictionary.
+
+        wallet=None signs for the shared GuardianPolicyGuard; wallet=<address> signs for that
+        GuardianAgentWallet (the signature is then only valid on that one wallet).
+        """
         raw_agent_id = (
             bytes.fromhex(attestation.agentId[2:])
             if attestation.agentId.startswith("0x")
@@ -404,10 +490,10 @@ class SafetyAttestationService:
             },
             "primaryType": "SafetyAttestation",
             "domain": {
-                "name": "GuardianPolicyGuard",
+                "name": AGENT_WALLET_DOMAIN_NAME if wallet else POLICY_GUARD_DOMAIN_NAME,
                 "version": "1",
                 "chainId": self.chain_id,
-                "verifyingContract": self.verifying_contract,
+                "verifyingContract": Web3.to_checksum_address(wallet) if wallet else self.verifying_contract,
             },
             "message": {
                 "agentId": raw_agent_id,
@@ -420,19 +506,19 @@ class SafetyAttestationService:
             },
         }
 
-    def sign_attestation(self, attestation: SafetyAttestation) -> str:
+    def sign_attestation(self, attestation: SafetyAttestation, wallet: Optional[str] = None) -> str:
         """Signs typed structured data using the relayer's private key."""
-        eip712_dict = self.build_eip712_data(attestation)
+        eip712_dict = self.build_eip712_data(attestation, wallet)
         signable = encode_typed_data(full_message=eip712_dict)
         signed = self.account.sign_message(signable)
         return "0x" + signed.signature.hex()
 
     def verify_attestation_signature(
-        self, attestation: SafetyAttestation, signature: str
+        self, attestation: SafetyAttestation, signature: str, wallet: Optional[str] = None
     ) -> bool:
         """Verifies signature locally against the configured relayer signer address."""
         try:
-            eip712_dict = self.build_eip712_data(attestation)
+            eip712_dict = self.build_eip712_data(attestation, wallet)
             signable = encode_typed_data(full_message=eip712_dict)
             recovered = Account.recover_message(signable, signature=signature)
             return recovered.lower() == self.signer_address.lower()
@@ -474,6 +560,88 @@ class SafetyAttestationService:
         )
         return calldata
 
+    def wrap_for_agent_wallet(
+        self,
+        target: str,
+        value: int,
+        data_hex: str,
+        attestation: SafetyAttestation,
+        signature: str,
+    ) -> str:
+        """Encodes calldata for GuardianAgentWallet.execute(target, value, data, attestation, signature)."""
+        raw_data = bytes.fromhex(data_hex[2:]) if data_hex.startswith("0x") else bytes.fromhex(data_hex)
+        raw_sig = bytes.fromhex(signature[2:]) if signature.startswith("0x") else bytes.fromhex(signature)
+        att = (
+            bytes.fromhex(attestation.agentId[2:].rjust(64, "0")[:64]),
+            Web3.to_checksum_address(attestation.targetContract),
+            bytes.fromhex(attestation.calldataHash[2:].rjust(64, "0")[:64]),
+            attestation.value,
+            attestation.riskScore,
+            attestation.nonce,
+            attestation.deadline,
+        )
+        return self._agent_wallet_contract.encode_abi(
+            "execute", [Web3.to_checksum_address(target), value, raw_data, att, raw_sig]
+        )
+
+    def build_pull_authorization(
+        self, from_addr: str, target: str, calldata_hash: str, value: int, deadline: int
+    ) -> Dict[str, Any]:
+        """EIP-712 payload the asset owner signs to prove a pull through PolicyGuard is theirs."""
+        return {
+            "types": {"EIP712Domain": self.EIP712_DOMAIN_TYPE, "PullAuthorization": PULL_AUTH_TYPE},
+            "primaryType": "PullAuthorization",
+            "domain": {
+                "name": PULL_AUTH_DOMAIN_NAME,
+                "version": "1",
+                "chainId": self.chain_id,
+                "verifyingContract": self.verifying_contract,
+            },
+            "message": {
+                "from": Web3.to_checksum_address(from_addr),
+                "target": Web3.to_checksum_address(target),
+                "calldataHash": bytes.fromhex(calldata_hash[2:]),
+                "value": int(value),
+                "deadline": int(deadline),
+            },
+        }
+
+    def _check_pull_authorization(
+        self, from_addr: str, target: str, calldata_hash: str, value: int, auth: Any
+    ) -> Optional[str]:
+        """None if `auth` proves `from_addr` asked for this exact pull; otherwise the refusal reason.
+
+        Each authorization is accepted once (in this relay process) and lives at most PULL_AUTH_MAX_TTL.
+        """
+        if not isinstance(auth, dict) or not auth.get("signature") or auth.get("deadline") is None:
+            return (f"This call moves assets owned by {from_addr}. Pulls through the shared PolicyGuard need "
+                    f"owner_authorization signed by {from_addr} (or use a GuardianAgentWallet)")
+        try:
+            deadline = int(auth["deadline"])
+        except (TypeError, ValueError):
+            return "owner_authorization.deadline is not a number"
+        now = int(time.time())
+        if deadline < now:
+            return "owner_authorization has expired"
+        if deadline > now + PULL_AUTH_MAX_TTL:
+            return f"owner_authorization deadline is more than {PULL_AUTH_MAX_TTL}s away"
+        try:
+            payload = self.build_pull_authorization(from_addr, target, calldata_hash, value, deadline)
+            recovered = Account.recover_message(encode_typed_data(full_message=payload), signature=auth["signature"])
+        except Exception as e:
+            return f"owner_authorization signature is invalid: {type(e).__name__}"
+        if recovered.lower() != from_addr.lower():
+            return f"owner_authorization was signed by {recovered.lower()}, not by the asset owner {from_addr}"
+        key = str(auth["signature"]).lower()
+        with self._pull_lock:
+            for k, exp in list(self._consumed_pull_auths.items()):
+                if exp < now:
+                    del self._consumed_pull_auths[k]
+            if key in self._consumed_pull_auths:
+                return "owner_authorization was already used"
+            self._consumed_pull_auths[key] = deadline
+        return None
+
     def evaluate_and_attest(
         self,
         agent_id: Union[str, bytes],
@@ -483,8 +651,16 @@ class SafetyAttestationService:
         prompt: Optional[str] = None,
         nonce: Optional[int] = None,
         ttl_seconds: Optional[int] = None,
+        wallet: Optional[str] = None,
+        owner_authorization: Optional[Dict[str, Any]] = None,
     ) -> AttestationResult:
-        """Evaluates safety and signs an attestation if risk <= maxAllowedRiskScore."""
+        """Evaluates safety and signs an attestation if risk <= maxAllowedRiskScore.
+
+        wallet: a GuardianAgentWallet address. The approval is then signed for that wallet's EIP-712
+                domain and can only be executed by that wallet's operator, from that wallet's funds.
+        owner_authorization: {"signature", "deadline"} from the asset owner, required for pull-style
+                calls (transferFrom & co.) through the shared PolicyGuard.
+        """
         # 1. Normalize calldata and hash
         if data is None or data == "" or data == "0x":
             calldata_hex = "0x"
@@ -501,19 +677,28 @@ class SafetyAttestationService:
 
         # 2. Risk Evaluation (Audit H-01)
         agent_id_str = agent_id if isinstance(agent_id, str) else agent_id.hex()
+        verifying = self.verifying_contract
+        if wallet:
+            try:
+                verifying = Web3.to_checksum_address(wallet)
+            except Exception:
+                return self._blocked(100, [f"Invalid wallet address {wallet!r}"], wallet)
+            if target and target.lower() == verifying.lower():
+                return self._blocked(100, ["A wallet cannot be approved to call itself"], verifying)
         risk_score, reasons = self._compute_risk_score(agent_id_str, prompt, target, calldata_hex, value)
+
+        # 2b. Pulls through the shared PolicyGuard must be authorized by the asset owner, otherwise any
+        #     caller could spend any agent's PolicyGuard allowance.
+        if not wallet and risk_score <= self.max_allowed_risk_score:
+            src = pull_source(calldata_hex)
+            if src is not None:
+                why = self._check_pull_authorization(src, target, calldata_hash, value, owner_authorization)
+                if why:
+                    risk_score, reasons = 100, [why]
 
         # 3. Block if risk exceeds threshold
         if risk_score > self.max_allowed_risk_score:
-            return AttestationResult(
-                status="blocked",
-                risk_score=risk_score,
-                reasons=reasons,
-                attestation=None,
-                signature=None,
-                policy_guard=self.verifying_contract,
-                wrapped_calldata=None,
-            )
+            return self._blocked(risk_score, reasons, verifying)
 
         # 4. Construct Approved Attestation
         norm_agent_id = self._normalize_agent_id(agent_id)
@@ -533,15 +718,21 @@ class SafetyAttestationService:
         )
 
         # 5. Sign EIP-712 Attestation
-        sig_hex = self.sign_attestation(attestation)
+        sig_hex = self.sign_attestation(attestation, wallet=verifying if wallet else None)
 
         # 6. Call Wrapping (Audit M-03)
-        wrapped_calldata = self.wrap_for_policy_guard(
-            target=target_checksum,
-            data_hex=calldata_hex,
-            attestation=attestation,
-            signature=sig_hex,
-        )
+        if wallet:
+            wrapped_calldata = self.wrap_for_agent_wallet(
+                target=target_checksum, value=value, data_hex=calldata_hex,
+                attestation=attestation, signature=sig_hex,
+            )
+        else:
+            wrapped_calldata = self.wrap_for_policy_guard(
+                target=target_checksum,
+                data_hex=calldata_hex,
+                attestation=attestation,
+                signature=sig_hex,
+            )
 
         # 7. Record approved outflow for daily cap tracking
         if value > 0:
@@ -553,8 +744,19 @@ class SafetyAttestationService:
             reasons=[],
             attestation=attestation,
             signature=sig_hex,
-            policy_guard=self.verifying_contract,
+            policy_guard=verifying,
             wrapped_calldata=wrapped_calldata,
+        )
+
+    def _blocked(self, risk_score: int, reasons: List[str], verifying: Optional[str]) -> AttestationResult:
+        return AttestationResult(
+            status="blocked",
+            risk_score=risk_score,
+            reasons=reasons,
+            attestation=None,
+            signature=None,
+            policy_guard=verifying or self.verifying_contract,
+            wrapped_calldata=None,
         )
 
 

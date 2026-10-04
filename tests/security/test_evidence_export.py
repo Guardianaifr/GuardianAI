@@ -25,7 +25,7 @@ def test_write_evidence_bundle_without_validation(tmp_path: Path):
     path = write_evidence_bundle(root, "python", out, include_validation=False)
     assert path.exists()
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["project_root"].endswith("guardianai-basic-launch")
+    assert Path(payload["project_root"]).name == root.name  # checkout dir name differs in CI
     assert payload["config_integrity_sha256"]
     assert "validation" in payload
     assert payload["validation"] == {}

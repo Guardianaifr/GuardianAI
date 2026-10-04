@@ -36,6 +36,13 @@ import yaml
 
 logger = logging.getLogger("GuardianAI.threat_feed")
 
+def _re2_ignorecase():
+    """Case-insensitive RE2 options. google-re2 has no re2.IGNORECASE flag; it takes an Options object."""
+    import re2
+    opts = re2.Options()
+    opts.case_sensitive = False
+    return opts
+
 # Bundled fallback feed shipped with the package
 _BUILTIN_FEED_PATH = (
     Path(__file__).parent.parent.parent
@@ -596,7 +603,7 @@ class ThreatFeed:
             import re2
             try:
                 # RE2 rejects unsafe constructs (backreferences, lookarounds)
-                re2.compile(pattern, re2.IGNORECASE)
+                re2.compile(pattern, _re2_ignorecase())
                 return True
             except re2.error as e:
                 logger.warning(f"[ThreatFeed] RE2 rejected pattern: {pattern[:60]!r} — {e}")
@@ -647,7 +654,7 @@ class ThreatFeed:
             try:
                 try:
                     import re2
-                    entry.compiled = re2.compile(entry.pattern, re2.IGNORECASE)
+                    entry.compiled = re2.compile(entry.pattern, _re2_ignorecase())
                 except ImportError:
                     entry.compiled = re.compile(entry.pattern, re.IGNORECASE)
                 with self._lock:

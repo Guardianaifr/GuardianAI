@@ -38,14 +38,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest redis httpx
 
-      - name: Reinstall project packages
-        run: |
-          # If guardian needs itself installed
-          pip install -e . || echo "No setup.py, assuming local imports"
-
       - name: Run Redis Lua Pytest validation 
         env:
           TEST_REDIS_URL: redis://localhost:6379/0
           PYTHONPATH: .
         run: |
-          pytest tests/guardrails/test_rate_limiter.py -v
+          # -o addopts="": skip the repo-wide --cov flags from pytest.ini (pytest-cov is not needed here)
+          pytest -o addopts="" tests/guardrails/test_rate_limiter.py -v

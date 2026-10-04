@@ -16,7 +16,9 @@ from pathlib import Path
 import shutil
 import socket
 import statistics
+import secrets
 import subprocess
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -29,7 +31,10 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PYTHON_EXE = str(ROOT / ".venv312" / "Scripts" / "python.exe")
+_VENV_PY = ROOT / ".venv312" / "Scripts" / "python.exe"
+PYTHON_EXE = str(_VENV_PY) if _VENV_PY.exists() else sys.executable
+# Fresh random admin token per run (the proxy refuses placeholder tokens).
+ADMIN_TOKEN = secrets.token_urlsafe(32)
 OUT_DIR = ROOT / "artifacts" / "performance"
 OUT_JSON = OUT_DIR / "perf_chaos_report.json"
 OUT_MD = OUT_DIR / "perf_chaos_report.md"
@@ -124,7 +129,7 @@ def _start_stack(tmp_dir: Path, rpm_limit: int = 300) -> Stack:
             "security_mode": "balanced",
             "show_block_reason": True,
             "leak_prevention_strategy": "redact",
-            "admin_token": "***REDACTED***",
+            "admin_token": ADMIN_TOKEN,
         },
         "scanner": {},
         "runtime_monitoring": {},
@@ -202,7 +207,7 @@ def _run_load(proxy_port: int, total_requests: int, concurrency: int, payload: d
 
     def one_call(idx: int):
         t0 = time.perf_counter()
-        headers = {"X-Forwarded-For": f"198.51.{ip_seed}.{idx % 200}"}
+        headers = {"X-Forwarded-For": f"198.51.{ip_seed}.{idx % 200}", "X-Guardian-Token": ADMIN_TOKEN}
         try:
             r = requests.post(url, json=payload, headers=headers, timeout=15)
             latency_ms = (time.perf_counter() - t0) * 1000
@@ -368,11 +373,11 @@ def main():
             payload=attack_payload,
             ip_seed="12",
         )
-        report["chaos_backend_down"] = _chaos_backend_down(stack, admin_token="***REDACTED***")
+        report["chaos_backend_down"] = _chaos_backend_down(stack, admin_token=ADMIN_TOKEN)
         report["chaos_upstream_down"] = _chaos_upstream_down(
             stack.proxy_port,
             stack.upstream,
-            admin_token="***REDACTED***",
+            admin_token=ADMIN_TOKEN,
         )
         report["slo"] = _evaluate_slo(report)
     finally:

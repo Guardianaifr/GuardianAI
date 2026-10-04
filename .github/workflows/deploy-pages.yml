@@ -1,10 +1,8 @@
 name: Deploy Website to GitHub Pages
 
+# Manual only: GitHub Pages is not enabled for this repo (the site is deployed elsewhere).
+# Enable Pages (Settings -> Pages -> Source: GitHub Actions) before running this.
 on:
-  push:
-    branches: ["main", "master", "p2-fixes"]
-    paths:
-      - "website/**"
   workflow_dispatch:
 
 permissions:

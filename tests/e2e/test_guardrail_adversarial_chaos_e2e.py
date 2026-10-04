@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import json
 import os
 from pathlib import Path
@@ -72,7 +73,8 @@ def test_adversarial_chaos_concurrency_e2e(tmp_path: Path):
     backend_env["PYTHONUTF8"] = "1"
     backend_env["PYTHONPATH"] = str(ROOT)
 
-    python_exe = str(ROOT / ".venv312" / "Scripts" / "python.exe")
+    _venv_py = ROOT / ".venv312" / "Scripts" / "python.exe"
+    python_exe = str(_venv_py) if _venv_py.exists() else sys.executable
     backend_cmd = [
         python_exe,
         "-c",

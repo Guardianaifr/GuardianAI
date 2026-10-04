@@ -99,7 +99,8 @@ def test_auth(tmp_path: Path):
     config_path = tmp_path / "auth_test_config.yaml"
     config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
 
-    python_exe = str(ROOT / ".venv312" / "Scripts" / "python.exe")
+    _venv_py = ROOT / ".venv312" / "Scripts" / "python.exe"
+    python_exe = str(_venv_py) if _venv_py.exists() else sys.executable
     guardian_cmd = [python_exe, str(ROOT / "guardian" / "main.py")]
     
     guardian_env = os.environ.copy()

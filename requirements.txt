@@ -1,7 +1,7 @@
 annotated-doc==0.0.4
 annotated-types==0.7.0
 argon2-cffi==23.1.0
-anyio==4.12.1
+anyio==4.14.2
 attrs==25.4.0
 blinker==1.9.0
 blis==0.7.11
@@ -9,11 +9,11 @@ catalogue==2.0.10
 certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.4
-click==8.3.1
+click==8.3.3
 cloudpathlib==0.16.0
 colorama==0.4.6
 confection==0.1.5
-cryptography==48.0.1
+cryptography==50.0.0
 cymem==2.0.13
 en-core-web-lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.1/en_core_web_lg-3.7.1-py3-none-any.whl#sha256=ab70aeb6172cde82508f7739f35ebc9918a3d07debeed637403c8f794ba3d3dc
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl#sha256=86cc141f63942d4b2c5fcee06630fd6f904788d2f0ab005cce45aadb8fb73889
@@ -55,7 +55,7 @@ regex==2026.2.28
 requests==2.33.0
 requests-file==3.0.1
 rpds-py==0.30.0
-setuptools==82.0.0
+setuptools==83.0.0
 six==1.17.0
 smart-open==6.4.0
 spacy==3.7.2
@@ -69,7 +69,7 @@ tqdm==4.67.3
 typer==0.9.4
 typing-inspection==0.4.2
 typing_extensions==4.15.0
-urllib3==2.7.0
+urllib3==2.8.0
 uvicorn==0.41.0
 waitress==3.0.2
 slither-analyzer==0.11.5
@@ -85,7 +85,7 @@ wheel==0.46.3
 # (guardian/guardrails/ai_firewall.py). Without this, AI_FIREWALL_AVAILABLE=False
 # and all ML-based detection silently degrades to keyword matching.
 # Pinned to last tested version; update only after running test_ai_firewall.py.
-sentence-transformers==5.2.2
+sentence-transformers==5.6.0
 # deep-translator: required for F2 multilingual translation adapter
 # (guardian/guardrails/translation_adapter.py). Wraps Google Translate's free
 # public endpoint via plain HTTPS (no API key, uses `requests` which is already

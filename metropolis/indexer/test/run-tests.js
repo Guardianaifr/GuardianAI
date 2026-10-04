@@ -7,7 +7,8 @@ const __dirname = path.dirname(__filename);
 
 const testPaths = [
   path.resolve(__dirname, 'EventHandlers.test.ts'),
-  path.resolve(__dirname, 'EventHandlers.adversarial.test.ts')
+  path.resolve(__dirname, 'EventHandlers.adversarial.test.ts'),
+  path.resolve(__dirname, 'EnforcementHandlers.test.ts')
 ];
 
 for (const testPath of testPaths) {

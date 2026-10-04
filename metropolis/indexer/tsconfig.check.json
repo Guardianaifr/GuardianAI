@@ -1,0 +1,2 @@
+{ "compilerOptions": { "target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "strict": true, "skipLibCheck": true, "noEmit": true, "esModuleInterop": true },
+  "files": ["envio-env.d.ts", "src/EnvioHandlers.ts", "src/EventHandlers.ts"] }

@@ -8,7 +8,8 @@
     "codegen": "envio codegen",
     "build": "tsc",
     "test": "node test/run-tests.js",
-    "start": "envio start"
+    "start": "envio start",
+    "typecheck": "envio codegen && tsc -p tsconfig.check.json"
   },
   "keywords": [
     "envio",
@@ -19,5 +20,9 @@
     "security"
   ],
   "author": "GuardianAI",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "envio": "^3.12.1",
+    "typescript": "^5.4.0"
+  }
 }

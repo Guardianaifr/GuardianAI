@@ -5,7 +5,7 @@ description: Real-time Envio HyperIndex for GuardianAI on Monad Testnet
 contracts:
   - name: GuardianPolicyGuard
     abi_file_path: abis/GuardianPolicyGuard.json
-    handler: src/EventHandlers.ts
+    handler: src/EnvioHandlers.ts
     events:
       - event: ActionExecutedWithAttestation(bytes32 indexed agentId, address indexed target, uint8 riskScore, uint256 nonce)
       - event: AttestationSignerUpdated(address indexed previousSigner, address indexed newSigner)
@@ -13,7 +13,7 @@ contracts:
 
   - name: GuardianThreatFeedRegistry
     abi_file_path: abis/GuardianThreatFeedRegistry.json
-    handler: src/EventHandlers.ts
+    handler: src/EnvioHandlers.ts
     events:
       - event: AddressAdded(address indexed malicious, string reason)
       - event: AddressRemoved(address indexed malicious)
@@ -22,29 +22,53 @@ contracts:
 
   - name: GuardianPassportSBT
     abi_file_path: abis/GuardianPassportSBT.json
-    handler: src/EventHandlers.ts
+    handler: src/EnvioHandlers.ts
     events:
       - event: ScoreUpdated(uint256 indexed tokenId, bytes32 indexed agentHash, uint256 newScore, uint8 newTier)
       - event: PassportRevoked(uint256 indexed tokenId, bytes32 indexed agentHash, uint256 revokedAt)
 
   - name: GuardianCortexAnchor
     abi_file_path: abis/GuardianCortexAnchor.json
-    handler: src/EventHandlers.ts
+    handler: src/EnvioHandlers.ts
     events:
       - event: RootCommitted(bytes32 indexed merkleRoot, bytes32 indexed agentHash, uint256 eventCount, uint256 periodStart, uint256 periodEnd, uint256 commitmentIndex)
 
   - name: GuardianRiskAttestation
     abi_file_path: abis/GuardianRiskAttestation.json
-    handler: src/EventHandlers.ts
+    handler: src/EnvioHandlers.ts
     events:
       - event: RiskAttested(address indexed contractAddress, string indexed chain, uint16 score, string grade, bytes32 signalsHash)
       - event: AttestationUpdated(address indexed contractAddress, string indexed chain, uint16 score, string grade, bytes32 signalsHash)
 
+  # On-chain enforcement layer (hackathon): agent wallets refuse calls without a GuardianAI approval,
+  # and the Chainlink CRE threat oracle writes the DON-agreed scam list they check.
+  - name: GuardianAgentWalletFactory
+    abi_file_path: abis/GuardianAgentWalletFactory.json
+    handler: src/EnvioHandlers.ts
+    events:
+      - event: WalletCreated(bytes32 indexed agentId, address indexed wallet, address indexed owner, address operator)
+
+  - name: GuardianAgentWallet
+    abi_file_path: abis/GuardianAgentWallet.json
+    handler: src/EnvioHandlers.ts
+    events:
+      - event: Executed(uint256 indexed nonce, address indexed target, uint256 value, uint8 riskScore, bytes32 calldataHash)
+      - event: OwnerExecuted(address indexed target, uint256 value, bytes32 calldataHash)
+      - event: Paused(address account)
+      - event: Unpaused(address account)
+      - event: ThreatOracleUpdated(address indexed previousOracle, address indexed newOracle)
+
+  - name: GuardianThreatOracle
+    abi_file_path: abis/GuardianThreatOracle.json
+    handler: src/EnvioHandlers.ts
+    events:
+      - event: ThreatReportAccepted(uint64 indexed asOf, uint256 blocked, uint256 intercepted, uint256 passed, bytes32 feedDigest, uint256 changes)
+      - event: AddressFlagUpdated(address indexed account, bool flagged)
+
 chains:
   - id: 10143
     start_block: 0
-    rpc_config:
-      url: ${ENVIO_MONAD_RPC_URL:-https://testnet-rpc.monad.xyz}
+    rpc: ${ENVIO_MONAD_RPC_URL:-https://testnet-rpc.monad.xyz}
     contracts:
       - name: GuardianPolicyGuard
         address: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
@@ -56,3 +80,9 @@ chains:
         address: "0x78aFC34a9653c762cA9827370A94a02f7412dBfa"
       - name: GuardianRiskAttestation
         address: "0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87"
+      - name: GuardianAgentWalletFactory
+        address: "0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6"
+      # GuardianAgentWallet addresses are registered dynamically from WalletCreated.
+      - name: GuardianAgentWallet
+      - name: GuardianThreatOracle
+        address: "0x26144375c4f846174A386C464aC5F2e671EbdA95"

@@ -10,7 +10,10 @@ const contracts = [
   'GuardianThreatFeedRegistry',
   'GuardianPassportSBT',
   'GuardianCortexAnchor',
-  'GuardianRiskAttestation'
+  'GuardianRiskAttestation',
+  'GuardianAgentWalletFactory',
+  'GuardianAgentWallet',
+  'GuardianThreatOracle'
 ];
 
 const artifactsDir = path.resolve(__dirname, '../../../contracts/artifacts/contracts');

@@ -62,3 +62,61 @@ type GlobalSecurityStats @entity {
   totalCortexRootsAnchored: BigInt!
   lastUpdated: BigInt!
 }
+
+# ── On-chain enforcement layer ───────────────────────────────────────────────
+
+type AgentWallet @entity {
+  id: ID! # wallet address, lowercased
+  agentId: String!
+  owner: String!
+  operator: String!
+  threatOracle: String
+  paused: Boolean!
+  executedCount: BigInt!
+  ownerExecutedCount: BigInt!
+  createdAt: BigInt!
+  createdTx: String!
+}
+
+type AgentWalletExecution @entity {
+  id: ID! # ${txHash}-${logIndex}
+  wallet: String!
+  byOwner: Boolean! # true = human emergency path (no GuardianAI approval)
+  nonce: BigInt # null for owner executions
+  target: String!
+  value: BigInt!
+  riskScore: Int # null for owner executions
+  calldataHash: String!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+type ThreatOracleReport @entity {
+  id: ID! # ${txHash}-${logIndex}
+  asOf: BigInt!
+  blocked: BigInt!
+  intercepted: BigInt!
+  passed: BigInt!
+  feedDigest: String!
+  changes: BigInt!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+type ThreatOracleFlag @entity {
+  id: ID! # address, lowercased
+  flagged: Boolean!
+  updatedAt: BigInt!
+  txHash: String!
+}
+
+type EnforcementStats @entity {
+  id: ID! # "global"
+  agentWallets: BigInt!
+  guardianApprovedExecutions: BigInt!
+  ownerExecutions: BigInt!
+  oracleReports: BigInt!
+  oracleFlaggedCount: BigInt!
+  lastUpdated: BigInt!
+}
+

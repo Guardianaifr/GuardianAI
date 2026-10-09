@@ -11,16 +11,6 @@
       ],
       "redirects": [
         {
-          "source": "/explorer",
-          "destination": "/explorer/",
-          "type": 301
-        },
-        {
-          "source": "/mera",
-          "destination": "/mera/",
-          "type": 301
-        },
-        {
           "source": "/boost",
           "destination": "/",
           "type": 302
@@ -33,8 +23,20 @@
       ],
       "rewrites": [
         {
+          "source": "/explorer",
+          "destination": "/explorer/index.html"
+        },
+        {
           "source": "/explorer/**",
           "destination": "/explorer/index.html"
+        },
+        {
+          "source": "/mera",
+          "destination": "/mera/index.html"
+        },
+        {
+          "source": "/mera/**",
+          "destination": "/mera/index.html"
         }
       ],
       "headers": [

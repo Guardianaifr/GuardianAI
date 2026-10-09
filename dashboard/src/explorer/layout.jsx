@@ -34,6 +34,7 @@ const HOME_NAV = [
   { href: '#architecture', label: 'Architecture' },
   { href: '#proof', label: 'Proof' },
   { href: '#developers', label: 'Build' },
+  { href: '/mera/', label: 'Passkey' },
 ]
 
 export function Header({ page, theme, toggleTheme }) {

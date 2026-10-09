@@ -3,7 +3,7 @@ import {
   Brain, Lock, Inbox, Shield, Bot, Landmark, Database, ExternalLink, RefreshCw, Loader2, CheckCircle2, AlertTriangle,
   Code2, Copy, Check, ArrowRight, Users, Coins, Flag,
 } from 'lucide-react'
-import { ALL_CONTRACTS, CONTRACTS, REAL_PAYMENT_TX, X402_FEE_TX, TEAM_WALLET, addressUrl, txUrl, checkDeployed, readLiveStats, listPassports } from './chain.js'
+import { ALL_CONTRACTS, CONTRACTS, REAL_PAYMENT_TX, X402_FEE_TX, TEAM_WALLET, CRE_REPORT_TX, FLAGGED_REVERT_TX, BYPASS_REVERT_TX, addressUrl, txUrl, checkDeployed, readLiveStats, listPassports } from './chain.js'
 import { SPONSORS, REPO_PUBLIC, repoLink, FOUNDER, AUDIENCE, BUSINESS, NEXT } from './siteConfig.js'
 import { Section, StatusPill } from './ui.jsx'
 
@@ -21,6 +21,8 @@ const GATE_1 = [
 ]
 
 const GATE_2 = [
+  { text: 'The agent’s money lives in its own wallet contract: a call needs the agent’s key and GuardianAI’s signature, so a stolen key alone moves nothing', c: CONTRACTS.agentWallet },
+  { text: 'Refuses any destination the Chainlink CRE oracle has flagged, even if everything else approved it', c: CONTRACTS.threatOracle },
   { text: 'Runs a payment only with GuardianAI’s signature for that exact recipient, amount and data', c: CONTRACTS.policyGuard },
   { text: 'Refuses anything GuardianAI scored above the risk limit', c: CONTRACTS.policyGuard },
   { text: 'Requires an active agent ID card; revoke it and the agent stops', c: CONTRACTS.passport },
@@ -75,7 +77,7 @@ export function TwoGates() {
               </li>
             ))}
           </ul>
-          <p className="gx-muted mt-5 font-mono text-xs">contracts/contracts/GuardianPolicyGuard.sol · GuardianPassportSBT.sol · GuardianThreatFeedRegistry.sol</p>
+          <p className="gx-muted mt-5 font-mono text-xs">contracts/contracts/GuardianAgentWallet.sol · GuardianThreatOracle.sol · GuardianPolicyGuard.sol · GuardianPassportSBT.sol</p>
         </div>
       </div>
     </Section>
@@ -90,16 +92,17 @@ const STOPS = [
   { key: 'in', icon: Inbox, title: 'Untrusted input', sub: 'Emails, chats, web pages, other agents' },
   { key: 'g1', icon: Shield, title: 'Gate 1', sub: 'Off-chain firewall' },
   { key: 'agent', icon: Bot, title: 'AI agent', sub: 'ElizaOS or any viem wallet', tags: [
-    { sponsor: 'mera', label: 'Mera · passkey ID + sealed memory (local)' },
+    { sponsor: 'mera', label: 'Mera · passkey identity, sealed memory, vault (live)' },
+    { sponsor: 'privy', label: 'Privy · policy-locked server wallet (live)' },
     { monad: 'ERC-8004 identity registry (testnet stand-in)' },
   ] },
-  { key: 'g2', icon: Landmark, title: 'Gate 2', sub: 'PolicyGuard on Monad', tags: [
+  { key: 'g2', icon: Landmark, title: 'Gate 2', sub: 'Agent wallet + PolicyGuard on Monad', tags: [
+    { sponsor: 'chainlink', label: 'Chainlink CRE · threat oracle checked on every call (simulated DON)' },
     { monad: 'Parallel-safe approvals: usedNonces[agentId][nonce]' },
     { monad: 'P-256 passkey verify helper via precompile 0x0100 (callable, not yet in the payment path)' },
   ] },
   { key: 'data', icon: Database, title: 'On-chain record', sub: 'Every decision is public', tags: [
-    { sponsor: 'envio', label: 'Envio · indexes gate events (local)' },
-    { sponsor: 'chainlink', label: 'Chainlink CRE · threat oracle (simulated)' },
+    { sponsor: 'envio', label: 'Envio · indexes wallets, payments and oracle flags (Envio Cloud)' },
   ] },
 ]
 
@@ -165,6 +168,9 @@ export function Architecture() {
             <h3 className="gx-t1 mt-1 text-xl font-bold">{sponsor.name}: {sponsor.title}</h3>
             <p className="gx-t2 mt-2 leading-relaxed">{sponsor.body}</p>
             <div className="mt-4"><StatusPill kind={sponsor.statusKind}>{sponsor.status}</StatusPill></div>
+            {sponsor.liveUrl && (
+              <a href={sponsor.liveUrl} className="gx-btn gx-focus mt-4 inline-flex">{sponsor.liveLabel || 'Try it live'} <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
+            )}
           </div>
           <div className="min-w-0">
             <p className="gx-muted text-xs font-semibold">Run it yourself</p>
@@ -212,6 +218,8 @@ export function ProofLedger() {
     [CONTRACTS.policyGuard.address]: s && `${s.paused ? 'PAUSED' : 'active'} · risk limit ${s.maxRisk}/100`,
     [CONTRACTS.passport.address]: s && `${s.activePassports} active agent ID ${s.activePassports === 1 ? 'card' : 'cards'}`,
     [CONTRACTS.threatFeed.address]: s && `${s.scamAddresses} scam ${s.scamAddresses === 1 ? 'wallet' : 'wallets'} listed`,
+    [CONTRACTS.threatOracle.address]: s && `${s.oracleReports} CRE ${s.oracleReports === 1 ? 'report' : 'reports'} · ${s.oracleFlagged} flagged`,
+    [CONTRACTS.agentWallet.address]: s && `${s.walletPaused ? 'FROZEN' : 'active'} · risk limit ${s.walletMaxRisk}/100${s.walletUsesOracle ? ' · checks the CRE oracle' : ''}`,
   }
   const liveCount = state.sizes ? Object.values(state.sizes).filter((n) => n > 0).length : 0
 
@@ -258,6 +266,27 @@ export function ProofLedger() {
               </li>
             )
           })}
+        </ul>
+      </div>
+      <div className="gx-card mt-4 p-4 sm:px-5">
+        <span className="gx-t1 block font-semibold">The agent wallet, on the record</span>
+        <span className="gx-t2 block text-sm">A Chainlink CRE report, then two payments the contract itself refused, not GuardianAI’s server. Open them on MonadScan and check the status.</span>
+        <ul className="mt-3 space-y-2.5">
+          {[
+            { tx: CRE_REPORT_TX, label: 'Chainlink CRE: a signed report flags 2 scam addresses on GuardianThreatOracle', ok: true },
+            { tx: FLAGGED_REVERT_TX, label: 'GuardianAI’s firewall approved a payment to one of them; the agent wallet refused it: FlaggedDestination' },
+            { tx: BYPASS_REVERT_TX, label: 'The agent skipped GuardianAI and signed its own approval: InvalidAttestationSignature' },
+          ].map((r) => (
+            <li key={r.tx.hash} className="flex flex-wrap items-center justify-between gap-2">
+              <span className="gx-t1 min-w-0 text-sm">
+                <span className="mr-2 font-mono text-xs font-semibold" style={{ color: r.ok ? 'var(--gx-good-text)' : 'var(--gx-bad-text)' }}>{r.ok ? 'SUCCESS' : 'REVERTED'}</span>
+                {r.label}
+              </span>
+              <a href={txUrl(r.tx.hash)} target="_blank" rel="noreferrer" className="gx-link inline-flex items-center gap-1 font-mono text-xs">
+                {r.tx.hash.slice(0, 10)}…{r.tx.hash.slice(-6)} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            </li>
+          ))}
         </ul>
       </div>
       <div className="gx-card mt-4 flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5">

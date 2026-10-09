@@ -43,6 +43,11 @@ code{font-family:var(--mono);font-size:.85em}
 </head>
 <body>
 <main>
+  <nav style="display:flex;gap:16px;font-size:.85rem;margin-bottom:18px">
+    <a href="/" style="color:#b9a7ff;text-decoration:none">← GuardianAI</a>
+    <a href="/explorer/" style="color:#8d96a8;text-decoration:none">Attack Lab</a>
+    <a href="/explorer/#proof" style="color:#8d96a8;text-decoration:none">On-chain proof</a>
+  </nav>
   <h1>GuardianAI Operator Passkey</h1>
   <p>One passkey is the root of trust for your AI agents. Each job uses its own PRF salt, so one passkey
      gives every agent an identity, an encrypted memory and a credential vault. Keys are re-derived on demand

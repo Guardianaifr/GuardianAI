@@ -289,7 +289,7 @@ python demo/run_demo.py</code></pre>
               <tr>
                 <td><strong>Gate 2: PolicyGuard (on Monad)</strong></td>
                 <td>Monad Parallel EVM Smart Contracts</td>
-                <td><code>GuardianPolicyGuard.sol</code> pre-flight execution firewall, <code>GuardianThreatConsumer.sol</code> Chainlink CRE oracle (simulated), ERC-8004 identity, Merkle Cortex state anchoring</td>
+                <td><code>GuardianPolicyGuard.sol</code> pre-flight execution firewall, <code>GuardianThreatOracle.sol</code> Chainlink CRE receiver (live on testnet, fed by CRE simulation), <code>GuardianAgentWallet.sol</code> per-agent wallet, ERC-8004 identity, Merkle Cortex state anchoring</td>
                 <td>207/207 Hardhat tests (11 suites), per-agent nonces for parallel execution</td>
               </tr>
             </tbody>
@@ -450,7 +450,8 @@ if honeypot.is_tripped(response_text):
       <!-- SECTION: Mera Passkey PRF Sovereign Enclave -->
       <section id="mera-enclave" class="docs-section">
         <h2>Mera Passkey PRF Sovereign Enclave (agent identity &amp; memory)</h2>
-        <p>Built in collaboration with Category Labs, GuardianAI’s Sovereign Agent Enclave harnesses client-side <strong>WebAuthn Pseudo-Random Functions (PRF)</strong> (FaceID, TouchID, and FIDO2 hardware authenticators) to generate deterministic, unlinkable agent identities without storing raw private keys or master secrets on any server.</p>
+        <p><a href="/mera/">Try it with your own passkey</a>: one operator passkey derives each agent’s identity (and the agent card the relay checks before approving payments), its memory key and a credential vault, and a handoff link reproduces them on a second device.</p>
+        <p>Built on Category Labs’ Mera SDK (<code>@category-labs/mera</code>), GuardianAI’s Sovereign Agent Enclave harnesses client-side <strong>WebAuthn Pseudo-Random Functions (PRF)</strong> (FaceID, TouchID, and FIDO2 hardware authenticators) to generate deterministic, unlinkable agent identities without storing raw private keys or master secrets on any server.</p>
 
         <div class="docs-grid">
           <div class="docs-card">
@@ -555,7 +556,7 @@ python tools/x402_e2e.py</code></pre>
       <!-- SECTION: Chainlink Threat Consumer -->
       <section id="threat-consumer" class="docs-section">
         <h2>Chainlink Threat Consumer (GuardianThreatConsumer)</h2>
-        <p><code>GuardianThreatConsumer.sol</code> receives signed reports from a Chainlink CRE workflow that fetches GuardianAI's threat stats, reaches consensus across nodes, and writes the result on Monad. Status: the workflow runs in the CRE simulator (<code>cre workflow simulate guardian-threat-sync --target staging-settings</code>); the consumer contract is not deployed to Monad testnet yet.</p>
+        <p><code>GuardianThreatOracle.sol</code> (<a href="https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95" target="_blank" rel="noopener">0x2614…dA95</a> on Monad testnet) receives reports from the Chainlink CRE workflow <code>guardian-threat-sync</code>: every node fetches GuardianAI's scam list, the nodes agree on it (list and digest identical, counters by median), and the signed report is delivered through the Chainlink forwarder, the only address allowed to write. <code>GuardianAgentWallet</code> checks <code>isFlagged()</code> on the target and on token recipients before every call. Status: run with <code>cre workflow simulate guardian-threat-sync --target staging-settings --broadcast</code>, which delivered <a href="https://testnet.monadscan.com/tx/0x82d12165a70412c6171eb15a268a2bbe4251278e2438aa96babdb336a9723b1f" target="_blank" rel="noopener">a real report</a> flagging 2 addresses; a payment to one of them then <a href="https://testnet.monadscan.com/tx/0x12d7f321c33cf81adeec861a6ad629368db2104d341ed752e77956d9fd21fd42" target="_blank" rel="noopener">reverted with FlaggedDestination</a>. Not yet running on a live DON. (The older <code>GuardianThreatConsumer.sol</code> is superseded.)</p>
       </section>
 
       <!-- SECTION: ERC-8004 Agent Registries -->
@@ -881,4 +882,4 @@ firewall:
 
   <script src="js/docs.js"></script>
 </body>
-</html>
+</html>

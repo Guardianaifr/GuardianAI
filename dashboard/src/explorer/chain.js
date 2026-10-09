@@ -15,7 +15,17 @@ export const CONTRACTS = {
   policyGuard: { name: 'GuardianPolicyGuard', label: 'Payment guard', address: '0x90Fdc8E1e5C951701eCd84677038B38560CdEF60' },
   passport: { name: 'GuardianPassportSBT', label: 'Agent ID cards', address: '0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff' },
   threatFeed: { name: 'GuardianThreatFeedRegistry', label: 'Scam address list', address: '0x576CC248D8c406ac302b74e7BFd571E9F989f467' },
+  agentWallet: { name: 'GuardianAgentWallet', label: 'Agent wallet (Privy agent)', address: '0xCCb137694f2910c8Ec4883d108c989648019D335' },
+  walletFactory: { name: 'GuardianAgentWalletFactory', label: 'Agent wallet factory', address: '0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6' },
+  threatOracle: { name: 'GuardianThreatOracle', label: 'Chainlink CRE threat oracle', address: '0x26144375c4f846174A386C464aC5F2e671EbdA95' },
 }
+
+// Enforcement on GuardianAgentWallet (metropolis/README.md §4.D and §5). Status checked on MonadScan.
+export const CRE_REPORT_TX = { hash: '0x82d12165a70412c6171eb15a268a2bbe4251278e2438aa96babdb336a9723b1f', block: 67918836 } // DON report → oracle, flagged 2 addresses
+export const FLAGGED_REVERT_TX = { hash: '0x12d7f321c33cf81adeec861a6ad629368db2104d341ed752e77956d9fd21fd42', block: 67919211 } // FlaggedDestination
+export const CLEAN_PAYMENT_TX = { hash: '0xf61137ac039e64db2d09fa018a0d4696a3f2e97063259fe95bf743b858d482dc', block: 67919254 } // same payment, clean address: success
+export const BYPASS_REVERT_TX = { hash: '0xa8bd211dfec3f0531f48f8ff0fefc000edc5bccb9fb875ff79fc5bfb9c6aa492', block: 67892684 } // self-signed approval: InvalidAttestationSignature
+export const CRE_FLAGGED_ADDRESS = '0x7a3b9c1d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b'
 
 export const addressUrl = (a) => `${EXPLORER}/address/${a}`
 export const txUrl = (h) => `${EXPLORER}/tx/${h}`
@@ -30,7 +40,7 @@ export const REAL_PAYMENT_TX = { hash: '0x96ffc13e35866c43ffdc37300319037f4fc5f8
 export const PRIVY_AGENT_WALLET = '0x27FFBa14315383f61B4F9F9244a95fEdEA459923'
 export const X402_FEE_TX = { hash: '0xe2e0238a8a431325a6ff9b480e939275e28c173053aa759c5eea77004681173b', block: 67838677 } // paid from the agent's Privy wallet
 
-// The deployer / attestation signer. Passports owned by any other wallet are external integrations.
+// The deployer wallet. Passports owned by any other wallet are external integrations.
 export const TEAM_WALLET = '0x1D4549B95dccAC8203393543187b25B3137D0bf6'
 
 const policyGuardIface = new Interface([
@@ -56,6 +66,19 @@ const policyGuardIface = new Interface([
 const passportIface = new Interface([
   'function activePassportCount() view returns (uint256)',
   'function passports(uint256) view returns (bytes32 agentHash, uint8 tier, uint256 trustScore, uint256 issuedAt, uint256 updatedAt, bool revoked, string metadataURI)',
+])
+
+const oracleIface = new Interface([
+  'function flaggedCount() view returns (uint256)',
+  'function reportCount() view returns (uint256)',
+  'function isFlagged(address) view returns (bool)',
+  'function forwarder() view returns (address)',
+])
+
+const agentWalletIface = new Interface([
+  'function paused() view returns (bool)',
+  'function maxAllowedRiskScore() view returns (uint8)',
+  'function threatOracle() view returns (address)',
 ])
 
 const threatIface = new Interface([
@@ -113,8 +136,22 @@ export async function readLiveStats() {
     read(policyGuardIface, CONTRACTS.policyGuard.address, 'maxAllowedRiskScore'),
     read(policyGuardIface, CONTRACTS.policyGuard.address, 'paused'),
   ])
+  const [oracleFlagged, oracleReports, creFlagged, walletPaused, walletMaxRisk, walletOracle] = await Promise.all([
+    read(oracleIface, CONTRACTS.threatOracle.address, 'flaggedCount'),
+    read(oracleIface, CONTRACTS.threatOracle.address, 'reportCount'),
+    read(oracleIface, CONTRACTS.threatOracle.address, 'isFlagged', [CRE_FLAGGED_ADDRESS]),
+    read(agentWalletIface, CONTRACTS.agentWallet.address, 'paused'),
+    read(agentWalletIface, CONTRACTS.agentWallet.address, 'maxAllowedRiskScore'),
+    read(agentWalletIface, CONTRACTS.agentWallet.address, 'threatOracle'),
+  ])
   return {
     block,
+    oracleFlagged: Number(oracleFlagged),
+    oracleReports: Number(oracleReports),
+    creFlagged: Boolean(creFlagged),
+    walletPaused: Boolean(walletPaused),
+    walletMaxRisk: Number(walletMaxRisk),
+    walletUsesOracle: getAddress(walletOracle) === getAddress(CONTRACTS.threatOracle.address),
     activePassports: Number(passports),
     scamAddresses: Number(scamCount),
     maxRisk: Number(maxRisk),
@@ -286,6 +323,9 @@ export const ALL_CONTRACTS = [
   { name: 'GuardianInterlockRegistry', role: 'Lets two agents mutually authorize each other', address: '0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d' },
   { name: 'GuardianInsuranceLedger', role: 'Records protection certificates on-chain', address: '0x671F73068BF55a30299719D76db0d3031A64Bb22' },
   { name: 'GuardianTimelock', role: 'Timelock controller for delayed admin changes', address: '0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc' },
+  { name: 'GuardianAgentWallet', role: 'The Privy agent’s funds: every call needs the agent’s key AND a GuardianAI signature', address: '0xCCb137694f2910c8Ec4883d108c989648019D335' },
+  { name: 'GuardianAgentWalletFactory', role: 'Creates one GuardianAgentWallet per agent', address: '0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6' },
+  { name: 'GuardianThreatOracle', role: 'Chainlink CRE receiver: scam list agreed by the DON, written only by the Chainlink forwarder', address: '0x26144375c4f846174A386C464aC5F2e671EbdA95' },
 ]
 
 /** Asks the chain whether code exists at each address. Returns { [address]: bytecodeBytes }. */

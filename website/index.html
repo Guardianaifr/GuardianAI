@@ -201,7 +201,9 @@
               <ul>
                 <li><b>ERC-8004 identity &amp; Identity Gate</b> — portable agent registry and pre-flight point-of-interaction enforcement with hot-wallet collision guards</li>
                 <li><b>PolicyGuard</b> — refuses any agent payment without GuardianAI's signed approval, above the risk limit, or from a revoked agent (live on Monad testnet)</li>
-                <li><b>Chainlink CRE threat oracle</b> — signed threat reports for an on-chain consumer (CRE simulator today; consumer not deployed yet)</li>
+                <li><b>GuardianAgentWallet</b> — the agent's funds move only with the agent's key <i>and</i> GuardianAI's signature, so a stolen key alone moves nothing (live on Monad testnet; operator is a policy-locked Privy server wallet)</li>
+                <li><b>Chainlink CRE threat oracle</b> — the DON's signed scam list lands on GuardianThreatOracle and every agent wallet refuses flagged destinations: <a href="https://testnet.monadscan.com/tx/0x12d7f321c33cf81adeec861a6ad629368db2104d341ed752e77956d9fd21fd42" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">reverted on-chain</a> (CRE simulation with a real Monad broadcast; live DON next)</li>
+                <li><b>Mera operator passkey</b> — one passkey derives each agent's identity, its memory key and a credential vault; GuardianAI only approves payments for agents the passkey signed for. <a href="/mera/" style="color:var(--green);text-decoration:underline;">Try it with your passkey</a></li>
                 <li><b>Soulbound passport</b> — ERC-5192 reputation score (0–10000) derived from verified scan history</li>
                 <li><b>Evidence anchoring</b> — Merkle roots over security-event logs (simulated default; Monad testnet opt-in)</li>
                 <li><b>Insurance certificates</b> — cryptographic evidence packages for underwriters and compliance audits</li>
@@ -239,7 +241,7 @@
           <article class="card reveal">
             <span class="card-index">[C]</span>
             <h3><a href="/proof#chains" style="color:var(--green)">Chains &amp; identity →</a></h3>
-            <p>Nine contracts live on <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>, each checked live in the <a href="/explorer/#proof" style="color:var(--green);text-decoration:underline;">Explorer proof ledger</a>. State anchoring runs simulated by default. No mainnet claims.</p>
+            <p>Twelve contracts live on <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;">Monad Testnet</a>, each checked live in the <a href="/explorer/#proof" style="color:var(--green);text-decoration:underline;">Explorer proof ledger</a>. State anchoring runs simulated by default. No mainnet claims.</p>
           </article>
         </div>
       </div>

@@ -59,11 +59,18 @@ describe('chain.js against real Monad replies', () => {
       '0x1c74ff85': REAL.evmAddressCount,
       '0xd31e46ab': REAL.maxAllowedRiskScore,
       '0x5c975abb': REAL.paused,
+      // GuardianThreatOracle + GuardianAgentWallet (real replies captured 2026-10-09)
+      '0x5d214e01': '0x0000000000000000000000000000000000000000000000000000000000000002', // flaggedCount
+      '0x185c6f84': '0x0000000000000000000000000000000000000000000000000000000000000002', // reportCount
+      '0xfef48a99': '0x0000000000000000000000000000000000000000000000000000000000000001', // isFlagged(CRE-flagged address)
+      '0x96f83d5c': '0x00000000000000000000000026144375c4f846174a386c464ac5f2e671ebda95', // wallet.threatOracle()
     }
     mockRpc((tx) => ({ result: bySelector[tx.data.slice(0, 10)] }))
     const s = await readLiveStats()
     expect({ block: s.block, activePassports: s.activePassports, scamAddresses: s.scamAddresses, maxRisk: s.maxRisk, paused: s.paused })
       .toEqual({ block: 67308529, activePassports: 3, scamAddresses: 1, maxRisk: 25, paused: false })
+    expect({ oracleFlagged: s.oracleFlagged, oracleReports: s.oracleReports, creFlagged: s.creFlagged, walletPaused: s.walletPaused, walletMaxRisk: s.walletMaxRisk, walletUsesOracle: s.walletUsesOracle })
+      .toEqual({ oracleFlagged: 2, oracleReports: 2, creFlagged: true, walletPaused: false, walletMaxRisk: 25, walletUsesOracle: true })
   })
 
   it('address check: decodes (bool, reason) from isMalicious', async () => {

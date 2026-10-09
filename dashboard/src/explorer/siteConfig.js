@@ -4,13 +4,13 @@
  * REPO_PUBLIC: set to true once github.com/Guardianaifr/GuardianAI is public.
  *              While false, the page shows no repo links (they would 404 for judges).
  * VIDEO_URL:   paste the demo video link (YouTube/Loom) to show a "Watch the demo" button.
- * SPONSORS:    update `status` when something goes live (e.g. the Chainlink consumer is deployed).
+ * SPONSORS:    update `status` when something changes (e.g. the CRE workflow runs on a live DON).
  * FOUNDER, AUDIENCE, BUSINESS, NEXT: the "Who it's for" section. Judges score Founder & Market
  *              Readiness (25%) on this, so make every line something you will stand behind.
  *              BUSINESS and NEXT are DRAFTS: edit them to your real plan before submitting.
  */
 export const REPO_URL = 'https://github.com/Guardianaifr/GuardianAI'
-export const REPO_PUBLIC = false
+export const REPO_PUBLIC = true
 export const VIDEO_URL = ''
 
 export const repoLink = (path = '') =>
@@ -18,37 +18,50 @@ export const repoLink = (path = '') =>
 
 export const SPONSORS = [
   {
+    key: 'privy',
+    name: 'Privy',
+    bounty: 'Privy bounty',
+    title: 'Server wallet the agent can’t misuse',
+    body: 'The agent’s key is a Privy server wallet with a policy attached: it can only sign calls to GuardianAI’s contracts, a capped USDC approval and small x402 fees. Ask it to sign anything else and Privy refuses before a signature exists. It is also the operator key of the agent’s GuardianAgentWallet on Monad.',
+    status: 'Live on Monad testnet · lock-test: 6/6 forbidden actions refused',
+    statusKind: 'live',
+    howToRun: 'cd tools/privy-agent && node agent.cjs lock-test',
+    path: 'tools/privy-agent',
+  },
+  {
     key: 'mera',
     name: 'Category Labs Mera',
     bounty: 'Mera bounty',
-    title: 'Passkey identity and sealed agent memory',
-    body: 'A fingerprint or Face ID passkey creates the agent’s identity and the key that locks its memory. No private key is ever stored. If anyone changes even one byte of the agent’s memory, the check fails and the agent is frozen.',
-    status: 'Built, runs locally',
-    statusKind: 'local',
-    howToRun: 'cd metropolis/mera && npm run demo',
+    title: 'One passkey: agent identity, sealed memory, credential vault',
+    body: 'The operator’s passkey derives a separate key for each job (one PRF salt per namespace): an Ed25519 identity per agent, an AES-GCM key for its memory, and a Mera vault for its credentials. The identity key signs an agent card that GuardianAI’s relay checks before approving any payment. Nothing is stored; open the handoff link on a second device and the same keys come back.',
+    status: 'Live in your browser · real passkey, no simulation',
+    statusKind: 'live',
+    howToRun: 'Open /mera/ → Create operator passkey → Derive agent DID',
+    liveUrl: '/mera/',
+    liveLabel: 'Try it with your passkey',
     path: 'metropolis/mera',
-  },
-  {
-    key: 'envio',
-    name: 'Envio HyperIndex',
-    bounty: 'Envio bounty',
-    title: 'Real-time indexing of every security event',
-    body: 'Indexes events from five GuardianAI contracts on Monad testnet (signed actions, scam-list changes, passport updates, risk scores, memory anchors) into one GraphQL API for dashboards.',
-    status: 'Built, runs locally',
-    statusKind: 'local',
-    howToRun: 'cd metropolis/indexer && pnpm envio dev',
-    path: 'metropolis/indexer',
   },
   {
     key: 'chainlink',
     name: 'Chainlink CRE',
     bounty: 'Chainlink CRE bounty',
-    title: 'Decentralized threat oracle',
-    body: 'Every 30 seconds, a Chainlink workflow fetches GuardianAI’s threat stats, nodes agree on the result, and a signed report is written to a consumer contract on Monad.',
-    status: 'Tested in the CRE simulator · consumer contract not deployed yet',
+    title: 'Decentralized threat oracle the wallet obeys',
+    body: 'A CRE workflow has every node fetch GuardianAI’s scam list, the nodes agree on it, and a signed report is written to GuardianThreatOracle on Monad. Only the Chainlink forwarder can write to it. Every GuardianAgentWallet checks the oracle before each call, so a flagged destination is refused on-chain even when everything else approved it.',
+    status: 'On Monad testnet via CRE simulation (--broadcast) · not yet on a live DON',
     statusKind: 'simulated',
-    howToRun: 'cre workflow simulate guardian-threat-sync --target staging-settings',
+    howToRun: 'cre workflow simulate guardian-threat-sync --target staging-settings --broadcast',
     path: 'metropolis/chainlink',
+  },
+  {
+    key: 'envio',
+    name: 'Envio HyperIndex',
+    bounty: 'Envio bounty',
+    title: 'Every enforcement decision, queryable',
+    body: 'Indexes the agent-wallet factory (every new wallet), each wallet’s executions, owner overrides and freezes, and the Chainlink oracle’s reports and flagged addresses into one GraphQL API, synced with HyperSync.',
+    status: 'Deployed on Envio Cloud (HyperSync)',
+    statusKind: 'live',
+    howToRun: 'cd metropolis/indexer && pnpm envio dev',
+    path: 'metropolis/indexer',
   },
 ]
 
@@ -80,7 +93,7 @@ export const NEXT = [
   'Verify every contract’s source on MonadScan',
   'Move pay-per-approval from Monad testnet to mainnet USDC',
   'Publish @guardianai/middleware to npm',
-  'Deploy the Chainlink CRE consumer and run the threat oracle on testnet',
+  'Run the Chainlink CRE threat oracle on a live DON with the production forwarder',
   'Register the first outside agent teams with ID cards',
   'External audit of the Monad contracts, then mainnet',
 ]

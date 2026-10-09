@@ -5,7 +5,7 @@
 > and a credential vault. Everything is re-derived on demand from the passkey; no key is stored anywhere.
 > None of the namespaces signs a blockchain transaction.
 
-**Live page:** `website/mera/` (static, deploy with the site). Real passkeys only: the page calls
+**Live page:** https://aiguardian.dev/mera/ (source `website/mera/`, deployed with the site: `firebase deploy --only hosting`). Real passkeys only: the page calls
 `@category-labs/mera` with its default browser client (`navigator.credentials`), with no simulation fallback.
 
 ---

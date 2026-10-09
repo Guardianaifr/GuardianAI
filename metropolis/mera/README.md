@@ -1,168 +1,122 @@
-# GuardianAI Sovereign Enclave: Mera Passkey Integration
+# GuardianAI Operator Passkey (Mera)
 
-> **Monad Metropolis Hackathon — Sponsor Bounty: Mera**  
-> *"The most creative use of that primitive for anything that is NOT signing blockchain transactions from a wallet account."*
+> **Monad Metropolis: Mera bounty.** One operator passkey is the root of trust for a fleet of AI agents.
+> Each job gets its own PRF salt, so the same passkey gives every agent an identity, an encrypted memory
+> and a credential vault. Everything is re-derived on demand from the passkey; no key is stored anywhere.
+> None of the namespaces signs a blockchain transaction.
 
----
-
-## 1. Executive Summary
-
-GuardianAI integrates **Category Labs' Mera Passkey PRF SDK (`@category-labs/mera`)** to solve the hardest security challenge facing autonomous Web3 AI agents: **how can an AI agent maintain verifiable identity and private, tamper-proof long-term memory without storing a single private key or plaintext credential on any server or disk?**
-
-Rather than creating yet another passkey wallet, GuardianAI treats a human operator's hardware biometric authenticator (TouchID / FaceID / YubiKey) as the **Sovereign Root of Trust** for an entire swarm of autonomous AI agents.
-
-### Why This Wins the Mera Bounty Criteria
-
-| Judging Criterion | GuardianAI Implementation |
-|:-------------------|:--------------------------|
-| **Novelty** *(The further from a wallet, the better)* | **Zero transaction signing from passkey.** The passkey is used strictly as a hardware identity seed (Ed25519 DID) and client-side memory encryption root (AES-256-GCM). Actual Monad transactions are executed by the agent via `GuardianPolicyGuard.sol` with EIP-712 security attestations. |
-| **Correct Use of Primitives** *(Encryption vs Derivation)* | **Dual-mode PRF usage with genuine salt namespacing:**<br>1. **Derivation:** `SHA-256("guardianai:v1:agent:identity:<id>")` derives deterministic Ed25519 DID keypairs via `createEd25519SigningSession()`.<br>2. **Encryption:** `SHA-256("guardianai:v1:agent:memory:<id>")` derives AES-256-GCM encryption keys with sequence-bound AAD. |
-| **Active Tamper Tripwire** *(Beyond simple encrypt/decrypt)* | Flipping even 1 byte in the database causes AES-256-GCM authentication tag verification to fail, triggering `MEMORY_POISONING_DETECTED` and immediately quarantining the agent in ElizaOS middleware and freezing RPC dispatches. |
-| **The Cross-Device Test** | The exact same passkey on a second device or fresh incognito browser profile deterministically reproduces identical agent DIDs and decrypts the encrypted memory snapshot live. |
-| **Zero Secrets Stored** | No private keys, derivation seeds, or plaintext memory exist on disk or server. The SQLite database stores **strictly AES-GCM ciphertext blobs**. Session keys in RAM are zeroed via `session.end()`. |
+**Live page:** `website/mera/` (static, deploy with the site). Real passkeys only: the page calls
+`@category-labs/mera` with its default browser client (`navigator.credentials`), with no simulation fallback.
 
 ---
 
-## 2. Architecture & Salt Namespaces
+## 1. The namespaces
 
-```
-                    ┌───────────────────────────────────┐
-                    │      Human Biometric Passkey       │
-                    │   (TouchID / FaceID / YubiKey)    │
-                    └─────────────────┬─────────────────┘
-                                      │
-                        WebAuthn PRF Evaluation
-                                      │
-        ┌─────────────────────────────┴─────────────────────────────┐
-        │                                                           │
-Namespace 1 (Derivation Seed)                      Namespace 2 (Encryption Key Material)
-Salt: SHA-256("guardianai:v1:agent:identity:<id>")  Salt: SHA-256("guardianai:v1:agent:memory:<id>")
-        │                                                           │
-32-byte PRF Output                                  32-byte PRF Output
-        │                                                           │
-createEd25519SigningSession()                       HKDF-SHA256 (info: "guardianai:v1:encrypt:memory")
-        │                                                           │
-Ed25519 Keypair (Session zeroed on end)              256-bit AES-GCM Key (Client-side volatile RAM)
-        │                                                           │
-did:guardian:ed25519:<pubkey_hex>                  Seal/Unseal Memory Snapshot with AAD:
-(Used for ERC-8004 Agent Registry Lookup)           `${agentId}:${sessionId}:${seqNo}:${timestamp}`
-                                                                    │
-                                                    ┌───────────────┴───────────────┐
-                                                    ▼                               ▼
-                                            Tag Verified (OK)              Tag Mismatch (Poisoned)
-                                                    │                               │
-                                            Memory Restored to            🚨 RED ALERT QUARANTINE
-                                            ElizaOS Context                - Agent frozen in ElizaOS
-                                                                           - RPC execution halted
-```
+| Namespace (salt) | Primitive | What it does in GuardianAI |
+| --- | --- | --- |
+| `SHA-256("guardianai:v1:agent:identity:<agentId>")` | **Derivation**: PRF output is the Ed25519 private key inside `createEd25519SigningSession`, ended (zeroed) right after use | Agent DID `did:guardian:ed25519:<pubkey>`, and the key that signs the agent's **card** for the GuardianAI relay |
+| `SHA-256("guardianai:v1:agent:memory:<agentId>")` | **Encryption**: PRF → HKDF-SHA256 (`guardianai:v1:encrypt:memory`) → non-extractable AES-256-GCM key, AAD `agentId:session:seq:timestamp` | Agent memory stored only as ciphertext. One flipped bit fails the GCM tag → `MEMORY_POISONING_DETECTED` → agent quarantined |
+| Fresh random salt per secret (Mera secret vault) | **Encryption**: `createSecretVaultWithExistingPasskey` / `decryptSecretVaultWithPasskey` | Wraps credentials the agent needs (API keys, the Privy app secret) so they are not kept in plain text in `.env` |
 
----
+Different agent ids give unrelated salts, so two agents of one operator cannot be linked by their keys.
 
-## 3. The Two Core Features
+### Where it plugs into GuardianAI (non-account work)
 
-### Feature 1: Per-Agent Unlinkable Identity Minting (PRF as Derivation)
-- **Problem:** Autonomous agent swarms need cryptographically verifiable identities, but exposing private keys on centralized servers leaves agents vulnerable to credential theft.
-- **Solution:** The human operator touches their passkey once. The PRF evaluates salt `SHA-256("guardianai:v1:agent:identity:" + agentId)`. Mera's `createEd25519SigningSession()` mints an ephemeral Ed25519 keypair. The public key forms the agent's decentralized identifier:
-  ```
-  did:guardian:ed25519:5f8b9c...
-  ```
-- **Unlinkability:** Different agent IDs generate mathematically independent salts, guaranteeing that two agents owned by the same user cannot be correlated on-chain or off-chain.
-- **RAM Zeroing:** Calling `session.end()` immediately overwrites the private key buffer in memory (`activeKey.fill(0)`).
+GuardianAI's relay signs EIP-712 approvals for agent payments. Before this change, `agent_id` in
+`POST /api/v1/attest` was whatever the caller said (listed as a known limitation in `metropolis/README.md`).
+Now an agent can be **registered to an operator passkey**:
 
-### Feature 2: Passkey-Sealed Memory & Anti-Poisoning Tripwire (PRF as Encryption)
-- **Problem:** Princeton and Sentient research demonstrated that malicious data ingested by AI agents can poison long-term memory, leading to unauthorized asset drain.
-- **Solution:** Memory records and trading strategies are encrypted client-side using an AES-256-GCM key derived via HKDF from the PRF output with salt `SHA-256("guardianai:v1:agent:memory:" + agentId)`.
-- **Replay-Protected AAD:** Each ciphertext is bound to Additional Authenticated Data:
-  ```
-  AAD = `${agentId}:${sessionId}:${seqNo}:${timestamp}`
-  ```
-  This prevents database-level record reordering, session transposition, or replay attacks.
-- **The Tripwire:** If an attacker tampers with a single byte of ciphertext in SQLite, AES-GCM tag verification fails. GuardianAI catches this exception and routes it directly to `MemoryStore.recordCryptographicTamper()`, locking down the agent's execution loop.
+1. In the console, the identity key signs an agent card:
+   ```
+   GuardianAI agent card v1
+   agent: <agentId>
+   wallet: <GuardianAgentWallet address>
+   expires: <unix seconds, max 30 days>
+   ```
+2. The relay keeps `config/agent_passkey_identities.json` (`{agentId: did}`; public keys only).
+3. For a registered agent, `/api/v1/attest` refuses to evaluate anything unless the request carries a card
+   that verifies against the registered DID, names the same wallet and has not expired
+   (`guardian/relayer/agent_card.py`). Approved responses say `"agent_identity": "passkey-verified"`.
+4. `tools/privy-agent/agent.cjs` sends the card from `tools/privy-agent/.agent-card.json` (or
+   `GUARDIAN_AGENT_CARD`) automatically.
+
+Without the operator's passkey nobody can produce a card for a registered agent. The card is a signed
+statement, not a secret: spending still needs the agent's own key on-chain (`GuardianAgentWallet`).
 
 ---
 
-## 4. Live Cross-Device Demonstration Script
+## 2. Live demo (the cross-device test)
 
-The demo is executed in under 2 minutes:
+**Devices that deliver PRF** (Mera's [authenticator support](https://mera.category.xyz/authenticator-support/)):
+Chrome 132+ **signed in to Google Password Manager** (desktop and Android), iCloud Keychain (iOS 18+ /
+macOS 15+), Windows 11 25H2+ Windows Password Manager, 1Password, YubiKey 5. A Chrome *local* profile and
+Windows 10 Windows Hello do not return PRF output.
+
+Both devices must open the **same HTTPS origin**: the PRF output depends on the relying party id
+(the page uses `location.hostname`). `localhost` works for single-device testing.
+
+1. **Device A**: open the page → *Create operator passkey* (saved to your passkey provider).
+2. *Derive agent DID* → *Seal memory* → *Lock in vault* (use a dummy credential on camera).
+3. *Make handoff link + QR*. The link holds only the DID, ciphertext and the vault, in the URL fragment
+   (never sent to a server).
+4. **Device B** (phone, or a fresh browser profile on the same passkey account): scan the QR →
+   *Use a synced passkey* → *Derive agent DID* shows **✔ Same DID** → *Unseal* shows the memory →
+   *Unlock vault* shows the credential (masked).
+5. *Tamper 1 bit* → *Unseal* → **MEMORY_POISONING_DETECTED**, agent quarantined.
+6. *Sign agent card* for the agent's wallet → put the DID in `config/agent_passkey_identities.json`, the card
+   in `tools/privy-agent/.agent-card.json` → `node agent.cjs wallet-pay ...` prints `identity=passkey-verified`.
+   Delete the card file and the same payment is refused: `agent card required`.
+
+The relay registry uses the agent id the Privy agent sends: `privy-agent:<agent address, lowercase>`.
+Use that id in the console when issuing its card.
+
+---
+
+## 3. Tests
 
 ```bash
-# Run the interactive headless cross-device simulation
-npm run demo
+cd metropolis/mera
+npm test                 # 26 Vitest tests (engine, namespaces, agent card, handoff capsule, vault)
+npm run typecheck
+npm run build:console    # rebuilds website/mera/app.js from src/operator_console.ts
+
+# Real WebAuthn PRF in headless Chromium (DevTools virtual authenticator, hasPrf=true), no mocks in the page
+pip install playwright && python -m playwright install chromium
+python scripts/e2e_virtual_passkey.py
+
+# Relay side
+python -m pytest tests/test_agent_card.py   # includes a card signed in the browser by the e2e run
 ```
 
-### Demonstration Flow:
-1. **[Device A] Mint Identity:** Touch passkey → Deterministically mints Ed25519 DID for agent `guardian-alpha`.
-2. **[Device A] Seal Memory:** Plaintext: `"Rebalance portfolio if price divergence exceeds 0.15%"`. Encrypted with AES-256-GCM. Database receives **only ciphertext**.
-3. **[Device B / Incognito] Cross-Device Restore:** Fresh environment with zero local storage. Passkey evaluates same PRF salts → Reproduces the **exact same DID** and successfully decrypts the strategy context.
-4. **[Attack Simulation] DB Poisoning:** Attacker flips 1 byte in the SQLite ciphertext.
-5. **[Device B] Quarantine Triggered:** Device B attempts to unseal the tampered record → AES-GCM tag verification fails → **🚨 RED ALERT: MEMORY_POISONING_DETECTED** → Agent quarantined.
+`e2e_virtual_passkey.py` checks: passkey creation with PRF, DID derivation, seal/unseal, 1-bit tamper →
+quarantine, vault lock/unlock, agent card signed by the DID, handoff link carries no plaintext, browser
+storage holds only the public credential id, the same DID/memory/vault come back on a wiped page, and a
+different passkey gets a different DID and cannot decrypt.
+
+The older `npm run demo` / `npm run test:hard` scripts use `MockWebAuthnClient` (HMAC stand-in for a
+passkey) and remain as headless regression tests; they are not the live demo.
 
 ---
 
-## 5. Automated Test Suite & Live Hard Audit
+## 4. Honest limitations
 
-GuardianAI includes a headless `MockWebAuthnClient` using HMAC-SHA256 to simulate deterministic PRF hardware behavior for continuous integration and automated grading:
+- The virtual authenticator cannot export a credential's PRF secret, so the automated "second device" is the
+  same authenticator behind a wiped page. The real cross-device run is manual (section 2).
+- Each namespace is a separate passkey prompt (Mera returns one PRF output per ceremony).
+- The agent CLI cannot run WebAuthn, so the agent card is issued in the browser and handed to the agent;
+  the vault is unlocked in the browser, not by the agent process.
+- The registry maps agent ids to DIDs by hand; revoking a card early means removing the agent's DID.
+- The memory tripwire quarantines in the console and in the ElizaOS middleware (`recordCryptographicTamper`);
+  it does not pause the on-chain wallet automatically.
 
-```bash
-# Run the core 18 Vitest unit & benchmark tests
-npm test
-
-# Run the Hard Audit with Real Unseen Data (GitHub BLNS, Freqtrade bot configs, SecLists, Monad telemetry)
-npm run test:hard
-```
-
-### Verified Test Cases (18 Vitest Suite):
-- `deriveAgentIdentity` produces valid 32-byte Ed25519 public keys and formatted DIDs.
-- Cross-device simulation: same master secret + same salt yields identical identity across independent instances.
-- Salt namespacing: distinct agent IDs produce cryptographically distinct identities.
-- Round-trip memory seal and unseal verifies 100% data integrity.
-- Tamper detection: 1-bit ciphertext modification triggers `MEMORY_POISONING_DETECTED`.
-- AAD mismatch detection: altered session/sequence metadata triggers quarantine.
-- Namespace isolation: memory salt and identity salt yield distinct PRF output streams.
-- Cryptographic Latency Benchmarking (100 iterations, sub-millisecond P50).
-
-### Empirical Hard Audit with Real Unseen Data (`npm run test:hard`):
-- **166 / 166 Test Cases Passed (100% Green, 0 Failures)** across 4 live GitHub corpora:
-  1. `minimaxir/big-list-of-naughty-strings`: 100 hostile agent IDs (null bytes, emojis, RTL overrides, SQLi) minted valid Ed25519 DIDs with zero collisions.
-  2. `freqtrade/freqtrade`: 6,080 bytes of live quantitative bot configuration sealed and unsealed with bit-for-bit SHA-256 parity.
-  3. `danielmiessler/SecLists`: Cryptographic boundary markers verified with 100% round-trip fidelity.
-  4. Monad Testnet Smart Contract Telemetry: `GuardianPolicyGuard.sol` ABI & EIP-712 typed calldata round-trip verified.
-- **8/8 Adversarial Attack Vectors Intercepted:** Body bit-flips, GCM tag bit-flips, IV modifications, sequence reordering, session hijacking, agent namespace spoofing, truncation, and extension attacks all caught with `MEMORY_POISONING_DETECTED` (**100.00% catch rate**).
-- **Swarm Concurrency:** 50 parallel agents executed in 42.24 ms (0.84 ms/agent) with zero collisions.
-- **Latency Percentiles (200 Sequential Operations):**
-  - Identity Mint (Ed25519): **P50 = 0.487 ms** | P95 = 0.620 ms | P99 = 0.808 ms
-  - Memory Seal (AES-256-GCM): **P50 = 0.380 ms** | P95 = 0.658 ms | P99 = 1.397 ms
-  - Memory Unseal (GCM Tag Check): **P50 = 0.355 ms** | P95 = 0.466 ms | P99 = 0.559 ms
-
----
-
-## 6. Production Considerations
-
-In multi-tenant SaaS environments, salt prefixes can be namespaced by organization:
-```
-guardianai:v1:tenant:<orgId>:agent:identity:<agentId>
-guardianai:v1:tenant:<orgId>:agent:memory:<agentId>
-```
-This guarantees cross-tenant isolation at the physical authenticator level with zero changes to the underlying cryptography.
-
----
-
-## 7. File Map
+## 5. Files
 
 ```
-metropolis/mera/
-├── package.json                    # Dependencies (@category-labs/mera, viem, vitest, tsx)
-├── tsconfig.json                   # TypeScript configuration
-├── src/
-│   ├── guardian_mera_engine.ts     # Core Engine: deriveAgentIdentity, sealMemory, unsealMemory
-│   └── mock_webauthn_client.ts     # Deterministic PRF client for CI and automated testing
-├── test/
-│   ├── mera_guardian.test.ts       # 7 automated Vitest unit tests
-│   └── mera_stress_audit.test.ts   # 11 adversarial stress & micro-benchmark tests
-├── scripts/
-│   ├── cross_device_demo.ts        # Colorized judge cross-device demo
-│   ├── hard_testing_unseen_data.ts # 6-stage hard audit script with real GitHub data
-│   └── realtime_audit.ts           # Real-time Web3 live telemetry stress audit
-└── README.md                       # Complete technical guide and audit dossier
+metropolis/mera/src/guardian_mera_engine.ts   namespaces, identity, agent card, seal/unseal
+metropolis/mera/src/capsule.ts                handoff link format (validated on load)
+metropolis/mera/src/operator_console.ts       browser console → website/mera/app.js
+metropolis/mera/scripts/e2e_virtual_passkey.py real-PRF browser test
+website/mera/index.html                       the page
+guardian/relayer/agent_card.py                relay-side card verification
+config/agent_passkey_identities.example.json  registry format
 ```
-

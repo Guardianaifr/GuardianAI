@@ -70,3 +70,5 @@ tools/privy-agent/.state.json
 .fuse_hidden*
 *.db-wal
 *.db-shm
+
+tools/privy-agent/.agent-card.json

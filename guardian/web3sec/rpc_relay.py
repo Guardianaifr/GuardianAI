@@ -342,6 +342,23 @@ class GuardianRPCRelay:
                 mimetype="application/json"
             )
 
+        # Agents registered to an operator passkey (Mera) must prove it with a signed agent card.
+        from guardian.relayer.agent_card import load_registry, verify_card
+        try:
+            card_registry = load_registry()
+        except (OSError, ValueError) as e:
+            logger.error(f"Agent card registry unreadable, refusing approvals: {e}")
+            return Response(json.dumps({"error": "Agent identity registry unavailable"}),
+                            status=503, mimetype="application/json")
+        card = verify_card(agent_id, req_data.get("wallet"), req_data.get("agent_card"), card_registry)
+        if not card.ok:
+            self.stats["attest_blocked"] = self.stats.get("attest_blocked", 0) + 1
+            return Response(
+                json.dumps({"status": "blocked", "risk_score": 100, "reasons": [card.reason],
+                            "agent_identity": "rejected"}),
+                status=403, mimetype="application/json"
+            )
+
         data = req_data.get("data", "0x")
         value = int(req_data.get("value", 0))
         prompt = req_data.get("prompt")
@@ -366,8 +383,11 @@ class GuardianRPCRelay:
         # With x402 on, a blocked action returns 403 so the payment is not settled:
         # agents pay only for approvals.
         status = 403 if (self.x402_config and result.status != "approved") else 200
+        body = result.to_dict()
+        if card.required:
+            body["agent_identity"] = "passkey-verified"
         return Response(
-            json.dumps(result.to_dict()),
+            json.dumps(body),
             status=status,
             mimetype="application/json"
         )

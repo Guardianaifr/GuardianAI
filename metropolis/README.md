@@ -83,16 +83,16 @@ GuardianAI is custom-engineered to exploit the unique properties of **Category L
 
 ## 4. Integration Roadmap & Deliverables
 
-### A. Mera Passkey Integration (metropolis/mera/) [COMPLETED ✅]
-- [x] Per-agent unlinkable identity minting via PRF derivation (Ed25519).
-- [x] Passkey-sealed agent memory with AES-256-GCM encryption (HKDF-derived key, replay-protected AAD).
-- [x] Active tamper tripwire: 1-bit ciphertext flip → GCM tag failure → agent quarantine (`MEMORY_POISONING_DETECTED`).
-- [x] Cross-device simulation: same master secret → identical DID + decrypted memory.
-- [x] MockWebAuthnClient for headless CI testing (HMAC-SHA256 PRF simulator).
-- [x] Backend blind storage endpoints (POST/GET/tamper) in passport_routes.py.
-- [x] Interactive "Sovereign Passkey Enclave" UI in passport.html.
-- [x] Core Vitest test suite (18 unit, stress, and latency benchmark tests passing).
-- [x] **Empirical Hard Audit with Real Unseen Data (`npm run test:hard`)**: 166/166 passing (100% green) across GitHub Big List of Naughty Strings, Freqtrade bot configs, and SecLists. 8/8 adversarial tamper attacks intercepted (100% precision) with sub-0.5ms P50 latency.
+### A. Mera Passkey Integration (metropolis/mera/, website/mera/) [REBUILT Oct 9]
+The earlier browser page simulated the passkey with WebCrypto, and the scripts used a mock PRF client. Rebuilt on real passkeys:
+- [x] **Operator console** `website/mera/`: `@category-labs/mera` with the default browser client (real `navigator.credentials` PRF ceremonies, no simulation fallback).
+- [x] Identity namespace (derivation): per-agent Ed25519 DID; the same key signs **agent cards** for the relay.
+- [x] Memory namespace (encryption): HKDF → AES-256-GCM, 1-bit tamper → `MEMORY_POISONING_DETECTED` → quarantine.
+- [x] Mera secret vault: wraps agent credentials (API keys, Privy app secret) behind the passkey.
+- [x] Cross-device handoff: link/QR carrying only DID + ciphertext + vault in the URL fragment; a second device with the synced passkey re-derives the same DID and decrypts.
+- [x] **Relay enforcement**: agents listed in `config/agent_passkey_identities.json` must send a valid passkey-signed card to `/api/v1/attest` (`guardian/relayer/agent_card.py`); the Privy agent sends it automatically.
+- [x] Tests: 26 Vitest; `scripts/e2e_virtual_passkey.py` runs the page in headless Chromium with a PRF virtual authenticator (15 checks); `tests/test_agent_card.py` (16) verifies a browser-signed card in Python.
+- [ ] Manual cross-device run on two real devices (the virtual authenticator cannot export PRF secrets). See `metropolis/mera/README.md` §2.
 
 ### B. Envio Event Indexer (metropolis/indexer/) [UPDATED Oct 3]
 - [x] Config migrated to Envio **v3** (`envio codegen` passes on envio 3.12.1). The previous config used `rpc_config`, which v3 rejects, and the handlers registered through a v2-style `require("generated")` that v3 never calls, so the earlier setup did not index anything.
@@ -155,11 +155,11 @@ The relay must be running (`python tools/run_relay.py`). Deploy script: `contrac
 
 - **Fixed today: cross-agent drain through PolicyGuard.** `/api/v1/attest` used to sign `transferFrom(<any wallet>, …)` for anyone, and every agent approves the same PolicyGuard, so one agent's allowance could be pulled by anyone. Pulls now need an EIP-712 authorization signed by the asset owner (single use, ≤10 min). The replay cache is per relay process, so multi-replica deployments need a shared store (Redis). New agents should use `GuardianAgentWallet`, which has no shared spender.
 - **Fixed today: one key for everything.** The attestation signer was the deployer/owner key. It has been rotated to a dedicated key (`tools/rotate_attestation_signer.py`), and the relay refuses to start in production if they match again. The signer is still a single hot key: next step is KMS/HSM and threshold signing.
-- **Agent identity is still not proven to the relay.** `agent_id` in `/api/v1/attest` is caller-supplied. With `GuardianAgentWallet` this no longer lets anyone move another agent's funds (the wallet pins its `agentId` and only its operator can execute), but per-agent *rules* can be read under any id, and the legacy PolicyGuard path still trusts it for policy selection.
+- **Agent identity is proven only for passkey-registered agents.** Agents listed in `config/agent_passkey_identities.json` must present a Mera passkey-signed agent card (Oct 9). For unlisted agents `agent_id` in `/api/v1/attest` is still caller-supplied. With `GuardianAgentWallet` this no longer lets anyone move another agent's funds (the wallet pins its `agentId` and only its operator can execute), but per-agent *rules* can be read under any id, and the legacy PolicyGuard path still trusts it for policy selection.
 - **The human owner can bypass GuardianAI** (`ownerExecute`) by design, as the recovery path. In the demo the owner is the deployer EOA; in production it should be a passkey, multisig or the timelock.
 - **Contract ownership** of the original suite is still the deployer EOA, not `GuardianTimelock`.
 - **CRE**: simulated with a real on-chain broadcast through the simulation forwarder; not yet deployed to a live DON. DON nodes all fetch the same GuardianAI endpoint, so consensus proves the nodes agree on what GuardianAI published and removes GuardianAI's write key from the path; it does not make the scam list itself independent of GuardianAI.
 - **Envio**: type-checked and unit-tested against Envio v3, not yet run live.
-- **Not re-verified in this pass:** the Mera and middleware rows above, and the throughput figures in §3 (those are Monad's network figures, not GuardianAI measurements).
+- **Not re-verified in this pass:** the middleware rows above, and the throughput figures in §3 (those are Monad's network figures, not GuardianAI measurements).
 - Contracts are unaudited by a third party.
 

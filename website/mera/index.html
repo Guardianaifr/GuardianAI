@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GuardianAI Operator Passkey</title>
+<meta name="description" content="One operator passkey (Mera PRF) derives each AI agent's identity, encrypts its memory and vaults its credentials. Nothing secret is stored.">
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--line:#232837;--text:#e6e9f0;--muted:#8d96a8;--accent:#7c5cff;--ok:#2fbf71;--bad:#ef4b4b;--warn:#e0a526;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:920px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;margin:0 0 4px}
+h2{font-size:1.05rem;margin:0 0 4px}
+p{margin:4px 0 12px;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin:16px 0}
+.tag{display:inline-block;font:600 .7rem/1 var(--mono);padding:4px 8px;border-radius:6px;background:#1d2130;color:var(--muted);margin-left:6px;vertical-align:middle}
+.tag.derive{color:#b9a7ff}.tag.enc{color:#6fd3ff}.tag.vault{color:#ffc46b}
+label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px}
+input,textarea{width:100%;background:#0d1017;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font:14px var(--mono)}
+textarea{min-height:64px;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer}
+button.ghost{background:#1d2130;color:var(--text)}
+button.danger{background:var(--bad)}
+button:disabled{opacity:.6;cursor:wait}
+.out{font:13px/1.5 var(--mono);background:#0d1017;border:1px dashed var(--line);border-radius:8px;padding:10px;margin-top:10px;white-space:pre-wrap;word-break:break-all;min-height:20px}
+.salt{font:12px var(--mono);color:var(--muted);margin-top:8px;word-break:break-all}
+.badge{display:inline-block;margin-top:10px;font-size:.85rem;color:var(--muted)}
+.badge.ok{color:var(--ok)}.badge.bad{color:var(--bad)}.badge.warn{color:var(--warn)}
+#quarantine{margin-top:10px;padding:12px;border-radius:8px;background:rgba(239,75,75,.12);border:1px solid var(--bad);color:#ffb3b3;font-weight:600}
+#handoffBanner{padding:12px;border-radius:8px;background:rgba(124,92,255,.12);border:1px solid var(--accent)}
+#log{font:12px/1.6 var(--mono);background:#07090d;border:1px solid var(--line);border-radius:8px;padding:10px;height:190px;overflow:auto}
+.log-ok{color:var(--ok)}.log-bad{color:var(--bad)}.log-step{color:#b9a7ff}.log-info{color:var(--muted)}
+canvas{background:#fff;border-radius:8px;margin-top:10px;max-width:100%}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+code{font-family:var(--mono);font-size:.85em}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:720px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>GuardianAI Operator Passkey</h1>
+  <p>One passkey is the root of trust for your AI agents. Each job uses its own PRF salt, so one passkey
+     gives every agent an identity, an encrypted memory and a credential vault. Keys are re-derived on demand
+     and never stored. Built on <a href="https://mera.category.xyz" style="color:#b9a7ff">Mera</a> by Category Labs.</p>
+
+  <div id="handoffBanner" hidden>Handoff link opened. It carries only a DID, ciphertext and a vault, never a key.
+    Press <b>Use a synced passkey</b>, then <b>Derive agent DID</b> and <b>Unseal</b>.</div>
+
+  <section class="panel">
+    <h2>Operator passkey</h2>
+    <div id="prfStatus" class="badge">Checking passkey support…</div>
+    <p id="credStatus" style="margin-top:8px"></p>
+    <div class="row">
+      <button id="btnCreate">Create operator passkey</button>
+      <button id="btnAny" class="ghost">Use a synced passkey</button>
+    </div>
+    <label for="agentId">Agent id</label>
+    <input id="agentId" value="treasury-agent" autocomplete="off" spellcheck="false">
+  </section>
+
+  <section class="panel">
+    <h2>1 · Agent identity <span class="tag derive">DERIVATION</span></h2>
+    <p>PRF(passkey, salt) becomes the agent's Ed25519 private key inside a Mera signing session, which is
+       zeroed right after use. Same passkey + same agent id = same DID on any device.</p>
+    <button id="btnDerive">Derive agent DID</button>
+    <div id="idSalt" class="salt"></div>
+    <div id="didOut" class="out"></div>
+    <div id="didMatch" class="badge"></div>
+  </section>
+
+  <section class="panel">
+    <h2>2 · Agent memory <span class="tag enc">ENCRYPTION</span></h2>
+    <p>PRF(passkey, memory salt) → HKDF → AES-256-GCM. The agent's memory is stored only as ciphertext. Change one
+       bit and decryption fails, so the agent is quarantined instead of acting on poisoned memory.</p>
+    <label for="memIn">Agent memory</label>
+    <textarea id="memIn">Only pay invoices from vendors on the approved list. Daily limit 50 USDC.</textarea>
+    <div class="row">
+      <button id="btnSeal">Seal memory</button>
+      <button id="btnUnseal" class="ghost">Unseal</button>
+      <button id="btnTamper" class="danger">Tamper 1 bit</button>
+    </div>
+    <div id="memSalt" class="salt"></div>
+    <div id="memCipher" class="out"></div>
+    <div id="memOut" class="out"></div>
+    <div id="quarantine" hidden>🚨 MEMORY_POISONING_DETECTED · agent quarantined, no actions will run on this memory</div>
+  </section>
+
+  <section class="panel">
+    <h2>3 · Credential vault <span class="tag vault">ENCRYPTION · MERA VAULT</span></h2>
+    <p>Wraps an existing secret the agent needs (an API key, a Privy app secret) under the passkey, with a fresh
+       random salt per secret, so it never sits in plain text in a <code>.env</code> file.</p>
+    <label for="vaultIn">Credential to lock (use a dummy value on camera)</label>
+    <input id="vaultIn" type="password" placeholder="demo-api-key-1234" autocomplete="off">
+    <div class="row">
+      <button id="btnLock">Lock in vault</button>
+      <button id="btnUnlock" class="ghost">Unlock vault</button>
+    </div>
+    <div id="vaultJson" class="out"></div>
+    <div id="vaultOut" class="out"></div>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Cross-device handoff</h2>
+      <p>Open this link on a second device or a fresh browser profile signed in to the same passkey provider.
+         It reproduces the same DID and decrypts the same memory. The link is a URL fragment, so no server ever sees it.</p>
+      <button id="btnHandoff">Make handoff link + QR</button>
+      <div id="handoffBox" hidden>
+        <canvas id="qr" width="260" height="260"></canvas>
+        <input id="handoffUrl" readonly style="margin-top:10px">
+        <div class="row"><button id="btnCopyLink" class="ghost">Copy link</button></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Agent card for the GuardianAI relay</h2>
+      <p>The identity key signs "this agent may use this wallet until this date". The relay only approves payments for a
+         registered agent when its card checks out. It is a signed statement, not a blockchain transaction.</p>
+      <label for="cardWallet">GuardianAgentWallet address</label>
+      <input id="cardWallet" value="0xCCb137694f2910c8Ec4883d108c989648019D335" spellcheck="false">
+      <label for="cardDays">Valid for (days, max 30)</label>
+      <input id="cardDays" type="number" min="1" max="30" value="7">
+      <div class="row"><button id="btnCard">Sign agent card</button><button id="btnCopyCard" class="ghost">Copy card</button></div>
+      <div id="cardJson" class="out"></div>
+      <label>Relay registry entry (<code>config/agent_passkey_identities.json</code>)</label>
+      <div id="registryLine" class="out"></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>What is stored</h2>
+    <table>
+      <tr><th>Item</th><th>Where</th></tr>
+      <tr><td>Private keys, AES keys, PRF outputs</td><td>Nowhere. Re-derived per action, zeroed or non-extractable.</td></tr>
+      <tr><td>Agent memory, vaulted credential</td><td>Ciphertext only: on this page and in the handoff link.</td></tr>
+      <tr><td>Browser storage on this device</td><td><code id="storedKeys"></code> (the passkey's public credential id)</td></tr>
+      <tr><td>Relying party (passkeys are bound to it)</td><td><code id="rpId"></code></td></tr>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>Ceremony log</h2>
+    <div id="log"></div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

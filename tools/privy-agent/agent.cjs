@@ -61,6 +61,12 @@ const STATE = path.join(__dirname, '.state.json');
 const SCAN = 'https://testnet.monadscan.com';
 const STRANGER = getAddress('0x7a3b9c1d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b');
 const DEPLOYMENTS = path.join(ROOT, 'metropolis', 'deployments-monad.json');
+// Optional passkey agent card from the operator console (website/mera/). Signed statement, not a secret.
+const AGENT_CARD = process.env.GUARDIAN_AGENT_CARD || path.join(__dirname, '.agent-card.json');
+function agentCard() {
+  if (!fs.existsSync(AGENT_CARD)) return undefined;
+  return JSON.parse(fs.readFileSync(AGENT_CARD, 'utf8'));
+}
 const WALLET_ABI = parseAbi([
   'function execute(address target,uint256 value,bytes data,(bytes32 agentId,address targetContract,bytes32 calldataHash,uint256 value,uint8 riskScore,uint256 nonce,uint256 deadline) attestation,bytes signature) returns (bytes)',
   'function operator() view returns (address)',
@@ -246,7 +252,7 @@ const commands = {
       console.log(`x402 fee paid from the Privy wallet: ${settle.success} ${SCAN}/tx/${settle.transaction}`);
     }
     const body = await res.json().catch(() => ({}));
-    console.log(`GuardianAI: HTTP ${res.status} ${body.status || ''} risk=${body.risk_score ?? '-'} ${(body.reasons || []).join('; ')}`);
+    console.log(`GuardianAI: HTTP ${res.status} ${body.status || ''} risk=${body.risk_score ?? '-'} ${(body.reasons || []).join('; ')}${body.agent_identity ? ` identity=${body.agent_identity}` : ''}`);
     if (body.status !== 'approved') { console.log('No approval, so nothing is signed or sent.'); process.exitCode = 1; return; }
 
     const { hash, receipt } = await signAndSend(client, s, { to: POLICY_GUARD, data: body.wrapped_calldata });
@@ -354,10 +360,10 @@ async function walletAct({ to, value, data, prompt }) {
   if (!w) { console.error('No GuardianAgentWallet for this agent'); process.exit(2); }
   const res = await fetch(`${RELAY}/api/v1/attest`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agent_id: agentIdFor(s.address), wallet: w, target: to, data, value: value.toString(), prompt }),
+    body: JSON.stringify({ agent_id: agentIdFor(s.address), wallet: w, target: to, data, value: value.toString(), prompt, agent_card: agentCard() }),
   });
   const body = await res.json().catch(() => ({}));
-  console.log(`GuardianAI: HTTP ${res.status} ${body.status || ''} risk=${body.risk_score ?? '-'} ${(body.reasons || []).join('; ')}`);
+  console.log(`GuardianAI: HTTP ${res.status} ${body.status || ''} risk=${body.risk_score ?? '-'} ${(body.reasons || []).join('; ')}${body.agent_identity ? ` identity=${body.agent_identity}` : ''}`);
   if (body.status !== 'approved') { console.log('No approval, so nothing is signed or sent.'); process.exitCode = 1; return; }
   try {
     await pub.call({ account: s.address, to: w, data: body.wrapped_calldata });

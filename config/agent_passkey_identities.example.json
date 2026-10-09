@@ -1,0 +1,4 @@
+{
+  "_comment": "Copy to agent_passkey_identities.json. Maps agent_id -> DID from the operator console (website/mera/). Registered agents must send a passkey-signed agent card to /api/v1/attest. Agents not listed are unaffected.",
+  "privy-agent:0xyouragentaddresslowercase": "did:guardian:ed25519:0000000000000000000000000000000000000000000000000000000000000000"
+}

@@ -18,7 +18,32 @@ AI agents with on-chain execution capabilities are vulnerable to **prompt inject
 
 ---
 
-## 1. ElizaOS Integration (ai16z)
+## 0. ElizaOS 1.x agent with a guarded wallet (recommended)
+
+The money lives in a **GuardianAgentWallet** on Monad (create one in the
+[GuardianAI console](https://aiguardian.dev/explorer/?view=console) or with `examples/eliza-agent/setup.mjs`).
+The agent key only pays gas. Every payment needs a GuardianAI approval and is re-checked by the contract.
+
+```ts
+import { guardianPlugin } from "@guardianai/middleware/elizaos";
+
+plugins: [sqlPlugin, groqPlugin, bootstrapPlugin, guardianPlugin]
+settings: { GUARDIAN_AGENT_PRIVATE_KEY, GUARDIAN_WALLET, GUARDIAN_OWNER }
+```
+
+* **`GUARDED_PAYMENT` action** — the agent's only way to move money: memory guard over the request *and* recent
+  messages → GuardianAI relay approval → on-chain dry run → send from the agent key.
+* **`GUARDIAN_WALLET` provider** — tells the model which wallet it pays from and its balance.
+* Framework-free client: `GuardedWalletClient` (`@guardianai/middleware/guarded-wallet`) for any signer.
+
+Verified with a real ElizaOS 1.7.2 agent on Groq against Monad testnet: honest invoice paid (mined), prompt
+injection and memory poisoning blocked before any request, scam-list destination refused by the relay (risk 100),
+Chainlink-flagged destination refused by the wallet (`FlaggedDestination`) — including when the LLM itself chose
+to obey the attacker. Runnable: [`examples/eliza-agent`](examples/eliza-agent).
+
+---
+
+## 1. ElizaOS Integration (legacy PolicyGuard path)
 
 Counters memory-poisoning attacks by injecting a security evaluator, protected transaction action, and security context provider:
 

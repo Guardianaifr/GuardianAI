@@ -9,3 +9,4 @@ export * from "./interceptor.ts";
 export * from "./eliza.ts";
 export * from "./viem.ts";
 
+export * from "./guarded-wallet.ts";

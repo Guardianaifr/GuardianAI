@@ -6,13 +6,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseEther, ZeroAddress } from 'ethers'
 import {
   ShieldCheck, Loader2, ExternalLink, KeyRound, Snowflake, Flame, ShieldAlert, Gauge, ArrowDownToLine, PlusCircle, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Bot, User,
-  IdCard, Fuel, Play, Ban, CircleDashed,
+  IdCard, Fuel, Play, Ban, CircleDashed, Terminal, Copy, Check as CheckIcon,
 } from 'lucide-react'
 import { useWallet } from './wallet.jsx'
 import { CONTRACTS, addressUrl, txUrl, formatMon, getFirstScamAddress } from './chain.js'
 import {
   readGuardedWallet, createGuardedWallet, ownerCall, fundWallet, loadAgentKey, saveAgentKey, newAgentKey, explainTxError, RISK_LEVELS,
-  claimCard, runScenario, SCENARIOS, AGENT_GAS_WEI, PAY_BACK_WEI, ONE_PAYMENT_GAS_WEI,
+  claimCard, runScenario, SCENARIOS, AGENT_GAS_WEI, PAY_BACK_WEI, ONE_PAYMENT_GAS_WEI, paymentsLeft, elizaConnectCode, elizaCommand,
 } from './guardedWallet.js'
 
 const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '')
@@ -269,6 +269,8 @@ export default function GuardedAgent() {
         }}
       />
 
+      <UseWithEliza ready={keyHere} command={keyHere ? elizaCommand(elizaConnectCode({ wallet: d.wallet, owner, agentKey })) : ''} />
+
       <h3 className="gx-t1 mt-6 text-base font-bold">You’re in control</h3>
       <p className="gx-muted text-sm">Owner actions go straight to your wallet contract. GuardianAI can’t block them, and your agent can’t do them.</p>
 
@@ -359,6 +361,7 @@ function Check({ done, children, action }) {
 function AgentReady({ d, keyHere, busy, onClaim, onGas }) {
   const gas = d.operatorBalance ?? 0n
   const enoughGas = gas >= ONE_PAYMENT_GAS_WEI
+  const left = paymentsLeft(gas)
   return (
     <>
       <h3 className="gx-t1 mt-6 text-base font-bold">Get your agent ready</h3>
@@ -367,7 +370,9 @@ function AgentReady({ d, keyHere, busy, onClaim, onGas }) {
           {d.hasPassport ? 'Agent ID card active (entry level)' : 'Agent ID card: GuardianAI only approves payments for agents with a card. One per wallet, free.'}
         </Check>
         <Check done={enoughGas} action={<ActionButton busy={busy} name="gas" ghost onClick={onGas}><Fuel className="h-4 w-4" aria-hidden="true" /> Give your agent {formatMon(AGENT_GAS_WEI)} MON for gas</ActionButton>}>
-          {enoughGas ? `Agent key has ${formatMon(gas)} MON for gas (each payment costs about 0.02)` : `Agent key has ${formatMon(gas)} MON. It pays its own gas: each payment costs about 0.02 MON but needs about 0.04 available.`}
+          {enoughGas
+            ? `Agent key has ${formatMon(gas)} MON for gas: enough for about ${left} more payment${left === 1 ? '' : 's'}. Top up any time; this is separate from the agent wallet's spending money.`
+            : `Agent key has ${formatMon(gas)} MON, not enough for a payment. It pays its own gas (about 0.02 MON per payment, needs about 0.04 on hand), separate from the agent wallet's spending money.`}
         </Check>
         <Check done={d.balance >= PAY_BACK_WEI}>
           {d.balance >= PAY_BACK_WEI ? 'Agent wallet has funds to spend' : 'Agent wallet is empty: add funds below so the agent has something to spend.'}
@@ -442,5 +447,35 @@ function TryAgent({ ready, canPay, running, results, scamAddress, onRun }) {
       </div>
       {results.length > 0 && <ul className="mt-3 space-y-2">{results.map((r) => <ResultRow key={r.at} r={r} />)}</ul>}
     </>
+  )
+}
+
+/** One click: copy a command that runs this agent in ElizaOS with GuardianAI guarding its payments. */
+function UseWithEliza({ ready, command }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(command) } catch { /* the box below still shows it to copy by hand */ }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 4000)
+  }
+  return (
+    <div className="gx-card mt-6 rounded-xl p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="gx-t1 flex items-center gap-1.5 text-base font-bold"><Terminal className="h-4 w-4" aria-hidden="true" /> Run this agent in ElizaOS</h3>
+          <p className="gx-muted text-sm">Copy one command, paste it in a terminal. Your Eliza agent pays from this wallet, and GuardianAI checks every payment.</p>
+        </div>
+        <button type="button" className="gx-btn gx-focus inline-flex items-center gap-1.5" disabled={!ready} onClick={copy}>
+          {copied ? <><CheckIcon className="h-4 w-4" aria-hidden="true" /> Copied</> : <><Copy className="h-4 w-4" aria-hidden="true" /> Copy command</>}
+        </button>
+      </div>
+      {!ready && <p className="gx-muted mt-2 text-xs">The agent key isn’t in this browser. Use “Replace agent key” below first.</p>}
+      {ready && copied && (
+        <div className="mt-3 text-sm">
+          <code className="gx-code block select-all break-all rounded-lg p-2 text-xs">{command}</code>
+          <p className="gx-muted mt-2 text-xs">Needs Node 20+. It asks once for a free Groq key, then you can chat with your agent. The command contains your agent key: it only pays gas and can’t move this wallet’s money without GuardianAI’s approval. “Replace agent key” below cancels it.</p>
+        </div>
+      )}
+    </div>
   )
 }

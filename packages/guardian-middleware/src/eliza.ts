@@ -296,6 +296,12 @@ const ADVERSARIAL_PATTERNS: RegExp[] = [
   /\b(?:act|pretend|behave)\s+(?:as|like)\s+(?:a\s+|an\s+)?(?:unrestricted|jailbroken|evil|unfiltered|illegal|rogue|DAN|AIM|STAN)\b/i,
 ];
 
+/** Returns the adversarial patterns that match `text` (after de-obfuscation). Empty = clean. */
+export function detectInjection(text: string): string[] {
+  const norm = normalizeInput(String(text || ""));
+  return ADVERSARIAL_PATTERNS.filter((p) => p.test(norm)).map((p) => p.source);
+}
+
 export class MemoryStore {
   private _memory: Map<string, MemoryRecord[]> = new Map();
   private _quarantineLog: Map<string, MemoryRecord[]> = new Map();

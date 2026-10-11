@@ -253,3 +253,60 @@ describe('issuer errors', () => {
     expect(explainTxError({ data: issuerIface.encodeErrorResult('NoGuardedWallet', [OWNER, agentIdOf(OWNER)]) })).toMatch(/Create your guarded wallet/)
   })
 })
+
+import { paymentsLeft as pl } from '../explorer/guardedWallet.js'
+import { parseEther as pe } from 'ethers'
+describe('paymentsLeft', () => {
+  it('counts payments the agent key can still send', () => {
+    expect(pl(0n)).toBe(0)
+    expect(pl(pe('0.039'))).toBe(0)
+    expect(pl(pe('0.04'))).toBe(1)
+    expect(pl(pe('0.1'))).toBe(3) // matches the real-chain run: 3 payments per 0.1 MON top-up
+    expect(pl(pe('0.25'))).toBe(11)
+  })
+})
+
+import { elizaConnectCode as ecc, elizaCommand as ecmd } from '../explorer/guardedWallet.js'
+import { Wallet as W2 } from 'ethers'
+// The CLI's real decoder (packages/guardianai-eliza), so the console and the npm package can't drift apart.
+import { decodeConnectCode } from '../../../packages/guardianai-eliza/src/code.ts'
+describe('ElizaOS connect command', () => {
+  it('encodes wallet, owner and agent key into one shell-safe gx1_ code', () => {
+    const agentKey = new W2('0x' + '11'.repeat(32))
+    const code = ecc({ wallet: '0xc928c9743c466ea9f491ecff9b0edb8dbf2f2faa', owner: '0x2d21d39e67126e8d3ab2fd806fdc74827b2eab41', agentKey })
+    expect(code).toMatch(/^gx1_[A-Za-z0-9_-]+$/)
+    expect(decodeConnectCode(code)).toEqual({ wallet: '0xc928C9743c466Ea9f491eCff9B0EDB8Dbf2F2Faa', owner: '0x2d21D39E67126e8D3ab2FD806fDc74827B2EAb41', agentKey: agentKey.privateKey, chainId: 10143 })
+    expect(ecmd(code)).toBe(`npx -y guardianai-eliza@latest ${code}`)
+  })
+})
+
+import { sendWithRateLimitRetry, isRateLimitError } from '../explorer/guardedWallet.js'
+describe('Monad RPC rate limits', () => {
+  const noSleep = { sleep: async () => {} }
+  it('recognises the public RPC refusals', () => {
+    expect(isRateLimitError({ code: -32011, message: 'requests limited to 15/sec' })).toBe(true)
+    expect(isRateLimitError({ status: 429 })).toBe(true)
+    expect(isRateLimitError({ code: 3, message: 'execution reverted' })).toBe(false)
+  })
+  it('re-sends a batch when one item was rate limited, then returns the good answer', async () => {
+    let calls = 0
+    const send = async () => (++calls < 3 ? [{ id: 1, result: '0x1' }, { id: 2, error: { code: -32011, message: 'requests limited to 15/sec' } }] : [{ id: 1, result: '0x1' }, { id: 2, result: '0x2' }])
+    const res = await sendWithRateLimitRetry(send, [], noSleep)
+    expect(calls).toBe(3)
+    expect(res[1].result).toBe('0x2')
+  })
+  it('retries a thrown HTTP 429 but not a real revert', async () => {
+    let n = 0
+    expect(await sendWithRateLimitRetry(async () => { if (++n < 2) throw Object.assign(new Error('429 Too Many Requests'), { status: 429 }); return { id: 1, result: '0x' } }, {}, noSleep)).toEqual({ id: 1, result: '0x' })
+    let m = 0
+    const revert = [{ id: 1, error: { code: 3, message: 'execution reverted', data: '0x7e273289' } }]
+    expect(await sendWithRateLimitRetry(async () => { m++; return revert }, [], noSleep)).toBe(revert)
+    expect(m).toBe(1)
+  })
+  it('gives up after the attempt limit and returns the last answer', async () => {
+    let n = 0
+    const res = await sendWithRateLimitRetry(async () => { n++; return [{ id: 1, error: { code: -32011, message: 'requests limited' } }] }, [], { ...noSleep, attempts: 4 })
+    expect(n).toBe(4)
+    expect(res[0].error.code).toBe(-32011)
+  })
+})

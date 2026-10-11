@@ -3,8 +3,8 @@ import {
   Brain, Lock, Inbox, Shield, Bot, Landmark, Database, ExternalLink, RefreshCw, Loader2, CheckCircle2, AlertTriangle,
   Code2, Copy, Check, ArrowRight, Users, Coins, Flag,
 } from 'lucide-react'
-import { ALL_CONTRACTS, CONTRACTS, REAL_PAYMENT_TX, X402_FEE_TX, TEAM_WALLET, CRE_REPORT_TX, FLAGGED_REVERT_TX, BYPASS_REVERT_TX, addressUrl, txUrl, checkDeployed, readLiveStats, listPassports, isSelfServeCard } from './chain.js'
-import { SPONSORS, REPO_PUBLIC, repoLink, FOUNDER, AUDIENCE, BUSINESS, NEXT } from './siteConfig.js'
+import { ALL_CONTRACTS, CONTRACTS, REAL_PAYMENT_TX, X402_FEE_TX, CRE_REPORT_TX, FLAGGED_REVERT_TX, BYPASS_REVERT_TX, addressUrl, txUrl, checkDeployed, readLiveStats } from './chain.js'
+import { SPONSORS, REPO_PUBLIC, repoLink, AUDIENCE, BUSINESS, NEXT } from './siteConfig.js'
 import { Section, StatusPill } from './ui.jsx'
 
 /* ------------------------------------------------------------------ */
@@ -441,40 +441,22 @@ export function Developers() {
 /* Who it's for, how it makes money, what's next                       */
 /* ------------------------------------------------------------------ */
 
-const sameAddr = (a, b) => a && b && a.toLowerCase() === b.toLowerCase()
-
-function Adoption() {
-  const [state, setState] = useState({ status: 'loading' })
-  useEffect(() => {
-    let alive = true
-    listPassports()
-      .then((list) => { if (alive) setState({ status: 'done', total: list.length, external: list.filter((p) => !sameAddr(p.owner, TEAM_WALLET) && !isSelfServeCard(p)), console: list.filter(isSelfServeCard).length }) })
-      .catch(() => { if (alive) setState({ status: 'error' }) })
-    return () => { alive = false }
-  }, [])
-  if (state.status !== 'done') return null
-  const n = state.external.length
+/** Bottom of "Who it's for": anyone can set up a guarded agent themselves, no sign-up or contact needed. */
+function TryConsole() {
   return (
     <div className="gx-card mt-5 flex flex-wrap items-center justify-between gap-3 p-5 sm:px-6">
       <span className="min-w-0">
-        <span className="gx-t1 block font-semibold">
-          {n > 0 ? `${n} agent${n === 1 ? '' : 's'} from outside teams registered on GuardianAI` : 'Building an agent on Monad? Be one of the first teams on GuardianAI.'}
-        </span>
-        <span className="gx-t2 block text-sm">
-          Read live from GuardianPassportSBT: {state.total} agent ID {state.total === 1 ? 'card' : 'cards'} in total, {n} held by outside teams{state.console > 0 ? `, ${state.console} by visitors who set up a guarded agent in the console` : ''}.
-        </span>
+        <span className="gx-t1 block font-semibold">Building an agent on Monad? Set it up yourself.</span>
+        <span className="gx-t2 block text-sm">Connect a wallet, create your agent’s guarded wallet, claim its ID card and watch GuardianAI approve or block its payments.</span>
       </span>
-      {FOUNDER.url && (
-        <a href={FOUNDER.url} target="_blank" rel="noreferrer" className="gx-btn gx-focus">
-          {n > 0 ? 'Register your agent' : 'Get an agent ID card'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </a>
-      )}
+      <a href="?view=console" className="gx-btn gx-focus">
+        Open the console <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </a>
     </div>
   )
 }
 
 export function Readiness() {
-  const who = FOUNDER.name ? `${FOUNDER.name}, ${FOUNDER.role.toLowerCase()}` : `a ${FOUNDER.role.toLowerCase()}`
   return (
     <Section
       id="readiness"
@@ -522,12 +504,7 @@ export function Readiness() {
           </ol>
         </div>
       </div>
-      <Adoption />
-      {(who || FOUNDER.handle) && (
-        <p className="gx-muted mt-5 text-sm">
-          Built by {who}{FOUNDER.handle && <> · <a href={FOUNDER.url} target="_blank" rel="noreferrer" className="gx-link">{FOUNDER.handle}</a></>}
-        </p>
-      )}
+      <TryConsole />
     </Section>
   )
 }

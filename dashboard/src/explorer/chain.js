@@ -18,6 +18,7 @@ export const CONTRACTS = {
   agentWallet: { name: 'GuardianAgentWallet', label: 'Agent wallet (Privy agent)', address: '0xCCb137694f2910c8Ec4883d108c989648019D335' },
   walletFactory: { name: 'GuardianAgentWalletFactory', label: 'Agent wallet factory', address: '0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6' },
   threatOracle: { name: 'GuardianThreatOracle', label: 'Chainlink CRE threat oracle', address: '0x26144375c4f846174A386C464aC5F2e671EbdA95' },
+  passportIssuer: { name: 'GuardianPassportIssuer', label: 'Agent ID card issuer', address: '0x09AAc2dA0A263323585620A55fcCDb89dea960a6' },
 }
 
 // Enforcement on GuardianAgentWallet (metropolis/README.md §4.D and §5). Status checked on MonadScan.
@@ -89,7 +90,11 @@ const threatIface = new Interface([
 
 let rpcId = 0
 
-async function rpc(method, params, timeoutMs = 12000) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+// The public Monad RPC rate-limits busy networks (HTTP 429). Retry those with backoff instead of failing the panel.
+export const RPC_RETRY = { attempts: 5, baseMs: 400 }
+
+async function rpcOnce(method, params, timeoutMs) {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
@@ -99,13 +104,26 @@ async function rpc(method, params, timeoutMs = 12000) {
       body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method, params }),
       signal: ctrl.signal,
     })
+    if (res.status === 429 || res.status === 503) return { retry: true, status: res.status }
     if (!res.ok) throw new Error(`Network responded with HTTP ${res.status}`)
-    return await res.json()
+    const body = await res.json()
+    // Some providers answer 200 with a JSON-RPC "rate limit" error instead of HTTP 429.
+    if (body?.error && /rate.?limit|too many requests/i.test(String(body.error.message))) return { retry: true, status: 429 }
+    return { body }
   } catch (err) {
     if (err?.name === 'AbortError') throw new Error('The Monad testnet took too long to answer.')
     throw err
   } finally {
     clearTimeout(timer)
+  }
+}
+
+async function rpc(method, params, timeoutMs = 12000) {
+  for (let i = 0; ; i++) {
+    const r = await rpcOnce(method, params, timeoutMs)
+    if (!r.retry) return r.body
+    if (i >= RPC_RETRY.attempts - 1) throw new Error(`Network responded with HTTP ${r.status} (busy). Try again in a moment.`)
+    await sleep(RPC_RETRY.baseMs * 2 ** i + Math.random() * RPC_RETRY.baseMs)
   }
 }
 
@@ -326,6 +344,7 @@ export const ALL_CONTRACTS = [
   { name: 'GuardianAgentWallet', role: 'The Privy agent’s funds: every call needs the agent’s key AND a GuardianAI signature', address: '0xCCb137694f2910c8Ec4883d108c989648019D335' },
   { name: 'GuardianAgentWalletFactory', role: 'Creates one GuardianAgentWallet per agent', address: '0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6' },
   { name: 'GuardianThreatOracle', role: 'Chainlink CRE receiver: scam list agreed by the DON, written only by the Chainlink forwarder', address: '0x26144375c4f846174A386C464aC5F2e671EbdA95' },
+  { name: 'GuardianPassportIssuer', role: 'Owns the ID cards: wallet owners claim one entry-level card for their own agent; GuardianAI can revoke', address: '0x09AAc2dA0A263323585620A55fcCDb89dea960a6' },
 ]
 
 /** Asks the chain whether code exists at each address. Returns { [address]: bytecodeBytes }. */
@@ -363,6 +382,23 @@ export function formatMon(wei, digits = 4) {
   return frac ? `${whole}.${frac}` : `${whole}`
 }
 
+/**
+ * Display name for a card from its metadata URI:
+ *   ipfs://…/eliza.json                 -> "Eliza"
+ *   guardianai:privy-agent:0x27ff…9923  -> "Privy agent 0x27FF…9923"   (cards minted by tools/mint_agent_passport.py)
+ *   ""                                  -> "Agent #5"
+ */
+export function cardName(uri, tokenId) {
+  const tag = uri.match(/^guardianai:([a-z0-9-]+):(0x[0-9a-fA-F]{40})$/)
+  if (tag) {
+    const kind = tag[1].replace(/-/g, ' ')
+    const a = getAddress(tag[2])
+    return `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ${a.slice(0, 6)}…${a.slice(-4)}`
+  }
+  const file = uri.split('/').pop()?.replace(/\.json$/i, '') || ''
+  return file ? file.charAt(0).toUpperCase() + file.slice(1) : `Agent #${tokenId}`
+}
+
 /** Every agent ID card, by walking token ids from 1 until ownerOf reverts. */
 export async function listPassports(max = 50) {
   const out = []
@@ -373,11 +409,10 @@ export async function listPassports(max = 50) {
     const res = await ethCall(CONTRACTS.passport.address, passportIface.encodeFunctionData('passports', [i]))
     if (res.error) break
     const [agentHash, tier, trustScore, issuedAt, , revoked, metadataURI] = passportIface.decodeFunctionResult('passports', res.result)
-    const file = String(metadataURI || '').split('/').pop()?.replace(/\.json$/i, '') || ''
     out.push({
       tokenId: i,
       agentId: agentHash,
-      name: file ? file.charAt(0).toUpperCase() + file.slice(1) : `Agent #${i}`,
+      name: cardName(String(metadataURI || ''), i),
       tier: TIERS[Number(tier)] || `Tier ${tier}`,
       trustScore: Number(trustScore) / 100,
       issuedAt: new Date(Number(issuedAt) * 1000),
@@ -388,6 +423,9 @@ export async function listPassports(max = 50) {
   }
   return out
 }
+
+/** A card claimed through GuardianPassportIssuer by a console visitor (score 10.00, no metadata), not a partner team. */
+export const isSelfServeCard = (p) => p.metadataURI === '' && p.trustScore === 10
 
 /** Every EVM scam wallet on the list, with the reason it was listed. */
 export async function listScamWallets() {

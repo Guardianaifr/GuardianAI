@@ -3,7 +3,7 @@ import {
   Brain, Lock, Inbox, Shield, Bot, Landmark, Database, ExternalLink, RefreshCw, Loader2, CheckCircle2, AlertTriangle,
   Code2, Copy, Check, ArrowRight, Users, Coins, Flag,
 } from 'lucide-react'
-import { ALL_CONTRACTS, CONTRACTS, REAL_PAYMENT_TX, X402_FEE_TX, TEAM_WALLET, CRE_REPORT_TX, FLAGGED_REVERT_TX, BYPASS_REVERT_TX, addressUrl, txUrl, checkDeployed, readLiveStats, listPassports } from './chain.js'
+import { ALL_CONTRACTS, CONTRACTS, REAL_PAYMENT_TX, X402_FEE_TX, TEAM_WALLET, CRE_REPORT_TX, FLAGGED_REVERT_TX, BYPASS_REVERT_TX, addressUrl, txUrl, checkDeployed, readLiveStats, listPassports, isSelfServeCard } from './chain.js'
 import { SPONSORS, REPO_PUBLIC, repoLink, FOUNDER, AUDIENCE, BUSINESS, NEXT } from './siteConfig.js'
 import { Section, StatusPill } from './ui.jsx'
 
@@ -448,7 +448,7 @@ function Adoption() {
   useEffect(() => {
     let alive = true
     listPassports()
-      .then((list) => { if (alive) setState({ status: 'done', total: list.length, external: list.filter((p) => !sameAddr(p.owner, TEAM_WALLET)) }) })
+      .then((list) => { if (alive) setState({ status: 'done', total: list.length, external: list.filter((p) => !sameAddr(p.owner, TEAM_WALLET) && !isSelfServeCard(p)), console: list.filter(isSelfServeCard).length }) })
       .catch(() => { if (alive) setState({ status: 'error' }) })
     return () => { alive = false }
   }, [])
@@ -461,7 +461,7 @@ function Adoption() {
           {n > 0 ? `${n} agent${n === 1 ? '' : 's'} from outside teams registered on GuardianAI` : 'Building an agent on Monad? Be one of the first teams on GuardianAI.'}
         </span>
         <span className="gx-t2 block text-sm">
-          Read live from GuardianPassportSBT: {state.total} agent ID {state.total === 1 ? 'card' : 'cards'} in total, {n} held by wallets outside the GuardianAI team.
+          Read live from GuardianPassportSBT: {state.total} agent ID {state.total === 1 ? 'card' : 'cards'} in total, {n} held by outside teams{state.console > 0 ? `, ${state.console} by visitors who set up a guarded agent in the console` : ''}.
         </span>
       </span>
       {FOUNDER.url && (

@@ -5,8 +5,9 @@ import {
 import './theme.css'
 import { Header, Footer, useTheme } from './layout.jsx'
 import { useWallet, WalletPicker } from './wallet.jsx'
+import GuardedAgent from './GuardedAgent.jsx'
 import {
-  CONTRACTS, TEAM_WALLET, addressUrl, getBalance, formatMon, listPassports, listScamWallets, readGuardSettings, checkAddress, ipfsToHttp, getBlockNumber, getFirstScamAddress,
+  CONTRACTS, TEAM_WALLET, addressUrl, getBalance, formatMon, listPassports, isSelfServeCard, listScamWallets, readGuardSettings, checkAddress, ipfsToHttp, getBlockNumber, getFirstScamAddress,
 } from './chain.js'
 
 const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '')
@@ -92,10 +93,10 @@ function YourWallet() {
 
   if (w.status !== 'connected') {
     return (
-      <Panel iconC={WalletIcon} title="Connect your wallet" subtitle="See your wallet on Monad testnet and any GuardianAI agents it owns.">
+      <Panel iconC={WalletIcon} title="Connect your wallet" subtitle="Own a guarded agent wallet on Monad testnet: you hold the money and the kill switch, GuardianAI approves every payment.">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_1fr]">
           <div className="gx-t2 space-y-2 text-sm leading-relaxed">
-            <p>GuardianAI only reads your address. Nothing on this page asks you to sign a message or send a transaction.</p>
+            <p>Connecting only shares your address. Nothing is sent unless you press a button in “Your guarded agent” and approve it in your wallet.</p>
             <p>No wallet? Everything else on this page still works, and the <a href="./" className="gx-link">Attack Lab</a> needs no wallet at all.</p>
           </div>
           <div className="gx-surface-2 rounded-xl p-3">
@@ -159,9 +160,9 @@ function AgentCard({ p, mine }) {
     <li className="gx-surface-2 rounded-xl p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="gx-t1 font-bold">{p.name} <span className="gx-muted font-normal">#{p.tokenId}</span></p>
-          <p className="mt-1 text-xs font-semibold" style={{ color: sameAddr(p.owner, TEAM_WALLET) ? 'var(--gx-muted)' : 'var(--gx-good-text)' }}>
-            {sameAddr(p.owner, TEAM_WALLET) ? 'GuardianAI demo agent' : 'Built on GuardianAI · external team'}
+          <p className="gx-t1 break-words font-bold">{p.name} <span className="gx-muted font-normal">#{p.tokenId}</span></p>
+          <p className="mt-1 text-xs font-semibold" style={{ color: sameAddr(p.owner, TEAM_WALLET) || isSelfServeCard(p) ? 'var(--gx-muted)' : 'var(--gx-good-text)' }}>
+            {sameAddr(p.owner, TEAM_WALLET) ? 'GuardianAI demo agent' : isSelfServeCard(p) ? 'Console agent · entry-level card' : 'Built on GuardianAI · external team'}
           </p>
           <p className="gx-muted mt-0.5 break-all font-mono text-xs">{p.agentId.slice(0, 18)}…</p>
         </div>
@@ -184,6 +185,10 @@ function AgentCard({ p, mine }) {
 function Agents() {
   const w = useWallet()
   const [state, reload] = useAsync(() => listPassports(), [])
+  useEffect(() => {
+    window.addEventListener('gx-cards-changed', reload)
+    return () => window.removeEventListener('gx-cards-changed', reload)
+  }, [reload])
   const all = state.data || []
   const mine = w.status === 'connected' ? all.filter((p) => sameAddr(p.owner, w.address)) : []
   const others = all.filter((p) => !mine.includes(p))
@@ -203,7 +208,7 @@ function Agents() {
               <p className="gx-t1 mb-2 text-sm font-semibold">Owned by your wallet</p>
               {mine.length
                 ? <ul className="grid grid-cols-1 gap-3 md:grid-cols-3">{mine.map((p) => <AgentCard key={p.tokenId} p={p} mine />)}</ul>
-                : <p className="gx-surface-2 gx-t2 rounded-xl p-4 text-sm">This wallet doesn’t own any agent ID cards yet. Cards are issued when an agent is registered with GuardianAI.</p>}
+                : <p className="gx-surface-2 gx-t2 rounded-xl p-4 text-sm">This wallet doesn’t own any agent ID cards yet. Create a guarded wallet above and claim one for your agent.</p>}
             </div>
           )}
           {others.length > 0 && (
@@ -215,7 +220,7 @@ function Agents() {
           {all.length === 0 && <p className="gx-t2 text-sm">No agents are registered yet.</p>}
           {all.length > 0 && (
             <p className="gx-muted mt-4 text-sm">
-              {all.filter((p) => !sameAddr(p.owner, TEAM_WALLET)).length} of {all.length} cards are held by wallets outside the GuardianAI team. Team wallet: <a href={addressUrl(TEAM_WALLET)} target="_blank" rel="noreferrer" className="gx-link font-mono">{short(TEAM_WALLET)}</a>.
+              {all.filter((p) => !sameAddr(p.owner, TEAM_WALLET) && !isSelfServeCard(p)).length} of {all.length} cards are held by outside teams{all.some(isSelfServeCard) ? `, ${all.filter(isSelfServeCard).length} by visitors’ console agents` : ''}. Team wallet: <a href={addressUrl(TEAM_WALLET)} target="_blank" rel="noreferrer" className="gx-link font-mono">{short(TEAM_WALLET)}</a>.
             </p>
           )}
         </>
@@ -346,9 +351,10 @@ export default function Console() {
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6">
         <p className="gx-accent text-sm font-semibold">Monad testnet · chain 10143</p>
         <h1 className="gx-t1 mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Console</h1>
-        <p className="gx-t2 mt-2 max-w-2xl text-lg">Your wallet, your agents, and GuardianAI’s live rules on Monad, all in one place.</p>
+        <p className="gx-t2 mt-2 max-w-2xl text-lg">Give an AI agent its own guarded wallet: you fund it and keep the kill switch, and GuardianAI must approve every payment it makes.</p>
         <div className="mt-8 space-y-6">
           <YourWallet />
+          <GuardedAgent />
           <Agents />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <CheckAddress />

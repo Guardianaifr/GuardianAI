@@ -3,12 +3,13 @@
  * put it on Monad testnet. Uses the EIP-6963 wallet discovery standard, falling
  * back to window.ethereum. No third-party app ID or backend needed.
  *
- * Read-only by design: we only ask for the address and the network. Nothing here
- * asks the user to sign a message or send a transaction.
+ * Connecting only shares the address and the network. Transactions are requested only when the
+ * user presses a button in the console's "Your guarded agent" panel (getSigner below).
  */
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { Wallet as WalletIcon, ChevronDown, Copy, Check, ExternalLink, LogOut, LayoutDashboard, AlertTriangle, Loader2 } from 'lucide-react'
+import { BrowserProvider } from 'ethers'
 import { addressUrl } from './chain.js'
 
 export const MONAD_TESTNET = {
@@ -142,8 +143,15 @@ export function WalletProvider({ children }) {
     }
   }, [])
 
+  /** An ethers signer for the connected wallet. Only called when the user presses a button that sends a transaction. */
+  const getSigner = useCallback(async () => {
+    const p = active.current?.provider
+    if (!p) throw new Error('Connect a wallet first.')
+    return new BrowserProvider(p, 'any').getSigner()
+  }, [])
+
   const onMonad = state.chainId?.toLowerCase() === MONAD_TESTNET.chainId
-  const value = { ...state, wallets, onMonad, connect, disconnect, switchToMonad, clearError: () => setState((s) => ({ ...s, error: null })) }
+  const value = { ...state, wallets, onMonad, connect, disconnect, switchToMonad, getSigner, clearError: () => setState((s) => ({ ...s, error: null })) }
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
 }
 
@@ -187,7 +195,7 @@ export function WalletPicker({ onDone }) {
           </li>
         ))}
       </ul>
-      <p className="gx-muted mt-3 px-1 text-xs leading-relaxed">Read-only. GuardianAI only sees your address; it never asks you to sign or send anything here.</p>
+      <p className="gx-muted mt-3 px-1 text-xs leading-relaxed">Connecting only shares your address. Your wallet asks you to approve each transaction you start in the console.</p>
     </div>
   )
 }

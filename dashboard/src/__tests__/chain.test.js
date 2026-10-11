@@ -140,3 +140,42 @@ describe('chain.js against real Monad replies', () => {
     expect(formatMon(500000000000000n)).toBe('0.0005')
   })
 })
+
+import { cardName, isSelfServeCard } from '../explorer/chain.js'
+describe('cardName / isSelfServeCard', () => {
+  it('names cards from ipfs files, guardianai tags, or the token id', () => {
+    expect(cardName('ipfs://bafy/eliza.json', 1)).toBe('Eliza')
+    expect(cardName('guardianai:privy-agent:0x27ffba14315383f61b4f9f9244a95fedea459923', 4)).toBe('Privy agent 0x27FF…9923')
+    expect(cardName('', 5)).toBe('Agent #5')
+  })
+  it('recognises self-serve console cards only by the issuer’s exact shape', () => {
+    expect(isSelfServeCard({ metadataURI: '', trustScore: 10 })).toBe(true)
+    expect(isSelfServeCard({ metadataURI: 'ipfs://x', trustScore: 10 })).toBe(false)
+    expect(isSelfServeCard({ metadataURI: '', trustScore: 50 })).toBe(false)
+  })
+})
+
+import { getBlockNumber, RPC_RETRY } from '../explorer/chain.js'
+describe('rpc retries on rate limits', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it('retries HTTP 429 and JSON-RPC rate-limit errors, then succeeds', async () => {
+    RPC_RETRY.baseMs = 1
+    let n = 0
+    vi.stubGlobal('fetch', async (_u, opts) => {
+      const id = JSON.parse(opts.body).id
+      n++
+      if (n === 1) return { status: 429, ok: false, json: async () => ({}) }
+      if (n === 2) return { status: 200, ok: true, json: async () => ({ jsonrpc: '2.0', id, error: { code: -32005, message: 'rate limited' } }) }
+      return { status: 200, ok: true, json: async () => ({ jsonrpc: '2.0', id, result: '0x10' }) }
+    })
+    expect(await getBlockNumber()).toBe(16)
+    expect(n).toBe(3)
+  })
+  it('gives up after the last attempt with a clear message', async () => {
+    RPC_RETRY.baseMs = 1
+    let n = 0
+    vi.stubGlobal('fetch', async () => { n++; return { status: 429, ok: false, json: async () => ({}) } })
+    await expect(getBlockNumber()).rejects.toThrow(/HTTP 429 \(busy\)/)
+    expect(n).toBe(RPC_RETRY.attempts)
+  })
+})

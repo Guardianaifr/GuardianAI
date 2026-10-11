@@ -1,0 +1,8 @@
+{
+  "GuardianPassportIssuer": "0x09AAc2dA0A263323585620A55fcCDb89dea960a6",
+  "passport": "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
+  "factory": "0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6",
+  "claimCap": "200",
+  "deployTx": "0x232239feca3ce14ff30635e5f4ba99d18a3d70c09826ddf064d1c948b4eb548b",
+  "at": "2026-10-11T08:49:18.932Z"
+}

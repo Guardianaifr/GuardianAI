@@ -72,3 +72,6 @@ tools/privy-agent/.state.json
 *.db-shm
 
 tools/privy-agent/.agent-card.json
+
+# Railway relay deploy staging (deploy/relay/deploy-railway.ps1)
+/.railway-relay/

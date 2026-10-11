@@ -17,7 +17,14 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    hardhat: {},
+    hardhat: {
+      // FORK_MONAD=1 runs the in-process network as a local fork of Monad testnet
+      // (scripts/rehearse-passport-issuer.ts). Off by default: normal tests are unaffected.
+      ...(process.env.FORK_MONAD === "1"
+        ? { forking: { url: process.env.MONAD_TESTNET_RPC || "https://testnet-rpc.monad.xyz" }, chainId: 10143 }
+        : {}),
+      chains: { 10143: { hardforkHistory: { cancun: 0, prague: 0, osaka: 0 } } },
+    },
     monad_testnet: {
       url: process.env.MONAD_TESTNET_RPC || "https://testnet-rpc.monad.xyz",
       chainId: 10143,

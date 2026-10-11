@@ -20,6 +20,13 @@ for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
         os.environ.setdefault(k.strip(), v.strip().strip("'\""))
 
 PASSPORT = "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff"
+# After the handoff (contracts/scripts/deploy-passport-issuer.ts) the SBT is owned by GuardianPassportIssuer,
+# which exposes the same mint(...) to its owner (the deployer). Mint through it when it exists.
+_ISSUER_FILE = ROOT / "contracts" / "deployments" / "monad_testnet_10143" / "passport-issuer.json"
+MINT_VIA = PASSPORT
+if _ISSUER_FILE.exists():
+    import json as _json
+    MINT_VIA = _json.loads(_ISSUER_FILE.read_text(encoding="utf-8"))["GuardianPassportIssuer"]
 ABI = [
     {"name": "mint", "type": "function", "stateMutability": "nonpayable",
      "inputs": [{"name": "_to", "type": "address"}, {"name": "_agentHash", "type": "bytes32"},
@@ -36,6 +43,8 @@ agent_id = f"privy-agent:{agent.lower()}"
 agent_hash = Web3.keccak(text=agent_id)
 w3 = Web3(Web3.HTTPProvider(os.environ.get("MONAD_TESTNET_RPC") or "https://testnet-rpc.monad.xyz"))
 c = w3.eth.contract(address=PASSPORT, abi=ABI)
+minter = w3.eth.contract(address=Web3.to_checksum_address(MINT_VIA), abi=ABI)
+print("minting via:", "GuardianPassportIssuer " + MINT_VIA if MINT_VIA != PASSPORT else "GuardianPassportSBT (direct)")
 print("agent_id:", agent_id, "\nagentHash:", agent_hash.hex())
 if c.functions.isPassportActive(agent_hash).call():
     sys.exit("already has an active ID card")
@@ -43,7 +52,7 @@ owner = Account.from_key(os.environ["GUARDIAN_DEPLOYER_PRIVATE_KEY"])
 print("mint to (team wallet):", owner.address)
 if "--yes" not in sys.argv:
     sys.exit("dry run: add --yes to send the mint transaction")
-tx = c.functions.mint(owner.address, agent_hash, 5000, f"guardianai:privy-agent:{agent.lower()}").build_transaction({
+tx = minter.functions.mint(owner.address, agent_hash, 5000, f"guardianai:privy-agent:{agent.lower()}").build_transaction({
     "from": owner.address, "nonce": w3.eth.get_transaction_count(owner.address), "chainId": 10143,
 })
 signed = owner.sign_transaction(tx)

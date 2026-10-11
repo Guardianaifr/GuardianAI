@@ -12,7 +12,7 @@ import { useWallet } from './wallet.jsx'
 import { CONTRACTS, addressUrl, txUrl, formatMon, getFirstScamAddress } from './chain.js'
 import {
   readGuardedWallet, createGuardedWallet, ownerCall, fundWallet, loadAgentKey, saveAgentKey, newAgentKey, explainTxError, RISK_LEVELS,
-  claimCard, runScenario, SCENARIOS, AGENT_GAS_WEI, PAY_BACK_WEI,
+  claimCard, runScenario, SCENARIOS, AGENT_GAS_WEI, PAY_BACK_WEI, ONE_PAYMENT_GAS_WEI,
 } from './guardedWallet.js'
 
 const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '')
@@ -178,7 +178,7 @@ export default function GuardedAgent() {
             <p className="gx-t1 font-semibold">Two keys, like a real deployment:</p>
             <p className="flex gap-2"><User className="gx-accent mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span><strong className="gx-t1">You (owner)</strong>: your connected wallet. You fund it, set its limits, freeze it and withdraw. No approval needed.</span></p>
             <p className="flex gap-2"><Bot className="gx-accent mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span><strong className="gx-t1">Your agent</strong>: a new key made in this browser. It can only move money with a fresh GuardianAI approval for that exact payment. The chain refuses anything else.</span></p>
-            <p className="gx-muted text-xs">One transaction on Monad testnet (gas only). The agent key is a demo key kept in this browser; you can replace it any time.</p>
+            <p className="gx-muted text-xs">Measured on Monad testnet: creating the wallet deploys a contract (about 0.2 MON in gas), the ID card about 0.03, and each agent payment about 0.02. Plan on roughly 0.5 MON for the full walkthrough; what you put in the agent’s wallet can be withdrawn. The agent key is a demo key kept in this browser; you can replace it any time.</p>
           </div>
           <div className="gx-surface-2 flex flex-col justify-center gap-3 rounded-xl p-4">
             <ActionButton busy={busy} name="create" onClick={create}>Create guarded wallet</ActionButton>
@@ -358,7 +358,7 @@ function Check({ done, children, action }) {
 
 function AgentReady({ d, keyHere, busy, onClaim, onGas }) {
   const gas = d.operatorBalance ?? 0n
-  const enoughGas = gas >= AGENT_GAS_WEI / 5n
+  const enoughGas = gas >= ONE_PAYMENT_GAS_WEI
   return (
     <>
       <h3 className="gx-t1 mt-6 text-base font-bold">Get your agent ready</h3>
@@ -367,7 +367,7 @@ function AgentReady({ d, keyHere, busy, onClaim, onGas }) {
           {d.hasPassport ? 'Agent ID card active (entry level)' : 'Agent ID card: GuardianAI only approves payments for agents with a card. One per wallet, free.'}
         </Check>
         <Check done={enoughGas} action={<ActionButton busy={busy} name="gas" ghost onClick={onGas}><Fuel className="h-4 w-4" aria-hidden="true" /> Give your agent {formatMon(AGENT_GAS_WEI)} MON for gas</ActionButton>}>
-          {enoughGas ? `Agent key has ${formatMon(gas)} MON for gas` : `Agent key has ${formatMon(gas)} MON. It pays its own gas when it sends a payment.`}
+          {enoughGas ? `Agent key has ${formatMon(gas)} MON for gas (each payment costs about 0.02)` : `Agent key has ${formatMon(gas)} MON. It pays its own gas: each payment costs about 0.02 MON but needs about 0.04 available.`}
         </Check>
         <Check done={d.balance >= PAY_BACK_WEI}>
           {d.balance >= PAY_BACK_WEI ? 'Agent wallet has funds to spend' : 'Agent wallet is empty: add funds below so the agent has something to spend.'}

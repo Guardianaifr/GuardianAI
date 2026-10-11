@@ -146,7 +146,8 @@ function fakeChain({ callRevert = null, balance = 10n ** 17n } = {}) {
   return {
     call: async () => { if (callRevert) { const e = new Error('execution reverted'); e.data = callRevert; throw e } return '0x' },
     getBalance: async () => balance,
-    estimateGas: async () => { throw new Error('estimateGas should not be reached in these tests') },
+    estimateGas: async () => 168000n,
+    getFeeData: async () => ({ maxFeePerGas: 102n * 10n ** 9n, gasPrice: 102n * 10n ** 9n }),
   }
 }
 
@@ -216,6 +217,13 @@ describe('runScenario', () => {
     const r = await runScenario('payBack', { ...base, fetchImpl: f, provider: fakeChain({ balance: 0n }) })
     expect(r.outcome).toBe('error')
     expect(r.message).toMatch(/Give your agent gas/)
+  })
+  it('pay back: too little gas for this payment is caught before sending (Monad bills the full limit)', async () => {
+    const f = fakeFetch(() => ({ text: relayReply() }))
+    // 168k gas * 1.10 * 102 gwei = 0.01885 MON needed; the key has 0.0086
+    const r = await runScenario('payBack', { ...base, fetchImpl: f, provider: fakeChain({ balance: 8600000000000000n }) })
+    expect(r.outcome).toBe('error')
+    expect(r.message).toMatch(/has 0\.0086 MON and this payment needs about 0\.0188 MON/)
   })
   it('relay unreachable is reported, not thrown', async () => {
     const r = await runScenario('injection', { ...base, provider: fakeChain(), fetchImpl: async () => { throw new TypeError('Failed to fetch') } })

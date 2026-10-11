@@ -75,3 +75,7 @@ tools/privy-agent/.agent-card.json
 
 # Railway relay deploy staging (deploy/relay/deploy-railway.ps1)
 /.railway-relay/
+
+# Console E2E outputs (real-run owner keys, screenshots)
+/dashboard/qa/real/
+/dashboard/qa/e2e-out/

@@ -3,6 +3,7 @@
  * The fixture replies below are real responses from https://testnet-rpc.monad.xyz,
  * captured 2026-10-01 by replaying the exact eth_call payloads this module builds.
  */
+import { AbiCoder } from 'ethers'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { Interface, verifyTypedData } from 'ethers'
 import {
@@ -119,18 +120,37 @@ describe('chain.js against real Monad replies', () => {
     expect(explainRefusal(r.errorName, r.errorArgs)).toContain('wasn’t signed by GuardianAI')
   })
 
-  it('listPassports: walks token ids until ownerOf reverts and decodes each card (real replies)', async () => {
+  const encPassport = (hash, tier, score, issuedAt, revoked, uri) => AbiCoder.defaultAbiCoder().encode(
+    ['bytes32', 'uint8', 'uint256', 'uint256', 'uint256', 'bool', 'string'], [hash, tier, score, issuedAt, issuedAt, revoked, uri])
+  const EMPTY = encPassport('0x' + '00'.repeat(32), 0, 0, 0, false, '')
+
+  it('listPassports: walks token ids until passports() is empty and decodes each card (real replies)', async () => {
     const owner = '0x0000000000000000000000001d4549b95dccac8203393543187b25b3137d0bf6'
     mockRpc((tx) => {
       const id = parseInt(tx.data.slice(10), 16)
       if (tx.data.startsWith('0x6352211e')) return id <= 1 ? { result: owner } : { error: { code: 3, message: 'execution reverted' } }
-      if (tx.data.startsWith('0xcb22f5fd')) return { result: REAL.passport1 }
+      if (tx.data.startsWith('0xcb22f5fd')) return { result: id === 1 ? REAL.passport1 : EMPTY }
       return { error: { code: -1, message: 'unexpected call' } }
     })
     const list = await listPassports()
     expect(list).toHaveLength(1)
     expect(list[0]).toMatchObject({ tokenId: 1, name: 'Eliza', tier: 'Diamond', trustScore: 94, revoked: false })
     expect(list[0].owner.toLowerCase()).toBe('0x1d4549b95dccac8203393543187b25b3137d0bf6')
+  })
+
+  it('listPassports: skips revoked (burned) cards instead of stopping at them', async () => {
+    const owner = '0x0000000000000000000000002dDD4bf47FcBC03c8157a3742668A5dd8DC3d84E'.toLowerCase()
+    const cards = { 1: [true, 'ipfs://x/eliza.json'], 2: [true, 'ipfs://x/mera.json'], 3: [false, 'guardianai:privy-agent:0x27ffba14315383f61b4f9f9244a95fedea459923'], 4: [true, ''], 5: [false, ''] }
+    mockRpc((tx) => {
+      const id = parseInt(tx.data.slice(10), 16)
+      if (tx.data.startsWith('0x6352211e')) return cards[id] && !cards[id][0] ? { result: owner } : { error: { code: 3, message: 'ERC721NonexistentToken' } }
+      if (tx.data.startsWith('0xcb22f5fd')) return { result: cards[id] ? encPassport('0x' + String(id).padStart(64, '0'), 0, 1000, 1760000000, cards[id][0], cards[id][1]) : EMPTY }
+      return { error: { code: -1, message: 'unexpected call' } }
+    })
+    const list = await listPassports()
+    expect(list.map((p) => p.tokenId)).toEqual([3, 5])
+    expect(list[0].name).toBe('Privy agent 0x27FF…9923')
+    expect(list[1].name).toBe('Agent')
   })
 
   it('formatMon: shows whole and fractional MON without float rounding', () => {
@@ -146,7 +166,7 @@ describe('cardName / isSelfServeCard', () => {
   it('names cards from ipfs files, guardianai tags, or the token id', () => {
     expect(cardName('ipfs://bafy/eliza.json', 1)).toBe('Eliza')
     expect(cardName('guardianai:privy-agent:0x27ffba14315383f61b4f9f9244a95fedea459923', 4)).toBe('Privy agent 0x27FF…9923')
-    expect(cardName('', 5)).toBe('Agent #5')
+    expect(cardName('', 5)).toBe('Agent')
   })
   it('recognises self-serve console cards only by the issuer’s exact shape', () => {
     expect(isSelfServeCard({ metadataURI: '', trustScore: 10 })).toBe(true)

@@ -386,9 +386,9 @@ export function formatMon(wei, digits = 4) {
  * Display name for a card from its metadata URI:
  *   ipfs://…/eliza.json                 -> "Eliza"
  *   guardianai:privy-agent:0x27ff…9923  -> "Privy agent 0x27FF…9923"   (cards minted by tools/mint_agent_passport.py)
- *   ""                                  -> "Agent #5"
+ *   ""                                  -> "Agent" (the card shows its #id next to the name)
  */
-export function cardName(uri, tokenId) {
+export function cardName(uri) {
   const tag = uri.match(/^guardianai:([a-z0-9-]+):(0x[0-9a-fA-F]{40})$/)
   if (tag) {
     const kind = tag[1].replace(/-/g, ' ')
@@ -396,29 +396,33 @@ export function cardName(uri, tokenId) {
     return `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ${a.slice(0, 6)}…${a.slice(-4)}`
   }
   const file = uri.split('/').pop()?.replace(/\.json$/i, '') || ''
-  return file ? file.charAt(0).toUpperCase() + file.slice(1) : `Agent #${tokenId}`
+  return file ? file.charAt(0).toUpperCase() + file.slice(1) : 'Agent'
 }
 
-/** Every agent ID card, by walking token ids from 1 until ownerOf reverts. */
+/**
+ * Every active agent ID card. Walks token ids from 1 until passports(id) is empty (issuedAt 0).
+ * Revoked cards are burned (ownerOf reverts), so they are skipped, not treated as the end of the list.
+ */
 export async function listPassports(max = 50) {
   const out = []
   for (let i = 1; i <= max; i++) {
-    const own = await ethCall(CONTRACTS.passport.address, erc721Iface.encodeFunctionData('ownerOf', [i]))
-    if (own.error) break
-    const owner = getAddress(erc721Iface.decodeFunctionResult('ownerOf', own.result)[0])
     const res = await ethCall(CONTRACTS.passport.address, passportIface.encodeFunctionData('passports', [i]))
     if (res.error) break
     const [agentHash, tier, trustScore, issuedAt, , revoked, metadataURI] = passportIface.decodeFunctionResult('passports', res.result)
+    if (Number(issuedAt) === 0) break
+    if (revoked) continue
+    const own = await ethCall(CONTRACTS.passport.address, erc721Iface.encodeFunctionData('ownerOf', [i]))
+    if (own.error) continue
     out.push({
       tokenId: i,
       agentId: agentHash,
-      name: cardName(String(metadataURI || ''), i),
+      name: cardName(String(metadataURI || '')),
       tier: TIERS[Number(tier)] || `Tier ${tier}`,
       trustScore: Number(trustScore) / 100,
       issuedAt: new Date(Number(issuedAt) * 1000),
-      revoked: Boolean(revoked),
+      revoked: false,
       metadataURI: String(metadataURI || ''),
-      owner,
+      owner: getAddress(erc721Iface.decodeFunctionResult('ownerOf', own.result)[0]),
     })
   }
   return out

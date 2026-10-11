@@ -447,7 +447,7 @@ function TryConsole() {
     <div className="gx-card mt-5 flex flex-wrap items-center justify-between gap-3 p-5 sm:px-6">
       <span className="min-w-0">
         <span className="gx-t1 block font-semibold">Building an agent on Monad? Set it up yourself.</span>
-        <span className="gx-t2 block text-sm">Connect a wallet, create your agent’s guarded wallet, claim its ID card and watch GuardianAI approve or block its payments.</span>
+        <span className="gx-t2 block text-sm">Connect a wallet and create your agent’s guarded wallet. You get a real ElizaOS agent to talk to, and GuardianAI approves or blocks every payment it tries.</span>
       </span>
       <a href="?view=console" className="gx-btn gx-focus">
         Open the console <ArrowRight className="h-4 w-4" aria-hidden="true" />

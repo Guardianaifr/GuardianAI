@@ -92,7 +92,7 @@ export const BUSINESS = [
 export const NEXT = [
   'Verify every contract’s source on MonadScan',
   'Move pay-per-approval from Monad testnet to mainnet USDC',
-  'Publish @guardianai/middleware to npm',
+  'Publish the GuardianAI ElizaOS plugin (guardianai-eliza) to npm',
   'Run the Chainlink CRE threat oracle on a live DON with the production forwarder',
   'Register the first outside agent teams with ID cards',
   'External audit of the Monad contracts, then mainnet',

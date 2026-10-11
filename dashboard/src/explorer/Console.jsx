@@ -220,7 +220,7 @@ function Agents() {
           {all.length === 0 && <p className="gx-t2 text-sm">No agents are registered yet.</p>}
           {all.length > 0 && (
             <p className="gx-muted mt-4 text-sm">
-              {all.filter((p) => !sameAddr(p.owner, TEAM_WALLET) && !isSelfServeCard(p)).length} of {all.length} cards are held by outside teams{all.some(isSelfServeCard) ? `, ${all.filter(isSelfServeCard).length} by visitors’ console agents` : ''}. Team wallet: <a href={addressUrl(TEAM_WALLET)} target="_blank" rel="noreferrer" className="gx-link font-mono">{short(TEAM_WALLET)}</a>.
+              {all.length} active {all.length === 1 ? 'card' : 'cards'}: {all.filter((p) => sameAddr(p.owner, TEAM_WALLET)).length} run by GuardianAI, {all.filter(isSelfServeCard).length} created in this console{all.some((p) => !sameAddr(p.owner, TEAM_WALLET) && !isSelfServeCard(p)) ? `, ${all.filter((p) => !sameAddr(p.owner, TEAM_WALLET) && !isSelfServeCard(p)).length} from outside teams` : ''}. Team wallet: <a href={addressUrl(TEAM_WALLET)} target="_blank" rel="noreferrer" className="gx-link font-mono">{short(TEAM_WALLET)}</a>.
             </p>
           )}
         </>

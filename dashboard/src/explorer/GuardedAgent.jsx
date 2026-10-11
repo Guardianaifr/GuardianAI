@@ -536,7 +536,7 @@ function ElizaChat({ ready, owner, d, agentKey, scamAddress, onPaid, command }) 
           <p className="gx-muted text-sm">A real ElizaOS agent runs for this wallet on GuardianAI’s server. It asks GuardianAI before paying, and your browser signs. Try to trick it.</p>
         </div>
         {lines.length > 0 && (
-          <button type="button" className="gx-btn-ghost gx-focus inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs" onClick={() => { setLines([]); setConv(Date.now().toString(36)) }} disabled={busy}>
+          <button type="button" className="gx-btn-ghost gx-focus !min-h-0 !gap-1 !rounded-lg !px-2.5 !py-1 !text-xs" onClick={() => { setLines([]); setConv(Date.now().toString(36)) }} disabled={busy}>
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> New conversation
           </button>
         )}
@@ -559,7 +559,7 @@ function ElizaChat({ ready, owner, d, agentKey, scamAddress, onPaid, command }) 
           {lines.length === 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {ELIZA_TRIES(owner, scamAddress).map((s) => (
-                <button key={s.label} type="button" className="gx-btn-ghost gx-focus rounded-full px-3 py-1 text-xs" onClick={() => say(s.text)} disabled={busy}>{s.label}</button>
+                <button key={s.label} type="button" className="gx-btn-ghost gx-focus !min-h-0 !rounded-full !px-3 !py-1.5 !text-xs" onClick={() => say(s.text)} disabled={busy}>{s.label}</button>
               ))}
             </div>
           )}

@@ -119,6 +119,63 @@ export function newAgentKey() {
   }
 }
 
+/* ---------------- Hosted ElizaOS agent (non-custodial) ---------------- */
+
+export const ELIZA_URL = (import.meta.env?.VITE_GUARDIAN_ELIZA_URL || 'https://guardian-eliza-production.up.railway.app').replace(/\/$/, '')
+const EXECUTE_SELECTOR = '0x29e30039'
+
+/** Must match packages/eliza-host sessionMessage(). The agent key signs it; the server never gets the key. */
+export const elizaSessionMessage = (wallet, agent, ts) =>
+  `GuardianAI hosted Eliza session\nwallet: ${getAddress(wallet)}\nagent: ${getAddress(agent)}\ntime: ${ts}`
+
+async function elizaPost(path, body, token, fetchImpl) {
+  let res
+  try {
+    res = await fetchImpl(`${ELIZA_URL}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) })
+  } catch {
+    throw new Error('Couldn’t reach the hosted agent. Check your connection and try again.')
+  }
+  const d = await res.json().catch(() => ({}))
+  if (!res.ok) throw Object.assign(new Error(d.error || `The hosted agent answered HTTP ${res.status}.`), { status: res.status })
+  return d
+}
+
+/** Prove this browser holds the agent key; returns a short-lived session token. */
+export async function startElizaSession({ owner, wallet, agentKey }, fetchImpl = globalThis.fetch) {
+  const ts = Date.now()
+  const sig = await agentKey.signMessage(elizaSessionMessage(wallet, agentKey.address, ts))
+  return elizaPost('/api/eliza/session', { owner: getAddress(owner), wallet: getAddress(wallet), agent: agentKey.address, ts, sig }, null, fetchImpl)
+}
+
+export const askEliza = (token, text, conversation, fetchImpl = globalThis.fetch) =>
+  elizaPost('/api/eliza/message', { text, conversation }, token, fetchImpl)
+
+/**
+ * Check a call the hosted agent says GuardianAI approved before the agent key sends it:
+ * it must be execute(...) on THIS wallet, for exactly the payment shown. The contract re-checks the rest.
+ */
+export function checkApprovedCall(payment, wallet) {
+  const c = payment?.call
+  if (!c || typeof c.data !== 'string' || !c.data.toLowerCase().startsWith(EXECUTE_SELECTOR)) return 'not a guarded-wallet payment'
+  if (getAddress(c.to) !== getAddress(wallet)) return 'addressed to a different wallet'
+  const target = '0x' + c.data.slice(10 + 24, 10 + 64)
+  const value = BigInt('0x' + c.data.slice(10 + 64, 10 + 128))
+  if (!payment.to || target.toLowerCase() !== payment.to.toLowerCase()) return 'destination doesn’t match what the agent said'
+  if (value !== parseEther(String(payment.amountMon || '0'))) return 'amount doesn’t match what the agent said'
+  return null
+}
+
+/** Send a checked, GuardianAI-approved call from the agent key in this browser. */
+export async function sendApprovedCall(agentKey, wallet, payment, p = rpcProvider()) {
+  const bad = checkApprovedCall(payment, wallet)
+  if (bad) return { outcome: 'error', message: `Not sent: the call ${bad}.` }
+  const cost = await agentCallCost(agentKey.address, wallet, payment.call.data, p)
+  const gasLeft = await p.getBalance(agentKey.address)
+  if (gasLeft < cost.fee) return { outcome: 'error', message: `GuardianAI approved it, but your agent key has ${formatWei(gasLeft)} MON and needs about ${formatWei(cost.fee)} MON for gas. Use “Give your agent gas”. Nothing was sent.` }
+  const { hash } = await sendAsAgent(agentKey, wallet, payment.call.data, p, cost.gasLimit)
+  return { outcome: 'paid', hash, message: `Paid ${payment.amountMon} MON to ${payment.to}.` }
+}
+
 /* ---------------- ElizaOS: one command ---------------- */
 
 /** Same format as guardianai-eliza's decodeConnectCode: gx1_<base64url JSON {v,c,w,o,k}>. */

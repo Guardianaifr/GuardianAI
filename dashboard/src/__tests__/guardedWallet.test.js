@@ -310,3 +310,30 @@ describe('Monad RPC rate limits', () => {
     expect(res[0].error.code).toBe(-32011)
   })
 })
+
+import { elizaSessionMessage, startElizaSession, checkApprovedCall } from '../explorer/guardedWallet.js'
+import { verifyMessage as vm, parseEther as pe2 } from 'ethers'
+describe('hosted Eliza agent', () => {
+  const WALLET = '0xc928C9743c466Ea9f491eCff9B0EDB8Dbf2F2Faa', OWNER = '0x2d21D39E67126e8D3ab2FD806fDc74827B2EAb41'
+  const pad = (h) => h.replace(/^0x/, '').toLowerCase().padStart(64, '0')
+  const call = (target, wei, to = WALLET) => ({ to, data: '0x29e30039' + pad(target) + pad(wei.toString(16)) + '00'.repeat(128), gas: '200000' })
+  it('session message matches the server format exactly', () => {
+    expect(elizaSessionMessage(WALLET.toLowerCase(), OWNER.toLowerCase(), 123)).toBe(`GuardianAI hosted Eliza session\nwallet: ${WALLET}\nagent: ${OWNER}\ntime: 123`)
+  })
+  it('signs the session with the agent key and sends no key to the server', async () => {
+    const key = new W2('0x' + '22'.repeat(32))
+    let sent
+    const r = await startElizaSession({ owner: OWNER, wallet: WALLET, agentKey: key }, async (_u, init) => { sent = JSON.parse(init.body); return new Response('{"token":"t","expiresAt":1}') })
+    expect(r.token).toBe('t')
+    expect(vm(elizaSessionMessage(WALLET, key.address, sent.ts), sent.sig)).toBe(key.address)
+    expect(JSON.stringify(sent)).not.toContain(key.privateKey.slice(2))
+  })
+  it('accepts only execute(...) on this wallet for exactly the payment shown', () => {
+    const p = { to: OWNER, amountMon: '0.001' }
+    expect(checkApprovedCall({ ...p, call: call(OWNER, pe2('0.001')) }, WALLET)).toBeNull()
+    expect(checkApprovedCall({ ...p, call: call('0x000000000000000000000000000000000000dEaD', pe2('0.001')) }, WALLET)).toMatch(/destination/)
+    expect(checkApprovedCall({ ...p, call: call(OWNER, pe2('1')) }, WALLET)).toMatch(/amount/)
+    expect(checkApprovedCall({ ...p, call: call(OWNER, pe2('0.001'), OWNER) }, WALLET)).toMatch(/different wallet/)
+    expect(checkApprovedCall({ ...p, call: { to: WALLET, data: '0xa9059cbb' + '00'.repeat(64) } }, WALLET)).toMatch(/not a guarded-wallet/)
+  })
+})

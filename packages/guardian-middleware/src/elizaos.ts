@@ -85,17 +85,20 @@ function setting(runtime: IAgentRuntime, key: string): string | undefined {
 
 function context(runtime: IAgentRuntime) {
   const key = setting(runtime, "GUARDIAN_AGENT_PRIVATE_KEY");
+  // External-signer mode (hosted agents): no key on the server. The agent decides and gets the approval;
+  // the approved call goes back to whoever holds the agent key (e.g. the browser) to sign and send.
+  const external = setting(runtime, "GUARDIAN_AGENT_ADDRESS");
   const wallet = setting(runtime, "GUARDIAN_WALLET");
   const owner = setting(runtime, "GUARDIAN_OWNER");
-  if (!key || !wallet || !owner) return null;
+  if ((!key && !external) || !wallet || !owner) return null;
   const rpc = setting(runtime, "MONAD_RPC_URL") || monadTestnet.rpcUrls.default.http[0];
-  const account = privateKeyToAccount(key as `0x${string}`);
   const transport = http(rpc, { retryCount: 5, retryDelay: 400 });
+  const account = key ? privateKeyToAccount(key as `0x${string}`) : null;
   return {
-    account,
+    agentAddress: (account ? account.address : external) as `0x${string}`,
     guard: new GuardedWalletClient({ wallet, owner, agentId: setting(runtime, "GUARDIAN_AGENT_ID"), relayerUrl: setting(runtime, "GUARDIAN_RELAY_URL") }),
     pub: createPublicClient({ chain: monadTestnet, transport }),
-    signer: createWalletClient({ account, chain: monadTestnet, transport }),
+    signer: account ? createWalletClient({ account, chain: monadTestnet, transport }) : null,
   };
 }
 
@@ -121,20 +124,22 @@ async function recentTexts(runtime: IAgentRuntime, message: Memory): Promise<str
 }
 
 export interface GuardedPaymentOutcome {
-  outcome: "paid" | "blocked_locally" | "blocked_by_guardian" | "refused_on_chain" | "error";
+  outcome: "paid" | "approved" | "blocked_locally" | "blocked_by_guardian" | "refused_on_chain" | "error";
   to?: string;
   amountMon?: string;
   riskScore?: number;
   reasons?: string[];
   hash?: string;
   status?: "success" | "reverted";
+  /** External-signer mode: the GuardianAI-approved call for the agent key to send. */
+  call?: { to: string; data: string; gas: string };
   message: string;
 }
 
 /** The guarded payment flow, usable from the action or directly from code. */
 export async function guardedPayment(runtime: IAgentRuntime, message: Memory): Promise<GuardedPaymentOutcome> {
   const ctx = context(runtime);
-  if (!ctx) return { outcome: "error", message: "GuardianAI plugin is not configured (GUARDIAN_AGENT_PRIVATE_KEY, GUARDIAN_WALLET, GUARDIAN_OWNER)." };
+  if (!ctx) return { outcome: "error", message: "GuardianAI plugin is not configured (GUARDIAN_AGENT_PRIVATE_KEY or GUARDIAN_AGENT_ADDRESS, GUARDIAN_WALLET, GUARDIAN_OWNER)." };
   const text = String(message.content?.text || "");
   const { to, amountMon } = parsePayment(text);
   if (!to || !amountMon) return { outcome: "error", message: "I need a destination address and an amount in MON (for example: pay 0.001 MON to 0x…)." };
@@ -158,11 +163,18 @@ export async function guardedPayment(runtime: IAgentRuntime, message: Memory): P
 
   // Layer 3 — the guarded wallet contract re-checks on Monad. Dry-run first, then send.
   try {
-    await ctx.pub.call({ account: ctx.account.address, to: approved.to as `0x${string}`, data: approved.data as `0x${string}` });
+    await ctx.pub.call({ account: ctx.agentAddress, to: approved.to as `0x${string}`, data: approved.data as `0x${string}` });
   } catch (err: any) {
     return { outcome: "refused_on_chain", to, amountMon, riskScore: approved.riskScore, reasons: [revertReason(err)], message: `The guarded wallet on Monad refused it: ${revertReason(err)}. No payment made.` };
   }
-  const gas = await ctx.pub.estimateGas({ account: ctx.account.address, to: approved.to as `0x${string}`, data: approved.data as `0x${string}` });
+  const gas = await ctx.pub.estimateGas({ account: ctx.agentAddress, to: approved.to as `0x${string}`, data: approved.data as `0x${string}` });
+  if (!ctx.signer) {
+    return {
+      outcome: "approved", to, amountMon, riskScore: approved.riskScore,
+      call: { to: approved.to, data: approved.data, gas: ((gas * 110n) / 100n).toString() },
+      message: `GuardianAI approved paying ${amountMon} MON to ${to} (risk ${approved.riskScore}/100). Sending it from your agent key…`,
+    };
+  }
   const hash = await ctx.signer.sendTransaction({ to: approved.to as `0x${string}`, data: approved.data as `0x${string}`, gas: (gas * 110n) / 100n });
   const rc = await ctx.pub.waitForTransactionReceipt({ hash, timeout: 120_000 });
   return {
@@ -187,7 +199,7 @@ export const guardedPaymentAction: Action = {
     const r = await guardedPayment(runtime, message);
     const reasons = r.reasons?.length ? `\nReason: ${r.reasons.slice(0, 2).join("; ")}` : "";
     await callback?.({ text: r.message + reasons, actions: ["GUARDED_PAYMENT"], source: message.content?.source });
-    return { success: r.outcome === "paid", text: r.message, data: { ...r } as Record<string, unknown> };
+    return { success: r.outcome === "paid" || r.outcome === "approved", text: r.message, data: { ...r } as Record<string, unknown> };
   },
   examples: [
     [

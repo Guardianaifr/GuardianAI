@@ -1,0 +1,26 @@
+{
+  "name": "guardianai-eliza-host",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Hosted ElizaOS agents for the GuardianAI console (non-custodial: the browser holds the agent key).",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/server.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=dist/server.js",
+    "start": "node dist/server.js",
+    "test": "node test/llm.test.ts",
+    "test:live": "node test/host.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@elizaos/core": "1.7.2",
+    "@elizaos/plugin-bootstrap": "1.7.2",
+    "@elizaos/plugin-groq": "1.0.4",
+    "@elizaos/plugin-sql": "1.7.2",
+    "viem": "^2.57.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

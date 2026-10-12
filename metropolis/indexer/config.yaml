@@ -34,6 +34,8 @@ contracts:
     events:
       - event: ScoreUpdated(uint256 indexed tokenId, bytes32 indexed agentHash, uint256 newScore, uint8 newTier)
       - event: PassportRevoked(uint256 indexed tokenId, bytes32 indexed agentHash, uint256 revokedAt)
+      # Mints only (from == 0x0). Issuance emits no event carrying the agent hash, so the handler reads it on-chain.
+      - event: Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
 
   - name: GuardianCortexAnchor
     abi_file_path: abis/GuardianCortexAnchor.json

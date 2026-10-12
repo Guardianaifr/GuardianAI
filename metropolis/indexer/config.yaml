@@ -2,6 +2,13 @@
 name: guardianai-monad-indexer
 description: Real-time Envio HyperIndex for GuardianAI on Monad Testnet
 
+# Handlers use event.transaction.hash for entity ids and txHash columns. HyperIndex only
+# fetches transaction fields that are selected here; without this, hash is undefined and
+# inserts into AgentAction fail the txHash NOT NULL constraint.
+field_selection:
+  transaction_fields:
+    - hash
+
 contracts:
   - name: GuardianPolicyGuard
     abi_file_path: abis/GuardianPolicyGuard.json

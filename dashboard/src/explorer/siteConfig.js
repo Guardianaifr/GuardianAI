@@ -16,6 +16,10 @@ export const VIDEO_URL = ''
 export const repoLink = (path = '') =>
   REPO_PUBLIC ? `${REPO_URL}${path ? `/tree/main/${path}` : ''}` : null
 
+// Envio Cloud development deployment (commit a5825d8). The URL changes on every redeploy of the
+// `envio` branch; production endpoints need a paid plan.
+export const ENVIO_GRAPHQL = 'https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql'
+
 export const SPONSORS = [
   {
     key: 'privy',
@@ -57,10 +61,10 @@ export const SPONSORS = [
     name: 'Envio HyperIndex',
     bounty: 'Envio bounty',
     title: 'Every enforcement decision, queryable',
-    body: 'Indexes the agent-wallet factory (every new wallet), each wallet’s executions, owner overrides and freezes, and the Chainlink oracle’s reports and flagged addresses into one GraphQL API, synced with HyperSync.',
-    status: 'Deployed on Envio Cloud (HyperSync)',
+    body: 'Indexes the agent-wallet factory (every new wallet), each wallet’s GuardianAI-approved payments and owner overrides, agent ID cards (issued and revoked), the scam list, and the Chainlink oracle’s reports and flagged addresses into one GraphQL API, synced with HyperSync. Every row carries the Monad transaction hash it came from.',
+    status: 'Live on Envio Cloud (HyperSync) · synced to chain tip',
     statusKind: 'live',
-    howToRun: 'cd metropolis/indexer && pnpm envio dev',
+    howToRun: `curl -s ${ENVIO_GRAPHQL} -H 'content-type: application/json' -d '{"query":"{ EnforcementStats { agentWallets guardianApprovedExecutions } PassportRecord(where:{isRevoked:{_eq:false}}) { tokenId tier } }"}'`,
     path: 'metropolis/indexer',
   },
 ]

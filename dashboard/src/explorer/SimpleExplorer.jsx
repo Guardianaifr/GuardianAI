@@ -13,8 +13,7 @@ function LabHero() {
       <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 h-96 w-[56rem] max-w-full -translate-x-1/2 rounded-full blur-3xl" style={{ background: 'var(--gx-glow)' }} />
       <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
         <div className="max-w-3xl">
-          <p className="gx-accent text-sm font-semibold">Monad Metropolis · Track 04: Trust, Identity &amp; AI Infrastructure</p>
-          <h1 className="gx-t1 mt-3 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+          <h1 className="gx-t1 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
             Try to rob an AI agent.
           </h1>
           <p className="gx-t2 mt-4 text-lg leading-relaxed sm:text-xl">

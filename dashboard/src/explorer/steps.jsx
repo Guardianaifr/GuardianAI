@@ -32,7 +32,7 @@ export function ThreeSteps() {
   const steps = [
     {
       icon: ShieldX, tone: 'bad', label: 'Blocked',
-      title: 'A polite invoice to a known drainer',
+      title: 'A polite invoice to a scam-listed wallet',
       body: 'The agent is asked to pay a wallet on GuardianAI’s scam list. GuardianAI checks every recipient against the list on Monad and refuses to sign, so no payment is ever sent.',
       proof: (
         <>

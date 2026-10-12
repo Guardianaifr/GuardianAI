@@ -259,14 +259,14 @@ function CheckAddress() {
           {state.status === 'loading' && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />} Check
         </button>
       </form>
-      <button type="button" onClick={tryExample} className="gx-link gx-focus mt-3 rounded text-sm">Try a known scam wallet</button>
+      <button type="button" onClick={tryExample} className="gx-link gx-focus mt-3 rounded text-sm">Try a scam-listed wallet</button>
       <div aria-live="polite" className="mt-4 empty:hidden">
         {state.status === 'error' && <p role="alert" className="gx-bad-t text-sm">{state.message}</p>}
         {state.status === 'done' && (
           <div className={`rounded-xl p-4 ${r.malicious ? 'gx-bad' : 'gx-good'}`}>
             <p className={`font-bold ${r.malicious ? 'gx-bad-t' : 'gx-good-t'}`}>{r.malicious ? 'Known scam wallet. GuardianAI blocks payments to it.' : 'Not on the scam list.'}</p>
             {r.malicious && r.reason && <p className="gx-t1 mt-1 text-sm">Listed as: {r.reason}</p>}
-            {!r.malicious && <p className="gx-t1 mt-1 text-sm">That doesn’t prove it’s safe, but it isn’t a known scam.</p>}
+            {!r.malicious && <p className="gx-t1 mt-1 text-sm">That doesn’t prove it’s safe, but it isn’t on the scam list.</p>}
             <p className="gx-muted mt-2 font-mono text-xs">isMalicious({short(r.address)}) → {r.proof.rawResult} · block #{r.block.toLocaleString()}</p>
           </div>
         )}

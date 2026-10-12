@@ -8,6 +8,7 @@ description: Real-time Envio HyperIndex for GuardianAI on Monad Testnet
 field_selection:
   transaction_fields:
     - hash
+    - from
 
 contracts:
   - name: GuardianPolicyGuard

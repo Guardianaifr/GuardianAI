@@ -329,12 +329,54 @@ export function handleScoreUpdated(event: any, db: MockDbStore) {
   return passport;
 }
 
-export function handlePassportRevoked(event: any, db: MockDbStore) {
+/** On-chain passport fields read from GuardianPassportSBT.passports(tokenId) at the event's block. */
+export interface OnchainPassport {
+  agentHash: string;
+  tier: number;
+  score: bigint;
+}
+
+/**
+ * Passport mint (Transfer from the zero address). Issuance emits no event with the agent hash,
+ * score or tier, so the caller supplies them from an on-chain read at the mint block.
+ * Idempotent: a replayed mint never resets a later score update or revocation.
+ */
+export function handlePassportMinted(event: any, onchain: OnchainPassport, db: MockDbStore) {
   const entityId = cleanEntityId(event.params.tokenId.toString());
   const existing = db.passportRecords.get(entityId);
+  if (existing) return existing;
+  const passport: PassportRecordEntity = {
+    id: entityId,
+    tokenId: BigInt(event.params.tokenId),
+    agentHash: cleanString(onchain.agentHash, 255),
+    score: BigInt(onchain.score),
+    tier: mapTier(onchain.tier),
+    tierNumber: onchain.tier,
+    isRevoked: false,
+    updatedAt: BigInt(event.block.timestamp),
+  };
+  db.passportRecords.set(entityId, passport);
+  if (db.globalStats) {
+    db.globalStats.totalPassportsTracked += 1n;
+    db.globalStats.lastUpdated = BigInt(event.block.timestamp);
+  }
+  return passport;
+}
+
+/**
+ * Passport revocation. If the passport was minted before the indexer's start block there is no
+ * record yet; with `onchain` supplied the record is created already revoked, otherwise it is a no-op.
+ */
+export function handlePassportRevoked(event: any, db: MockDbStore, onchain?: OnchainPassport) {
+  const entityId = cleanEntityId(event.params.tokenId.toString());
+  let existing = db.passportRecords.get(entityId);
+  if (!existing && onchain) {
+    existing = handlePassportMinted(event, { ...onchain, agentHash: event.params.agentHash ?? onchain.agentHash }, db);
+  }
   if (existing) {
     existing.isRevoked = true;
     existing.revokedAt = BigInt(event.params.revokedAt);
+    existing.updatedAt = BigInt(event.block.timestamp);
   }
   return existing;
 }

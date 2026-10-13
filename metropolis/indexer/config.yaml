@@ -2,6 +2,14 @@
 name: guardianai-monad-indexer
 description: Real-time Envio HyperIndex for GuardianAI on Monad Testnet
 
+# Handlers use event.transaction.hash for entity ids and txHash columns. HyperIndex only
+# fetches transaction fields that are selected here; without this, hash is undefined and
+# inserts into AgentAction fail the txHash NOT NULL constraint.
+field_selection:
+  transaction_fields:
+    - hash
+    - from
+
 contracts:
   - name: GuardianPolicyGuard
     abi_file_path: abis/GuardianPolicyGuard.json
@@ -26,6 +34,8 @@ contracts:
     events:
       - event: ScoreUpdated(uint256 indexed tokenId, bytes32 indexed agentHash, uint256 newScore, uint8 newTier)
       - event: PassportRevoked(uint256 indexed tokenId, bytes32 indexed agentHash, uint256 revokedAt)
+      # Mints only (from == 0x0). Issuance emits no event carrying the agent hash, so the handler reads it on-chain.
+      - event: Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
 
   - name: GuardianCortexAnchor
     abi_file_path: abis/GuardianCortexAnchor.json

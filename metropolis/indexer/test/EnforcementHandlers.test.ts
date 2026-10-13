@@ -91,5 +91,45 @@ t("Execution from an unknown wallet is stored without crashing", () => {
   assert.equal(db.walletExecutions!.get("0xu-9")!.wallet, "0xunknown");
 });
 
-console.log(`ENFORCEMENT: ${passed} / 7 tests passed.`);
 if (passed !== 7) process.exit(1);
+
+// ── Passport issuance (Transfer mint + on-chain read) ─────────────────────────
+import { handlePassportMinted, handlePassportRevoked } from "../src/EventHandlers.ts";
+{
+  const pdb = createInMemoryDb();
+  const mint = { params: { from: "0x0000000000000000000000000000000000000000", to: "0xO", tokenId: 11n }, block: { timestamp: 2000, number: 5 }, transaction: { hash: "0xm", from: "0xf" }, logIndex: 2, srcAddress: "0xsbt" };
+  const onchain = { agentHash: "0xb085", tier: 0, score: 1000n };
+  t("Mint creates a passport record from the on-chain read", () => {
+    const p = handlePassportMinted(mint, onchain, pdb);
+    assert.equal(p.id, "11");
+    assert.equal(p.agentHash, "0xb085");
+    assert.equal(p.score, 1000n);
+    assert.equal(p.tier, "UNVERIFIED");
+    assert.equal(p.isRevoked, false);
+    assert.equal(pdb.globalStats!.totalPassportsTracked, 1n);
+  });
+  t("Replayed mint is idempotent and does not double count", () => {
+    handlePassportMinted(mint, { ...onchain, score: 1n }, pdb);
+    assert.equal(pdb.passportRecords.get("11")!.score, 1000n);
+    assert.equal(pdb.globalStats!.totalPassportsTracked, 1n);
+  });
+  t("Revoke marks an indexed passport revoked", () => {
+    const rev = { params: { tokenId: 11n, agentHash: "0xb085", revokedAt: 3000n }, block: { timestamp: 3000, number: 9 }, transaction: { hash: "0xr", from: "0xf" }, logIndex: 1, srcAddress: "0xsbt" };
+    const r = handlePassportRevoked(rev, pdb)!;
+    assert.equal(r.isRevoked, true);
+    assert.equal(r.revokedAt, 3000n);
+  });
+  t("Revoke of a passport minted before start block creates it revoked when on-chain data is given", () => {
+    const rev = { params: { tokenId: 4n, agentHash: "0xaaaa", revokedAt: 4000n }, block: { timestamp: 4000, number: 10 }, transaction: { hash: "0xr2", from: "0xf" }, logIndex: 1, srcAddress: "0xsbt" };
+    const r = handlePassportRevoked(rev, pdb, { agentHash: "0xaaaa", tier: 3, score: 9400n })!;
+    assert.equal(r.id, "4");
+    assert.equal(r.isRevoked, true);
+    assert.equal(r.tier, "GOLD");
+    assert.equal(pdb.globalStats!.totalPassportsTracked, 2n);
+  });
+  t("Revoke without a record or on-chain data stays a safe no-op", () => {
+    const rev = { params: { tokenId: 99n, agentHash: "0x0", revokedAt: 1n }, block: { timestamp: 1, number: 1 }, transaction: { hash: "0xr3", from: "0xf" }, logIndex: 1, srcAddress: "0xsbt" };
+    assert.equal(handlePassportRevoked(rev, pdb), undefined);
+  });
+}
+console.log(`ENFORCEMENT: ${passed} / 12 tests passed.`);

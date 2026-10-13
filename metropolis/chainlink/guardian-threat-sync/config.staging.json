@@ -1,6 +1,6 @@
 {
   "schedule": "*/30 * * * * *",
-  "feedUrl": "http://127.0.0.1:8546/api/v1/threat-oracle/feed",
+  "feedUrl": "https://guardian-relay-production.up.railway.app/api/v1/threat-oracle/feed",
   "evms": [
     {
       "chainName": "monad-testnet",

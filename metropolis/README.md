@@ -4,6 +4,17 @@
 **Timeline:** September 1 – October 13, 2026 (Submission Deadline)  
 **Target Category:** Track 04 — Trust, Identity & AI Infrastructure  
 
+### Live links (Oct 13)
+
+| What | Where |
+| :--- | :--- |
+| Website, Attack Lab | https://aiguardian.dev/explorer/ |
+| Console (guarded agent wallet + hosted ElizaOS agent) | https://aiguardian.dev/explorer/?view=console |
+| Mera passkey console | https://aiguardian.dev/mera/ |
+| GuardianAI relay: public threat feed (approvals are `POST /api/v1/attest`) | https://guardian-relay-production.up.railway.app/api/v1/threat-oracle/feed |
+| Hosted ElizaOS agent service | https://guardian-eliza-production.up.railway.app/health |
+| Envio GraphQL (Envio Cloud, deployment `a5825d8`) | https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql |
+
 ---
 
 ## 1. Core Architecture Mapping for Track 04
@@ -51,11 +62,14 @@
 | Component | Category | Target Deliverable | Status | Implementation Notes |
 | :--- | :--- | :--- | :---: | :--- |
 | **Domain Context & Research** | **Pre-existing** | Prompt injection heuristics, safety datasets, jailbreak taxonomy, NLP filters | ✅ **100% COMPLETE** | Fully integrated into `guardian/guardrails/` and wired into the relayer. |
-| **Monad Smart Contracts** | **New (Hackathon)** | Complete suite including `GuardianPolicyGuard.sol`, `GuardianThreatFeedRegistry.sol`, `GuardianPassportSBT.sol`, `GuardianInsuranceLedger.sol`, and `GuardianTimelock.sol` deployed natively to Monad Testnet | ✅ **100% COMPLETE** | Deployed (`10143`). 215 Hardhat tests passing across 12 suites. Verified on [MonadScan](https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60). |
+| **Monad Smart Contracts** | **New (Hackathon)** | Complete suite including `GuardianPolicyGuard.sol`, `GuardianThreatFeedRegistry.sol`, `GuardianPassportSBT.sol`, `GuardianInsuranceLedger.sol`, and `GuardianTimelock.sol` deployed natively to Monad Testnet | ✅ **100% COMPLETE** | Deployed (`10143`). 271 Hardhat tests passing (`npx hardhat test`, re-run Oct 13). Verified on [MonadScan](https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60). |
 | **Cryptographic Attestation Relayer** | **New (Hackathon)** | Sub-second EIP-712 signing pipeline converting AI safety decisions into on-chain proofs (<3ms P50) | ✅ **100% COMPLETE** | Built in `guardian/relayer/attestation_service.py` & `/api/v1/attest` in `rpc_relay.py`. Includes Function Allowlists & 24h Outflow Caps. |
 | **Agent Middleware / SDK** | **New (Hackathon)** | Lightweight drop-in middleware/interceptor (`guardian-middleware`) between AI agent frameworks and Monad RPC | ✅ **100% COMPLETE** | TypeScript SDK (`packages/guardian-middleware`) + Python SDK (`sdk/python/guardian_middleware.py`) with ElizaOS plugin & LangChain callback. Strict fail-closed. |
 | **On-chain enforcement: `GuardianAgentWallet`** | **New (Hackathon)** | The agent's funds live in a contract that refuses any call without the agent's key **and** a fresh GuardianAI approval | ✅ Deployed + live-tested | [Wallet](https://testnet.monadscan.com/address/0xCCb137694f2910c8Ec4883d108c989648019D335), [factory](https://testnet.monadscan.com/address/0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6). 32 Hardhat tests. See §5. |
 | **Chainlink CRE threat oracle** | **New (Hackathon)** | DON consensus writes GuardianAI's scam list on-chain; agent wallets check it before every call | ✅ Simulated with `--broadcast` on Monad testnet (Oct 4): report [`0x82d1…b1f`](https://testnet.monadscan.com/tx/0x82d12165a70412c6171eb15a268a2bbe4251278e2438aa96babdb336a9723b1f) flagged 2 addresses; flagged payment reverted on-chain | Workflow `metropolis/chainlink/guardian-threat-sync`, receiver [`GuardianThreatOracle`](https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95). 9 Hardhat tests. See §4.D. |
+| **Envio HyperIndex** | **New (Hackathon)** | Every wallet, payment, ID card, scam-list entry and oracle report in one GraphQL API | ✅ Live on Envio Cloud (Oct 12) | Synced to chain tip with HyperSync; 42/42 indexed wallets and payments checked against Monad receipts. See §4.B. |
+| **Privy policy-locked agent key** | **New (Hackathon)** | The agent's signing key can only call GuardianAI's contracts | ✅ Live | `node agent.cjs lock-test`: 6/6 forbidden actions refused by Privy (re-run Oct 13). See §4.F. |
+| **Hosted ElizaOS agent + console** | **New (Hackathon)** | Create a guarded wallet in the browser and talk to a real ElizaOS agent that pays through GuardianAI | ✅ Live on Railway | Non-custodial: the agent key stays in the browser. See §4.C. |
 
 ---
 
@@ -94,12 +108,22 @@ The earlier browser page simulated the passkey with WebCrypto, and the scripts u
 - [x] Tests: 26 Vitest; `scripts/e2e_virtual_passkey.py` runs the page in headless Chromium with a PRF virtual authenticator (15 checks); `tests/test_agent_card.py` (16) verifies a browser-signed card in Python.
 - [ ] Manual cross-device run on two real devices (the virtual authenticator cannot export PRF secrets). See `metropolis/mera/README.md` §2.
 
-### B. Envio Event Indexer (metropolis/indexer/) [UPDATED Oct 3]
+### B. Envio Event Indexer (metropolis/indexer/) [LIVE Oct 12]
 - [x] Config migrated to Envio **v3** (`envio codegen` passes on envio 3.12.1). The previous config used `rpc_config`, which v3 rejects, and the handlers registered through a v2-style `require("generated")` that v3 never calls, so the earlier setup did not index anything.
 - [x] Handlers registered with the v3 `indexer.onEvent` / `indexer.contractRegister` API in `src/EnvioHandlers.ts`; state logic stays in pure functions in `src/EventHandlers.ts`.
 - [x] New: `GuardianAgentWalletFactory.WalletCreated` registers every agent wallet dynamically; indexes `Executed` / `OwnerExecuted` / `Paused` / `Unpaused` and the CRE oracle's `ThreatReportAccepted` / `AddressFlagUpdated` (entities `AgentWallet`, `AgentWalletExecution`, `ThreatOracleReport`, `ThreatOracleFlag`, `EnforcementStats`).
 - [x] `npm run typecheck` (codegen + `tsc` against the generated types) passes; `npm test`: original suites plus 7 new enforcement tests pass.
-- [ ] Not yet run as a live indexer (`envio dev` needs Docker/Postgres); do this before recording the demo.
+- [x] **Live on Envio Cloud** (development deployment `a5825d8`, built from the `envio` branch), HyperSync from block 65,970,000, synced to the chain tip. GraphQL: `https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql`.
+- [x] Three fixes found by running it live: select `transaction.hash` and `transaction.from` in `field_selection` (v3 only fetches selected fields; inserts failed NOT NULL), and index passport mints (`Transfer` from 0x0) with an Envio Effect that reads `passports(tokenId)` at the mint block, because issuance emits no event with the agent hash.
+- [x] Checked against the chain on Oct 12: 8 wallets + 34 executions = 42/42 matched Monad receipts; passports 3 active / 8 revoked match `activePassportCount`; Cortex, scam list and oracle counters (`reportCount`, `flaggedCount`, `feedDigest`) match.
+- [x] Tests: 48 passing (7 core + 29 adversarial + 12 enforcement), `npm run typecheck` passes.
+- [ ] Production endpoint (static URL) needs a paid Envio plan; the development URL changes on every redeploy of the `envio` branch.
+
+Try it:
+```bash
+curl -s https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql -H 'content-type: application/json' \
+  -d '{"query":"{ EnforcementStats { agentWallets guardianApprovedExecutions } PassportRecord(where:{isRevoked:{_eq:false}}) { tokenId tier } }"}'
+```
 
 ### C. Agent Middleware / SDK (packages/guardian-middleware/ & sdk/python/) [COMPLETED ✅]
 - [x] TypeScript middleware package (`@guardianai/middleware`) with ElizaOS plugin, Viem decorator, and calldata decoder.
@@ -107,6 +131,11 @@ The earlier browser page simulated the passkey with WebCrypto, and the scripts u
 - [x] ElizaOS `guardianMemoryGuard` evaluator countering Princeton/Sentient memory-poisoning drain attacks.
 - [x] Pre-flight interception wrapping transactions into Monad `GuardianPolicyGuard` (`0x3cb7461c`) with strict fail-closed security.
 - [x] 100% test coverage (12 Python unit tests + 49 standalone TypeScript unit tests passing).
+- [x] **ElizaOS 1.7 plugin for the guarded wallet** (`packages/guardian-middleware/src/elizaos.ts`): `GUARDED_PAYMENT` action runs the memory guard over the request and recent room messages, asks the relay for an approval bound to the wallet, dry-runs `execute`, then sends from the agent key. 15 more tests.
+- [x] **Hosted ElizaOS agent** (`packages/eliza-host`, Railway): every console wallet gets its own ElizaOS runtime. The browser signs a session message with the agent key; the server checks it against `GuardianAgentWalletFactory.walletOf` and the wallet's operator. The plugin returns the approved call and the **browser** checks and sends it, so the server never holds a key that can spend. LLM: Groq, failing over to OpenRouter free models only.
+- [x] Console (`aiguardian.dev/explorer/?view=console`): create a guarded wallet, claim an ID card, fund it, then use the chat chips: pay me, prompt injection, scam-list address, Chainlink-flagged address, and an agent that skips GuardianAI (refused on-chain).
+- [x] Real runs, all status 1 from the agent key: hosted chat [`0x8890…f46d`](https://testnet.monadscan.com/tx/0x88905ce1b92864e2bc88bd88b0251592c7401aebb71603f5262c3d366b12f46d), [`0x4ee4…0266`](https://testnet.monadscan.com/tx/0x4ee453118608db2668931e9a8f5950bd339d410e18463ecd956681370efd0266); local ElizaOS on Windows [`0x24af…c152`](https://testnet.monadscan.com/tx/0x24af57e1260ddb97a9d0cbef8571ebf61dee641891a80520132c874133b5c152).
+- [ ] `guardianai-eliza` CLI (one-command local agent) is built and dry-run published, not yet on npm.
 
 ### D. Chainlink CRE Workflow (metropolis/chainlink/) [REBUILT Oct 3]
 The first version had never run: consumer address `0x0`, a placeholder API URL, and an `onReport(bytes)` receiver that the Chainlink Forwarder (which calls `onReport(bytes metadata, bytes report)`) could not deliver to. Rebuilt so CRE does real work in the security path:
@@ -118,13 +147,19 @@ The first version had never run: consumer address `0x0`, a placeholder API URL, 
 - [x] `bun x cre-compile main.ts` → WASM builds with type checks.
 - [x] **`cre workflow simulate guardian-threat-sync --target staging-settings --broadcast`** ran on Oct 4, 2026 (CRE CLI v1.36.0, `metropolis/chainlink/run-cre-simulate.ps1`): consensus reached (2 addresses flagged), report delivered via the MockKeystoneForwarder in tx [`0x82d1…b1f`](https://testnet.monadscan.com/tx/0x82d12165a70412c6171eb15a268a2bbe4251278e2438aa96babdb336a9723b1f). On-chain afterwards: `reportCount=1`, `flaggedCount=2`, `isFlagged(0x7a3b…7a8b)=true`.
 - [x] **Enforcement proof:** the off-chain firewall approved a 0.001 MON payment to the flagged address (risk 0), and `GuardianAgentWallet.execute` reverted with `FlaggedDestination` ([tx `0x12d7…fd42`](https://testnet.monadscan.com/tx/0x12d7f321c33cf81adeec861a6ad629368db2104d341ed752e77956d9fd21fd42)). The same payment to a clean address succeeded ([tx `0xf611…82dc`](https://testnet.monadscan.com/tx/0xf61137ac039e64db2d09fa018a0d4696a3f2e97063259fe95bf743b858d482dc)).
+- [x] Re-run Oct 13 against the live Railway feed (`config.staging.json`): consensus on 2 flagged addresses, digest `0x6720…5e2a`, identical to the `feedDigest` stored on-chain.
 - [ ] Not deployed to a live DON (needs CRE deploy access); the production oracle with KeystoneForwarder `0xF834…4482` is not deployed yet.
 - [ ] Production: deploy a second oracle with the production `KeystoneForwarder` (`0xF834…4482`) and serve the feed from a public URL (`config.production.json`).
 
 ### E. Final Submission Assets
 - [ ] 3-to-5 minute video demo highlighting Track 04 problem & solution.
 - [ ] Public GitHub repository clean link.
-- [ ] Live deployment on Monad Testnet (Chain ID: 10143).
+- [x] Live deployment on Monad Testnet (Chain ID: 10143), plus the live site, relay, hosted agent and indexer listed at the top.
+
+### F. Privy policy-locked agent key (tools/privy-agent/)
+- [x] The Privy agent's key is a Privy server wallet with a policy (`policy.cjs`): it may only sign calls to GuardianAI's contracts, a capped USDC approval to PolicyGuard and small x402 fees. It is also the operator of the Privy agent's `GuardianAgentWallet` ([`0xCCb1…D335`](https://testnet.monadscan.com/address/0xCCb137694f2910c8Ec4883d108c989648019D335)).
+- [x] `node agent.cjs lock-test` asks Privy to sign six forbidden transactions (MON or USDC to a stranger, approve a stranger, approve above the cap, PolicyGuard call with value, another chain). Privy refuses all six with `policy violation` before a signature exists. Re-run Oct 13: 6/6. Nothing is broadcast.
+- [x] Real payment from the Privy wallet through GuardianAI: 1 USDC via PolicyGuard [`0x96ff…f22a`](https://testnet.monadscan.com/tx/0x96ffc13e35866c43ffdc37300319037f4fc5f8eeb090f55754b79a798eadf22a).
 
 ---
 
@@ -147,11 +182,11 @@ So neither key alone moves funds: a compromised agent key cannot skip GuardianAI
 | 3. Agent skips GuardianAI, self-signs | `node agent.cjs wallet-bypass` | **reverted on-chain**: `InvalidAttestationSignature` → [tx](https://testnet.monadscan.com/tx/0xa8bd211dfec3f0531f48f8ff0fefc000edc5bccb9fb875ff79fc5bfb9c6aa492); wallet balance unchanged |
 | 4. Shared PolicyGuard path | `node agent.cjs wallet-fund 5` | owner-authorized pull → [tx](https://testnet.monadscan.com/tx/0x7cd6ac5669aa8f149fc628891be835ea656fcf3ce1d04467e794979515a5a873) |
 
-The relay must be running (`python tools/run_relay.py`). Deploy script: `contracts/scripts/deploy-agent-wallet.ts`.
+The relay is live at `https://guardian-relay-production.up.railway.app`; `agent.cjs` defaults to a local relay (`python tools/run_relay.py`), so set `GUARDIAN_RELAY_URL` to use the hosted one. Deploy script: `contracts/scripts/deploy-agent-wallet.ts`.
 
 ---
 
-## 6. Known limitations (honest status, Oct 3)
+## 6. Known limitations (updated Oct 13)
 
 - **Fixed today: cross-agent drain through PolicyGuard.** `/api/v1/attest` used to sign `transferFrom(<any wallet>, …)` for anyone, and every agent approves the same PolicyGuard, so one agent's allowance could be pulled by anyone. Pulls now need an EIP-712 authorization signed by the asset owner (single use, ≤10 min). The replay cache is per relay process, so multi-replica deployments need a shared store (Redis). New agents should use `GuardianAgentWallet`, which has no shared spender.
 - **Fixed today: one key for everything.** The attestation signer was the deployer/owner key. It has been rotated to a dedicated key (`tools/rotate_attestation_signer.py`), and the relay refuses to start in production if they match again. The signer is still a single hot key: next step is KMS/HSM and threshold signing.
@@ -159,7 +194,8 @@ The relay must be running (`python tools/run_relay.py`). Deploy script: `contrac
 - **The human owner can bypass GuardianAI** (`ownerExecute`) by design, as the recovery path. In the demo the owner is the deployer EOA; in production it should be a passkey, multisig or the timelock.
 - **Contract ownership** of the original suite is still the deployer EOA, not `GuardianTimelock`.
 - **CRE**: simulated with a real on-chain broadcast through the simulation forwarder; not yet deployed to a live DON. DON nodes all fetch the same GuardianAI endpoint, so consensus proves the nodes agree on what GuardianAI published and removes GuardianAI's write key from the path; it does not make the scam list itself independent of GuardianAI.
-- **Envio**: type-checked and unit-tested against Envio v3, not yet run live.
+- **Envio**: live on an Envio Cloud development deployment. Its URL changes on every redeploy, and the indexer code with the Oct 12 fixes is on the `envio` branch.
+- **Hosted ElizaOS agent**: demo service on Railway with free LLM tiers (Groq, then OpenRouter free models), one LLM call at a time, so replies can take up to a minute when busy. The console's agent key is a demo key kept in the browser's local storage.
 - **Not re-verified in this pass:** the middleware rows above, and the throughput figures in §3 (those are Monad's network figures, not GuardianAI measurements).
 - Contracts are unaudited by a third party.
 

@@ -1,13 +1,36 @@
 # GuardianAI: Trust, Identity & Security Firewall for AI Agents on Monad
 
 [![Monad Testnet](https://img.shields.io/badge/Monad%20Testnet-Chain%20ID%2010143-8A2BE2.svg)](https://testnet.monadvision.com/)
-[![Hardhat Tests](https://img.shields.io/badge/Smart%20Contracts-207%2F207%20Passing-brightgreen.svg)](contracts/)
+[![Hardhat Tests](https://img.shields.io/badge/Smart%20Contracts-271%20Passing-brightgreen.svg)](contracts/)
 [![Python Tests](https://img.shields.io/badge/Python%20Suites-1490%2B%20Passing-brightgreen.svg)](tests/)
 [![Mera Enclave Tests](https://img.shields.io/badge/Mera%20Enclave-184%2F184%20Passing-brightgreen.svg)](metropolis/mera/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python: 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](requirements.txt)
 
-> **GuardianAI** is a dual-layer security control plane and cryptographic execution firewall for autonomous AI agents and LLM applications. It combines a blistering-fast **off-chain AI firewall (<5ms)** that neutralizes prompt injections, jailbreaks, and data leaks at the edge, with an **on-chain Web3 trust and identity layer on Monad** enforcing cryptographic attestations, hardware-isolated passkey identity (Mera PRF), and execution-layer outflow containment.
+> **GuardianAI** is a dual-layer security control plane and cryptographic execution firewall for autonomous AI agents and LLM applications. It combines an **off-chain AI firewall** that neutralizes prompt injections, jailbreaks, and data leaks at the edge, with an **on-chain Web3 trust and identity layer on Monad** enforcing cryptographic attestations, hardware-isolated passkey identity (Mera PRF), and execution-layer outflow containment.
+
+---
+
+## Monad Metropolis submission (Oct 2026)
+
+AI agents now hold money and read untrusted text. GuardianAI puts two gates between the AI and the money: an off-chain firewall that checks every message and payment, and a guarded wallet on Monad that only pays when GuardianAI has signed that exact payment. Even a fully fooled agent can't move the funds.
+
+**Try it live**
+- Attack Lab and website: https://aiguardian.dev/explorer/
+- Console: create a guarded agent wallet, then talk to a real ElizaOS agent that pays through GuardianAI: https://aiguardian.dev/explorer/?view=console
+- Mera passkey console: https://aiguardian.dev/mera/
+- Envio GraphQL: https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql
+
+| Integration | What it does in GuardianAI | Status |
+| :--- | :--- | :--- |
+| **Monad** | `GuardianAgentWallet` holds the agent's funds and checks the agent key, GuardianAI's EIP-712 approval for the exact call, the nonce, the risk limit, the agent's ID card and the threat oracle in one transaction | Live on testnet |
+| **Category Labs Mera** | One passkey derives the agent's identity key, encrypts its memory (1-bit tamper is refused) and signs the agent card the relay checks | Live in the browser |
+| **Privy** | The agent's key is a Privy server wallet whose policy only allows calls to GuardianAI's contracts: 6/6 forbidden actions refused | Live |
+| **Chainlink CRE** | Nodes agree on GuardianAI's threat feed and a signed report updates `GuardianThreatOracle`; every agent wallet refuses flagged destinations | CRE simulation broadcasting to Monad; live DON pending deploy access |
+| **Envio** | Indexes every wallet, payment, ID card, scam-list entry and oracle report into one GraphQL API | Live on Envio Cloud |
+| **ElizaOS** | Plugin + hosted agent: the agent decides, GuardianAI approves, the wallet enforces | Live on Railway |
+
+Full details, transactions and known limitations: [metropolis/README.md](metropolis/README.md).
 
 ---
 
@@ -163,15 +186,17 @@ All tests across smart contracts, Python security modules, and enclave implement
 
 | Suite | Component | Command | Result |
 |---|---|---|---|
-| **Smart Contracts** | Hardhat / Solidity | `npx hardhat test` (in `contracts/`) | **207 / 207 Passing (100%)** |
+| **Smart Contracts** | Hardhat / Solidity | `npx hardhat test` (in `contracts/`) | **271 Passing** (re-run Oct 13) |
 | **Python Security & E2E** | Core Firewall, RPC Relay, Identity | `pytest tests/` | **1,490+ Passing (100%)** |
 | **Mera Core Enclave**| Vitest / WebAuthn PRF | `npm test` (in `metropolis/mera/`) | **18 / 18 Passing (100%)** |
 | **Mera Stress Audit**| SecLists, Naughty Strings, Freqtrade| `npm run test:hard` (in `metropolis/mera/`) | **166 / 166 Passing (100%)** |
-| **Envio HyperIndex** | Real-Time Contract Indexer | `npm test` (in `metropolis/indexer/`) | **36 / 36 Passing (100%)** |
-| **Agent Middleware** | ElizaOS & Viem SDK Decorator | `npm test` (in `packages/guardian-middleware/`)| **49 / 49 Passing (100%)** |
+| **Envio HyperIndex** | Real-Time Contract Indexer | `npm test` (in `metropolis/indexer/`, `envio` branch) | **48 Passing** (re-run Oct 13) |
+| **Agent Middleware** | ElizaOS & Viem SDK Decorator | `npm test` (in `packages/guardian-middleware/`)| **49 + 15 Passing** |
+| **Hosted ElizaOS agent** | LLM failover (Groq → OpenRouter free) | `npm test` (in `packages/eliza-host/`) | **13 Passing** |
+| **Website / console** | Vitest | `npm test` (in `dashboard/`) | **52 Passing** |
 | **Adversarial Exploits**| Real-world hack reproduction | `python tools/reproduce_realworld_exploits.py`| **5 / 5 Neutralized (100%)** |
 
-### Neutralized Real-World Exploits:
+### Reproduced real-world exploit patterns (`tools/reproduce_realworld_exploits.py`):
 - **Bankrbot ($204k):** Multi-hop Morse-code injection stopped by de-obfuscation pipeline.
 - **Freysa ($47k):** Unauthorized calldata transfer stopped by function selector allowlist.
 - **aixbt ($104k):** Context poisoning neutralized by Mera PRF enclave tripwire.
@@ -195,6 +220,9 @@ GuardianAI's smart contract layer is deployed and verified on Monad Testnet:
 | **GuardianInterlockRegistry** | `0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d` | [MonadScan](https://testnet.monadscan.com/address/0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d) |
 | **GuardianRiskAttestation** | `0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87` | [MonadScan](https://testnet.monadscan.com/address/0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87) |
 | **GuardianTimelock** | `0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc` | [MonadScan](https://testnet.monadscan.com/address/0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc) |
+| **GuardianAgentWalletFactory** | `0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6` | [MonadScan](https://testnet.monadscan.com/address/0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6) |
+| **GuardianThreatOracle** (Chainlink CRE receiver) | `0x26144375c4f846174A386C464aC5F2e671EbdA95` | [MonadScan](https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95) |
+| **GuardianPassportIssuer** (owns the ID card SBT) | `0x09AAc2dA0A263323585620A55fcCDb89dea960a6` | [MonadScan](https://testnet.monadscan.com/address/0x09AAc2dA0A263323585620A55fcCDb89dea960a6) |
 
 - **Confirmed On-Chain Receipt:** Monad Block `#66,451,553` (Tx: [`0xda14b65c...`](https://testnet.monadscan.com/tx/0xda14b65c639fe6fe7b160bb8610524c429b1bdb9b73f208ba9ae1e6d67481c87))
 - **Interactive Simulation:** [Tenderly Monad Testnet Simulation Trace](https://dashboard.tenderly.co/shared/simulation/b45791d7-a479-475a-a4c7-b26f34f9fc8e)
@@ -218,8 +246,11 @@ guardianai/
 │   └── test/                  # 207 smart contract unit & adversarial tests
 ├── metropolis/                # Monad Metropolis Track 04 Integrations
 │   ├── mera/                  # Category Labs Mera Passkey PRF Enclave (TypeScript)
-│   ├── indexer/               # Envio HyperIndex real-time blockchain indexer
+│   ├── indexer/               # Envio HyperIndex indexer (live deployment built from the `envio` branch)
+│   ├── chainlink/             # Chainlink CRE threat-oracle workflow + receiver
 │   └── docs/                  # Architecture specs & integration guides
+├── tools/privy-agent/         # Privy policy-locked agent wallet (lock-test, payments)
+├── website/                   # aiguardian.dev: explorer build, Mera passkey console
 ├── demo/                      # Standalone Demonstration Scripts
 │   ├── full_demo.py           # Flagship 6-stage lifecycle showcase
 │   ├── run_demo.py            # 3-act attack/defense simulation
@@ -227,7 +258,9 @@ guardianai/
 ├── backend/                   # FastAPI / ASGI Control Plane & Telemetry API
 ├── dashboard/                 # Vite / React Security Analytics Interface
 └── packages/
-    └── guardian-middleware/   # Drop-in SDK for ElizaOS (ai16z) & Viem
+    ├── guardian-middleware/   # Drop-in SDK for ElizaOS (ai16z) & Viem, guarded-wallet client
+    ├── eliza-host/            # Hosted ElizaOS agent service (Railway)
+    └── guardianai-eliza/      # One-command local ElizaOS agent CLI (not yet on npm)
 ```
 
 ---

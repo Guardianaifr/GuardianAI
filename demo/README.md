@@ -3,6 +3,13 @@
 **Flagship (all features):** `python demo/full_demo.py` — six scenes from
 provisioning to Monad Testnet ERC-8004 live registration. See [FULL_DEMO.md](FULL_DEMO.md).
 
+**Live on Monad testnet (no install):** the Console at
+https://aiguardian.dev/explorer/?view=console creates a guarded agent wallet and lets you chat with a hosted
+ElizaOS agent that pays through GuardianAI. Command-line equivalents with a Privy policy-locked agent key are in
+`tools/privy-agent` (`node agent.cjs wallet-pay …`, `wallet-bypass`, `lock-test`); see
+[metropolis/README.md §5](../metropolis/README.md#5-off-chain-decision--on-chain-enforcement-oct-3).
+`privy_agent_demo.ts` is the earlier Privy + middleware walkthrough (PolicyGuard path).
+
 ---
 
 ## Classic quick preview — "Your agent holds a wallet. Watch."

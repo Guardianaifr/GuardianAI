@@ -1,199 +1,165 @@
 # GuardianAI Envio HyperIndex (Monad Testnet)
 
-High-speed, real-time blockchain event indexer built on **Envio HyperIndex** for **GuardianAI** on **Monad Testnet (Chain ID 10143)**.
+Envio HyperIndex indexer for GuardianAI's contracts on **Monad Testnet (chain ID 10143)**. It turns every
+agent wallet, GuardianAI-approved payment, Agent ID card, scam-list entry and Chainlink CRE oracle report
+into one GraphQL API.
 
-Targeting the Metropolis Hackathon **$1,000 "Best Use of Envio"** Sponsor Bounty.
+**Live (Envio Cloud development deployment):** https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql
 
----
+Envio Cloud builds the deployment from the `envio` branch. The development URL changes on every redeploy;
+a static production URL needs a paid Envio plan. The code on `main` and on `envio` is the same.
 
-## 1. Overview & Architecture
-
-Autonomous AI agents executing high-frequency financial and contract actions on Monad require sub-second event streaming and real-time observability. GuardianAI deploys on-chain policy guards, soulbound passport registries, cortex merkle state anchors, and threat feeds.
-
-**Envio HyperIndex** captures on-chain security events via **HyperSync**, transforming raw logs into a queryable GraphQL schema powering the Metropolis security dashboard and agent visualizer.
-
-```
-┌────────────────────────────────────────────────────────┐
-│             MONAD TESTNET (CHAIN ID 10143)             │
-│                                                        │
-│  • GuardianPolicyGuard: ActionExecutedWithAttestation  │
-│  • GuardianThreatFeedRegistry: AddressAdded/Removed    │
-│  • GuardianPassportSBT: ScoreUpdated, PassportRevoked  │
-│  • GuardianCortexAnchor: RootCommitted (6 params)      │
-│  • GuardianRiskAttestation: RiskAttested/Updated       │
-└───────────────────────────┬────────────────────────────┘
-                            │ HyperSync (~2000x faster than RPC)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│             ENVIO HYPERINDEX ENGINE                    │
-│                                                        │
-│  • config.yaml (Modern EVM chains schema)              │
-│  • schema.graphql (Entities & Global Stats)            │
-│  • src/EventHandlers.ts (Transforms & State Mapping)   │
-└───────────────────────────┬────────────────────────────┘
-                            │ GraphQL Subscriptions (Port 8080)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│             GUARDIAN METROPOLIS DASHBOARD              │
-│  • Live Agent Activity Stream                          │
-│  • Real-Time Threat Blocklist                          │
-│  • Soulbound Agent Trust Scores                        │
-└────────────────────────────────────────────────────────┘
+```bash
+curl -s https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql -H 'content-type: application/json' \
+  -d '{"query":"{ EnforcementStats { agentWallets guardianApprovedExecutions } PassportRecord(where:{isRevoked:{_eq:false}}) { tokenId tier } }"}'
 ```
 
 ---
 
-## 2. Indexed Smart Contracts
+## 1. What is indexed
 
-| Contract Name | Monad Role | Key Events Indexed |
+Envio v3 (`envio` ^3.12.1), HyperSync from block `65,970,000` (one day before the core suite was deployed).
+No `rpc:` entry, so Envio uses HyperSync for Monad testnet.
+
+| Contract | Address | Events |
 | :--- | :--- | :--- |
-| **`GuardianPolicyGuard`** | EIP-712 AI policy enforcer | `ActionExecutedWithAttestation`, `AttestationSignerUpdated`, `MaxAllowedRiskScoreUpdated` |
-| **`GuardianThreatFeedRegistry`** | On-chain threat registry | `AddressAdded`, `AddressRemoved`, `StringAddressAdded`, `StringAddressRemoved` |
-| **`GuardianPassportSBT`** | Soulbound agent identity | `ScoreUpdated`, `PassportRevoked` |
-| **`GuardianCortexAnchor`** | Merkle audit state anchor | `RootCommitted` (6 parameters) |
-| **`GuardianRiskAttestation`** | Target contract rating | `RiskAttested`, `AttestationUpdated` |
+| `GuardianPolicyGuard` | `0x90Fd…EF60` | `ActionExecutedWithAttestation`, `AttestationSignerUpdated`, `MaxAllowedRiskScoreUpdated` |
+| `GuardianThreatFeedRegistry` | `0x576C…f467` | `AddressAdded`, `AddressRemoved`, `StringAddressAdded`, `StringAddressRemoved` |
+| `GuardianPassportSBT` | `0xDA5f…2Cff` | `ScoreUpdated`, `PassportRevoked`, `Transfer` (mints only; the handler reads `passports(tokenId)` on-chain because issuance emits no event with the agent hash) |
+| `GuardianCortexAnchor` | `0x78aF…dBfa` | `RootCommitted` |
+| `GuardianRiskAttestation` | `0x7e06…6c87` | `RiskAttested`, `AttestationUpdated` |
+| `GuardianAgentWalletFactory` | `0x25A4…19c6` | `WalletCreated` (registers each new wallet dynamically) |
+| `GuardianAgentWallet` | every wallet from the factory | `Executed`, `OwnerExecuted`, `Paused`, `Unpaused`, `ThreatOracleUpdated` |
+| `GuardianThreatOracle` | `0x2614…dA95` | `ThreatReportAccepted`, `AddressFlagUpdated` |
+
+Full addresses are in `config.yaml` and in the repository [README](../../README.md#-verified-monad-testnet-deployments-chain-id-10143).
+
+### Entities (`schema.graphql`)
+
+| Entity | Holds |
+| :--- | :--- |
+| `AgentAction` | PolicyGuard executions with risk score and nonce |
+| `ThreatRecord` | Scam-list entries from the threat feed registry |
+| `PassportRecord` | Agent ID cards (SBT): score, tier, revoked flag |
+| `CortexCommitment` | Anchored Merkle roots |
+| `ContractRiskRecord` | Risk attestations for target contracts |
+| `GlobalSecurityStats` | Singleton counters for the original suite |
+| `AgentWallet` | Each `GuardianAgentWallet`: agent id, owner, operator, oracle, paused, counters |
+| `AgentWalletExecution` | Each wallet call, GuardianAI-approved (`byOwner: false`) or owner override (`byOwner: true`) |
+| `ThreatOracleReport` | Each DON report accepted by the oracle |
+| `ThreatOracleFlag` | Current flag per address |
+| `EnforcementStats` | Singleton counters for wallets, approved executions, owner executions, oracle reports |
+
+Entity ids are `${txHash}-${logIndex}` (or the lowercased address for per-address entities), so re-processing
+a block is idempotent.
 
 ---
 
-## 3. Project Structure
+## 2. Project structure
 
 ```
 metropolis/indexer/
-├── abis/                           # Extracted ABI definitions
-│   ├── GuardianCortexAnchor.json
-│   ├── GuardianPassportSBT.json
-│   ├── GuardianPolicyGuard.json
-│   ├── GuardianRiskAttestation.json
-│   └── GuardianThreatFeedRegistry.json
-├── scripts/
-│   └── sync-indexer-abis.js        # Automated ABI extractor from Hardhat build
+├── abis/                        # Minimal ABIs for the 8 indexed contracts
+├── scripts/sync-indexer-abis.js # Regenerates abis/ from the Hardhat build (contracts/artifacts)
 ├── src/
-│   └── EventHandlers.ts            # Envio event handlers & state transformers
+│   ├── EnvioHandlers.ts         # v3 registration: indexer.onEvent / indexer.contractRegister
+│   └── EventHandlers.ts         # Pure state functions (unit-tested without Envio)
 ├── test/
-│   ├── EventHandlers.test.ts       # Standalone 7-suite unit test runner (Docker-free)
-│   └── run-tests.js                # Test execution wrapper
-├── config.yaml                     # Envio multi-contract configuration
-├── schema.graphql                  # Complete GraphQL entities & stats schema
-├── package.json                    # Dependencies & automation scripts
-└── README.md                       # This file
+│   ├── EventHandlers.test.ts             # 7 core tests
+│   ├── EventHandlers.adversarial.test.ts # 29 adversarial tests
+│   ├── EnforcementHandlers.test.ts       # 12 agent-wallet / oracle tests
+│   └── run-tests.js                      # Runs the three suites
+├── config.yaml                  # Contracts, events, start block, field selection
+├── schema.graphql               # Entities
+└── package.json
 ```
+
+`dist/` holds an old `tsc` build output and is not used by Envio or the tests.
 
 ---
 
-## 4. Quick Start & Execution
+## 3. Run it
 
-### A. Run Unit Tests (Docker-Free)
-Run the standalone unit test suite testing all entity transformations and state updates:
-```bash
-node test/run-tests.js
-```
-Expected output:
-```
-Summary: 7 / 7 tests passed successfully (100% green).
-```
+Requires Node.js 22+ (the tests run `.ts` files directly with Node's type stripping).
 
-### B. Sync Contract ABIs
-To regenerate minimal ABIs directly from Hardhat build artifacts:
 ```bash
-npm run sync-abis
+cd metropolis/indexer
+npm install
+
+npm test             # 48 tests: 7 core + 29 adversarial + 12 enforcement
+npm run typecheck    # envio codegen + tsc against the generated types
+npm run sync-abis    # after changing contracts: rebuild abis/ (run `npx hardhat compile` in contracts/ first)
 ```
 
-### C. Run Envio Dev (with Docker)
-To launch the full local HyperIndex environment (PostgreSQL + Hasura GraphQL console):
+Local HyperIndex (needs Docker for Postgres + Hasura):
+
 ```bash
-pnpm envio codegen
-pnpm envio dev
+npx envio dev
 ```
-The GraphQL endpoint will be available at: `http://localhost:8080/v1/graphql`
+
+GraphQL is then at `http://localhost:8080/v1/graphql`.
 
 ---
 
-## 5. Sample GraphQL Queries for Judges
+## 4. Example queries
 
-### 1. Live Agent Execution Feed
-Retrieve the latest attestation-backed agent transactions with risk scores:
+Agent wallets and their GuardianAI-approved payments:
+
 ```graphql
-query GetRecentAgentActions {
-  AgentAction(limit: 10, order_by: { timestamp: desc }) {
+query AgentWallets {
+  AgentWallet(order_by: { createdAt: desc }) {
     id
     agentId
+    operator
+    executedCount
+    ownerExecutedCount
+  }
+  AgentWalletExecution(limit: 10, order_by: { timestamp: desc }) {
+    wallet
+    byOwner
     target
+    value
     riskScore
-    nonce
-    timestamp
     txHash
   }
 }
 ```
 
-### 2. Active Threat Blocklist
-Retrieve all currently active malicious contracts and drainer addresses:
+Chainlink CRE oracle state:
+
 ```graphql
-query GetActiveThreats {
-  ThreatRecord(where: { active: { _eq: true } }) {
-    id
-    target
-    isStringAddress
-    reason
-    addedBy
-    addedAt
-  }
+query Oracle {
+  ThreatOracleReport(order_by: { asOf: desc }, limit: 5) { asOf feedDigest changes txHash }
+  ThreatOracleFlag(where: { flagged: { _eq: true } }) { id updatedAt }
 }
 ```
 
-### 3. Agent Reputation & Soulbound Trust Scores
-Retrieve agent trust scores and tier classifications (UNVERIFIED, BRONZE, SILVER, GOLD, DIAMOND):
+Agent ID cards:
+
 ```graphql
-query GetAgentPassports {
-  PassportRecord(order_by: { score: desc }) {
-    id
-    tokenId
-    agentHash
-    score
-    tier
-    isRevoked
-    updatedAt
-  }
+query Passports {
+  PassportRecord(order_by: { score: desc }) { tokenId agentHash score tier isRevoked }
 }
 ```
 
-### 4. Cortex Merkle State Commitments
-Query on-chain anchored Merkle roots:
-```graphql
-query GetCortexAnchors {
-  CortexCommitment(order_by: { timestamp: desc }, limit: 5) {
-    id
-    merkleRoot
-    agentHash
-    eventCount
-    periodStart
-    periodEnd
-    commitmentIndex
-    committedBy
-  }
-}
-```
+Original-suite counters:
 
-### 5. Global Security Metrics
-Query network-wide security stats for dashboard KPI counters:
 ```graphql
-query GetGlobalSecurityStats {
+query Stats {
   GlobalSecurityStats(where: { id: { _eq: "global" } }) {
     totalActionsExecuted
-    totalThreatsRegistered
     activeThreatCount
     totalPassportsTracked
     totalCortexRootsAnchored
-    lastUpdated
   }
+  EnforcementStats { agentWallets guardianApprovedExecutions ownerExecutions oracleReports oracleFlaggedCount }
 }
 ```
 
 ---
 
-## 6. Bounty Rubric Alignment ($1,000 Envio Prize)
+## 5. Verification
 
-1. **Complex Multi-Contract Indexing:** Indexes 5 interconnected security and governance contracts across the Guardian ecosystem on Monad Testnet (`10143`).
-2. **Deterministic & Reorg-Resistant:** Employs `${txHash}-${logIndex}` deterministic IDs to ensure idempotency across blockchain reorganizations.
-3. **Advanced Schema Design:** Provides relational entities and an aggregate singleton (`GlobalSecurityStats`) for sub-millisecond dashboard queries.
-4. **CI/CD Ready:** Automated ABI extraction from Hardhat artifacts (`sync-indexer-abis.js`) and a Docker-independent unit test suite.
+Checked against the chain on Oct 12, 2026: 8 wallets + 34 executions = 42/42 matched Monad receipts; passports
+(3 active / 8 revoked) match `activePassportCount`; Cortex, scam-list and oracle counters (`reportCount`,
+`flaggedCount`, `feedDigest`) match. Details in [metropolis/README.md §4.B](../README.md#b-envio-event-indexer-metropolisindexer-live-oct-12).

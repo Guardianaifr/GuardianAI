@@ -1,7 +1,7 @@
 # GuardianAI Whitepaper
 
-**Version:** 3.3 — 2026 Metropolis Edition (Post-Audit & Sponsor Bounties Update, September 2026)
-**Date:** September 2026
+**Version:** 3.4 — 2026 Metropolis Edition (On-Chain Enforcement Update, October 2026)
+**Date:** October 2026
 **Classification:** Public
 
 ---
@@ -13,7 +13,7 @@ As large language models (LLMs) evolve from passive chatbots into autonomous, to
 **GuardianAI** is a unified, dual-layer security control plane that solves this problem end-to-end.
 
 - **Layer 1 — Off-Chain AI Gateway:** Executes 40+ real-time security controls in milliseconds. Addresses the OWASP Top 10 for LLM Applications. Protects against prompt injection, PII leakage, malicious runtime behavior, and unsafe multimodal inputs.
-- **Layer 2 — On-Chain Web3 Trust & Sovereign Enclave:** Nine EVM-compatible smart contracts (Monad) and native client enclaves provide cryptographically verifiable AI identity, execution containment via `GuardianPolicyGuard.sol` (Feature 41), drop-in agent middleware for ElizaOS/Viem (Feature 42), real-time Envio HyperIndex streaming (Feature 43), and sovereign hardware passkey PRF memory sealing with active anti-poisoning tripwires (Feature 44). Agent identities are registered on canonical ERC-8004 "Trustless Agents" registries (Feature 39) and actively enforced at the point of interaction across RPC relays with hot-wallet collision guards (Feature 40).
+- **Layer 2 — On-Chain Web3 Trust & Sovereign Enclave:** Twelve smart contracts deployed on Monad testnet and native client enclaves provide cryptographically verifiable AI identity, guarded agent wallets that refuse any call without a GuardianAI approval (Feature 45), a Chainlink CRE threat oracle enforced on-chain (Feature 46), execution containment via `GuardianPolicyGuard.sol` (Feature 41), drop-in agent middleware for ElizaOS/Viem (Feature 42), real-time Envio HyperIndex streaming (Feature 43), and sovereign hardware passkey PRF memory sealing with active anti-poisoning tripwires (Feature 44). Agent identities are registered on canonical ERC-8004 "Trustless Agents" registries (Feature 39) and actively enforced at the point of interaction across RPC relays with hot-wallet collision guards (Feature 40).
 
 GuardianAI is, to our knowledge, the first platform that secures the AI *execution layer* with millisecond heuristics while simultaneously cementing its *trust layer* on the blockchain.
 
@@ -525,9 +525,9 @@ Two honesty notes bound these claims. First, the batch-completion commit hash ci
 
 ### Phase 7: The Web3 Integrity Layer (On-Chain)
 
-Nine GuardianAI contracts are deployed on Monad — the six registries below plus GuardianTimelock, GuardianCircuitBreaker, and GuardianProtectedVault — providing cryptographic truth about GuardianAI's operational state. Agent identities are additionally registered on the **canonical ERC-8004 "Trustless Agents" registries** (Feature 39), which GuardianAI does not deploy or own.
+Twelve GuardianAI contracts are deployed on Monad testnet (addresses in the repository README): the original suite (the registries below, `GuardianPolicyGuard`, `GuardianTimelock`, the ERC-8004 testnet registry) plus, since October 2026, `GuardianAgentWalletFactory`, `GuardianThreatOracle` and `GuardianPassportIssuer` (Features 45–46). `GuardianCircuitBreaker` and `GuardianProtectedVault` are an integration pattern and reference vault, not part of the live deployment. Agent identities are additionally registered on the **canonical ERC-8004 "Trustless Agents" registries** (Feature 39), which GuardianAI does not deploy or own.
 
-> **Update (v1.0.1 - August-September 2026):** Following senior smart contract and architecture security audits, critical hardening fixes have been applied across the Web3 contracts. These include parameterizing the Circuit Breaker chain for multi-chain EVM deployments, enforcing safe CEI (Checks-Effects-Interactions) ordering in the Vault, capping array growth in the Interlock Registry, adding pause hooks against stale-balance withdrawals, adding permanent on-chain revocation tombstones (`isAgentRevoked`) in `GuardianPassportSBT.sol`, and adding strict bounds checks. The contract suite passes all 160 structural and integration tests (100% pass rate).
+> **Update (v1.0.1 - August-September 2026):** Following senior smart contract and architecture security audits, critical hardening fixes have been applied across the Web3 contracts. These include parameterizing the Circuit Breaker chain for multi-chain EVM deployments, enforcing safe CEI (Checks-Effects-Interactions) ordering in the Vault, capping array growth in the Interlock Registry, adding pause hooks against stale-balance withdrawals, adding permanent on-chain revocation tombstones (`isAgentRevoked`) in `GuardianPassportSBT.sol`, and adding strict bounds checks. The contract suite passed all 160 structural and integration tests at the time (271 Hardhat tests as of October 2026).
 
 ---
 
@@ -681,10 +681,10 @@ Added September 2026. A lightweight client-side middleware package bridging auto
 
 Added September 2026. A high-throughput, real-time blockchain event indexing pipeline built on Envio HyperIndex for Monad Testnet (Chain ID 10143).
 
-- **What it does:** Indexes security events concurrently across five GuardianAI smart contracts (`GuardianPolicyGuard`, `GuardianThreatFeedRegistry`, `GuardianPassportSBT`, `GuardianCortexAnchor`, and `GuardianRiskAttestation`).
-- **HyperSync Streaming:** Ingests raw event logs at Monad sub-second block finality (~2,000x faster than traditional JSON-RPC polling) and exposes real-time GraphQL endpoints on port 8080.
+- **What it does:** Indexes security events across eight GuardianAI contracts: the original five (`GuardianPolicyGuard`, `GuardianThreatFeedRegistry`, `GuardianPassportSBT`, `GuardianCortexAnchor`, `GuardianRiskAttestation`) and, since October 2026, `GuardianAgentWalletFactory`, every `GuardianAgentWallet` it creates, and `GuardianThreatOracle`. Live on Envio Cloud (HyperIndex v3).
+- **HyperSync Streaming:** Ingests raw event logs from Monad via HyperSync and exposes a GraphQL API (Envio Cloud; `http://localhost:8080/v1/graphql` when run locally).
 - **Reorg-Resistant Schema:** Employs deterministic `${txHash}-${logIndex}` entity identifiers and tracks global aggregate KPIs via singleton entities (`GlobalSecurityStats`) for sub-millisecond dashboard rendering.
-- **What it is in code:** `metropolis/indexer/src/EventHandlers.ts`, `metropolis/indexer/config.yaml`, `metropolis/indexer/schema.graphql`; verified by 36 passing unit and adversarial reorg tests.
+- **What it is in code:** `metropolis/indexer/src/EnvioHandlers.ts` (registration) and `src/EventHandlers.ts` (state logic), `config.yaml`, `schema.graphql`; verified by 48 tests (7 core, 29 adversarial, 12 enforcement) and a 42/42 check of indexed wallets and payments against Monad receipts.
 
 ---
 
@@ -697,7 +697,31 @@ Added September 2026. A sovereign, non-wallet agent identity and memory encrypti
 - **Feature 2 — Passkey-Sealed Memory with Active Tamper Tripwires (PRF as Encryption):** Memory records and quantitative strategies are encrypted client-side using an AES-256-GCM key derived via HKDF from the PRF output with salt `SHA-256("guardianai:v1:agent:memory:" + agentId)`. Ciphertexts are cryptographically bound to replay-protected Authenticated Additional Data (`agentId:sessionId:seqNo:timestamp`).
 - **The Tripwire:** If an adversary tampers with a single bit of ciphertext in the database or alters the sequence ordering, AES-GCM authentication tag verification fails, tripping `MEMORY_POISONING_DETECTED` and immediately freezing the agent's execution loop across both the ElizaOS middleware and RPC relay.
 - **The Cross-Device Reproduction Test:** A fresh device or incognito browser session without local storage evaluates the same passkey PRF to deterministically regenerate the identical agent DID and decrypt the memory snapshot with zero server coordination.
-- **What it is in code:** `metropolis/mera/src/guardian_mera_engine.ts`, `metropolis/mera/src/mock_webauthn_client.ts`, `metropolis/mera/scripts/cross_device_demo.ts`; verified by 18 core Vitest tests and 166 hard audit assertions (`npm run test:hard`).
+- **What it is in code:** `metropolis/mera/src/guardian_mera_engine.ts`, `metropolis/mera/src/operator_console.ts` (the real-passkey console at `aiguardian.dev/mera/`), `metropolis/mera/scripts/cross_device_demo.ts`; verified by 26 Vitest tests and 166 hard audit assertions (`npm run test:hard`).
+- **Relay enforcement (October 2026):** the identity key signs an *agent card* (agent id, wallet, expiry). For agents registered in `config/agent_passkey_identities.json`, the relay refuses `/api/v1/attest` without a valid card (`guardian/relayer/agent_card.py`).
+
+---
+
+**Feature 45 — GuardianAgentWallet (Two Keys per Payment)**
+
+Added October 2026. The agent's funds live in a contract wallet, not in the agent's key.
+
+- **What it does:** `execute(...)` requires the agent's own key (`msg.sender == operator`) **and** a fresh EIP-712 `SafetyAttestation` signed by GuardianAI for that exact target, value and calldata hash, bound to that wallet (EIP-712 domain) and agent, with a nonce and a 5-minute deadline. It then checks the risk limit, the agent's passport and the threat oracle (Feature 46).
+- **Why it matters:** A fully fooled agent cannot skip GuardianAI (the call reverts with `InvalidAttestationSignature`), and a leaked GuardianAI signer key cannot spend without the agent key. There is no shared spender allowance to drain.
+- **Recovery:** the human owner can `ownerExecute` without GuardianAI, by design; in production the owner should be a passkey, multisig or the timelock.
+- **Identity:** `GuardianPassportIssuer` lets the owner of a factory wallet self-claim one lowest-tier Agent ID card; no server key can mint.
+- **What it is in code:** `contracts/contracts/GuardianAgentWallet.sol`, `GuardianAgentWalletFactory.sol` (CREATE2, caller-salted), `GuardianPassportIssuer.sol`; relay side `/api/v1/attest` with `"wallet"`. 32 Hardhat tests for the wallet.
+
+---
+
+**Feature 46 — Chainlink CRE Threat Oracle (On-Chain Scam List)**
+
+Added October 2026. Moves GuardianAI's scam list on-chain without a GuardianAI write key.
+
+- **What it does:** A CRE workflow (`metropolis/chainlink/guardian-threat-sync`) runs on a cron; every DON node fetches the relay's `/api/v1/threat-oracle/feed`, the nodes require an identical list and digest (median for counters), the workflow re-hashes the list, and the DON-signed report is delivered through the Chainlink Forwarder to `GuardianThreatOracle`. Every `GuardianAgentWallet` checks `isFlagged()` on the target, token recipient and spender before each call.
+- **Why it matters:** A destination flagged by the DON is refused by the chain (`FlaggedDestination`) even if every off-chain component is bypassed.
+- **Scope:** all nodes read the same GuardianAI feed, so consensus removes GuardianAI's key from the write path but does not make the list's content independent of GuardianAI. Run as a CRE simulation with a real Monad broadcast; live DON deployment pending.
+- **What it is in code:** `contracts/contracts/GuardianThreatOracle.sol` (9 Hardhat tests), `guardian/relayer/threat_oracle_feed.py`.
 
 ---
 
@@ -748,8 +772,8 @@ All metrics are sourced from actual test runs and are reproducible.
 
 | Metric | Result |
 |---|---|
-| Python test suites (targeted runs, September 2026) | **1,461 passing test cases (100% pass rate)** across security, web3 identity, runtime interceptor, and RPC relay suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 60/60 · passport 24/24 |
-| Smart contract unit tests (Hardhat, September 2026) | **183 passing test cases across 11 contract suites in-repo (100% pass rate, 11s runtime)** |
+| Python test suites (October 2026) | **1,490+ passing test cases** across security, web3 identity, runtime interceptor, and RPC relay suites · 33/33 rate limiter heavy stress tests · ERC-8004 identity 60/60 · passport 24/24 |
+| Smart contract unit tests (Hardhat, October 2026) | **271 passing test cases across 15 test files** |
 | Security-gate block rate — Tier 1+2 (AdvBench + JBB + MaliciousInstruct + DAN, 972 prompts, strict mode, per definitive_benchmark_v4.json)†† | **97.6%** (949/972) |
 | Security-gate block rate — Tier 1+2 (balanced mode)†† | **90.7%** (882/972) |
 | HarmBench Official block rate (400 prompts, strict mode)†† | **72.8%** (291/400) |
@@ -770,16 +794,16 @@ All metrics are sourced from actual test runs and are reproducible.
 | Internal security audit — critical/high findings (July 2026, off-chain proxy) | 4 identified and remediated\*\* |
 | On-chain contract audit — HIGH/MED findings (August 2026) | 5 identified and remediated\*\*\* |
 | Senior systems & cryptographic audit (September 2026) | 6 identified and remediated (ARCH-01 through ARCH-06) · ERC-8004 identity gate, RPC relay attestation, status code semantics (401/403), and Monad Testnet exclusively validated\*\*\*\* |
-| Category Labs Mera Passkey PRF Enclave (`metropolis/mera/`) | **18 / 18 Core Vitest tests passed** · **166 / 166 Hard stress audit tests passed (`npm run test:hard`)** across 4 live GitHub corpora · 100% tamper interception precision · P50 latency 0.355–0.487 ms |
-| Envio HyperIndex Event Stream (`metropolis/indexer/`) | **36 passing unit & adversarial reorg test cases (100% green)** across 5 Monad Testnet contracts · Sub-second GraphQL event feeds |
-| Agent Middleware SDK (`packages/guardian-middleware/`) | **49 standalone TypeScript tests passing (100% green)** for ElizaOS memory guard and Viem client wrappers |
+| Category Labs Mera Passkey PRF Enclave (`metropolis/mera/`) | **26 / 26 Vitest tests passed** · **166 / 166 Hard stress audit tests passed (`npm run test:hard`)** across 4 live GitHub corpora · 100% tamper interception precision · P50 latency 0.355–0.487 ms |
+| Envio HyperIndex Event Stream (`metropolis/indexer/`) | **48 passing tests** (core, adversarial, enforcement) across 8 Monad testnet contracts · live on Envio Cloud · 42/42 records matched on-chain receipts |
+| Agent Middleware SDK (`packages/guardian-middleware/`) | **49 + 15 TypeScript tests passing** for the ElizaOS memory guard, Viem client wrappers and the ElizaOS 1.7 guarded-wallet plugin |
 | Live Empirical Threat Corpus Benchmark (September 2026) | **1,061 live attack vectors tested** from Hugging Face & GitHub datasets (Lakera Gandalf, BIPIA benchmark, prompt injection corpora) — **96.23% attack catch rate** |
 
 \* SAST flagged a call to `secrets.token_urlsafe()` as a potential hardcoded secret; confirmed as a false positive — the call generates random tokens, not a hardcoded value.
 
 †† Source: `artifacts/evidence/definitive_benchmark_v4.json` (stated run date: 2026-08-08; file last modified: 2026-08-21 — the artifact does not embed an internal run-date field). 3,211 prompts from 8 independent public datasets with zero training contamination. Strict mode = AI Firewall threshold 0.45 (default). Balanced mode = threshold 0.55. HarmBench includes copyright and political-opinion prompts that are out-of-scope for a security firewall; the lower absolute rate on that dataset reflects intentional category coverage, not a security regression. See Section 6.2 for the full benchmark correction note.
 
-\*\* The full Python suite (1,461 tests) passes cleanly in a dedicated environment. Two specific integration tests (`test_full_saas_e2e_stack` and `test_is003_auth_bypass_probe`) bind to local TCP ports and are sensitive to multi-process port contention; they may exhibit transient failures if multiple test suites run concurrently on the same host, but pass reliably in isolation or sequential runs.
+\*\* The full Python suite (1,490+ tests) passes cleanly in a dedicated environment. Two specific integration tests (`test_full_saas_e2e_stack` and `test_is003_auth_bypass_probe`) bind to local TCP ports and are sensitive to multi-process port contention; they may exhibit transient failures if multiple test suites run concurrently on the same host, but pass reliably in isolation or sequential runs.
 
 \*\*\* See Section 6.1 and Phase 7 for notes on prior off-chain and on-chain contract audits.
 
@@ -832,7 +856,20 @@ In September 2026, GuardianAI's security defenses and sovereign enclave were sub
    - Memory Sealing (AES-256-GCM): **P50 = 0.380 ms** | P95 = 0.658 ms
    - Memory Unsealing (GCM Tag Verification): **P50 = 0.355 ms** | P95 = 0.466 ms
    - Parallel Swarm Concurrency: 50 concurrent agents executed in 42.24 ms (0.84 ms/agent) with zero nonce or storage collisions.
-5. **Envio HyperIndex Verification:** 36/36 unit and adversarial reorg tests verified across 5 Monad contracts, indexing policy violations, 24-hour rolling outflow limits, and attestation logs with sub-second finality.
+5. **Envio HyperIndex Verification:** 36/36 unit and adversarial reorg tests verified across 5 Monad contracts at the time (48 tests across 8 contracts as of October 2026), indexing policy violations, 24-hour rolling outflow limits, and attestation logs with sub-second finality.
+
+---
+
+### 6.5 October 2026 On-Chain Enforcement Proofs (Monad Testnet)
+
+Transactions are linked in `metropolis/README.md` §4–5.
+
+1. **Normal payment:** relay approved (risk 0) → `GuardianAgentWallet.execute` succeeded.
+2. **Prompt-injected drain:** blocked by the relay (InputFilter, risk 50); nothing signed or sent.
+3. **Agent skips GuardianAI and self-signs:** reverted on-chain with `InvalidAttestationSignature`; balance unchanged.
+4. **Chainlink-flagged destination:** the off-chain firewall approved a 0.001 MON payment (risk 0), and the wallet reverted with `FlaggedDestination`; the same payment to a clean address succeeded.
+5. **Privy policy lock:** 6/6 forbidden signing requests refused by Privy before a signature existed.
+6. **Hosted ElizaOS agent:** real payments from the console's agent key through GuardianAI (status 1).
 
 ---
 
@@ -859,13 +896,14 @@ No other known platform integrates an AI behavioral security gateway, a smart co
 
 GuardianAI's off-chain AI Gateway is delivered as a hosted service. Enterprise customers receive API credentials and endpoint URLs during onboarding. The gateway proxies your upstream LLM provider (OpenAI, Anthropic, vLLM, etc.) with zero code changes — point your client SDK at the GuardianAI endpoint instead of the provider's.
 
-- **Ports:** `8081` (proxy ingress), `8080` (backend API), `8001` (admin/diagnostics)
+- **Ports:** `8081` (proxy ingress), `8001` (backend API and admin), `8546` (relay / attestation API); the upstream model defaults to `8080`
+- **Self-hosting:** the same stack runs from the repository (`docker compose up -d` or `python guardianctl.py one-click`)
 - **Authentication:** Bearer-token ingress; JWT-authenticated backend APIs
 - **Configuration:** Security mode (`strict` / `balanced` / `permissive`), tenant sensitivity profiles, and on-chain opt-in are configured via the admin API or customer dashboard
 
 ### On-Chain Layer
 
-On-chain contracts (PassportSBT, ThreatFeedRegistry, RiskAttestation, InterlockRegistry, InsuranceLedger, CortexAnchor, Timelock, CircuitBreaker, Vault) are deployed and managed by GuardianAI on Monad. ERC-8004 registrations use the canonical registries. Customers interact with the on-chain layer through the hosted API — no direct contract deployment is required.
+On-chain contracts (PolicyGuard, PassportSBT and PassportIssuer, ThreatFeedRegistry, RiskAttestation, InterlockRegistry, InsuranceLedger, CortexAnchor, Timelock, ERC-8004 testnet registry, AgentWalletFactory, ThreatOracle) are deployed by GuardianAI on **Monad testnet**; ownership is still the deployer key, with a planned handoff to the timelock. Each agent gets its own `GuardianAgentWallet` from the factory, owned by the customer: the console at `aiguardian.dev/explorer/?view=console` creates one in the browser. ERC-8004 registrations use the canonical registries. The contracts have not yet been audited by a third party.
 
 ---
 

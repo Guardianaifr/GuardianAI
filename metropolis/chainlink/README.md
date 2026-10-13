@@ -44,8 +44,10 @@ printf 'CRE_API_KEY=%s\nCRE_ETH_PRIVATE_KEY=%s\n' "<your CRE API key>" "<a funde
 # 2. dependencies + Javy toolchain
 cd guardian-threat-sync && bun install && cd ..
 
-# 3. GuardianAI relay serving the feed on :8546 (from the repo root, in another terminal)
-python tools/run_relay.py
+# 3. the staging config reads the live relay feed (guardian-relay-production.up.railway.app).
+#    To test against a local relay instead, run `python tools/run_relay.py` from the repo root
+#    (port 8546) and set feedUrl in guardian-threat-sync/config.staging.json to
+#    http://127.0.0.1:8546/api/v1/threat-oracle/feed
 
 # 4. dry run, then broadcast
 cre workflow simulate guardian-threat-sync --target staging-settings -e .env
@@ -66,7 +68,9 @@ even if the relay approved it, the wallet reverts with `FlaggedDestination`.
 
 - Deploy a second `GuardianThreatOracle` with the production KeystoneForwarder for Monad testnet
   `0xF8344CFd5c43616a4366C34E3EEE75af79a74482`, then `setExpectedWorkflowOwner(<your workflow owner>)`.
-- Serve the feed from a public URL (`config.production.json` → `feedUrl`), deploy with `cre workflow deploy`.
+- Point `config.production.json` at the production oracle (its `oracleAddress` is still `0x0`) and at a public feed URL
+  (`feedUrl` currently names `aiguardian.dev/api/...`, which has no hosting rewrite today; the live feed is on Railway),
+  then deploy with `cre workflow deploy`.
 
 ## Honest scope
 

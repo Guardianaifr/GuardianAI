@@ -3,7 +3,7 @@
 [![Monad Testnet](https://img.shields.io/badge/Monad%20Testnet-Chain%20ID%2010143-8A2BE2.svg)](https://testnet.monadvision.com/)
 [![Hardhat Tests](https://img.shields.io/badge/Smart%20Contracts-271%20Passing-brightgreen.svg)](contracts/)
 [![Python Tests](https://img.shields.io/badge/Python%20Suites-1490%2B%20Passing-brightgreen.svg)](tests/)
-[![Mera Enclave Tests](https://img.shields.io/badge/Mera%20Enclave-184%2F184%20Passing-brightgreen.svg)](metropolis/mera/)
+[![Mera Enclave Tests](https://img.shields.io/badge/Mera%20Enclave-192%2F192%20Passing-brightgreen.svg)](metropolis/mera/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python: 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](requirements.txt)
 
@@ -188,11 +188,11 @@ All tests across smart contracts, Python security modules, and enclave implement
 |---|---|---|---|
 | **Smart Contracts** | Hardhat / Solidity | `npx hardhat test` (in `contracts/`) | **271 Passing** (re-run Oct 13) |
 | **Python Security & E2E** | Core Firewall, RPC Relay, Identity | `pytest tests/` | **1,490+ Passing (100%)** |
-| **Mera Core Enclave**| Vitest / WebAuthn PRF | `npm test` (in `metropolis/mera/`) | **18 / 18 Passing (100%)** |
+| **Mera Core Enclave**| Vitest / WebAuthn PRF | `npm test` (in `metropolis/mera/`) | **26 / 26 Passing (100%)** |
 | **Mera Stress Audit**| SecLists, Naughty Strings, Freqtrade| `npm run test:hard` (in `metropolis/mera/`) | **166 / 166 Passing (100%)** |
 | **Envio HyperIndex** | Real-Time Contract Indexer | `npm test` (in `metropolis/indexer/`, `envio` branch) | **48 Passing** (re-run Oct 13) |
 | **Agent Middleware** | ElizaOS & Viem SDK Decorator | `npm test` (in `packages/guardian-middleware/`)| **49 + 15 Passing** |
-| **Hosted ElizaOS agent** | LLM failover (Groq → OpenRouter free) | `npm test` (in `packages/eliza-host/`) | **13 Passing** |
+| **Hosted ElizaOS agent** | LLM failover (Groq → OpenRouter free) | `npm test` (in `packages/eliza-host/`) | **10 Passing** |
 | **Website / console** | Vitest | `npm test` (in `dashboard/`) | **52 Passing** |
 | **Adversarial Exploits**| Real-world hack reproduction | `python tools/reproduce_realworld_exploits.py`| **5 / 5 Neutralized (100%)** |
 
@@ -243,12 +243,11 @@ guardianai/
 │   │   ├── GuardianPolicyGuard.sol # Execution firewall (EIP-712, nonces, RBAC)
 │   │   ├── GuardianPassportSBT.sol# Soulbound Token identity (ERC-5192)
 │   │   └── GuardianTimelock.sol   # 24-hour governance execution delay
-│   └── test/                  # 207 smart contract unit & adversarial tests
+│   └── test/                  # 271 smart contract unit & adversarial tests
 ├── metropolis/                # Monad Metropolis Track 04 Integrations
 │   ├── mera/                  # Category Labs Mera Passkey PRF Enclave (TypeScript)
 │   ├── indexer/               # Envio HyperIndex indexer (live deployment built from the `envio` branch)
-│   ├── chainlink/             # Chainlink CRE threat-oracle workflow + receiver
-│   └── docs/                  # Architecture specs & integration guides
+│   └── chainlink/             # Chainlink CRE threat-oracle workflow + receiver
 ├── tools/privy-agent/         # Privy policy-locked agent wallet (lock-test, payments)
 ├── website/                   # aiguardian.dev: explorer build, Mera passkey console
 ├── demo/                      # Standalone Demonstration Scripts

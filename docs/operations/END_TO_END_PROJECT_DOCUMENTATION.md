@@ -11,20 +11,26 @@
 | Mini Roadmap Delivery | Done |
 | Production Governance and Release Readiness | Done |
 | One-Click Customer Activation | Done |
+| On-chain enforcement on Monad testnet (agent wallets, CRE threat oracle, Agent ID cards) | Done (testnet; not audited) |
+| Live integrations (Mera, Privy, Envio, ElizaOS) and public explorer | Done |
 
 ## 1) What This Project Is
 
-GuardianAI is a security control plane for LLM applications.  
+GuardianAI is a security control plane for LLM applications and AI agents that hold money.
 It sits between client applications and model endpoints, and enforces security at:
 
 - Input stage (prompt inspection and blocking)
 - Output stage (leak/exploit detection and redaction)
 - Runtime stage (process/resource monitoring)
 - SaaS control stage (telemetry, analytics, policy governance, evidence export)
+- Payment stage (the relay signs an EIP-712 approval only for safe calls; on Monad, `GuardianAgentWallet` refuses any call without the agent key **and** that approval)
+
+For the on-chain layer and the October 2026 integrations, the canonical reference is
+[`metropolis/README.md`](../../metropolis/README.md); this document covers the off-chain platform in depth.
 
 ## 2) Current Scope and Status
 
-As of **April 28, 2026**, this workspace includes:
+As of **October 2026**, this workspace includes (off-chain platform first; on-chain additions at the end of the list):
 
 - Full local/SaaS stack: proxy + backend + enterprise runtime controls
 - 10-Layer AI Firewall (Semantic, Regex, Threat Feeds, Roleplay Abuse, Sexual Content, L33t decoding)
@@ -51,15 +57,19 @@ As of **April 28, 2026**, this workspace includes:
 - Dependency Pinning CI Gates
 - Canonical ERC-8004 Identity Registration with transient custody handoff
 - Pre-flight Identity Gate enforcement on RPC relays and agentic channels with hot-wallet collision guards and fail-open resilience
+- Relay approvals (`/api/v1/attest`) with per-agent rules, scam-list checks, owner-signed pull authorizations and x402 pay-per-approval
+- Monad testnet contracts: `GuardianAgentWallet` + factory, `GuardianThreatOracle` (Chainlink CRE), `GuardianPassportIssuer`, plus the original nine-contract suite
+- Mera passkey agent identity and agent cards, Privy policy-locked agent key, Envio indexer, ElizaOS plugin and hosted agent
+- Public explorer (Attack Lab + Console) at `aiguardian.dev/explorer/`
 
 One-click activation behavior:
 - Generates secure runtime credentials if not already provided in environment.
 - Writes full-feature runtime config to `guardian/config/one_click_runtime.yaml`.
 - Launches backend + proxy stack in a single command.
 
-Automated test status:
-- **backend + unit suites 1,461 passed (2026-09-08)** (`pytest tests/`)
-- **100% Phase 4 Delivery + Feature #12 Enterprise Auth**
+Automated test status (README test table, October 2026):
+- Python: **1,490+ passed** (`pytest tests/`)
+- Hardhat: **271**; Mera: **26 + 166**; Envio: **48**; middleware: **49 + 15**; hosted ElizaOS agent: **10**; explorer: **52**
 
 ## 3) Architecture (End-to-End)
 
@@ -74,6 +84,10 @@ Client
       -> Event ingest (token-protected)
       -> Analytics + audit logs
       -> Protected event export endpoints
+  -> Relay (Flask, port 8546 locally; public on Railway)
+      -> /api/v1/attest: prompt + scam list + per-agent rules + caps -> EIP-712 approval
+      -> /api/v1/threat-oracle/feed -> Chainlink CRE DON -> GuardianThreatOracle (Monad)
+  -> Agent (ElizaOS / Privy / console) -> GuardianAgentWallet.execute(approval) on Monad
   -> Security/Validation Tooling
       -> Static/IaC/git-history scans
       -> HAR interception scans
@@ -289,6 +303,8 @@ This is no longer just a firewall prototype; it is now a validated security plat
 
 ## 11) Mini Roadmap (Finalized and Execution-Ready)
 
+> Evidence files named below are written by the validation tools when they run. These are not committed in the repo today: `siem_delivery_report.md`, `key_rotation_validation.md`, `security_slo_dashboard.md`, `service_auth_validation.md`, `idp_adapter_contract_report.md`, `tool_policy_regression_report.md`, `artifacts/security/adversarial_regression_delta.md`. Re-run the tools to regenerate them.
+
 ### Track 1: Foundation Controls (Completed)
 
 1. SIEM alert routing + playbook mapping
@@ -441,10 +457,10 @@ Post-baseline, this workspace adds the roadmap delivery set (Topics 1-15), inclu
 - expanded security tooling
 - advanced and chaos end-to-end guardrail testing
 
-For the complete professional documentation package (full inventory, benchmarks, APIs, gaps, and release assessment), see:
+For the full inventory, benchmarks, APIs, gaps, and release assessment, see:
 
-- `COMPLETE_PROJECT_DOCUMENTATION.md`
 - `../architecture/FEATURE_BENCHMARK_ANALYSIS.md`
+- `../architecture/API.md`
 - `EXECUTIVE_SUMMARY.md`
 
 

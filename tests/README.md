@@ -1,38 +1,46 @@
-# GuardianAI Test Suite Setup
+# GuardianAI Python Test Suite
 
-## Installation Commands
+## Setup
 
-Run these commands in your terminal at `<project-root>` (e.g. `cd <project-root>`):
+Run from the repository root with Python 3.12.
+
+```bash
+# macOS / Linux
+python3.12 -m venv .venv312
+source .venv312/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+```
 
 ```powershell
-# Create Python 3.12 virtual environment (once)
+# Windows (PowerShell)
 py -3.12 -m venv .venv312
-
-# Install dependencies
-.\.venv312\Scripts\python.exe -m pip install -r requirements.txt
-
-# Verify installation
-.\.venv312\Scripts\python.exe -m pytest --version
+.\.venv312\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-## Running Tests
+## Running tests
 
-```powershell
-# Run all tests
-.\.venv312\Scripts\python.exe -m pytest
-
-# Run with coverage
-.\.venv312\Scripts\python.exe -m pytest --cov=guardian --cov-report=term-missing
-
-# Run specific test file
-.\.venv312\Scripts\python.exe -m pytest tests/guardrails/test_input_filter.py
-
-# Run with verbose output
-.\.venv312\Scripts\python.exe -m pytest -v
+```bash
+pytest                                            # whole suite (1,490+ tests); coverage report is on by default (pytest.ini)
+pytest tests/guardrails/test_input_filter.py      # one file
+pytest -m e2e                                     # full-stack proxy + backend tests only
+pytest --no-cov tests/audit/test_smart_contract_analyzer.py   # run standalone: under coverage Slither falls back to regex detection
 ```
 
-## Coverage Goals
+Coverage output goes to the terminal and to `htmlcov/` (git-ignored).
 
-- **Level 1**: 30% coverage (core guardrails)
-- **Level 2**: 60% coverage (add runtime tests)
-- **Level 3**: 80% coverage (comprehensive suite)
+## Layout
+
+| Folder / file | Covers |
+|---|---|
+| `guardrails/`, `security/`, `runtime/`, `proxy/` | The off-chain firewall: input/output filters, AI firewall, rate limiter, proxy |
+| `backend/` | FastAPI control plane: auth, RBAC, routers |
+| `audit/` | Smart-contract and token analyzers (Slither needs `solc` 0.8.24) |
+| `brain/`, `compliance/`, `sdk/` | Red/blue/purple agents, EU AI Act tooling, Python SDK and agent middleware |
+| `e2e/`, `stress/` | End-to-end stack and load tests |
+| `test_rpc_relay*.py`, `test_attestation_service.py`, `test_cloud_relay.py` | Relay and EIP-712 approvals |
+| `test_agent_wallet_attestation.py`, `test_agent_rules.py`, `test_agent_policies.py` | Agent-wallet approvals, per-agent rules, selector allowlists and outflow caps |
+| `test_threat_oracle_feed.py` | Feed read by the Chainlink CRE workflow |
+| `test_agent_card.py` | Mera passkey-signed agent cards |
+
+The JavaScript/TypeScript suites (contracts, explorer, Mera, indexer, middleware, hosted agent) live in their own
+folders; see [CONTRIBUTING.md](../CONTRIBUTING.md) and [docs/operations/VALIDATION.md](../docs/operations/VALIDATION.md).

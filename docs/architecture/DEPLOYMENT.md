@@ -1,14 +1,15 @@
 # GuardianAI Deployment Guide
 
-This guide is aligned with the current repository behavior.
+This guide matches the repository as of October 2026. It covers the self-hosted firewall stack (proxy +
+backend) and lists the hosted services behind aiguardian.dev.
 
 ## Prerequisites
 
-- Python 3.12 required (project standard)
-- Docker
-- Local upstream model/service endpoint (default: `http://127.0.0.1:8080`)
+- Python 3.12 (project standard; `.venv312`)
+- Docker (for the Compose stack)
+- An upstream model/service endpoint for the proxy to protect (default: `http://127.0.0.1:8080`)
 
-## Local Run (Python)
+## Local run (Python)
 
 1. Install dependencies:
 ```bash
@@ -17,49 +18,77 @@ pip install -r requirements.txt
 
 2. Configure (optional):
 - Default config: `guardian/config/config.yaml`
-- Override with env var:
+- Override with an env var:
 ```bash
 # Windows PowerShell
 $env:GUARDIAN_CONFIG="guardian/config/config.yaml"
 ```
+- Secrets and feature flags: copy `.env.example` to `.env` and fill it in.
 
 3. Start services:
 ```bash
-python guardianctl.py setup
-python guardianctl.py start
+python guardianctl.py setup      # interactive setup wizard
+python guardianctl.py start      # backend + Guardian proxy
+# or everything in one step:
+python guardianctl.py one-click --target-url http://127.0.0.1:8080
 ```
+
+Other `guardianctl.py` commands: `status`, `hardening-check` (risky public port exposure), `dashboard`.
 
 4. Verify health:
 - Proxy: `http://127.0.0.1:8081/health`
-- Backend: `http://127.0.0.1:8001/health`
+- Backend: `http://127.0.0.1:8001/health` (OpenAPI docs at `/docs`)
 
-## Runtime Ports (default)
+## Docker Compose
+
+```bash
+cp .env.example .env
+docker compose up -d
+```
+
+Services: `redis` (rate limits, lockouts), `guardian` (proxy on 8081, backend on 8001, data in the
+`guardian-data` volume) and `frontend` (nginx serving `website/` on port 3000).
+
+## Runtime ports (default)
 
 - Upstream model/service: `127.0.0.1:8080`
-- Guardian proxy: `127.0.0.1:8081`
+- Guardian proxy: `127.0.0.1:8081` (binds loopback unless `GUARDIAN_PROXY_HOST=0.0.0.0`)
 - Backend API/dashboard: `127.0.0.1:8001`
+- Web3 RPC relay / attestation API (`python tools/run_relay.py`): `127.0.0.1:8546`
 
-## Production Checklist
+## Hosted services (aiguardian.dev)
 
-- Change default admin credentials (`GUARDIAN_ADMIN_PASS`).
-- **Financial Controls (Decision FL_008):** Slippage-setting via GuardianAI is explicitly unsupported and intentionally hard-blocked until a valid 1inch API key is provisioned in the configuration to allow dynamic depth verification.
-- For multi-worker deployments (e.g. uvicorn with --workers > 1), use the `redis` rate limit backend (`GUARDIAN_RATE_LIMIT_BACKEND=redis`) to ensure rate limits are shared. The default `memory` backend enforces limits per-worker.
-- Keep upstream service on localhost/private network only.
-- Expose only Guardian ingress as needed.
-- Enable host-level firewall and log rotation.
-- Run `.\.venv312\Scripts\pytest.exe tests -q` before release.
+| Service | Where | Deploy |
+|---|---|---|
+| Website, Attack Lab, Console, Mera console | Firebase Hosting (`firebase.json`, site `aiguardian-site`) | `firebase deploy --only hosting`; see `website/README.md` |
+| Public relay (approvals, threat feed) | Railway, `guardian-relay-production.up.railway.app` | `deploy/relay/deploy-railway.ps1`; see `deploy/relay/README.md` |
+| Hosted ElizaOS agent | Railway, `guardian-eliza-production.up.railway.app` | see `packages/eliza-host/README.md` |
+| Envio indexer | Envio Cloud (built from the `envio` branch) | see `metropolis/indexer/README.md` |
 
-## Current Validation Snapshot
+The repo-root `railway.json` deploys the full one-click firewall stack from the root `Dockerfile`; the relay
+and the ElizaOS host use their own Railway configs.
 
-- Tests: Targeted suites: 107 passed across security, audit chain, web3 identity, relay, and security headers (32.29s); 33/33 passed on rate limiter heavy stress suite; Smart contracts: 160 passing test cases across 10 Hardhat suites (100% pass rate).
-- Runtime standard: use Python 3.12 for full compatibility.
+## Production checklist
 
-## Related Docs
+- Change default admin credentials (`GUARDIAN_ADMIN_PASS`) and set a high-entropy `GUARDIAN_JWT_SECRET`.
+- Set `GUARDIAN_ENV=production`: weak fallbacks (SHA-256 password hashes, XOR secrets) are refused and Redis becomes mandatory for lockouts.
+- **Financial controls (decision FL_008):** slippage-setting via GuardianAI is unsupported and hard-blocked until a valid 1inch API key is configured for depth verification.
+- Rate limiting: with `GUARDIAN_ENV=production` the backend refuses to start unless `GUARDIAN_RATE_LIMIT_BACKEND=redis` and `GUARDIAN_RATE_LIMIT_REDIS_URL` are set. Outside production the default `memory` backend enforces limits per worker only.
+- Keep the upstream service on localhost or a private network; expose only the Guardian ingress.
+- Enable a host-level firewall and log rotation.
+- For the relay: use a dedicated `GUARDIAN_ATTESTATION_SIGNER_KEY` (never the deployer key) and run a single instance.
+- Run `pytest tests -q` before release.
+
+## Current validation snapshot (October 2026)
+
+From the repository README test table: Hardhat 271 passing; Python suites 1,490+ passing; Mera 26 Vitest +
+166 hard-audit assertions; Envio indexer 48; agent middleware 49 + 15; hosted ElizaOS agent 10; explorer 52.
+
+## Related docs
 
 - `HARDENING.md`
 - `../operations/OPERATIONS.md`
 - `../operations/TROUBLESHOOTING.md`
-- `README.md`
 - `../operations/PRODUCTION_LAUNCH_RUNBOOK.md`
-
-
+- `../../deploy/README.md`
+- `../../README.md`

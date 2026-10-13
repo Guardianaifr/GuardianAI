@@ -1,43 +1,53 @@
-# GuardianAI Monad Security Dashboard
+# GuardianAI Explorer (Attack Lab + Console)
 
-High-performance real-time telemetry dashboard for GuardianAI and Monad Parallel EVM security infrastructure.
+Vite + React source of the public explorer at **https://aiguardian.dev/explorer/**. The production build is
+copied into `website/explorer/` and deployed with the website (see [`website/README.md`](../website/README.md)).
 
-## Features
+`src/main.jsx` renders one of two pages:
 
-- **Live On-Chain & Off-Chain Threat Telemetry:** Real-time push stream from GuardianAI security middleware and Envio HyperIndex GraphQL endpoint.
-- **Standalone Live Web Mode:** Seamless zero-dependency live demonstration mode with graceful fallback/degradation for online hosting (e.g., `aiguardian.dev`) without requiring a local backend or indexer to be active.
-- **Privy Autonomous Agent Containment:** Hardware-isolated session signer delegation, policy enforcement, and live execution simulation on Monad Testnet (Chain ID 10143).
-- **MERA Enclave Integrity:** Attestation monitoring for deterministic passkey PRF Ed25519 agent identities and tamper-proof memory blocks.
-
-## Environment Variables
-
-Configure these in `dashboard/.env` or in your deployment platform:
-
-| Variable | Description | Default |
+| URL | Page | Source |
 |---|---|---|
-| `VITE_PRIVY_APP_ID` | Privy Application ID for authentication and embedded wallets | `clx_guardian_demo` |
-| `VITE_WS_URL` | WebSocket URL for live security threat feed | `ws://127.0.0.1:8001/ws/threats` (or `wss://${host}/ws/threats` on HTTPS) |
-| `VITE_GRAPHQL_URL` | Envio HyperIndex GraphQL endpoint | `http://localhost:8080/v1/graphql` (or `${origin}/v1/graphql` on HTTPS) |
-| `VITE_RELAYER_URL` | GuardianPolicyGuard attestation relayer base URL | `http://localhost:8000` |
-| `VITE_STANDALONE_MODE` | Force standalone live simulation mode (`true` / `false`) | Auto-detected with graceful fallback |
-| `VITE_AGENT_ADDRESS` | Monad testnet AI agent signer address | `0x742d35Cc6634C0532925a3b844Bc454e4438f44e` |
-| `VITE_PRIVY_AGENT_POLICY_ID` | Scoped Privy delegation policy ID | `pol_guardian_monad_policyguard_01` |
+| `/explorer/` | **Attack Lab**: the public walkthrough (try an attack, see the firewall and the chain refuse it, live proof ledger, sponsor integrations) | `src/explorer/SimpleExplorer.jsx` |
+| `/explorer/?view=console` (also `?view=developer`) | **Console**: create a guarded agent wallet on Monad testnet, claim an Agent ID card, fund it, and chat with a hosted ElizaOS agent that pays through GuardianAI | `src/explorer/Console.jsx` |
 
-## Getting Started
+The console is non-custodial: the agent key is generated in the browser and kept in local storage (demo key);
+the hosted agent returns the approved call and the browser checks and sends it.
+
+## Live services it talks to
+
+| Service | Default | Override |
+|---|---|---|
+| Monad testnet RPC | `https://testnet-rpc.monad.xyz` | `VITE_MONAD_RPC_URL` |
+| GuardianAI relay (approvals, rules, threat feed) | `https://guardian-relay-production.up.railway.app` | `VITE_GUARDIAN_RELAY_URL` |
+| Hosted ElizaOS agent (`packages/eliza-host`) | `https://guardian-eliza-production.up.railway.app` | `VITE_GUARDIAN_ELIZA_URL` |
+| Envio GraphQL | `ENVIO_GRAPHQL` in `src/explorer/siteConfig.js` | edit the file |
+
+Contract addresses come from `src/explorer/chain.js`. `src/explorer/siteConfig.js` holds the repo link, the
+demo-video link and the sponsor cards.
+
+## Develop
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
-npm run dev
-
-# Run ESLint checks
+npm run dev        # http://localhost:5173 (the relay allows this origin by default)
+npm test           # Vitest: 52 tests
 npm run lint
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+npm run build      # dashboard/dist/, then copy into website/explorer/
 ```
+
+`npm run dev` also proxies `/api` and `/ws/threats` to a local backend on `127.0.0.1:8001`, used only by the
+older dashboard below.
+
+## Real-network checks (`qa/`)
+
+Node scripts that drive the deployed site with Playwright, for example
+`qa/console-e2e-real.mjs` (a full console run on Monad testnet; costs testnet MON, needs a funded burner key)
+and `qa/live-audit.mjs`. Each script documents its usage at the top. Outputs under `qa/real/` and
+`qa/e2e-out/` are git-ignored.
+
+## Older SaaS dashboard (not in the build)
+
+`src/App.jsx`, `src/DeveloperConsole.jsx` and most of `src/components/` (all but `ErrorBoundary.jsx`) are the earlier telemetry dashboard (Privy login,
+WebSocket threat feed from the backend, policy tabs). `main.jsx` no longer renders it. Its settings, if you
+revive it: `VITE_PRIVY_APP_ID`, `VITE_WS_URL`, `VITE_GRAPHQL_URL`, `VITE_STANDALONE_MODE`, `VITE_AGENT_ADDRESS`,
+`VITE_PRIVY_AGENT_POLICY_ID`, `VITE_RELAYER_URL`.

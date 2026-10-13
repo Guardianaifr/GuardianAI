@@ -79,7 +79,7 @@ weasel==0.3.4
 websockets==15.0.1
 web3==7.16.0
 eth-account==0.13.7
-Werkzeug==3.1.6
+Werkzeug==3.1.9
 wheel==0.46.3
 # sentence-transformers: required for the embedding-based semantic firewall
 # (guardian/guardrails/ai_firewall.py). Without this, AI_FIREWALL_AVAILABLE=False

@@ -290,7 +290,7 @@ python demo/run_demo.py</code></pre>
                 <td><strong>Gate 2: PolicyGuard (on Monad)</strong></td>
                 <td>Monad Parallel EVM Smart Contracts</td>
                 <td><code>GuardianPolicyGuard.sol</code> pre-flight execution firewall, <code>GuardianThreatOracle.sol</code> Chainlink CRE receiver (live on testnet, fed by CRE simulation), <code>GuardianAgentWallet.sol</code> per-agent wallet, ERC-8004 identity, Merkle Cortex state anchoring</td>
-                <td>207/207 Hardhat tests (11 suites), per-agent nonces for parallel execution</td>
+                <td>271/271 Hardhat tests (15 suites), per-agent nonces for parallel execution</td>
               </tr>
             </tbody>
           </table>
@@ -468,7 +468,7 @@ if honeypot.is_tripped(response_text):
           </div>
           <div class="docs-card">
             <h4>Live Benchmark Receipts</h4>
-            <p>184/184 tests passing (18 core Vitest + 166 hard audit assertions on 4 corpora), sub-0.5ms P50 latency, 0 collisions.</p>
+            <p>192/192 tests passing (26 core Vitest + 166 hard audit assertions on 4 corpora), sub-0.5ms P50 latency, 0 collisions.</p>
           </div>
         </div>
       </section>
@@ -508,7 +508,7 @@ try {
 
         <div class="docs-callout tip">
           <div class="docs-callout-title">&#128279; Deployed on Monad testnet</div>
-          <code>GuardianPolicyGuard</code> is deployed at <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0x90Fd...EF60 ↗</a>. Source verification on MonadScan is pending. Hardhat suite: 207 tests across 11 suites in our last local run (<code>cd contracts &amp;&amp; npx hardhat test</code>).
+          <code>GuardianPolicyGuard</code> is deployed at <a href="https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60" target="_blank" rel="noopener" style="color:var(--docs-accent);text-decoration:underline;">0x90Fd...EF60 ↗</a>. Source verification on MonadScan is pending. Hardhat suite: 271 tests across 15 suites in our last local run (<code>cd contracts &amp;&amp; npx hardhat test</code>).
         </div>
 
         <div class="docs-grid">

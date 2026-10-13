@@ -1,7 +1,7 @@
 # GuardianAI Roadmap
 
 **Vision**: Expand from an LLM firewall into the industry's most complete AI security control plane.  
-**Current Status**: 44 features shipped · Monad Metropolis Track 04 & Sponsor Bounties Delivered (Envio HyperIndex, Category Labs Mera Passkey Enclave, Agent Middleware SDK, 166 Hard Audit Suite) · Production Go  
+**Current Status (October 2026)**: Off-chain firewall ready for staged rollout · On-chain enforcement live on Monad testnet (guarded agent wallets, Chainlink CRE threat oracle, Agent ID cards) · Live integrations: Mera, Privy, Envio, ElizaOS · Contracts not yet third-party audited  
 
 ---
 
@@ -14,9 +14,14 @@
 - ✅ **ERC-8004 Identity Registration:** canonical Trustless Agents registry integration, register-then-transfer ownership handoff, fail-closed safety gates, 42-test offline suite (../whitepaper/WHITEPAPER_PUBLIC.md Feature 39)
 - ✅ **Identity Gate & Point-of-Interaction Enforcement:** pre-flight RPC relay & agentic control plane enforcement, on-chain `ownerOf` validation, database-level hot-wallet collision defense, and shadow observation mode (../whitepaper/WHITEPAPER_PUBLIC.md Feature 40)
 - ✅ **GuardianPolicyGuard & Monad Parallel EVM Guardrails:** 10 Solidity invariants, EIP-712 cryptographic verification, zero-trust function selector allowlists (RBAC), rolling 24h outflow caps, and conflict-free namespaced nonces scaling to 10,000 TPS on Monad Testnet (Feature 41)
-- ✅ **Agent Middleware SDK (@guardianai/middleware):** Drop-in ElizaOS memory-poisoning prevention plugin and Viem security decorator (49 TS unit tests passing) (Feature 42)
-- ✅ **Envio HyperIndex Real-Time Indexer:** Multi-contract blockchain event streaming across 5 Monad contracts with sub-second GraphQL feeds and 36 passing tests (Feature 43)
-- ✅ **Category Labs Mera Passkey PRF Enclave:** Sovereign, non-wallet agent identity minting (Ed25519) and zero-knowledge memory encryption (AES-256-GCM + HKDF) with active tamper tripwires (`MEMORY_POISONING_DETECTED`) (Feature 44)
+- ✅ **Agent Middleware SDK (@guardianai/middleware):** Drop-in ElizaOS memory-poisoning prevention plugin, Viem security decorator and ElizaOS 1.7 guarded-wallet plugin (49 + 15 TS tests passing) (Feature 42)
+- ✅ **Envio HyperIndex Real-Time Indexer:** HyperIndex v3, live on Envio Cloud, indexing 8 Monad contracts including every agent wallet and the CRE oracle (48 passing tests; 42/42 records checked against receipts) (Feature 43)
+- ✅ **Category Labs Mera Passkey PRF Enclave:** Sovereign, non-wallet agent identity minting (Ed25519) and zero-knowledge memory encryption (AES-256-GCM + HKDF) with active tamper tripwires (`MEMORY_POISONING_DETECTED`); real-passkey operator console at `aiguardian.dev/mera/`, passkey-signed agent cards enforced by the relay (26 Vitest tests) (Feature 44)
+- ✅ **Guarded Agent Wallets:** `GuardianAgentWallet` + factory on Monad testnet; funds move only with the agent key **and** a GuardianAI approval bound to the wallet (32 Hardhat tests)
+- ✅ **Chainlink CRE Threat Oracle:** DON consensus writes the scam list to `GuardianThreatOracle`; agent wallets refuse flagged destinations (CRE simulation with a real Monad broadcast)
+- ✅ **Agent ID Cards:** self-claimed soulbound passports via `GuardianPassportIssuer`
+- ✅ **Privy Policy-Locked Agent Key:** Privy server wallet that can only call GuardianAI's contracts (6/6 forbidden actions refused)
+- ✅ **Hosted ElizaOS Agent + Console:** create a guarded wallet in the browser and chat with an ElizaOS agent that pays through GuardianAI (`aiguardian.dev/explorer/?view=console`)
 - ✅ **Empirical Hard Audits on Real-World Datasets:** 166/166 hard test assertions passing (`npm run test:hard`); 1,061 live attack vectors tested across Lakera Gandalf, BIPIA, SecLists, and BLNS corpora (96.23% catch rate, 100% tamper precision, sub-0.5ms P50 latency)
 - ✅ SLO verdict: all_passed = true
 
@@ -191,12 +196,26 @@ Goal: Platform ecosystem with long-term enterprise lock-in and recurring revenue
 
 ---
 
+## Phase 7 — On-Chain Production Readiness
+
+Goal: move the on-chain layer from testnet demo to something a treasury can rely on. Source: `metropolis/README.md` §6.
+
+28. **Third-party smart-contract audit** 🔴 **TO DO** (scope in `contracts/AUDIT_PACKAGE.md`)
+29. **Governance handoff** 🟠 **TO DO**: move suite ownership from the deployer EOA to `GuardianTimelock`; wallet owners on passkeys or multisigs
+30. **Relay signer hardening** 🟠 **TO DO**: KMS/HSM or threshold signing for the attestation key; shared replay store (Redis) for multi-replica relays
+31. **Live Chainlink DON** 🟡 **IN PROGRESS**: deploy the production oracle with the KeystoneForwarder, deploy the workflow, add independent feed sources
+32. **Envio production endpoint** 🟡 **TO DO**: static URL (paid plan)
+33. **Agent identity for every agent** 🟠 **TO DO**: today only passkey-registered agents prove their `agent_id`
+34. **Package publishing** 🟡 **TO DO**: `guardianai-eliza` on npm, Python SDK on PyPI
+
+---
+
 ## Final Targets & Current Posture
 
 | Metric | Current Status | Target (Full Release) |
 |--------|----------------|-----------------------|
-| Features | 50 shipped | 57 |
-| Tests Passing | 1,722+ | 1,500+ |
+| Features | 50 shipped (plus the October on-chain enforcement milestones) | 57 + Phase 7 |
+| Tests Passing | Python 1,490+, Hardhat 271, other JS/TS suites 360+ (see README) | All suites green |
 | OWASP LLM Top 10 | 10/10 (100%) | 10/10 (100%) |
 | OWASP Agentic Top 10 | 10/10 (100%) | 10/10 (100%) |
 | EU AI Act Readiness | 98% (8/8 articles passed) | 98%+ |

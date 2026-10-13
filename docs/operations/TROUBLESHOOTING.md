@@ -18,7 +18,7 @@
 - `http://127.0.0.1:8081/health`
 
 ### Fix
-- Ensure Guardian started: `python guardian/main.py` or `python guardianctl.py start`.
+- Ensure Guardian started: `python guardianctl.py start` (or `python guardian/main.py` for the proxy alone).
 - Verify port 8081 is free.
 
 ## 3) Backend health is down
@@ -77,6 +77,17 @@ python -m pytest tests -q
 python guardianctl.py status
 ```
 
-Expected tests status: backend + unit suites: 1,461 passed (2026-09-08).
+Expected tests status: 1,490+ passed (README test table, October 2026).
 
+## 9) Relay, wallet and explorer issues
 
+- **`/api/v1/attest` returns `agent card required`:** the agent is listed in `config/agent_passkey_identities.json`. Send a passkey-signed card (Mera console at `/mera/`) or remove the entry.
+- **Relay refuses to start in production:** `GUARDIAN_ATTESTATION_SIGNER_KEY` is missing, or `GUARDIAN_DEPLOYER_PRIVATE_KEY` is set on the relay. See `deploy/relay/README.md`.
+- **`GuardianAgentWallet.execute` reverts:**
+  - `InvalidAttestationSignature`: the approval was not signed by the signer the wallet trusts, or was requested without `"wallet"` (so it was not bound to this wallet).
+  - `FlaggedDestination`: the target, recipient or spender is flagged on `GuardianThreatOracle` (Chainlink CRE scam list).
+  - `AttestationExpired` or `NonceAlreadyUsed`: request a fresh approval (approvals last 5 minutes).
+  - `NotOperator`: the call was not sent from the wallet's agent key.
+  - `PassportRevokedOrInactive`: the agent's ID card is revoked or missing.
+- **Console agent replies are slow:** the hosted ElizaOS agent uses free LLM tiers (Groq, then OpenRouter free models), one call at a time; replies can take up to a minute.
+- **Explorer shows old Envio data or errors:** the Envio development URL changes on every redeploy; update `ENVIO_GRAPHQL` in `dashboard/src/explorer/siteConfig.js` and rebuild.

@@ -13,9 +13,9 @@ This document outlines the operational procedures for maintaining a healthy Guar
 
 ### Rate Limiter Buckets
 - **Component**: `RateLimiter`
-- **Behavior**: Uses a Token Bucket algorithm per IP in memory.
-- **Cleanup**: In-memory dictionary grows with unique IPs.
-- **Recommendation**: Periodic restarts or migration to a distributed rate limiter (Redis) for large-scale deployments.
+- **Behavior**: Token bucket per client. Backend `memory` (default outside production) or `redis` (atomic Lua script; required when `GUARDIAN_ENV=production`).
+- **Cleanup**: In-memory buckets are capped at 50,000 and pruned every 60 seconds by the `RateLimiterJanitor` thread.
+- **Recommendation**: Use the Redis backend for any multi-worker or multi-instance deployment.
 
 ## 2. Log Management & Archival
 
@@ -30,11 +30,12 @@ This document outlines the operational procedures for maintaining a healthy Guar
 ## 3. Backup & Restore Procedures
 
 ### Configuration Backup
-The most critical state in GuardianAI is the `guardian/config/` files and environment variables.
+The most critical state in GuardianAI is the `guardian/config/` and `config/` files and environment variables (`.env`).
 - **Backup Command**:
   ```bash
-  tar -czvf guardian_config_backup_$(date +%F).tar.gz ./config/
+  tar -czvf guardian_config_backup_$(date +%F).tar.gz guardian/config/ config/
   ```
+- `config/agent_passkey_identities.json` (relay passkey registry) is not committed; back it up separately.
 - **Frequency**: Backup after any configuration change.
 
 ### Threat Feed Persistence
@@ -43,7 +44,7 @@ Threat feeds are updated dynamically in memory.
 
 ### Telemetry Data
 If using the Guardian Dashboard/Backend:
-- **Database**: Ensure the backend database (SQLite (default)) has an automated backup schedule (e.g., `sqlite3 guardian.db '.backup ...'` on a cron, or litestream).
+- **Database**: Ensure the backend database (SQLite by default, path `GUARDIAN_DB_PATH`; schema migrations in `alembic/`) has an automated backup schedule (e.g., `sqlite3 guardian.db '.backup ...'` on a cron, or litestream).
 
 ## 4. Monitoring & Alerts
 
@@ -70,7 +71,7 @@ If using the Guardian Dashboard/Backend:
 5. Flip `GUARDIAN_ERC8004_ENABLED=true` and restart the backend.
 
 ### Known operational behaviors
-- **Full pytest suite:** All 1,461 tests pass 100% green (`pytest tests/`). Flaky tests and rate-limiting cross-contamination issues have been completely fixed and isolated.
+- **Full pytest suite:** 1,490+ tests pass (`pytest tests/`, README test table, October 2026).
 - **Analyzer fixture suite must run standalone:** `pytest tests/audit/test_smart_contract_analyzer.py --no-cov`. Under coverage instrumentation Slither silently falls back to regex detection — green results, weaker detector actually exercised.
 - **Registration worker:** daemon thread, poll interval `GUARDIAN_ERC8004_POLL_SECONDS` (default 30s), retries capped at `GUARDIAN_ERC8004_MAX_RETRIES` (default 5).
 - **Row states:** `pending → registering → metadata → confirmed`, failures land in `failed` with `last_error`. Admin `POST /api/v1/erc8004/register` re-invocation resets only FAILED rows.
@@ -93,6 +94,5 @@ If using the Guardian Dashboard/Backend:
 - `GUARDIAN_IDENTITY_GATE_FAIL_CLOSED`: `false` (default) fails open to local DB state if RPC calls error/timeout. Set `true` for strict security environments.
 
 ### Operational Procedures & Drift Audit
-- **Reconciliation Audit:** Run `python audit_identity_drift.py` to compare on-chain NFT ownership against local `agent_passports.owner_pubkey` and `erc8004_registrations.owner_address`.
-- **Automated Cron Monitoring:** Deploy `scripts/cron_audit_identity_drift.sh` to run hourly in crontab to alert on data drift or unauthorized NFT transfers.
+- **Reconciliation Audit:** Identity verification is performed via real-time on-chain queries (`GUARDIAN_IDENTITY_GATE_ONCHAIN_VERIFY=true`) and automated identity gate enforcement. Legacy drift scripts (`audit_identity_drift.py` and `scripts/cron_audit_identity_drift.sh`) have been deprecated and retired.
 - **Hot-Wallet Uniqueness:** A database-level partial unique index prevents multiple active agents from registering against the same hot wallet (`idx_active_owner_pubkey_unique`). Ensure all newly provisioned agents use dedicated operator wallets.

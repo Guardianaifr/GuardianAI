@@ -1,11 +1,13 @@
-﻿# Security Policy
+# Security Policy
 
 ## Supported Versions
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| latest `main` | :white_check_mark: |
+| older snapshots | :x:          |
+
+The smart contracts are deployed on **Monad testnet only** and have not been audited by a third party.
 
 ## Reporting a Vulnerability
 
@@ -30,12 +32,15 @@ GuardianAI is designed as a **defense-in-depth layer** for LLM applications.
 *   **PII Leakage:** Accidental exposure of sensitive data in model responses.
 *   **Rate Limiting:** Application-level Denial of Service.
 *   **Unauthorized Access:** Protecting the admin interface via authentication.
+*   **Agent payments:** The relay's approval logic (`/api/v1/attest`), the `GuardianAgentWallet` / `GuardianPolicyGuard` contracts, the Chainlink CRE threat oracle and the agent-card (passkey) checks: anything that lets an agent move funds without a valid GuardianAI approval, or lets one agent spend another's funds.
 
 ### Out of Scope (What you must secure yourself)
 *   **Network Security:** You must use firewalls/VPNs to protect the underlying server.
 *   **Physical Security:** We cannot prevent access if an attacker has physical access to the machine.
 *   **Social Engineering:** We cannot prevent authorized users from being tricked.
 *   **Model Theft:** We do not DRM model weights.
+*   **Owner override:** `GuardianAgentWallet.ownerExecute` bypasses GuardianAI by design (recovery path); protect the owner key.
+*   **Known limitations** listed in [metropolis/README.md §6](metropolis/README.md#6-known-limitations-updated-oct-13).
 
 For more details on securing your deployment, please read our [Hardening Guide](docs/architecture/HARDENING.md).
 

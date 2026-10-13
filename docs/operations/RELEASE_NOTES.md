@@ -4,6 +4,23 @@
 
 GuardianAI v1.0 is a production-ready security layer designed to protect LLM applications from Prompt Injection, PII Leaks, and unauthorized access. It operates on the philosophy of **"Protecting the AI from Blabbing, not the Database from Leaking."**
 
+## 🧱 GuardianAI v1.3.0 On-Chain Enforcement & Live Integrations (October 2026)
+
+Built for the Monad Metropolis hackathon (Track 04). Details, transactions and limitations: `metropolis/README.md`.
+
+1. **Guarded agent wallets (`GuardianAgentWallet`, `GuardianAgentWalletFactory`):** the agent's funds live in a contract that only moves them with the agent's key **and** a GuardianAI EIP-712 approval bound to that wallet. An agent that skips GuardianAI is reverted on-chain (`InvalidAttestationSignature`).
+2. **Chainlink CRE threat oracle (`GuardianThreatOracle`):** DON consensus over the relay's `/api/v1/threat-oracle/feed` writes the scam list on-chain; agent wallets refuse flagged destinations (`FlaggedDestination`). Simulated with a real Monad broadcast; live DON pending.
+3. **Agent ID cards (`GuardianPassportIssuer`):** wallet owners self-claim one soulbound card; no server key can mint.
+4. **Relay hardening:** fixed a cross-agent drain through PolicyGuard (pulls now need an owner-signed EIP-712 authorization), separated the attestation signer from the deployer key (rotated; relay refuses to start if they match), added per-agent rules, on-chain scam-list checks and x402 pay-per-approval (USDC, testnet).
+5. **Mera operator passkey:** real-passkey console at `/mera/`; passkey-signed agent cards enforced by the relay for registered agents.
+6. **Privy:** the agent key is a policy-locked server wallet (`tools/privy-agent`), 6/6 forbidden actions refused.
+7. **Envio:** indexer migrated to HyperIndex v3 and live on Envio Cloud, now covering agent wallets and the oracle (48 tests).
+8. **ElizaOS:** ElizaOS 1.7 plugin for the guarded wallet, hosted agent per console wallet (Railway, Groq → OpenRouter free models), `guardianai-eliza` CLI (not yet on npm).
+9. **Explorer:** new Attack Lab and Console at `aiguardian.dev/explorer/`; public relay moved to Railway.
+10. **Tests:** Hardhat 271, Python 1,490+, Mera 26 + 166, explorer 52, middleware 49 + 15.
+
+---
+
 ## 🛡️ GuardianAI v1.2.0 Monad Testnet Hardening & ERC-8004 Identity Assurance (September 2026)
 
 GuardianAI v1.2.0 establishes dedicated on-chain trust and runtime security invariants:
@@ -113,10 +130,7 @@ GuardianAI v1.1.0 incorporates comprehensive enterprise-grade remediations from 
     *   Explains the "Shared Responsibility" model for Vector DBs.
     *   Directs users to secure their infrastructure (Firewalls/Auth).
 
-12. **Remote Access Guide (`REMOTE_ACCESS_GUIDE.md`):**
-    *   Instructions for using **SSH Tunnels** to securely access remote services (ComfyUI, Qdrant).
-
-13. **Security Policy (`SECURITY.md`):**
+12. **Security Policy (`SECURITY.md`):**
     *   Vulnerability Disclosure Policy and Security Model definitions.
 
 ---
@@ -145,13 +159,13 @@ Following a comprehensive senior smart contract audit, the following security an
 - **Agentic Channel Enforcement (`agentic_controls.py`):** Enforces identity verification on inter-agent communication channels with configurable minimum trust tier requirements.
 - **Active Hot-Wallet Collision Defense:** Database-level partial unique index (`ON agent_passports(owner_pubkey COLLATE NOCASE) WHERE is_active = 1`) and active-first `LEFT JOIN` resolution on `erc8004_registrations` prevent revoked or orphaned identities from hijacking permissions or causing false-positive blocks.
 - **Fail-Open Resilience:** Default fail-open posture (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false`) protects agent uptime during RPC or testnet timeouts with fallback to local state.
-- **Zero-Disruption Shadow Mode:** Ships in `GUARDIAN_IDENTITY_GATE_MODE=shadow` by default with `audit_identity_drift.py` and cron automation for safe observation and data reconciliation.
+- **Zero-Disruption Shadow Mode:** Ships in `GUARDIAN_IDENTITY_GATE_MODE=shadow` by default with `audit_identity_drift.py` and cron automation for safe observation and data reconciliation (the script was later removed, on 2026-09-24).
 - **100% Regression Suite:** Complete 17-test suite in `tests/web3_identity/test_identity_gate.py` covering live fail-open, on-chain `ownerOf` lookups, and multi-identity tie-breaking.
 
 ---
 
 ## ⚡ v1.2.0 (Monad Metropolis Track 04 Execution Containment & Hardening)
-- **GuardianPolicyGuard Native Monad Deployment (`GuardianPolicyGuard.sol`):** Native execution containment contract deployed to Monad Testnet (`0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101`) enforcing 10 on-chain invariants, EIP-712 cryptographic attestation, and conflict-free parallel execution up to 10,000 TPS.
+- **GuardianPolicyGuard Native Monad Deployment (`GuardianPolicyGuard.sol`):** Native execution containment contract deployed to Monad Testnet (first deployment `0x32fa262042dFB354f8064Ff369DcDe4BA4ec1101`; the current one is `0x90Fdc8E1e5C951701eCd84677038B38560CdEF60`, see README) enforcing 10 on-chain invariants, EIP-712 cryptographic attestation, and conflict-free parallel execution up to 10,000 TPS.
 - **Function Selector Allowlists (RBAC) & Outflow Spending Caps:** Implemented zero-trust selector allowlists (`AgentPolicy.allowed_selectors`), per-transaction value limits (`max_value_per_tx`), and rolling 24-hour cumulative spending budgets (`OutflowTracker`) to contain compromised agent blast radius.
 - **Middleware Fail-Closed Bypass Neutralization:** Closed client-side bypass (`is_wrapped`) in Python and TypeScript SDKs, raising `GuardianSecurityBlockedError` (risk 100) on any pre-wrapped input.
 - **Smart Contract Invariant Hardening:** Added `nonReentrant` to `sweepETH` in `GuardianPolicyGuard.sol`, added contract code length check (`target.code.length > 0`) preventing silent fund loss against EOAs, and enforced `AgentPermanentlyRevoked` tombstone in `GuardianPassportSBT.sol`.

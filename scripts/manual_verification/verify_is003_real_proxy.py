@@ -467,7 +467,7 @@ def run_verification(
         print("  Check individual HTTP status codes above for unexpected responses.")
 
     print()
-    print("  ─── Closing note for AI_SECURITY_BACKLOG_2026Q1.md ───────────────")
+    print("  ─── Closing note for ROADMAP.md ──────────────────────────────────")
     print(f"  IS_003 verified against real GuardianAI proxy -- verdict: {verdict_str}")
     print(f"  Sub-check (a) /v1/chat/completions enforce_auth gate on real proxy:")
     print(f"    HTTP {results['a_unauth']['status_code']} (unauthenticated) -> {results['a_unauth']['verdict']}")

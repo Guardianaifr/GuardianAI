@@ -1,8 +1,12 @@
-# > [Historical snapshot 2026-04-28 — test counts below are from that session; current status lives in VALIDATION.md.]
-#GuardianAI Feature and Benchmark Analysis
+# GuardianAI Feature and Benchmark Analysis
+
+> **Historical snapshot (2026-04-28, with later additions up to September 2026).** Test counts and file paths
+> below are from those sessions. Current test counts are in the repository README and
+> [`../operations/VALIDATION.md`](../operations/VALIDATION.md); the on-chain layer and October 2026
+> integrations are described in [`../../metropolis/README.md`](../../metropolis/README.md).
 
 Generated: April 28, 2026 (Updated — Threat Feed Benchmarked)
-Scope: `F:\Saas\guardianai-basic-launch`
+Scope: this repository (then named `guardianai-basic-launch`)
 
 ## 1) Executive Summary
 
@@ -106,7 +110,7 @@ Scope: `F:\Saas\guardianai-basic-launch`
 - **Identity Gate Pre-flight Interception:** Real-time validation of EVM `from` addresses in `rpc_relay.py` and inter-agent tokens in `agentic_controls.py`.
 - **Active Hot-Wallet Collision Defense:** Database-level partial unique index (`ON agent_passports(owner_pubkey COLLATE NOCASE) WHERE is_active = 1`) and active-first `LEFT JOIN` resolution on `erc8004_registrations`.
 - **Fail-Open RPC Resiliency:** Safe fallback to local DB records on on-chain RPC error / testnet timeout (`GUARDIAN_IDENTITY_GATE_FAIL_CLOSED=false`).
-- **Shadow Mode Observation:** Default zero-downtime observation posture with automated drift reconciliation (`audit_identity_drift.py`).
+- **Shadow Mode Observation:** Default zero-downtime observation posture with automated drift reconciliation (`audit_identity_drift.py`, removed from the repo on 2026-09-24).
 
 Primary source: `guardian/passport/identity_gate.py`, `guardian/guardrails/ai_firewall.py` and advanced modules in `guardian/brain/` & `guardian/security/`.
 

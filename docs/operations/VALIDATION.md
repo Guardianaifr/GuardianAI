@@ -3,8 +3,8 @@
 This document outlines how we validate the security, performance, and reliability of GuardianAI.
 
 ## Current Test Status
-- **Total Tests:** backend + unit suites: 1,461 passed (2026-09-08)
-- **Key Coverage:** Authentication, PII Redaction, Adversarial Defense, Audit Logging, RBAC
+- **Total Tests (October 2026, README test table):** Python 1,490+; Hardhat 271; Mera 26 Vitest + 166 hard-audit assertions; Envio indexer 48; agent middleware 49 + 15; hosted ElizaOS agent 10; explorer 52
+- **Key Coverage:** Authentication, PII Redaction, Adversarial Defense, Audit Logging, RBAC, relay attestations, agent wallets, CRE threat feed, passkey agent cards
 
 ## Verification Layers
 
@@ -20,6 +20,24 @@ Key Test Files:
 - `tests/test_extended_security.py`: Verifies sophisticated defenses (Base64, Skill Scanner).
 - `tests/test_audit_logging.py`: Verifies external log sinks (Splunk, Datadog).
 - `tests/verify_ssrf.py`: Special probe for Server-Side Request Forgery.
+
+Relay and on-chain path:
+- `tests/test_rpc_relay.py`, `tests/test_attestation_service.py`: relay and EIP-712 signing.
+- `tests/test_agent_wallet_attestation.py`: approvals bound to a `GuardianAgentWallet`.
+- `tests/test_threat_oracle_feed.py`: the deterministic feed read by Chainlink CRE.
+- `tests/test_agent_card.py`: Mera passkey-signed agent cards.
+- `tests/test_cloud_relay.py`: the public relay's route guard and rate limits.
+
+### Other suites
+
+| Suite | Command |
+|---|---|
+| Smart contracts | `cd contracts && npx hardhat test` |
+| Mera passkey | `cd metropolis/mera && npm test && npm run test:hard` |
+| Envio indexer | `cd metropolis/indexer && npm test` |
+| Agent middleware | `cd packages/guardian-middleware && npm test` |
+| Hosted ElizaOS agent | `cd packages/eliza-host && npm test` |
+| Explorer / console | `cd dashboard && npm test` |
 
 ### 2. Hardening Demos ("The Gauntlet")
 A suite of 10 live-fire scenarios running against a real backend instance.
@@ -37,7 +55,7 @@ Run directly via `pytest tools/hardening_demos.py` against a locally started bac
 | 9 | Audit Integrity | Tamper-evident hash chain |
 
 ### 3. Real-Time Verification
-Attack simulations (see `demo/full_demo.py`, Scene 2–3) verify:
+Attack simulations (see `demo/full_demo.py`, scenes 2–3) verify:
 - Prompt Injection blocking
 - PII Redaction coverage
 - Rate Limiting

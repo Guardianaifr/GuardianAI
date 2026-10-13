@@ -1,66 +1,87 @@
 # GuardianAI Smart Contracts - Audit Package
 
+Status (October 2026): deployed on Monad testnet (chain ID 10143), **not yet audited by a third party**.
+Test suite: 271 Hardhat tests across 15 files in `contracts/test/` (`npx hardhat test`).
+
 ## 1. Scope
 
-The following 13 production contracts are in scope for the audit (excluding `mocks/` and `interfaces/`):
+Production contracts in scope (excluding `mocks/` and `interfaces/`):
 
-1. `contracts/contracts/GuardianCircuitBreaker.sol`
-2. `contracts/contracts/GuardianCortexAnchor.sol`
-3. `contracts/contracts/GuardianInsuranceLedger.sol`
-4. `contracts/contracts/GuardianInterlockRegistry.sol`
-5. `contracts/contracts/GuardianPassportSBT.sol`
-6. `contracts/contracts/GuardianPolicyGuard.sol`
-7. `contracts/contracts/GuardianProtectedVault.sol`
+**Agent payment path (added October 2026)**
+1. `contracts/contracts/GuardianAgentWallet.sol`: per-agent contract wallet; every call needs the operator key **and** a GuardianAI EIP-712 attestation bound to the wallet; checks the threat oracle.
+2. `contracts/contracts/GuardianAgentWalletFactory.sol`: CREATE2 factory; the salt includes the caller so wallet addresses cannot be squatted.
+3. `contracts/contracts/GuardianThreatOracle.sol`: Chainlink CRE receiver (`IReceiver` + ERC-165); only the configured Forwarder can write the scam list.
+4. `contracts/contracts/GuardianPassportIssuer.sol`: owns the passport SBT; lets a factory wallet owner self-claim one lowest-tier Agent ID card.
+
+**Original suite**
+5. `contracts/contracts/GuardianPolicyGuard.sol`
+6. `contracts/contracts/GuardianPassportSBT.sol`
+7. `contracts/contracts/GuardianThreatFeedRegistry.sol`
 8. `contracts/contracts/GuardianRiskAttestation.sol`
-9. `contracts/contracts/GuardianThreatConsumer.sol`
-10. `contracts/contracts/GuardianThreatFeedRegistry.sol`
-11. `contracts/contracts/GuardianTimelock.sol`
-12. `contracts/contracts/MaliciousToken.sol`
-13. `contracts/contracts/erc8004/IdentityRegistryTestnet.sol`
+9. `contracts/contracts/GuardianCortexAnchor.sol`
+10. `contracts/contracts/GuardianInterlockRegistry.sol`
+11. `contracts/contracts/GuardianInsuranceLedger.sol`
+12. `contracts/contracts/GuardianCircuitBreaker.sol`
+13. `contracts/contracts/GuardianTimelock.sol`
+14. `contracts/contracts/GuardianThreatConsumer.sol` (earlier stats-only CRE consumer, superseded by `GuardianThreatOracle`)
+15. `contracts/contracts/erc8004/IdentityRegistryTestnet.sol`
 
-*(Note: `MockDependencies.sol`, `mocks/*`, and `interfaces/*` are explicitly out of scope).*
+**Reference / test only (not for production deployment)**
+- `contracts/contracts/GuardianProtectedVault.sol`: example integration of `GuardianCircuitBreaker`.
+- `contracts/contracts/MaliciousToken.sol`: adversarial test token.
+
+*(`MockDependencies.sol`, `mocks/*` and `interfaces/*` are out of scope.)*
 
 ## 2. Architecture Overview
 
-GuardianAI provides verifiable security and compliance primitives for autonomous AI agents on EVM-compatible chains (specifically Monad). The architecture relies on multiple specialized registries and ledgers:
-- **Cortex Anchor**: Stores cryptographic Merkle roots for batch AI events.
-- **Interlock Registry**: On-chain mutual verification of agent-to-agent interactions.
-- **Insurance Ledger**: Manages policies with an explicit 100k cap.
-- **Passport SBT**: ERC-5192 compliant soulbound token indicating trust tiers.
-- **Risk Attestation & Threat Feed**: Registers security scores, block-listed addresses, and CRE telemetry.
-- **Policy Guard & Circuit Breaker**: Integrations (EIP-712 and direct modifiers) for DeFi protocols to safely interact with agents.
-- **Timelock**: A centralized 24-hour delayed executor for all configuration changes.
+GuardianAI provides verifiable security primitives for autonomous AI agents on Monad:
+- **Agent Wallet + Factory**: the agent's funds live in a contract, not in the agent's key. `execute` requires `msg.sender == operator` and a valid GuardianAI signature for the exact target, value and calldata hash, a nonce and a deadline, then checks the risk limit, the agent's passport and the threat oracle. The owner can `ownerExecute` as the recovery path.
+- **Threat Oracle**: DON-signed reports (consensus over GuardianAI's feed) flag addresses; reports must be newer than the last one; optional workflow-owner pinning.
+- **Passport Issuer + Passport SBT**: ERC-5192 soulbound Agent ID cards with trust tiers and permanent revocation tombstones.
+- **Policy Guard & Circuit Breaker**: EIP-712 attestation gate with namespaced nonces, selector allowlists and outflow caps for the shared-spender path; modifiers for DeFi protocols.
+- **Cortex Anchor**: Merkle roots for batched AI events.
+- **Interlock Registry**: on-chain mutual verification of agent-to-agent interactions.
+- **Insurance Ledger**: insurance certificate anchoring with a 100k cap.
+- **Risk Attestation & Threat Feed Registry**: security scores and block-listed addresses.
+- **Timelock**: 24-hour delayed executor intended to own the suite.
 
 ## 3. Known Issues & Design Decisions
 
-- **Unbounded Arrays / Array Caps**: `GuardianCortexAnchor` and `GuardianInsuranceLedger` use arrays that are hard-capped to `100,000` items to avoid unbounded state growth and gas limits.
-- **O(1) Threat Registry Removal**: `GuardianThreatFeedRegistry` uses a swap-and-pop algorithm for gas-efficient `O(1)` deletion of malicious entries.
-- **SBT Non-Transferability**: `GuardianPassportSBT` overrides ERC-721 `_update` to unconditionally revert on transfers between non-zero addresses (enforcing ERC-5192).
-- **Testnet 8004 Registry**: `IdentityRegistryTestnet.sol` is a minimal stand-in specifically for Monad testnet rehearsal. Mainnet integrations MUST point to the canonical ERC-8004 CREATE2 address.
-- **Reentrancy Protection**: Key external functions use OpenZeppelin's `nonReentrant` in tandem with the Checks-Effects-Interactions (CEI) pattern.
+- **Owner override**: `GuardianAgentWallet.ownerExecute` bypasses GuardianAI by design. In production the owner should be a passkey, multisig or the timelock.
+- **Single attestation signer**: one hot key signs all approvals (rotated away from the deployer key; `tools/rotate_attestation_signer.py`). KMS/HSM or threshold signing is planned.
+- **Shared-spender pulls (PolicyGuard path)**: `transferFrom` pulls need an owner-signed EIP-712 authorization checked by the relay; new agents should use `GuardianAgentWallet`, which has no shared spender.
+- **Unbounded Arrays / Array Caps**: `GuardianCortexAnchor` and `GuardianInsuranceLedger` cap arrays at `100,000` items.
+- **O(1) Threat Registry Removal**: `GuardianThreatFeedRegistry` uses swap-and-pop deletion.
+- **SBT Non-Transferability**: `GuardianPassportSBT` overrides ERC-721 `_update` to revert on transfers between non-zero addresses (ERC-5192).
+- **Testnet 8004 Registry**: `IdentityRegistryTestnet.sol` is a minimal stand-in for Monad testnet rehearsal. Mainnet integrations MUST point to the canonical ERC-8004 CREATE2 address.
+- **Reentrancy Protection**: Key external functions use OpenZeppelin's `nonReentrant` with Checks-Effects-Interactions.
 
 ## 4. Access Control Matrix
 
-All core contracts inherit from `Ownable2Step`. Ownership will be transferred to `GuardianTimelock`.
+Core contracts inherit from `Ownable2Step`. Ownership is intended to move to `GuardianTimelock` (`scripts/transfer_ownership_to_timelock.js`); **on testnet the deployed suite is still owned by the deployer EOA.**
 
 | Contract / Role | Privileged Capabilities |
 | --- | --- |
-| **Owner (`GuardianTimelock`)** | `pause()`, `unpause()`, configure parameters (e.g., thresholds, signers, forwarders), mint/revoke SBTs, issue/revoke insurance certificates, register interlocks/cortex roots, manage threat registries. |
-| **`attestationSigner`** | (PolicyGuard) Can cryptographically sign off-chain EIP-712 safety attestations that execute on-chain. |
-| **`forwarderAddress`** | (ThreatConsumer) Chainlink CRE forwarder that pushes verified telemetry. |
+| **Owner (deployer today, `GuardianTimelock` later)** | `pause()`, `unpause()`, configure parameters (thresholds, signers, forwarders), mint/revoke SBTs (through `GuardianPassportIssuer`), issue/revoke insurance certificates, register interlocks/cortex roots, manage threat registries. |
+| **Wallet owner** (`GuardianAgentWallet`) | Set operator, GuardianAI signer, passport registry, risk limit and threat oracle; pause/unpause; cancel nonces; `ownerExecute` (recovery). |
+| **Wallet operator** (agent key) | `execute` with a valid GuardianAI attestation; pause (not unpause); cancel nonces. |
+| **`attestationSigner`** | Signs EIP-712 safety attestations accepted by PolicyGuard and agent wallets. |
+| **Chainlink Forwarder** | Only writer of `GuardianThreatOracle` (and, earlier, `GuardianThreatConsumer`). |
 | **Timelock Proposer** | Proposes operations with a minimum 24-hour delay. |
 | **Timelock Executor** | `address(0)` (anyone can execute *after* the delay expires). |
 
 ## 5. Deployment Info
 
-- **Network**: Monad Testnet
-- **Chain ID**: 10143
-- **RPC URL**: `https://testnet-rpc.monad.xyz` (or fallback tenderly virtual testnet)
+- **Network**: Monad Testnet, chain ID 10143
+- **RPC URL**: `https://testnet-rpc.monad.xyz` (or a Tenderly virtual testnet)
+- **Addresses**: repository [README](../README.md#-verified-monad-testnet-deployments-chain-id-10143) and `deployments/monad_testnet_10143/`
+- **Agent wallet deploy**: `scripts/deploy-agent-wallet.ts`; passport issuer: `scripts/deploy-passport-issuer.ts`
 
 ## 6. Dependencies
 
-- **Solidity Version**: `^0.8.20` (Compiled with `0.8.24`)
+- **Solidity Version**: `^0.8.20` (compiled with `0.8.24`)
 - **EVM Target**: `cancun`
 - **Libraries**:
   - `@openzeppelin/contracts` `^5.1.0`
   - `@nomicfoundation/hardhat-toolbox` `^5.0.0`
+- **Static analysis**: `slither.config.json`

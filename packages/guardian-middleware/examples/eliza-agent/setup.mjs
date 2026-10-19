@@ -7,8 +7,8 @@ import fs from 'fs'
 import { loadEnv, AGENT_ENV } from './env.mjs'
 loadEnv()
 const p = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL || 'https://testnet-rpc.monad.xyz', 10143, { staticNetwork: true })
-const FACTORY = '0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6', ISSUER = '0x09AAc2dA0A263323585620A55fcCDb89dea960a6'
-const ORACLE = '0x26144375c4f846174A386C464aC5F2e671EbdA95', SBT = '0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff'
+const FACTORY = '0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03', ISSUER = '0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1'
+const ORACLE = '0x26144375c4f846174A386C464aC5F2e671EbdA95', SBT = '0xb2a8FeF3591efbd385778906207A054af0Ca3566'
 const funderKey = process.env.FUNDER_PRIVATE_KEY || process.env.GUARDIAN_DEPLOYER_PRIVATE_KEY
 if (!funderKey) throw new Error('Set FUNDER_PRIVATE_KEY (a Monad testnet key with ~0.5 MON)')
 const funder = new ethers.Wallet(funderKey, p)

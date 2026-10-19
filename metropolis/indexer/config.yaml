@@ -81,18 +81,23 @@ chains:
     start_block: 65970000
     # No rpc: entry, so Envio uses HyperSync for Monad testnet (https://10143.hypersync.xyz).
     contracts:
+      # PolicyGuard and Factory: the original deployment (still live) and the 2026-10-19 redeploy.
       - name: GuardianPolicyGuard
-        address: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
+        address:
+          - "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
+          - "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d"
       - name: GuardianThreatFeedRegistry
         address: "0x576CC248D8c406ac302b74e7BFd571E9F989f467"
       - name: GuardianPassportSBT
-        address: "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff"
+        address: "0xb2a8FeF3591efbd385778906207A054af0Ca3566"
       - name: GuardianCortexAnchor
         address: "0x78aFC34a9653c762cA9827370A94a02f7412dBfa"
       - name: GuardianRiskAttestation
         address: "0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87"
       - name: GuardianAgentWalletFactory
-        address: "0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6"
+        address:
+          - "0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6"
+          - "0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03"
       # GuardianAgentWallet addresses are registered dynamically from WalletCreated.
       - name: GuardianAgentWallet
       - name: GuardianThreatOracle

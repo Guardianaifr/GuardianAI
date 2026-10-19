@@ -19,7 +19,7 @@ describe('agent card (identity namespace)', () => {
   it('is signed by the same key as the agent DID and verifies with plain Ed25519', async () => {
     const client = new MockWebAuthnClient({ masterSecret: masterBytes(7) });
     const { identity } = await deriveAgentIdentity('treasury-agent', client, RP);
-    const wallet = '0xCCb137694f2910c8Ec4883d108c989648019D335';
+    const wallet = '0x356EfbC397B104F90795E89F0b755aa5AE4967DD';
     const { card } = await signAgentCard('treasury-agent', wallet, 1_900_000_000, client, RP);
     expect(card.did).toBe(identity.did);
     expect(card.wallet).toBe(wallet.toLowerCase());

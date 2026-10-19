@@ -10,7 +10,7 @@ import {
   handleAddressFlagUpdated,
 } from "../src/EventHandlers.ts";
 
-const WALLET = "0xCCb137694f2910c8Ec4883d108c989648019D335";
+const WALLET = "0x356EfbC397B104F90795E89F0b755aa5AE4967DD";
 const ev = (params: any, extra: any = {}) => ({
   params,
   srcAddress: WALLET,

@@ -6,9 +6,9 @@
   "timestamp": "2026-09-28T16:06:39.990Z",
   "contracts": {
     "GuardianThreatFeedRegistry": "0x576CC248D8c406ac302b74e7BFd571E9F989f467",
-    "GuardianPassportSBT": "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
+    "GuardianPassportSBT": "0xb2a8FeF3591efbd385778906207A054af0Ca3566",
     "IdentityRegistryTestnet": "0xda5dA75777d30d6d7586b97965dD906AD032E3ff",
-    "GuardianPolicyGuard": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+    "GuardianPolicyGuard": "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
     "GuardianInsuranceLedger": "0x671F73068BF55a30299719D76db0d3031A64Bb22",
     "GuardianCortexAnchor": "0x78aFC34a9653c762cA9827370A94a02f7412dBfa",
     "GuardianInterlockRegistry": "0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d",
@@ -16,9 +16,9 @@
     "GuardianTimelock": "0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc"
   },
   "explorerUrls": {
-    "GuardianPolicyGuard": "https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+    "GuardianPolicyGuard": "https://testnet.monadscan.com/address/0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
     "GuardianThreatFeedRegistry": "https://testnet.monadscan.com/address/0x576CC248D8c406ac302b74e7BFd571E9F989f467",
-    "GuardianPassportSBT": "https://testnet.monadscan.com/address/0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
+    "GuardianPassportSBT": "https://testnet.monadscan.com/address/0xb2a8FeF3591efbd385778906207A054af0Ca3566",
     "IdentityRegistryTestnet": "https://testnet.monadscan.com/address/0xda5dA75777d30d6d7586b97965dD906AD032E3ff",
     "GuardianInsuranceLedger": "https://testnet.monadscan.com/address/0x671F73068BF55a30299719D76db0d3031A64Bb22",
     "GuardianCortexAnchor": "https://testnet.monadscan.com/address/0x78aFC34a9653c762cA9827370A94a02f7412dBfa",

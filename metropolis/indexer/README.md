@@ -23,12 +23,12 @@ No `rpc:` entry, so Envio uses HyperSync for Monad testnet.
 
 | Contract | Address | Events |
 | :--- | :--- | :--- |
-| `GuardianPolicyGuard` | `0x90Fd…EF60` | `ActionExecutedWithAttestation`, `AttestationSignerUpdated`, `MaxAllowedRiskScoreUpdated` |
+| `GuardianPolicyGuard` | `0xa0ae…bB7d` | `ActionExecutedWithAttestation`, `AttestationSignerUpdated`, `MaxAllowedRiskScoreUpdated` |
 | `GuardianThreatFeedRegistry` | `0x576C…f467` | `AddressAdded`, `AddressRemoved`, `StringAddressAdded`, `StringAddressRemoved` |
-| `GuardianPassportSBT` | `0xDA5f…2Cff` | `ScoreUpdated`, `PassportRevoked`, `Transfer` (mints only; the handler reads `passports(tokenId)` on-chain because issuance emits no event with the agent hash) |
+| `GuardianPassportSBT` | `0xb2a8…3566` | `ScoreUpdated`, `PassportRevoked`, `Transfer` (mints only; the handler reads `passports(tokenId)` on-chain because issuance emits no event with the agent hash) |
 | `GuardianCortexAnchor` | `0x78aF…dBfa` | `RootCommitted` |
 | `GuardianRiskAttestation` | `0x7e06…6c87` | `RiskAttested`, `AttestationUpdated` |
-| `GuardianAgentWalletFactory` | `0x25A4…19c6` | `WalletCreated` (registers each new wallet dynamically) |
+| `GuardianAgentWalletFactory` | `0xAb3a…Ef03` | `WalletCreated` (registers each new wallet dynamically) |
 | `GuardianAgentWallet` | every wallet from the factory | `Executed`, `OwnerExecuted`, `Paused`, `Unpaused`, `ThreatOracleUpdated` |
 | `GuardianThreatOracle` | `0x2614…dA95` | `ThreatReportAccepted`, `AddressFlagUpdated` |
 

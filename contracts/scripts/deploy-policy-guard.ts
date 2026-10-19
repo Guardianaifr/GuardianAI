@@ -14,7 +14,15 @@ async function main() {
   await policyGuard.waitForDeployment();
 
   const address = await policyGuard.getAddress();
-  console.log("GuardianPolicyGuard deployed to:", address);
+  console.log("GuardianPolicyGuard deployed to:", address, "tx", policyGuard.deploymentTransaction()?.hash);
+
+  // Link the passport registry when one is configured (GUARDIAN_SBT_CONTRACT_MONAD) so the guard checks agent passports.
+  const sbt = process.env.GUARDIAN_SBT_CONTRACT_MONAD;
+  if (sbt) {
+    const tx = await policyGuard.setPassportRegistry(sbt);
+    await tx.wait();
+    console.log("setPassportRegistry(", sbt, ") tx", tx.hash);
+  }
   console.log("");
   console.log("Add to your .env:");
   console.log(`GUARDIAN_POLICY_GUARD_CONTRACT_MONAD=${address}`);

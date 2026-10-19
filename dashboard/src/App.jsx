@@ -77,7 +77,7 @@ const getInitialFallbackEvents = () => {
       severity: "INFO",
       details: {
         agent: "0x742d...f44e",
-        target: "0x90Fd...EF60 (PolicyGuard)",
+        target: "0xa0ae...bB7d (PolicyGuard)",
         riskScore: 7,
         tx: "0x8c74e2d35cc6634c0532925a3b844bc454e4438f44e19d7b420f129ad4ec1101",
         latency_ms: "2.8ms",
@@ -142,7 +142,7 @@ const getInitialFallbackEvents = () => {
       severity: "INFO",
       details: {
         agent: "0x1142...c890",
-        target: "0x90Fd...EF60 (PolicyGuard)",
+        target: "0xa0ae...bB7d (PolicyGuard)",
         riskScore: 12,
         tx: "0x3a51f89c02d1847c25e8391a27e771c56b72d2459a721d7b328a9b1c73f01101",
         latency_ms: "3.4ms",
@@ -364,7 +364,7 @@ function App() {
         isBlocked: false,
         details: {
           agent: typeof agentId === 'string' ? agentId : (truncatedSupervisor !== "Connected" ? truncatedSupervisor : "0x742d...f44e"),
-          target: "0x90Fd...EF60 (PolicyGuard)",
+          target: "0xa0ae...bB7d (PolicyGuard)",
           riskScore: 5,
           status: "EXECUTED",
           tx: txHash
@@ -737,7 +737,7 @@ function App() {
         severity: "INFO",
         getDetails: () => ({
           agent: "0x742d...f44e",
-          target: "0x90Fd...EF60 (PolicyGuard)",
+          target: "0xa0ae...bB7d (PolicyGuard)",
           riskScore: Math.floor(Math.random() * 14) + 2,
           tx: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`,
           latency_ms: `${(2.1 + Math.random() * 2.2).toFixed(1)}ms`,
@@ -868,7 +868,7 @@ function App() {
       isBlocked: false,
       details: {
         reason: `Policy ${newPolicy.policyId} (${newPolicy.name}) created (Monad Testnet Tx: ${newPolicy.txHash ? newPolicy.txHash.slice(0, 10) + '...' : 'unconfirmed'})`,
-        target: "0x90Fd...EF60 (PolicyGuard)",
+        target: "0xa0ae...bB7d (PolicyGuard)",
         tx: newPolicy.txHash || null
       }
     }

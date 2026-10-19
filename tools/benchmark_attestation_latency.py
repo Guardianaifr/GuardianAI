@@ -33,7 +33,7 @@ def run_benchmark(iterations: int = 100) -> None:
     # Initialize service with ephemeral key (no env dependency)
     service = SafetyAttestationService(
         private_key="0x" + "ab" * 32,  # Deterministic test key
-        verifying_contract=os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD", "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"),
+        verifying_contract=os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD", "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d"),
         chain_id=10143,
         max_allowed_risk_score=25,
         ttl_seconds=300,

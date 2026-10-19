@@ -207,7 +207,7 @@ For a `GuardianAgentWallet`, add `"wallet": "0x..."`: the attestation is then bo
     "deadline": 1788462000
   },
   "signature": "0x...",
-  "policy_guard": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+  "policy_guard": "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
   "wrapped_calldata": "0x3cb7461c..."
 }
 ```
@@ -222,7 +222,7 @@ For a `GuardianAgentWallet`, add `"wallet": "0x..."`: the attestation is then bo
   ],
   "attestation": null,
   "signature": null,
-  "policy_guard": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+  "policy_guard": "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
   "wrapped_calldata": null
 }
 ```

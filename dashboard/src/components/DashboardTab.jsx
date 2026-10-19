@@ -469,11 +469,11 @@ export function DashboardTab({
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-border/60">
                   <span className="text-muted-foreground">Execution Policy Guard</span>
-                  <span className="text-purple-300">GuardianPolicyGuard (0x90Fd...EF60)</span>
+                  <span className="text-purple-300">GuardianPolicyGuard (0xa0ae...bB7d)</span>
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-border/60">
                   <span className="text-muted-foreground">Identity Registry</span>
-                  <span className="text-emerald-400 font-semibold">Soulbound agent passport (ERC-5192) (0xDA5f...2Cff)</span>
+                  <span className="text-emerald-400 font-semibold">Soulbound agent passport (ERC-5192) (0xb2a8...3566)</span>
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-border/60">
                   <span className="text-muted-foreground">Precompile Engine</span>

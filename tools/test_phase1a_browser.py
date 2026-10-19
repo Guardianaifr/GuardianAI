@@ -235,7 +235,7 @@ def run_browser_tests():
             page.wait_for_timeout(800)
             adv_dash_text = page.inner_text("body")
             assert "Monad Parallel EVM Telemetry" in adv_dash_text, "FAILED: Expected 'Monad Parallel EVM Telemetry' in Advanced Dashboard!"
-            assert "GuardianPolicyGuard (0x90Fd...EF60)" in adv_dash_text, "FAILED: Expected technical contract spec in Advanced Dashboard!"
+            assert "GuardianPolicyGuard (0xa0ae...bB7d)" in adv_dash_text, "FAILED: Expected technical contract spec in Advanced Dashboard!"
             print("  [+] Dashboard in Advanced mode verified: Technical telemetry and protocol specs present.")
 
             # Capture Desktop Dashboard (Advanced Mode)
@@ -585,7 +585,7 @@ def run_browser_tests():
                         "AgentAction": [{
                             "id": "action-95",
                             "agentId": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-                            "target": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+                            "target": "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
                             "riskScore": 95,
                             "timestamp": 1700000000,
                             "txHash": "0x3a51f89c02d1847c25e8391a27e771c56b72d2459a721d7b328a9b1c73f01101"
@@ -638,7 +638,7 @@ def run_browser_tests():
                         "AgentAction": [{
                             "id": "action-nominal-1",
                             "agentId": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-                            "target": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+                            "target": "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
                             "riskScore": 5,
                             "timestamp": 1700000000,
                             "txHash": "0x3a51f89c02d1847c25e8391a27e771c56b72d2459a721d7b328a9b1c73f01101"

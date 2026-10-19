@@ -46,6 +46,19 @@ def value_destinations(target: str, calldata_hex: str) -> List[str]:
     return list(dict.fromkeys(out))
 
 
+def decoded_recipient(calldata_hex: str) -> Optional[str]:
+    """The recipient/spender/operator address the calldata names (lowercased), or None if the selector
+    isn't a known token call or the argument is missing. Unlike value_destinations, no de-duplication."""
+    data = (calldata_hex or "0x").lower()
+    idx = _RECIPIENT_ARG.get(data[:10])
+    if idx is None:
+        return None
+    word = data[10 + 64 * idx: 10 + 64 * (idx + 1)]
+    if len(word) != 64:
+        return None
+    return "0x" + word[24:]
+
+
 class ThreatFeedChecker:
     """Cached isMalicious() reads. Raises on RPC failure so callers can fail closed."""
 

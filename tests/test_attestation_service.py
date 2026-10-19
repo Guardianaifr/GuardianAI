@@ -243,3 +243,47 @@ def test_http_attest_endpoint(relay):
         assert blocked_data["status"] == "blocked"
         assert blocked_data["risk_score"] >= 50
         assert blocked_data["signature"] is None
+
+# ── Audit fixes: fail closed, malformed input, detector severity ──────────────
+
+def test_prompt_check_error_fails_closed(service, monkeypatch):
+    def boom(_prompt):
+        raise RuntimeError("filter down")
+    monkeypatch.setattr(service.input_filter, "check_prompt", boom)
+    res = service.evaluate_and_attest("agent-x", TEST_TARGET, "0x", 0, "pay the vendor")
+    assert res.status == "blocked" and res.risk_score == 100
+    assert "failing closed" in res.reasons[0] and "RuntimeError" in res.reasons[0]
+
+
+def test_tx_analyzer_error_fails_closed(service, monkeypatch):
+    def boom(*_a, **_k):
+        raise RuntimeError("analyzer down")
+    monkeypatch.setattr(service.tx_analyzer, "analyze_transaction", boom)
+    res = service.evaluate_and_attest("agent-x", TEST_TARGET, "0x1234", 0, None)
+    assert res.status == "blocked" and res.risk_score == 100
+    assert "failing closed" in res.reasons[0]
+
+
+def test_bare_skim_is_blocked(service):
+    res = service.evaluate_and_attest("agent-x", TEST_TARGET, "0xbc25cf77", 0, None)
+    assert res.status == "blocked"
+    assert res.risk_score > service.max_allowed_risk_score
+    assert res.signature is None
+
+
+def test_skim_to_threat_feed_address_is_blocked(service):
+    data = "0xbc25cf77" + THREAT_ADDRESS[2:].rjust(64, "0")
+    res = service.evaluate_and_attest("agent-x", TEST_TARGET, data, 0, None)
+    assert res.status == "blocked"
+
+
+@pytest.mark.parametrize("bad", ["0xzz", "0x123", "0xgg11"])
+def test_malformed_calldata_is_blocked_not_raised(service, bad):
+    res = service.evaluate_and_attest("agent-x", TEST_TARGET, bad, 0, None)
+    assert res.status == "blocked" and res.risk_score == 100
+    assert "Malformed calldata" in res.reasons[0]
+
+
+def test_invalid_target_is_blocked_not_raised(service):
+    res = service.evaluate_and_attest("agent-x", "0x12345", "0x", 0, None)
+    assert res.status == "blocked"

@@ -19,6 +19,7 @@ from eth_account.messages import encode_typed_data
 from web3 import Web3
 
 from guardian.guardrails.input_filter import InputFilter
+from guardian.relayer.agent_id import normalize_agent_id
 from guardian.web3sec.tx_analyzer import TransactionAnalyzer, AnalysisResult
 from guardian.web3sec.simulation import SimulationResult
 
@@ -184,6 +185,8 @@ class OutflowTracker:
 
     Uses a simple append-only log of (timestamp, value) pairs per agent,
     with lazy eviction of entries older than the window on each query.
+    Thread-safe. The ledger lives in memory and resets on restart; the on-chain cap in
+    GuardianAgentWallet is the hard backstop.
     """
 
     WINDOW_SECONDS = 86400  # 24 hours
@@ -191,24 +194,38 @@ class OutflowTracker:
     def __init__(self) -> None:
         # agent_id -> list of (unix_timestamp, value_wei)
         self._ledger: Dict[str, List[Tuple[float, int]]] = defaultdict(list)
+        self._lock = threading.Lock()
+
+    def _evict(self, agent_id: str) -> List[Tuple[float, int]]:
+        """Drop entries outside the window. Caller holds the lock."""
+        cutoff = time.time() - self.WINDOW_SECONDS
+        active = [(ts, v) for ts, v in self._ledger.get(agent_id, []) if ts >= cutoff]
+        self._ledger[agent_id] = active
+        return active
 
     def record(self, agent_id: str, value: int) -> None:
         """Record an approved outflow for an agent."""
-        self._ledger[agent_id].append((time.time(), value))
+        with self._lock:
+            self._ledger[agent_id].append((time.time(), value))
 
     def cumulative(self, agent_id: str) -> int:
         """Return the total outflow for an agent within the rolling window."""
-        now = time.time()
-        cutoff = now - self.WINDOW_SECONDS
-        entries = self._ledger.get(agent_id, [])
-        # Lazy eviction: drop entries outside window
-        active = [(ts, v) for ts, v in entries if ts >= cutoff]
-        self._ledger[agent_id] = active
-        return sum(v for _, v in active)
+        with self._lock:
+            return sum(v for _, v in self._evict(agent_id))
 
     def would_exceed(self, agent_id: str, proposed_value: int, cap: int) -> bool:
         """Check if adding proposed_value would exceed the agent's daily cap."""
-        return self.cumulative(agent_id) + proposed_value > cap
+        with self._lock:
+            return sum(v for _, v in self._evict(agent_id)) + proposed_value > cap
+
+    def try_reserve(self, agent_id: str, value: int, cap: Optional[int]) -> bool:
+        """Atomically check the cap (None = no cap) and record the outflow. False = would exceed."""
+        with self._lock:
+            used = sum(v for _, v in self._evict(agent_id))
+            if cap is not None and used + value > cap:
+                return False
+            self._ledger[agent_id].append((time.time(), value))
+            return True
 
 
 class SafetyAttestationService:
@@ -326,21 +343,18 @@ class SafetyAttestationService:
 
     def _normalize_agent_id(self, agent_id: Union[str, bytes]) -> str:
         """Normalizes agent ID to bytes32 hex string (Audit L-01)."""
-        if isinstance(agent_id, bytes):
-            return "0x" + agent_id.hex().rjust(64, "0")[:64]
-        if isinstance(agent_id, str):
-            if agent_id.startswith("0x") and len(agent_id) == 66:
-                return agent_id.lower()
-            h = Web3.keccak(text=agent_id).hex().lower()
-            clean = h[2:] if h.startswith("0x") else h
-            return "0x" + clean
-        h = Web3.keccak(text=str(agent_id)).hex().lower()
-        clean = h[2:] if h.startswith("0x") else h
-        return "0x" + clean
+        return normalize_agent_id(agent_id)
+
+    def _policy_for(self, norm_id: str) -> Optional[AgentPolicy]:
+        """The policy whose key names this agent in any spelling (raw name, keccak hex, bytes32), else the default."""
+        for key, policy in list(self.agent_policies.items()):
+            if policy and normalize_agent_id(key) == norm_id:
+                return policy
+        return self.default_policy
 
     def _compute_risk_score(
         self,
-        agent_id: str,
+        agent_id: str,  # canonical (normalized) agent id
         prompt: Optional[str],
         target: Optional[str],
         calldata_hex: str,
@@ -372,18 +386,29 @@ class SafetyAttestationService:
                     return 100, [f"{dest} is on GuardianAI's on-chain scam list: {why or 'malicious'}"]
 
         # ── Agent Policy Enforcement ──────────────────────────────────────
-        policy = self.agent_policies.get(agent_id) or self.default_policy
+        policy = self._policy_for(agent_id)
         if policy:
-            from guardian.relayer.threat_feed import value_destinations
+            from guardian.relayer.threat_feed import _RECIPIENT_ARG, decoded_recipient
 
             # 0. Context required
             if policy.require_prompt and not (prompt and prompt.strip()):
                 return 100, ["This agent's rules require the prompt/context with every request"]
 
             # 0b. Recipient allowlist (native payee and token recipients/spenders/operators)
-            dests = value_destinations(target, calldata_hex)
-            payees = dests[1:] if len(dests) > 1 else ([dests[0]] if value > 0 else [])
             if policy.allowed_recipients is not None:
+                payees: List[str] = []
+                if value > 0:
+                    payees.append(target.lower())
+                if len(calldata_hex) > 2:
+                    sel = calldata_hex[:10].lower()
+                    recipient = decoded_recipient(calldata_hex) if sel in _RECIPIENT_ARG else None
+                    if recipient is not None:
+                        payees.append(recipient)
+                    elif target.lower() not in policy.allowed_recipients:
+                        return 100, [
+                            f"call {sel} to {target.lower()} can't be checked against the allowed recipients; "
+                            f"add the contract to allowed_recipients to permit it"
+                        ]
                 for dest in payees:
                     if dest not in policy.allowed_recipients:
                         return 100, [f"Recipient {dest} is not on this agent's allowed list"]
@@ -439,8 +464,7 @@ class SafetyAttestationService:
                     reasons.append("Prompt injection or adversarial pattern detected by InputFilter")
             except Exception as e:
                 logger.error(f"Error checking prompt: {e}")
-                score += 25
-                reasons.append(f"Prompt check error: {e}")
+                return 100, [f"Prompt check failed, failing closed: {type(e).__name__}"]
 
         # 5. Transaction Analysis & Threat Feed
         tx_dict = {
@@ -448,6 +472,7 @@ class SafetyAttestationService:
             "data": calldata_hex,
             "value": value,
         }
+        # Placeholder simulation result: the detectors are static calldata checks; no EVM simulation is run.
         dummy_sim = SimulationResult(success=True, gas_used=50000, return_data="")
         try:
             analysis: Optional[AnalysisResult] = self.tx_analyzer.analyze_transaction(tx_dict, dummy_sim)
@@ -461,8 +486,11 @@ class SafetyAttestationService:
                 else:
                     score += 15
                     reasons.append(f"Suspicious transaction violation: {analysis.reason}")
+                # A detector hit always blocks, however low its severity points are.
+                score = min(100, max(score, self.max_allowed_risk_score + 1))
         except Exception as e:
             logger.error(f"Error analyzing transaction: {e}")
+            return 100, [f"Transaction analysis failed, failing closed: {type(e).__name__}"]
 
         clamped = min(100, max(0, score))
         return clamped, reasons
@@ -667,7 +695,10 @@ class SafetyAttestationService:
             calldata_bytes = b""
         elif isinstance(data, str):
             calldata_hex = data if data.startswith("0x") else "0x" + data
-            calldata_bytes = bytes.fromhex(calldata_hex[2:])
+            try:
+                calldata_bytes = bytes.fromhex(calldata_hex[2:])
+            except ValueError:
+                return self._blocked(100, ["Malformed calldata: not valid hex"], wallet)
         else:
             calldata_bytes = bytes(data)
             calldata_hex = "0x" + calldata_bytes.hex()
@@ -676,7 +707,7 @@ class SafetyAttestationService:
         calldata_hash = raw_ch if raw_ch.startswith("0x") else "0x" + raw_ch
 
         # 2. Risk Evaluation (Audit H-01)
-        agent_id_str = agent_id if isinstance(agent_id, str) else agent_id.hex()
+        norm_id = self._normalize_agent_id(agent_id)
         verifying = self.verifying_contract
         if wallet:
             try:
@@ -685,7 +716,7 @@ class SafetyAttestationService:
                 return self._blocked(100, [f"Invalid wallet address {wallet!r}"], wallet)
             if target and target.lower() == verifying.lower():
                 return self._blocked(100, ["A wallet cannot be approved to call itself"], verifying)
-        risk_score, reasons = self._compute_risk_score(agent_id_str, prompt, target, calldata_hex, value)
+        risk_score, reasons = self._compute_risk_score(norm_id, prompt, target, calldata_hex, value)
 
         # 2b. Pulls through the shared PolicyGuard must be authorized by the asset owner, otherwise any
         #     caller could spend any agent's PolicyGuard allowance.
@@ -701,8 +732,23 @@ class SafetyAttestationService:
             return self._blocked(risk_score, reasons, verifying)
 
         # 4. Construct Approved Attestation
-        norm_agent_id = self._normalize_agent_id(agent_id)
-        target_checksum = Web3.to_checksum_address(target)
+        norm_agent_id = norm_id
+        try:
+            target_checksum = Web3.to_checksum_address(target)
+        except Exception:
+            return self._blocked(100, [f"Invalid target address {target!r}"], verifying)
+
+        # 4b. Reserve the daily outflow atomically (check + record under one lock), so concurrent
+        #     requests cannot each pass the cap check and together overshoot it.
+        if value > 0:
+            policy = self._policy_for(norm_id)
+            cap = policy.max_daily_outflow if policy else None
+            if not self.outflow_tracker.try_reserve(norm_id, value, cap):
+                current = self.outflow_tracker.cumulative(norm_id)
+                return self._blocked(100, [
+                    f"Transaction would push 24h outflow to {current + value} wei, "
+                    f"exceeding daily cap of {cap} wei"
+                ], verifying)
         assigned_nonce = nonce if nonce is not None else secrets.randbelow(2**128)
         ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
         deadline = int(time.time()) + ttl
@@ -733,10 +779,6 @@ class SafetyAttestationService:
                 attestation=attestation,
                 signature=sig_hex,
             )
-
-        # 7. Record approved outflow for daily cap tracking
-        if value > 0:
-            self.outflow_tracker.record(agent_id_str, value)
 
         return AttestationResult(
             status="approved",

@@ -360,22 +360,32 @@ class GuardianRPCRelay:
             )
 
         data = req_data.get("data", "0x")
-        value = int(req_data.get("value", 0))
         prompt = req_data.get("prompt")
         nonce = req_data.get("nonce")
         ttl = req_data.get("ttl_seconds")
+        try:
+            value = int(req_data.get("value", 0))
+            nonce = int(nonce) if nonce is not None else None
+            ttl = int(ttl) if ttl is not None else None
+        except (TypeError, ValueError):
+            return Response(json.dumps({"error": "value, nonce and ttl_seconds must be integers"}),
+                            status=400, mimetype="application/json")
 
-        result = self.attestation_service.evaluate_and_attest(
-            agent_id=agent_id,
-            target=target,
-            data=data,
-            value=value,
-            prompt=prompt,
-            nonce=int(nonce) if nonce is not None else None,
-            ttl_seconds=int(ttl) if ttl is not None else None,
-            wallet=req_data.get("wallet") or None,
-            owner_authorization=req_data.get("owner_authorization"),
-        )
+        try:
+            result = self.attestation_service.evaluate_and_attest(
+                agent_id=agent_id,
+                target=target,
+                data=data,
+                value=value,
+                prompt=prompt,
+                nonce=nonce,
+                ttl_seconds=ttl,
+                wallet=req_data.get("wallet") or None,
+                owner_authorization=req_data.get("owner_authorization"),
+            )
+        except (ValueError, TypeError) as e:
+            return Response(json.dumps({"error": f"Invalid attest request: {type(e).__name__}"}),
+                            status=400, mimetype="application/json")
 
         key = "attest_approved" if result.status == "approved" else "attest_blocked"
         self.stats[key] = self.stats.get(key, 0) + 1

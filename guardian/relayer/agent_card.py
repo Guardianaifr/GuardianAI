@@ -29,6 +29,8 @@ from typing import Any, Dict, Optional
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from guardian.relayer.agent_id import normalize_agent_id
+
 DID_PREFIX = "did:guardian:ed25519:"
 MAX_CARD_LIFETIME_SECONDS = 30 * 86400
 DEFAULT_REGISTRY = Path(__file__).resolve().parents[2] / "config" / "agent_passkey_identities.json"
@@ -77,9 +79,12 @@ def verify_card(
     now: Optional[int] = None,
 ) -> CardCheck:
     """Checks the card for a registered agent. Unregistered agents return required=False, ok=True."""
-    did = registry.get(agent_id)
-    if did is None:
+    # The registry may name the agent in any spelling (raw name, keccak hex, bytes32): match canonically.
+    norm = normalize_agent_id(agent_id)
+    registered = next((k for k in registry if normalize_agent_id(k) == norm), None)
+    if registered is None:
         return CardCheck(required=False, ok=True)
+    did = registry[registered]
     if not isinstance(card, dict):
         return CardCheck(True, False, "agent card required: this agent is registered to an operator passkey")
     if not wallet:
@@ -95,7 +100,7 @@ def verify_card(
         return CardCheck(True, False, "malformed agent card")
     if card.get("version") != 1:
         return CardCheck(True, False, "unsupported agent card version")
-    if card_agent != agent_id:
+    if not isinstance(card_agent, (str, bytes)) or normalize_agent_id(card_agent) != norm:
         return CardCheck(True, False, "agent card is for a different agent")
     if not _WALLET_RE.match(card_wallet) or card_wallet != wallet.lower():
         return CardCheck(True, False, "agent card is for a different wallet")
@@ -109,7 +114,7 @@ def verify_card(
         return CardCheck(True, False, "malformed agent card signature")
     try:
         key = Ed25519PublicKey.from_public_bytes(bytes.fromhex(did[len(DID_PREFIX):]))
-        key.verify(bytes.fromhex(signature), card_message(agent_id, card_wallet, expires_at))
+        key.verify(bytes.fromhex(signature), card_message(registered, card_wallet, expires_at))
     except (InvalidSignature, ValueError):
         return CardCheck(True, False, "invalid agent card signature")
     return CardCheck(True, True)

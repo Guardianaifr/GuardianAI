@@ -68,12 +68,39 @@ class ReserveManipulationDetector(Detector):
 
         return None
 
+def _word(data_clean: str, index: int) -> Optional[int]:
+    """Calldata word `index` (after the 4-byte selector) as an int, or None if absent or not hex.
+    A truncated word is zero-padded on the right, as CALLDATALOAD reads it."""
+    start = 8 + 64 * index
+    w = data_clean[start:start + 64]
+    if not w:
+        return None
+    try:
+        return int(w.ljust(64, "0"), 16)
+    except ValueError:
+        return None
+
+
 class InfiniteApprovalDetector(Detector):
+    """Flags approve / increaseAllowance with an amount in the top half of uint256 (>= 2**255), and
+    Permit2 approve with an amount in the top half of uint160 (>= 2**159)."""
     name = "infinite_approval"
-    
+
+    ERC20_SELECTORS = ("095ea7b3", "39509351")  # approve, increaseAllowance
+    PERMIT2_APPROVE = "87517c45"                # approve(token, spender, uint160 amount, uint48 expiration)
+
     def analyze(self, tx: Dict[str, Any], sim_result: SimulationResult) -> Optional[AnalysisResult]:
-        data = tx.get("data", "")
-        if data.startswith("0x095ea7b3") and "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" in data:
+        data = str(tx.get("data", "") or "").lower()
+        data_clean = data[2:] if data.startswith("0x") else data
+        sel = data_clean[:8]
+        amount = None
+        threshold = 2 ** 255
+        if sel in self.ERC20_SELECTORS:
+            amount = _word(data_clean, 1)
+        elif sel == self.PERMIT2_APPROVE:
+            amount = _word(data_clean, 2)
+            threshold = 2 ** 159
+        if amount is not None and amount >= threshold:
             return AnalysisResult(blocked=True, detector_name=self.name, reason="Detected infinite approval", severity="high")
         return None
 
@@ -89,11 +116,13 @@ class RoleChangeDetector(Detector):
         return None
 
 class ZeroSlippageDetector(Detector):
+    """swapExactTokensForTokens(amountIn, amountOutMin, ...) with amountOutMin == 0."""
     name = "zero_slippage"
-    
+
     def analyze(self, tx: Dict[str, Any], sim_result: SimulationResult) -> Optional[AnalysisResult]:
-        data = tx.get("data", "")
-        if data.startswith("0x38ed1739") and "0000000000000000000000000000000000000000000000000000000000000000" in data:
+        data = str(tx.get("data", "") or "").lower()
+        data_clean = data[2:] if data.startswith("0x") else data
+        if data_clean.startswith("38ed1739") and len(data_clean) >= 136 and _word(data_clean, 1) == 0:
             return AnalysisResult(blocked=True, detector_name=self.name, reason="Detected zero slippage swap", severity="high")
         return None
 
@@ -121,11 +150,17 @@ class TransactionAnalyzer:
             ThreatAddressDetector(enabled=rules_config.get("threat_address", True), threat_feed=config.get("threat_feed_addresses", [])),
         ]
 
+    _SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+
     def analyze_transaction(self, tx: Dict[str, Any], sim_result: SimulationResult, live_rules: Optional[Dict[str, bool]] = None) -> Optional[AnalysisResult]:
+        """Runs every enabled detector and returns the most severe block (first one wins a tie)."""
+        worst: Optional[AnalysisResult] = None
         for detector in self.detectors:
             is_enabled = live_rules.get(detector.name, detector.enabled) if live_rules is not None else detector.enabled
-            if is_enabled:
-                result = detector.analyze(tx, sim_result)
-                if result and result.blocked:
-                    return result
-        return None
+            if not is_enabled:
+                continue
+            result = detector.analyze(tx, sim_result)
+            if result and result.blocked:
+                if worst is None or self._SEVERITY_RANK.get(result.severity, 0) > self._SEVERITY_RANK.get(worst.severity, 0):
+                    worst = result
+        return worst

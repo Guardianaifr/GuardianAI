@@ -474,3 +474,21 @@ def test_revoked_agent_blocked_on_raw_tx_even_without_identity_gate(relay_config
         assert "revoked_agent_identity" in data["error"]["message"]
 
 
+
+
+# ── Malformed /api/v1/attest input never produces a 500 ──────────────────────
+
+@pytest.mark.parametrize("payload", [
+    {"data": "0xzz"},
+    {"value": "abc"},
+    {"nonce": "x1"},
+    {"ttl_seconds": "soon"},
+    {"value": None},
+])
+def test_attest_malformed_input_is_client_error(relay, payload):
+    body = {"agent_id": "agent-m", "target": "0x" + "22" * 20, **payload}
+    with relay.app.test_client() as client:
+        resp = client.post("/api/v1/attest", json=body)
+    assert resp.status_code in (200, 400, 403), resp.data
+    if resp.status_code == 200:
+        assert json.loads(resp.data)["status"] == "blocked"

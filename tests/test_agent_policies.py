@@ -281,3 +281,35 @@ class TestCombinedPolicies:
         )
         assert result.status == "blocked"
         assert "not in agent allowlist" in result.reasons[0]
+
+
+class TestOutflowTrackerReserve:
+    def test_try_reserve_respects_cap(self):
+        t = OutflowTracker()
+        assert t.try_reserve("a", 6, 10) is True
+        assert t.try_reserve("a", 5, 10) is False
+        assert t.cumulative("a") == 6
+        assert t.try_reserve("a", 4, 10) is True
+
+    def test_try_reserve_none_cap_always_allows(self):
+        t = OutflowTracker()
+        assert t.try_reserve("a", 10**30, None) is True
+        assert t.cumulative("a") == 10**30
+
+    def test_concurrent_reserves_never_exceed_cap(self):
+        import threading
+        t = OutflowTracker()
+        results = []
+        barrier = threading.Barrier(20)
+
+        def worker():
+            barrier.wait()
+            results.append(t.try_reserve("a", 1, 10))
+
+        threads = [threading.Thread(target=worker) for _ in range(20)]
+        for th in threads:
+            th.start()
+        for th in threads:
+            th.join()
+        assert results.count(True) == 10
+        assert t.cumulative("a") == 10

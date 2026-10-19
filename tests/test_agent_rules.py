@@ -96,3 +96,63 @@ def test_rules_api_requires_admin_token(tmp_path, monkeypatch):
     body = c.post("/api/v1/attest", json={"agent_id": "bot-1", "target": STRANGER, "value": ETH // 2, "prompt": "pay"}).get_json()
     assert body["status"] == "blocked"
     assert json.loads((tmp_path / "rules.json").read_text())["agents"]["bot-1"] == {"max_value_per_tx_mon": "0.2"}
+
+
+# ── Audit fixes: canonical agent id, unskippable recipient allowlist ──────────
+
+ROUTER = "0x3333333333333333333333333333333333333333"
+SWAP_SELECTOR = "0x38ed1739"
+
+
+def _keccak_id(name):
+    from web3 import Web3
+    h = Web3.keccak(text=name).hex()
+    return h if h.startswith("0x") else "0x" + h
+
+
+def test_policy_applies_to_hashed_agent_id(store):
+    store.set_agent("payroll", {"allowed_recipients": [VENDOR]})
+    svc = _svc(store)
+    hashed = _keccak_id("payroll")
+    r = svc.evaluate_and_attest(hashed, STRANGER, "0x", ETH // 10, "pay")
+    assert r.status == "blocked" and "allowed list" in r.reasons[0]
+    assert svc.evaluate_and_attest(hashed, VENDOR, "0x", ETH // 10, "pay").status == "approved"
+
+
+def test_daily_cap_shared_between_raw_and_hashed_ids(store):
+    svc = _svc(store)
+    hashed = _keccak_id("split2")
+    results = []
+    for i in range(10):
+        who = "split2" if i % 2 == 0 else hashed
+        results.append(svc.evaluate_and_attest(who, STRANGER, "0x", 9 * ETH // 10, "pay").status)
+    assert results.count("approved") == 5
+
+
+def test_swap_to_unlisted_router_blocked_even_with_zero_value(store):
+    store.set_agent("payroll", {"allowed_recipients": [VENDOR]})
+    svc = _svc(store)
+    data = SWAP_SELECTOR + "00" * 64
+    r = svc.evaluate_and_attest("payroll", ROUTER, data, 0, "swap")
+    assert r.status == "blocked" and "allowed_recipients" in r.reasons[0]
+
+
+def test_swap_approved_once_router_is_allowlisted(store):
+    store.set_agent("payroll", {"allowed_recipients": [VENDOR, ROUTER]})
+    svc = _svc(store)
+    data = SWAP_SELECTOR + "00" * 31 + "01" + "00" * 31 + "01"
+    assert svc.evaluate_and_attest("payroll", ROUTER, data, 0, "swap").status == "approved"
+
+
+def test_transfer_to_the_token_itself_blocked(store):
+    store.set_agent("payroll", {"allowed_recipients": [VENDOR]})
+    svc = _svc(store)
+    r = svc.evaluate_and_attest("payroll", USDC, _transfer(USDC, 10**6), 0, "pay")
+    assert r.status == "blocked" and "allowed list" in r.reasons[0]
+
+
+def test_decoded_recipient_keeps_target_duplicates():
+    from guardian.relayer.threat_feed import decoded_recipient
+    assert decoded_recipient(_transfer(USDC, 1)) == USDC.lower()
+    assert decoded_recipient("0xdeadbeef" + "00" * 64) is None
+    assert decoded_recipient("0xa9059cbb") is None

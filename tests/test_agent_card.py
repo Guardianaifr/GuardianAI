@@ -118,3 +118,29 @@ def test_relay_unregistered_agent_unchanged(relay):
         resp = c.post("/api/v1/attest", json={"agent_id": "privy-agent:0xabc", "target": "0x" + "2" * 40})
     assert resp.status_code == 200
     assert "agent_identity" not in resp.get_json()
+
+
+def test_card_registry_matches_agent_in_any_spelling():
+    from web3 import Web3
+    raw = "privy-agent:0x27ff" + "ab" * 18
+    h = Web3.keccak(text=raw).hex()
+    hashed = h if h.startswith("0x") else "0x" + h
+    registry = {raw: BROWSER_CARD["did"]}
+    for spelling in (raw, hashed):
+        r = verify_card(spelling, WALLET, None, registry, now=NOW)
+        assert r.required and not r.ok, spelling
+
+
+def test_card_signed_over_registered_name_verifies_for_hashed_id():
+    from web3 import Web3
+    key = Ed25519PrivateKey.generate()
+    raw = "privy-agent:0x27ff" + "cd" * 18
+    card = _card(key, raw, WALLET, NOW + 86400)
+    registry = {raw: card["did"]}
+    h = Web3.keccak(text=raw).hex()
+    hashed = h if h.startswith("0x") else "0x" + h
+    assert verify_card(raw, WALLET, card, registry, now=NOW).ok
+    r = verify_card(hashed, WALLET, card, registry, now=NOW)
+    assert r.required and r.ok, r.reason
+    other = dict(card, agent_id="someone-else")
+    assert not verify_card(hashed, WALLET, other, registry, now=NOW).ok

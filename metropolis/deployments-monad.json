@@ -42,7 +42,7 @@
   "creForwarder": "0xB9F79d863261869B234c481D1f9A7af84AeAd192",
   "previousDeployments": {
     "retiredAt": "2026-10-19",
-    "note": "Superseded by the on-chain caps/allowlist redeploy; old contracts left running.",
+    "note": "Superseded by the on-chain caps/allowlist redeploy; old PolicyGuard and wallet paused; wallet MON and USDC moved to the new wallet.",
     "GuardianPassportSBT": "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
     "GuardianPolicyGuard": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
     "GuardianAgentWalletFactory": "0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6",

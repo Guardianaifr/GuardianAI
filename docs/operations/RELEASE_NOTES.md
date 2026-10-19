@@ -6,7 +6,7 @@ GuardianAI v1.0 is a production-ready security layer designed to protect LLM app
 
 ## GuardianAI v1.3.1 On-Chain Caps, Allowlist and Redeploy (October 19, 2026)
 
-`GuardianAgentWallet` now enforces a daily native outflow cap, per-token daily caps and an optional target/selector allowlist on-chain (owner-configured). `GuardianPolicyGuard` rejects EOA targets when calldata is present and `GuardianPassportSBT` exposes `revokedTokenOf`. The contracts were redeployed to Monad Testnet (10143); the old contracts are left running and untouched.
+`GuardianAgentWallet` now enforces a daily native outflow cap, per-token daily caps and an optional target/selector allowlist on-chain (owner-configured). `GuardianPolicyGuard` rejects EOA targets when calldata is present and `GuardianPassportSBT` exposes `revokedTokenOf`. The contracts were redeployed to Monad Testnet (10143); the old PolicyGuard and GuardianAgentWallet are paused and the old wallet's MON and USDC were moved to the new wallet (`contracts/scripts/post-redeploy-ops.ts`). The three reference passports were re-minted on the new SBT through the issuer.
 
 | Contract | Old address | New address |
 |---|---|---|

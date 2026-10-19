@@ -225,7 +225,7 @@ GuardianAI's smart contract layer is deployed on Monad Testnet. The five contrac
 | **GuardianThreatOracle** (Chainlink CRE receiver) | `0x26144375c4f846174A386C464aC5F2e671EbdA95` | [MonadScan](https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95) |
 | **GuardianPassportIssuer** (owns the ID card SBT) | `0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1` | [MonadScan](https://testnet.monadscan.com/address/0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1) |
 
-- **Previous deployment (superseded, still running):** PolicyGuard `0x90Fd…EF60`, SBT `0xDA5f…2Cff`, Factory `0x25A4…19c6`, Wallet `0xCCb1…D335`, Issuer `0x09AA…60a6`. See `docs/operations/RELEASE_NOTES.md`.
+- **Previous deployment (superseded; old PolicyGuard and wallet paused, funds moved to the new wallet):** PolicyGuard `0x90Fd…EF60`, SBT `0xDA5f…2Cff`, Factory `0x25A4…19c6`, Wallet `0xCCb1…D335`, Issuer `0x09AA…60a6`. See `docs/operations/RELEASE_NOTES.md`.
 - **Confirmed On-Chain Receipt:** Monad Block `#66,451,553` (Tx: [`0xda14b65c...`](https://testnet.monadscan.com/tx/0xda14b65c639fe6fe7b160bb8610524c429b1bdb9b73f208ba9ae1e6d67481c87))
 - **Interactive Simulation:** [Tenderly Monad Testnet Simulation Trace](https://dashboard.tenderly.co/shared/simulation/b45791d7-a479-475a-a4c7-b26f34f9fc8e)
 

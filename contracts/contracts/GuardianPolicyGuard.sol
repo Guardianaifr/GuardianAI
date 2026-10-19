@@ -15,7 +15,11 @@ interface IGuardianPassportSBT {
  * @title GuardianPolicyGuard
  * @notice Validates cryptographic EIP-712 safety attestations signed off-chain
  *         by GuardianAI before permitting transactions to execute on Monad.
- * @dev Enforces strict expiry, non-reentrant execution, value integrity, and
+ * @dev Shared-executor semantics: msg.sender at the target is this guard. Native value comes from the
+ *      caller's msg.value on each call; tokens must be held by / approved to the guard; pulls are
+ *      authorized off-chain (relay owner authorization). Per-agent caps and allowlists are enforced
+ *      off-chain by the relay and on-chain by GuardianAgentWallet, not here.
+ *      Enforces strict expiry, non-reentrant execution, value integrity, and
  *      agent-namespaced replay protection optimized for Monad parallel execution.
  */
 contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard {
@@ -147,8 +151,8 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
             revert NonceAlreadyUsed(attestation.agentId, attestation.nonce);
         usedNonces[attestation.agentId][attestation.nonce] = true;
 
-        // 7. Target must be a contract, not an EOA (prevents silent fund loss)
-        if (target.code.length == 0) revert InvalidTargetAddress();
+        // 7. Calls with data must reach a contract (an EOA would silently "succeed"); plain value transfers to EOAs are allowed
+        if (data.length > 0 && target.code.length == 0) revert InvalidTargetAddress();
 
         // 8. External call with revert bubbling (Audit L-01)
         (bool success, bytes memory returnData) = target.call{value: msg.value}(data);
@@ -227,7 +231,8 @@ contract GuardianPolicyGuard is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
 
     /**
      * @notice Native Monad RIP-7212 P256 Precompile verification helper.
-     * @dev Invokes the native secp256r1 precompile at 0x0000000000000000000000000000000000000100 via staticcall.
+     * @dev Helper only; not used for authorization.
+     *      Invokes the native secp256r1 precompile at 0x0000000000000000000000000000000000000100 via staticcall.
      * @param messageHash 32-byte hash of the payload being verified
      * @param r Signature component r (32 bytes)
      * @param s Signature component s (32 bytes)

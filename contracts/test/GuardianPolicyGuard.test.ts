@@ -303,6 +303,35 @@ describe("GuardianPolicyGuard", function () {
       ).to.be.revertedWithCustomError(policyGuard, "SelfCallProhibited");
     });
 
+    it("allows a plain value transfer (empty data) to an EOA", async function () {
+      const amt = ethers.parseEther("0.5");
+      const attestation = await createAttestation({
+        targetContract: user.address,
+        calldataHash: ethers.keccak256("0x"),
+        value: amt,
+        nonce: 210n,
+      });
+      const signature = await signAttestation(attestation);
+
+      await expect(
+        policyGuard.executeWithAttestation(user.address, "0x", attestation, signature, { value: amt })
+      ).to.changeEtherBalance(user, amt);
+    });
+
+    it("still reverts InvalidTargetAddress for an EOA target when calldata is present", async function () {
+      const callData = "0x12345678";
+      const attestation = await createAttestation({
+        targetContract: user.address,
+        calldataHash: ethers.keccak256(callData),
+        nonce: 211n,
+      });
+      const signature = await signAttestation(attestation);
+
+      await expect(
+        policyGuard.executeWithAttestation(user.address, callData, attestation, signature)
+      ).to.be.revertedWithCustomError(policyGuard, "InvalidTargetAddress");
+    });
+
     it("should revert InvalidTargetAddress if target is address(0) (Audit M-02)", async function () {
       const callData = "0x";
       const calldataHash = ethers.keccak256(callData);

@@ -301,6 +301,145 @@ describe("GuardianAgentWallet", function () {
     });
   });
 
+  describe("On-chain spend policy (caps and allowlist)", function () {
+    let tokenAddr: string, targetAddr: string;
+    const E = (x: string) => ethers.parseEther(x);
+
+    beforeEach(async function () {
+      tokenAddr = await token.getAddress();
+      targetAddr = await target.getAddress();
+      await owner.sendTransaction({ to: await wallet.getAddress(), value: E("5") });
+    });
+
+    async function sendMon(amt: bigint) {
+      const { att, sig } = await approve(payee.address, "0x", amt);
+      return wallet.connect(operator).execute(payee.address, amt, "0x", att, sig);
+    }
+    async function runToken(data: string) {
+      const { att, sig } = await approve(tokenAddr, data);
+      return wallet.connect(operator).execute(tokenAddr, 0, data, att, sig);
+    }
+
+    it("defaults are off: no limits, no allowlist", async function () {
+      expect(await wallet.dailyOutflowLimit()).to.equal(0);
+      expect(await wallet.enforceTargetAllowlist()).to.equal(false);
+      await sendMon(E("2"));
+      await sendMon(E("2"));
+    });
+
+    it("native cap: second 0.6 MON in the window is refused, with the remaining amount", async function () {
+      await wallet.setDailyOutflowLimit(E("1"));
+      await sendMon(E("0.6"));
+      await expect(sendMon(E("0.6")))
+        .to.be.revertedWithCustomError(wallet, "DailyOutflowLimitExceeded").withArgs(E("0.6"), E("0.4"));
+    });
+
+    it("native cap resets after 24h", async function () {
+      await wallet.setDailyOutflowLimit(E("1"));
+      await sendMon(E("0.6"));
+      await time.increase(86400);
+      await sendMon(E("0.6"));
+      expect(await wallet.outflowInWindow()).to.equal(E("0.6"));
+    });
+
+    it("limit 0 means unlimited, and zero-value calls are not counted", async function () {
+      await wallet.setDailyOutflowLimit(E("1"));
+      await wallet.setDailyOutflowLimit(0);
+      await sendMon(E("3"));
+      await wallet.setDailyOutflowLimit(E("1"));
+      const data = target.interface.encodeFunctionData("doSomething", [1]);
+      const { att, sig } = await approve(targetAddr, data);
+      await wallet.connect(operator).execute(targetAddr, 0, data, att, sig);
+      expect(await wallet.outflowInWindow()).to.equal(0);
+    });
+
+    it("lowering the limit below current usage gives remaining 0, not a panic", async function () {
+      await wallet.setDailyOutflowLimit(E("2"));
+      await sendMon(E("1.5"));
+      await wallet.setDailyOutflowLimit(E("1"));
+      await expect(sendMon(1n))
+        .to.be.revertedWithCustomError(wallet, "DailyOutflowLimitExceeded").withArgs(1n, 0n);
+    });
+
+    it("token cap counts transfer and approve, per token", async function () {
+      await wallet.setTokenDailyLimit(tokenAddr, 10n);
+      await runToken(transferData(payee.address, 6n));
+      await runToken(token.interface.encodeFunctionData("approve", [payee.address, 4n]));
+      await expect(runToken(transferData(payee.address, 1n)))
+        .to.be.revertedWithCustomError(wallet, "TokenDailyLimitExceeded").withArgs(tokenAddr, 1n, 0n);
+      // a different token has its own (unset) limit
+      const token2 = await (await ethers.getContractFactory("MockERC20")).deploy();
+      await token2.mint(await wallet.getAddress(), 100n);
+      const t2 = await token2.getAddress();
+      const d2 = token2.interface.encodeFunctionData("transfer", [payee.address, 50n]);
+      const { att, sig } = await approve(t2, d2);
+      await wallet.connect(operator).execute(t2, 0, d2, att, sig);
+      // window resets after 24h
+      await time.increase(86400);
+      await runToken(transferData(payee.address, 10n));
+    });
+
+    it("token cap: a single amount above the limit is refused", async function () {
+      await wallet.setTokenDailyLimit(tokenAddr, 10n);
+      await expect(runToken(transferData(payee.address, 11n)))
+        .to.be.revertedWithCustomError(wallet, "TokenDailyLimitExceeded").withArgs(tokenAddr, 11n, 10n);
+    });
+
+    it("allowlist: unknown target is refused", async function () {
+      await wallet.setEnforceTargetAllowlist(true);
+      await expect(sendMon(1n)).to.be.revertedWithCustomError(wallet, "TargetNotAllowed").withArgs(payee.address);
+    });
+
+    it("allowlist: allowed target with a disallowed selector is refused; allowing the selector permits it", async function () {
+      await wallet.setEnforceTargetAllowlist(true);
+      await wallet.setAllowedTarget(targetAddr, true);
+      const data = target.interface.encodeFunctionData("doSomething", [1]);
+      const sel = data.slice(0, 10);
+      const { att, sig } = await approve(targetAddr, data);
+      await expect(wallet.connect(operator).execute(targetAddr, 0, data, att, sig))
+        .to.be.revertedWithCustomError(wallet, "SelectorNotAllowed").withArgs(targetAddr, sel);
+      await wallet.setAllowedSelector(targetAddr, sel, true);
+      const a2 = await approve(targetAddr, data);
+      await wallet.connect(operator).execute(targetAddr, 0, data, a2.att, a2.sig);
+      expect(await target.counter()).to.equal(1n);
+    });
+
+    it("allowlist: allowlisted EOA with empty data succeeds", async function () {
+      await wallet.setEnforceTargetAllowlist(true);
+      await wallet.setAllowedTarget(payee.address, true);
+      await expect(sendMon(E("0.1"))).to.changeEtherBalance(payee, E("0.1"));
+    });
+
+    it("every policy setter is owner-only", async function () {
+      for (const who of [operator, attacker]) {
+        const w = wallet.connect(who);
+        await expect(w.setDailyOutflowLimit(1)).to.be.revertedWithCustomError(wallet, "OwnableUnauthorizedAccount");
+        await expect(w.setTokenDailyLimit(tokenAddr, 1)).to.be.revertedWithCustomError(wallet, "OwnableUnauthorizedAccount");
+        await expect(w.setEnforceTargetAllowlist(true)).to.be.revertedWithCustomError(wallet, "OwnableUnauthorizedAccount");
+        await expect(w.setAllowedTarget(targetAddr, true)).to.be.revertedWithCustomError(wallet, "OwnableUnauthorizedAccount");
+        await expect(w.setAllowedSelector(targetAddr, "0x12345678", true)).to.be.revertedWithCustomError(wallet, "OwnableUnauthorizedAccount");
+      }
+    });
+
+    it("setters emit events", async function () {
+      await expect(wallet.setDailyOutflowLimit(5)).to.emit(wallet, "DailyOutflowLimitUpdated").withArgs(0, 5);
+      await expect(wallet.setTokenDailyLimit(tokenAddr, 7)).to.emit(wallet, "TokenDailyLimitUpdated").withArgs(tokenAddr, 0, 7);
+      await expect(wallet.setEnforceTargetAllowlist(true)).to.emit(wallet, "TargetAllowlistEnforcementUpdated").withArgs(true);
+      await expect(wallet.setAllowedTarget(targetAddr, true)).to.emit(wallet, "AllowedTargetUpdated").withArgs(targetAddr, true);
+      await expect(wallet.setAllowedSelector(targetAddr, "0x12345678", true))
+        .to.emit(wallet, "AllowedSelectorUpdated").withArgs(targetAddr, "0x12345678", true);
+    });
+
+    it("ownerExecute bypasses the caps and the allowlist", async function () {
+      await wallet.setDailyOutflowLimit(1n);
+      await wallet.setEnforceTargetAllowlist(true);
+      await wallet.setTokenDailyLimit(tokenAddr, 1n);
+      await expect(wallet.ownerExecute(payee.address, E("1"), "0x")).to.changeEtherBalance(payee, E("1"));
+      await wallet.ownerExecute(tokenAddr, 0, transferData(payee.address, 50n));
+      expect(await token.balanceOf(payee.address)).to.equal(50n);
+    });
+  });
+
   describe("Factory", function () {
     let factory: any;
     beforeEach(async function () {

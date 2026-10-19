@@ -121,6 +121,11 @@ describe("GuardianPassportSBT", function () {
 
       // Permanent revocation tombstone must be set
       expect(await sbt.isAgentRevoked(AGENT_HASH)).to.be.true;
+
+      // Burned id is kept for audit; the hash can never be re-minted
+      expect(await sbt.revokedTokenOf(AGENT_HASH)).to.equal(1);
+      await expect(sbt.mint(user1.address, AGENT_HASH, 7500, METADATA_URI))
+        .to.be.revertedWithCustomError(sbt, "AgentPermanentlyRevoked");
     });
 
     it("should revert for already revoked passport", async function () {

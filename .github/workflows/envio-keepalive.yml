@@ -1,0 +1,25 @@
+name: Envio indexer keep-alive
+
+# Envio Cloud shuts down development deployments that get no GraphQL requests for 7+ days.
+# Run the explorer's sync-status query once a day so the live demo indexer stays up.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ENVIO_GRAPHQL: https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql
+    steps:
+      - name: Query indexer sync status
+        run: |
+          body='{"query":"{ chain_metadata { chain_id latest_processed_block } EnforcementStats(limit: 1) { id } }"}'
+          resp=$(curl -sS --fail --max-time 30 -X POST "$ENVIO_GRAPHQL" -H 'Content-Type: application/json' -d "$body")
+          echo "$resp"
+          echo "$resp" | grep -q latest_processed_block

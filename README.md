@@ -19,7 +19,7 @@ AI agents now hold money and read untrusted text. GuardianAI puts two gates betw
 - Attack Lab and website: https://aiguardian.dev/explorer/
 - Console: create a guarded agent wallet, then talk to a real ElizaOS agent that pays through GuardianAI: https://aiguardian.dev/explorer/?view=console
 - Mera passkey console: https://aiguardian.dev/mera/
-- Envio GraphQL: https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql
+- Envio GraphQL: https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql
 
 | Integration | What it does in GuardianAI | Status |
 | :--- | :--- | :--- |

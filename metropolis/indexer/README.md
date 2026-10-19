@@ -4,13 +4,13 @@ Envio HyperIndex indexer for GuardianAI's contracts on **Monad Testnet (chain ID
 agent wallet, GuardianAI-approved payment, Agent ID card, scam-list entry and Chainlink CRE oracle report
 into one GraphQL API.
 
-**Live (Envio Cloud development deployment):** https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql
+**Live (Envio Cloud development deployment):** https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql
 
 Envio Cloud builds the deployment from the `envio` branch. The development URL changes on every redeploy;
 a static production URL needs a paid Envio plan. The code on `main` and on `envio` is the same.
 
 ```bash
-curl -s https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql -H 'content-type: application/json' \
+curl -s https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql -H 'content-type: application/json' \
   -d '{"query":"{ EnforcementStats { agentWallets guardianApprovedExecutions } PassportRecord(where:{isRevoked:{_eq:false}}) { tokenId tier } }"}'
 ```
 

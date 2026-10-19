@@ -13,7 +13,7 @@
 | Mera passkey console | https://aiguardian.dev/mera/ |
 | GuardianAI relay: public threat feed (approvals are `POST /api/v1/attest`) | https://guardian-relay-production.up.railway.app/api/v1/threat-oracle/feed |
 | Hosted ElizaOS agent service | https://guardian-eliza-production.up.railway.app/health |
-| Envio GraphQL (Envio Cloud, deployment `a5825d8`) | https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql |
+| Envio GraphQL (Envio Cloud, deployment `2a8fc2b`) | https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql |
 
 ---
 
@@ -113,7 +113,7 @@ The earlier browser page simulated the passkey with WebCrypto, and the scripts u
 - [x] Handlers registered with the v3 `indexer.onEvent` / `indexer.contractRegister` API in `src/EnvioHandlers.ts`; state logic stays in pure functions in `src/EventHandlers.ts`.
 - [x] New: `GuardianAgentWalletFactory.WalletCreated` registers every agent wallet dynamically; indexes `Executed` / `OwnerExecuted` / `Paused` / `Unpaused` and the CRE oracle's `ThreatReportAccepted` / `AddressFlagUpdated` (entities `AgentWallet`, `AgentWalletExecution`, `ThreatOracleReport`, `ThreatOracleFlag`, `EnforcementStats`).
 - [x] `npm run typecheck` (codegen + `tsc` against the generated types) passes; `npm test`: original suites plus 7 new enforcement tests pass.
-- [x] **Live on Envio Cloud** (development deployment `a5825d8`, built from the `envio` branch), HyperSync from block 65,970,000, synced to the chain tip. GraphQL: `https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql`.
+- [x] **Live on Envio Cloud** (development deployment `2a8fc2b`, built from the `envio` branch), HyperSync from block 65,970,000, synced to the chain tip. GraphQL: `https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql`.
 - [x] Three fixes found by running it live: select `transaction.hash` and `transaction.from` in `field_selection` (v3 only fetches selected fields; inserts failed NOT NULL), and index passport mints (`Transfer` from 0x0) with an Envio Effect that reads `passports(tokenId)` at the mint block, because issuance emits no event with the agent hash.
 - [x] Checked against the chain on Oct 12: 8 wallets + 34 executions = 42/42 matched Monad receipts; passports 3 active / 8 revoked match `activePassportCount`; Cortex, scam list and oracle counters (`reportCount`, `flaggedCount`, `feedDigest`) match.
 - [x] Tests: 48 passing (7 core + 29 adversarial + 12 enforcement), `npm run typecheck` passes.
@@ -121,7 +121,7 @@ The earlier browser page simulated the passkey with WebCrypto, and the scripts u
 
 Try it:
 ```bash
-curl -s https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql -H 'content-type: application/json' \
+curl -s https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql -H 'content-type: application/json' \
   -d '{"query":"{ EnforcementStats { agentWallets guardianApprovedExecutions } PassportRecord(where:{isRevoked:{_eq:false}}) { tokenId tier } }"}'
 ```
 

@@ -18,7 +18,7 @@ export const repoLink = (path = '') =>
 
 // Envio Cloud development deployment (commit a5825d8). The URL changes on every redeploy of the
 // `envio` branch; production endpoints need a paid plan.
-export const ENVIO_GRAPHQL = 'https://indexer.dev.hyperindex.xyz/cea9a0a/v1/graphql'
+export const ENVIO_GRAPHQL = 'https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql'
 
 export const SPONSORS = [
   {

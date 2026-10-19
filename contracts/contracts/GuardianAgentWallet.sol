@@ -37,6 +37,11 @@ interface IGuardianThreatOracle {
  *         ERC-1271, so it cannot sign off-chain approvals (Permit/Permit2 orders) that would move
  *         funds without an attestation.
  *
+ *         Optional on-chain spend policy (all off by default, set by the owner): a rolling 24h native
+ *         outflow cap, per-token 24h caps (transfer/approve/increaseAllowance amounts; transferFrom is NOT
+ *         counted), and a target/selector allowlist. These apply to execute() only. ownerExecute is the
+ *         uncapped emergency path and bypasses them by design.
+ *
  *         The owner (the human) keeps an emergency path (ownerExecute) and the admin controls.
  *         The owner key should be a passkey, hardware wallet, multisig or timelock.
  */
@@ -71,6 +76,20 @@ contract GuardianAgentWallet is EIP712, Ownable2Step, Pausable, ReentrancyGuard,
 
     mapping(uint256 => bool) public usedNonces;
 
+    // ── Spend policy (owner-set, execute() only; 0 / false = off) ─────────
+    /// @notice Max native value the agent path may send per 24h window. 0 = unlimited.
+    uint256 public dailyOutflowLimit;
+    uint256 public outflowWindowStart;
+    uint256 public outflowInWindow;
+    /// @notice Per-token 24h cap on transfer/approve/increaseAllowance amounts. 0 = unlimited.
+    mapping(address => uint256) public tokenDailyLimit;
+    mapping(address => uint256) public tokenWindowStart;
+    mapping(address => uint256) public tokenOutflowInWindow;
+    /// @notice When true, execute() only reaches allowlisted targets (and, for calls with data, allowlisted selectors).
+    bool public enforceTargetAllowlist;
+    mapping(address => bool) public allowedTargets;
+    mapping(address => mapping(bytes4 => bool)) public allowedSelectors;
+
     event Executed(uint256 indexed nonce, address indexed target, uint256 value, uint8 riskScore, bytes32 calldataHash);
     event OwnerExecuted(address indexed target, uint256 value, bytes32 calldataHash);
     event Deposited(address indexed from, uint256 value);
@@ -80,6 +99,11 @@ contract GuardianAgentWallet is EIP712, Ownable2Step, Pausable, ReentrancyGuard,
     event PassportRegistryUpdated(address indexed previousRegistry, address indexed newRegistry);
     event MaxAllowedRiskScoreUpdated(uint8 previousScore, uint8 newScore);
     event ThreatOracleUpdated(address indexed previousOracle, address indexed newOracle);
+    event DailyOutflowLimitUpdated(uint256 previousLimit, uint256 newLimit);
+    event TokenDailyLimitUpdated(address indexed token, uint256 previousLimit, uint256 newLimit);
+    event TargetAllowlistEnforcementUpdated(bool enforced);
+    event AllowedTargetUpdated(address indexed target, bool allowed);
+    event AllowedSelectorUpdated(address indexed target, bytes4 indexed selector, bool allowed);
 
     error NotOperator(address caller);
     error NotOperatorOrOwner(address caller);
@@ -97,6 +121,10 @@ contract GuardianAgentWallet is EIP712, Ownable2Step, Pausable, ReentrancyGuard,
     error InvalidRiskThreshold(uint8 value);
     error CallFailed();
     error FlaggedDestination(address account);
+    error DailyOutflowLimitExceeded(uint256 requested, uint256 remaining);
+    error TokenDailyLimitExceeded(address token, uint256 requested, uint256 remaining);
+    error TargetNotAllowed(address target);
+    error SelectorNotAllowed(address target, bytes4 selector);
 
     constructor(
         address owner_,
@@ -163,6 +191,8 @@ contract GuardianAgentWallet is EIP712, Ownable2Step, Pausable, ReentrancyGuard,
 
         if (threatOracle != address(0)) _checkDestinations(target, data);
 
+        _enforceSpendPolicy(target, value, data);
+
         bytes memory ret = _call(target, value, data);
         emit Executed(attestation.nonce, target, value, attestation.riskScore, attestation.calldataHash);
         return ret;
@@ -177,6 +207,7 @@ contract GuardianAgentWallet is EIP712, Ownable2Step, Pausable, ReentrancyGuard,
     // ── Human path ────────────────────────────────────────────────────────
 
     /// @notice Emergency/administrative call by the human owner. No attestation needed. Works while paused.
+    /// @dev Intentionally NOT subject to the daily caps or the target/selector allowlist (emergency path).
     function ownerExecute(address target, uint256 value, bytes calldata data)
         external
         onlyOwner
@@ -226,12 +257,83 @@ contract GuardianAgentWallet is EIP712, Ownable2Step, Pausable, ReentrancyGuard,
         maxAllowedRiskScore = newMax;
     }
 
+    /// @notice Set the rolling 24h native outflow cap for execute(). 0 = unlimited.
+    function setDailyOutflowLimit(uint256 newLimit) external onlyOwner {
+        emit DailyOutflowLimitUpdated(dailyOutflowLimit, newLimit);
+        dailyOutflowLimit = newLimit;
+    }
+
+    /// @notice Set the rolling 24h cap for a token (transfer/approve/increaseAllowance amounts). 0 = unlimited.
+    function setTokenDailyLimit(address token, uint256 newLimit) external onlyOwner {
+        emit TokenDailyLimitUpdated(token, tokenDailyLimit[token], newLimit);
+        tokenDailyLimit[token] = newLimit;
+    }
+
+    function setEnforceTargetAllowlist(bool enforced) external onlyOwner {
+        enforceTargetAllowlist = enforced;
+        emit TargetAllowlistEnforcementUpdated(enforced);
+    }
+
+    function setAllowedTarget(address target, bool allowed) external onlyOwner {
+        allowedTargets[target] = allowed;
+        emit AllowedTargetUpdated(target, allowed);
+    }
+
+    function setAllowedSelector(address target, bytes4 selector, bool allowed) external onlyOwner {
+        allowedSelectors[target][selector] = allowed;
+        emit AllowedSelectorUpdated(target, selector, allowed);
+    }
+
     /// @notice EIP-712 domain separator the relay must sign against (name "GuardianAgentWallet", version "1").
     function domainSeparator() external view returns (bytes32) {
         return _domainSeparatorV4();
     }
 
     // ── Internal ──────────────────────────────────────────────────────────
+
+    /// @dev On-chain spend policy for the agent path. Windows are fixed 24h buckets that restart on first use after expiry.
+    function _enforceSpendPolicy(address target, uint256 value, bytes calldata data) private {
+        bytes4 sel;
+        if (data.length >= 4) sel = bytes4(data[:4]);
+
+        if (enforceTargetAllowlist) {
+            if (!allowedTargets[target]) revert TargetNotAllowed(target);
+            if (data.length > 0) {
+                if (data.length < 4 || !allowedSelectors[target][sel]) revert SelectorNotAllowed(target, sel);
+            }
+        }
+
+        uint256 limit = dailyOutflowLimit;
+        if (limit != 0 && value > 0) {
+            if (block.timestamp >= outflowWindowStart + 1 days) {
+                outflowWindowStart = block.timestamp;
+                outflowInWindow = 0;
+            }
+            uint256 used = outflowInWindow;
+            if (used + value > limit) revert DailyOutflowLimitExceeded(value, used >= limit ? 0 : limit - used);
+            outflowInWindow = used + value;
+        }
+
+        uint256 tokenLimit = tokenDailyLimit[target];
+        if (
+            tokenLimit != 0 && data.length >= 68 &&
+            (sel == 0xa9059cbb || sel == 0x095ea7b3 || sel == 0x39509351)
+        ) {
+            uint256 amount = uint256(bytes32(data[36:68]));
+            _enforceTokenCap(target, tokenLimit, amount);
+        }
+    }
+
+    function _enforceTokenCap(address token, uint256 tokenLimit, uint256 amount) private {
+        if (block.timestamp >= tokenWindowStart[token] + 1 days) {
+            tokenWindowStart[token] = block.timestamp;
+            tokenOutflowInWindow[token] = 0;
+        }
+        uint256 used = tokenOutflowInWindow[token];
+        if (amount > tokenLimit || used + amount > tokenLimit)
+            revert TokenDailyLimitExceeded(token, amount, used >= tokenLimit ? 0 : tokenLimit - used);
+        tokenOutflowInWindow[token] = used + amount;
+    }
 
     /// @dev Refuse if the call target, or the token recipient / spender / operator in the calldata, is flagged.
     function _checkDestinations(address target, bytes calldata data) private view {

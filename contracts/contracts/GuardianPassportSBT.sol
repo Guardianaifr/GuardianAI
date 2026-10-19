@@ -42,6 +42,9 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
     /// @notice agentHash => tokenId (0 = not minted)
     mapping(bytes32 => uint256) public agentToken;
 
+    /// @notice agentHash => token id that was burned by revoke(). Kept after the active slot is cleared.
+    mapping(bytes32 => uint256) public revokedTokenOf;
+
     /// @notice agentHash => permanent revocation tombstone
     mapping(bytes32 => bool) public isAgentRevoked;
 
@@ -195,8 +198,9 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
     }
 
     /**
-     * @notice Revoke (burn) a passport. The SBT is destroyed and the agent
-     *         slot is freed for re-issuance.
+     * @notice Revoke (burn) a passport. The SBT is destroyed and the agent hash is
+     *         permanently tombstoned: it can never be minted again. The active
+     *         slot (agentToken) is cleared; the burned id is kept in revokedTokenOf.
      * @param _tokenId The passport token ID to revoke
      */
     function revoke(uint256 _tokenId) external onlyOwner {
@@ -211,7 +215,8 @@ contract GuardianPassportSBT is ERC721, Ownable2Step, Pausable, ReentrancyGuard 
         // Set permanent revocation tombstone so off-chain identity gates fail closed
         isAgentRevoked[p.agentHash] = true;
 
-        // Free agent slot so a new passport can be minted
+        // Record the burned id, then clear the active slot (the hash stays tombstoned: never re-mintable)
+        revokedTokenOf[p.agentHash] = _tokenId;
         delete agentToken[p.agentHash];
 
         // Burn the token

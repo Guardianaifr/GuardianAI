@@ -48,6 +48,7 @@ License: MIT
 """
 import logging
 import re
+import threading
 from collections import OrderedDict
 import os
 import yaml
@@ -114,6 +115,11 @@ class AIPromptFirewall:
         # LRU Cache settings
         self.cache = OrderedDict()
         self.cache_size = 1000
+        self._cache_lock = threading.Lock()
+        # One CortexEngine per db_path (created lazily by _record_policy_gate)
+        self._cortex_engines = {}
+        self._cortex_engines_lock = threading.Lock()
+        self.ml_on_decoded_variants = os.getenv("GUARDIAN_ML_ON_DECODED_VARIANTS", "0") == "1"
         # Pre-compile harm topic regex patterns
         self._compiled_harm_patterns = self._compile_harm_patterns()
         self.reload()
@@ -301,16 +307,12 @@ class AIPromptFirewall:
         """Determines the threshold based on category severity and security mode."""
         base_threshold = self.thresholds.get(mode.lower(), 0.55)
         
-        # Map category to severity
-        severity = "medium"
-        for cat_name, cat_data in HARM_TOPIC_KEYWORDS.items():
-            if category == cat_name or category in ("system", "jailbreak"):
-                severity = "critical"  # System/jailbreak always critical
-                break
-            if category == cat_name:
-                severity = cat_data["severity"]
-                break
-        
+        # Map category to severity (system/jailbreak always critical)
+        if category in ("system", "jailbreak"):
+            severity = "critical"
+        else:
+            severity = HARM_TOPIC_KEYWORDS.get(category, {}).get("severity", "medium")
+
         adjustment = self.category_adjustments.get(severity, 0.0)
         return base_threshold + adjustment
 
@@ -386,11 +388,28 @@ class AIPromptFirewall:
         re.IGNORECASE,
     )
 
+    # Verb must be followed by a target within a few words ("kill my sister").
+    _HARM_PROXIMITY = re.compile(
+        _HARM_VERBS.pattern + r"(?:\W+\w+){0,3}?\W+" + _HARM_TARGETS.pattern,
+        re.IGNORECASE,
+    )
+    # Verbs that are routine in web3 / technical text ("execute a transaction").
+    _AMBIGUOUS_HARM_VERBS = {"execute", "burn", "attack", "destroy", "eliminate"}
+    _WEB3_CONTEXT = re.compile(
+        r"\b(?:transaction|tx|transfer|token|contract|swap|trade|replay|"
+        r"reentrancy|exploit|wallet|order)\b",
+        re.IGNORECASE,
+    )
+
     def _check_harm_verb_target(self, text: str) -> bool:
         """Detect 'harm verb + target' patterns like 'kill my sister'."""
-        if self._HARM_VERBS.search(text) and self._HARM_TARGETS.search(text):
-            logger.warning("Harm-verb+target blocked: detected intent to harm a person/animal")
-            return True
+        for sentence in re.split(r"[.!?\n]+", text):
+            for match in self._HARM_PROXIMITY.finditer(sentence):
+                verb = match.group(1).lower()
+                if verb in self._AMBIGUOUS_HARM_VERBS and self._WEB3_CONTEXT.search(sentence):
+                    continue
+                logger.warning("Harm-verb+target blocked: detected intent to harm a person/animal")
+                return True
         return False
 
     # ------------------------------------------------------------------
@@ -779,7 +798,11 @@ class AIPromptFirewall:
             from guardian.cortex.cortex_engine import CortexEngine, EventType
 
             db_path = os.getenv("GUARDIAN_DB_PATH", "guardian.db")
-            engine = CortexEngine(db_path=db_path, privacy_mode="hash_only")
+            with self._cortex_engines_lock:
+                engine = self._cortex_engines.get(db_path)
+                if engine is None:
+                    engine = CortexEngine(db_path=db_path, privacy_mode="hash_only")
+                    self._cortex_engines[db_path] = engine
             engine.record_event(
                 agent_id=agent_id,
                 event_type=EventType.POLICY_GATE.value,
@@ -917,9 +940,10 @@ class AIPromptFirewall:
                 logger.warning("Encoded payload decoded → harm topic detected")
                 return block("encoded_harm_topic", {"decoded": decoded})
             
-            # Decoded variants stay on deterministic checks only to avoid false
-            # positives from nonsense transforms of otherwise normal plaintext.
-            if False and self.enabled and self.bad_embeddings is not None and self.model is not None:
+            # Off by default (GUARDIAN_ML_ON_DECODED_VARIANTS=1 enables): ML on
+            # decoded variants gives false positives on nonsense transforms of
+            # otherwise normal plaintext.
+            if self.ml_on_decoded_variants and self.enabled and self.bad_embeddings is not None and self.model is not None:
                 sim_score, category = self._compute_similarity(dec_normalized)
                 threshold = self.thresholds.get(mode, 0.55)
                 adj = self.category_adjustments.get(category, 0.0)
@@ -1024,18 +1048,20 @@ class AIPromptFirewall:
         """Compute ML similarity score and return (score, category)."""
         if self.model is None or self.bad_embeddings is None:
             return 0.0, "unknown"
-        # Check Cache
-        if text in self.cache:
-            emb = self.cache[text]
-            self.cache.move_to_end(text)
-        else:
+        # Check Cache (lock is not held during encode)
+        with self._cache_lock:
+            emb = self.cache.get(text)
+            if emb is not None:
+                self.cache.move_to_end(text)
+        if emb is None:
             try:
                 emb = self.model.encode([text])
             except Exception:
                 return 0.0, "unknown"
-            self.cache[text] = emb
-            if len(self.cache) > self.cache_size:
-                self.cache.popitem(last=False)
+            with self._cache_lock:
+                self.cache[text] = emb
+                if len(self.cache) > self.cache_size:
+                    self.cache.popitem(last=False)
 
         sims_raw = cosine_similarity(emb, self.bad_embeddings)
         sims = []

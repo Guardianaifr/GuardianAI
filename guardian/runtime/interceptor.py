@@ -8,6 +8,7 @@ if _GUARDIAN_ROOT not in sys.path:
 from flask import Flask, request, Response, has_request_context
 import requests
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import logging
 import time
 import re
@@ -172,7 +173,7 @@ class GuardianProxy:
         self.jailbreak_fuzzer = AutomatedJailbreakFuzzer(
             config.get("jailbreak_fuzzer", {}),
             Path(__file__).resolve().parent.parent,
-            detector=lambda prompt: bool(self.input_filter.is_malicious(prompt) or self.ai_firewall.is_malicious(prompt, mode="strict") or self.threat_feed.match(prompt)),
+            detector=lambda prompt: bool((not self.input_filter.check_prompt(prompt)) or self.ai_firewall.is_malicious(prompt, mode="strict") or self.threat_feed.match(prompt)),
             threat_feed=self.threat_feed,
         )
         self.brain = CyberBrain(config, Path(__file__).resolve().parent.parent, self.input_filter, self.ai_firewall, threat_feed=self.threat_feed)
@@ -241,6 +242,9 @@ class GuardianProxy:
         self.last_debug_info = {}
         self._input_filter_cache = collections.OrderedDict()
         self._input_filter_cache_size = 2000
+        self._input_filter_cache_lock = threading.Lock()
+        # Bounded pool for backend event reports (avoids one thread per event)
+        self._report_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="guardian-report")
 
     def _build_redis_client(self, rl_config: Dict[str, Any]):
         """Build optional Redis client for distributed rate limiting."""
@@ -598,6 +602,7 @@ class GuardianProxy:
     def stop(self):
         self.jailbreak_fuzzer.stop()
         self.brain.stop()
+        self._report_executor.shutdown(wait=False)
 
     def _run_server(self):
         """
@@ -717,10 +722,24 @@ class GuardianProxy:
         if bearer_value:
             token_hash = hashlib.sha256(bearer_value.encode("utf-8")).hexdigest()[:16]
             raw_session = f"jwt:{token_hash}"
+        elif request.headers.get("X-Guardian-Token"):
+            # Bind the session to the credential so rotating X-Conversation-ID
+            # cannot shed a revocation / quarantine.
+            token_hash = hashlib.sha256(request.headers["X-Guardian-Token"].encode("utf-8")).hexdigest()[:16]
+            raw_session = f"gt:{token_hash}:{request.headers.get('X-Conversation-ID') or self._get_client_ip()}"
         else:
             raw_session = request.headers.get("X-Conversation-ID") or self._get_client_ip()
         tenant_id, _err = self.tenant_isolation.resolve_tenant_id(dict(request.headers))
         return self.tenant_isolation.scope_session_id(tenant_id, str(raw_session))
+
+    def _get_credential_id(self) -> Optional[str]:
+        """Tenant-scoped id of the X-Guardian-Token credential (None when absent)."""
+        token = request.headers.get("X-Guardian-Token")
+        if not token:
+            return None
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
+        tenant_id, _err = self.tenant_isolation.resolve_tenant_id(dict(request.headers))
+        return self.tenant_isolation.scope_session_id(tenant_id, f"gt:{token_hash}")
 
     def _resolve_tenant(self, data: Dict[str, Any] | None = None) -> tuple[str, Optional[Response]]:
         headers = dict(request.headers) if has_request_context() else {}
@@ -765,7 +784,7 @@ class GuardianProxy:
         if not prompt and 'messages' in data:
             messages = data.get('messages', [])
             parts: List[str] = []
-            for msg in reversed(messages):
+            for msg in messages:
                 if msg.get('role') != 'user':
                     continue
                 content = msg.get('content', '')
@@ -779,8 +798,6 @@ class GuardianProxy:
                             text = part.get('text', '')
                             if isinstance(text, str) and text:
                                 parts.append(text)
-                if parts:
-                    break
             prompt = ' '.join(parts) if parts else None
 
         return prompt if isinstance(prompt, str) else None
@@ -804,14 +821,18 @@ class GuardianProxy:
         """Check prompt against keyword/regex patterns."""
         t_start = time.perf_counter()
 
-        if prompt in self._input_filter_cache:
-            is_blocked = self._input_filter_cache[prompt]
-            self._input_filter_cache.move_to_end(prompt)
+        with self._input_filter_cache_lock:
+            cached = self._input_filter_cache.get(prompt)
+            if cached is not None:
+                self._input_filter_cache.move_to_end(prompt)
+        if cached is not None:
+            is_blocked = cached
         else:
             is_blocked = self.input_filter.check_prompt(prompt) is False
-            self._input_filter_cache[prompt] = is_blocked
-            if len(self._input_filter_cache) > self._input_filter_cache_size:
-                self._input_filter_cache.popitem(last=False)
+            with self._input_filter_cache_lock:
+                self._input_filter_cache[prompt] = is_blocked
+                if len(self._input_filter_cache) > self._input_filter_cache_size:
+                    self._input_filter_cache.popitem(last=False)
 
         timings['input_filter_ms'] = (time.perf_counter() - t_start) * 1000
 
@@ -944,6 +965,8 @@ class GuardianProxy:
         timings['ai_firewall_ms'] = (time.perf_counter() - t_start) * 1000
 
         if is_malicious:
+            # Do not let a blocked prompt poison later benign requests in this session
+            self.context_buffer[session_id].pop()
             reason = f"AI Firewall detected malicious intent (Mode: {mode})."
             latency_ms = (time.time() - start_time) * 1000
             logger.warning(f"ATTACK PREVENTED: {reason} (Prompt: {prompt[:30]}...)")
@@ -1241,7 +1264,7 @@ class GuardianProxy:
                 logger.error(f"Failed to report event to backend: {e}")
 
         # Non-blocking background report
-        threading.Thread(target=send_report, daemon=True).start()
+        self._report_executor.submit(send_report)
 
     def _build_honeypot_response(
         self, session_id: str, path: str, prompt: str = "",
@@ -1551,7 +1574,17 @@ class GuardianProxy:
                     decoded += " " + b64_decoded
         except Exception:
             pass
-            
+
+        # Base64 fragments embedded in otherwise normal text
+        for fragment in re.findall(r"[A-Za-z0-9+/]{16,}={0,2}", prompt):
+            try:
+                padded = fragment + "=" * (-len(fragment) % 4)
+                frag_decoded = base64.b64decode(padded).decode("utf-8")
+            except Exception:
+                continue
+            if len(frag_decoded) > 5 and frag_decoded.isprintable():
+                decoded += " " + frag_decoded
+
         return decoded
 
     def _check_language_allowlist(self, prompt: str, session_id: str, path: str) -> Optional[Response]:
@@ -1794,9 +1827,16 @@ class GuardianProxy:
                 self.brain.analyze_request(session_id, prompt, blocked=True)
                 return memory_resp
             self.brain.bind_session_identity(session_id, self._get_bearer_token())
+            credential_id = self._get_credential_id()
+            credential_blocked = bool(credential_id) and (
+                self.brain.should_revoke_session(credential_id)
+                or self.cost_abuse.is_quarantined(credential_id)[0]
+            )
             pre_action = self.brain.session_action(session_id)
-            if pre_action == "revoke" or self.brain.should_revoke_session(session_id):
+            if credential_blocked or pre_action == "revoke" or self.brain.should_revoke_session(session_id):
                 self.brain.enforce_revocation(session_id, reason="pre_request_gate")
+                if credential_id:
+                    self.brain.enforce_revocation(credential_id, reason="pre_request_gate")
                 self._report_event("session_revoked", "HIGH", {
                     "session_id": session_id,
                     "reason": "Blue Team adaptive revoke threshold exceeded.",
@@ -1931,6 +1971,8 @@ class GuardianProxy:
                 action = assessment.get("action", "allow")
                 if action == "revoke":
                     self.brain.enforce_revocation(session_id, reason="post_analysis_gate")
+                    if credential_id:
+                        self.brain.enforce_revocation(credential_id, reason="post_analysis_gate")
                     self._report_event("session_revoked", "HIGH", {
                         "session_id": session_id,
                         "reason": "Blue Team adaptive revoke threshold exceeded.",
@@ -2015,7 +2057,7 @@ class GuardianProxy:
                     accumulated_content = ""
                     margin = 2048
                     content_regex = re.compile(r'"content"\s*:\s*"((?:[^"\\]|\\.)*)"')
-                    for chunk in resp.iter_content(chunk_size=1, decode_unicode=True):
+                    for chunk in resp.iter_content(chunk_size=512, decode_unicode=True):
                         if chunk:
                             window += chunk
                             if self.config.get('security_policies', {}).get('validate_output'):

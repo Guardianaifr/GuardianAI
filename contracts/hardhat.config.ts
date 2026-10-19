@@ -52,16 +52,14 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: {
-      monad_testnet: process.env.MONADSCAN_API_KEY || "",
-      mainnet: process.env.ETHERSCAN_API_KEY || "",
-    },
+    // Etherscan v2: one etherscan.io key for every chain, chain picked by chainid.
+    apiKey: process.env.MONADSCAN_API_KEY || process.env.ETHERSCAN_API_KEY || "",
     customChains: [
       {
         network: "monad_testnet",
         chainId: 10143,
         urls: {
-          apiURL: "https://testnet.monadscan.com/api",
+          apiURL: "https://api.etherscan.io/v2/api?chainid=10143",
           browserURL: "https://testnet.monadscan.com",
         },
       },

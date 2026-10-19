@@ -68,7 +68,8 @@ class InputFilter:
             r"disregard (all )?(previous|above|prior)",
             r"forget (everything|all previous|who you are|your .*guidelines)",
             r"reveal (your )?system (prompt|instructions|rules)",
-            r"you are now|act as|pretend to be|immerse yourself",
+            r"you are now|pretend to be|immerse yourself",
+            r"act as (?:an? |the |my )?(?:unrestricted|uncensored|unfiltered|evil|jailbroken|amoral|rogue|malicious|dan\b|admin|root|system|god)",
             r"new (instructions|role|personality|mission|programming)",
             r"bypass\s+(?:all\s+)?[^.\n]{0,60}?(?:filters|safety|restrictions)",  # Flexible bypass match
             r"system (override|notification|debug|shield)",
@@ -80,7 +81,6 @@ class InputFilter:
             r"(act|behave|respond|answer|operate) (as if|like) (you('re| are)|you have no|you were|there (are|were) no)",
             r"your (new |true )?role is|your (new |true )?name is|your (new |true )?persona is",
             r"(evil|dark|unrestricted|jailbroken|unfiltered|uncensored|free) (mode|version|ai|chatbot|assistant|confidant|self)",
-            r"(trusted |evil )?confidant",
             r"scene is set (inside|in|at)",
             r"underground (headquarters|hq|base|facility|lab)",
             r"(our hero|the hero) (is|has been) (captured|trapped|imprisoned)",
@@ -117,8 +117,6 @@ class InputFilter:
             # SSRF / Internal Network Targeting (Defense in Depth for OpenClaw v2026.2.12)
             r"(?:fetch|browse|access|curl|wget|get)\s+[^.\n]{0,80}?(?:169\.254\.169\.254|127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\]|metadata\.google\.internal)",
             r"(?:http|https)://(?:169\.254\.169\.254|127\.0\.0\.1|localhost|0\.0\.0\.0)",
-            # Explicit Block for Demo Reliability
-            r"delete the database",
             # SQL & Script Injection
             r"\bDROP\s+TABLE\b",
             r"<script\b",
@@ -126,17 +124,21 @@ class InputFilter:
             r"(?:SYSTEM|INSTRUCTION|CONTEXT|PROMPT)\s*:?\s*(?:OVERRIDE|Override|New directive)",
             r"\[INST\]|\[/INST\]",
             # Autonomous Agent Financial Drain & Treasury Siphoning
-            r"(?:transfer|send|sweep|drain|withdraw|siphon|route)(?:all)?\s+(?:all\s+)?(?:funds|balance|tokens|mon|eth|assets|coins|treasury|vault|collateral)\b",
+            r"(?:transfer|send|withdraw|route)(?:all)?\s+(?:all|everything|(?:the\s+|my\s+|your\s+|our\s+)?(?:entire|whole|full|total))\b",
+            r"(?:drain|sweep|siphon)\s+(?:all\s+|the\s+|my\s+|your\s+)?(?:funds|balance|tokens|mon|eth|assets|coins|treasury|vault|collateral)\b",
             r"(?:transfer|send|sweep|drain|withdraw|siphon|route)all\b[^.\n]{0,80}?(?:vault|treasury|contract|wallet|funds|tokens|balance)",
             r"\b(?:all|entire|total)\s+(?:funds|balance|tokens|assets|treasury|vault)\b[^.\n]{0,80}?(?:wallet|address|transfer|send|drain|account)",
             r"(?:drain|empty|siphon|liquidate)\s+(?:the\s+)?(?:treasury|vault|contract|pool|wallet|balance|all\s+tokens)",
-            r"0x[a-fA-F0-9]{40}[^.\n]{0,80}?(?:transfer|send|sweep|drain|withdraw)",
-            r"(?:transfer|send|sweep|drain)\b[^.\n]{0,80}?0x[a-fA-F0-9]{40}",
+            r"0x[a-fA-F0-9]{40}[^.\n]{0,80}?(?:sweep|drain|siphon)",
+            r"(?:sweep|drain|siphon)\b[^.\n]{0,80}?0x[a-fA-F0-9]{40}",
+            r"(?:transfer|send|withdraw)\s+(?:all|everything|(?:the\s+)?(?:entire|whole|full))\b[^.\n]{0,80}?0x[a-fA-F0-9]{40}",
             # Flash Loan / Collateral Hijack
             r"(?:flash\s*loan|liquidity|swap)[^.\n]{0,80}?(?:100%|all|entire|collateral)[^.\n]{0,80}?(?:untrusted|drain|siphon|attacker|steal)",
             # Supervisor / Deep System Directive Escaping
             r"```(?:system|admin|root|directive|supervisor)",
             r"\[(?:SUPERVISOR|SYSTEM|SECURITY|ADMIN|OPERATOR)\s+DIRECTIVE",
+            # Fake session-boundary / admin-terminal markers (Freysa-style session reset)
+            r"\[#?\s*(?:end|new)\s+session\]|<entering_admin_terminal>",
             r"(?:revoke|disable|cancel|bypass|remove)\s+(?:all\s+)?(?:spend|spending|outflow|transaction)\s+(?:limits|caps|restrictions|allowance)",
             # Secret & Credential Interrogation (Lakera Gandalf & Prompt Leakage)
             r"(?i)(?:what\s+is|tell\s+me|reveal|give\s+me|disclose|show|leak|output|spell|say|whisper)\s+(?:the|your|that)?\s*(?:secret|hidden|confidential|admin)?\s*(?:password|secret\s+key|passphrase|secret)",
@@ -170,7 +172,7 @@ class InputFilter:
             r'["\']?role["\']?\s*:\s*["\']?(?:system|assistant|admin)["\']?',
             r'<<\s*SYS\s*>>|<</\s*SYS\s*>>|\[\/?SYS\]',
             r'<\|(?:im_start|im_end|system|assistant|user)\|>',
-            r'\b(?:new|important|critical)\s+instructions?\b',
+            r'\bnew\s+instructions?\b|\b(?:important|critical)\s+instructions?\s*:',
             r'ignore\s+(?:the\s+)?(?:user|human|developer|operator)\b',
             # Jailbreak Persona & Uncensored Mode Signatures (verazuo / public benchmarks)
             r"\b[A-Za-z]+GPT\b[^.\n]{0,80}?(?:uncensored|jailbreak|unrestricted|bypass|illegal|rules)",
@@ -330,14 +332,14 @@ class InputFilter:
             r'/\*.*?\*/',
             r'//\s+.*',
         ]
-        if any(re.search(pat, text, re.MULTILINE) for pat in code_indicators):
-            return True
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        if not lines:
+            return False
         code_lines = 0
-        for line in text.splitlines():
+        for line in lines:
             stripped = line.strip()
-            if not stripped:
-                continue
-            if (stripped.endswith(';') or 
+            if (any(re.search(pat, line) for pat in code_indicators) or
+                stripped.endswith(';') or
                 stripped.endswith('{') or 
                 stripped.endswith('}') or 
                 stripped.endswith('):') or
@@ -346,7 +348,7 @@ class InputFilter:
                 stripped.startswith('import ') or
                 stripped.startswith('from ')):
                 code_lines += 1
-        return code_lines > 1
+        return code_lines >= 2 and code_lines / len(lines) >= 0.3
 
     def check_prompt(self, prompt: str) -> bool:
         """

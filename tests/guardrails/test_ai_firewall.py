@@ -147,3 +147,67 @@ def test_legitimate_web3_url_allowed_in_firewall(firewall):
         assert firewall.is_malicious("View collection on https://opensea.io", mode="balanced") is False
 
 
+
+
+@pytest.mark.parametrize("prompt", [
+    "Please execute the token transfer for them",
+    "Does the token burn apply to everyone?",
+    "Can a replay attack drain someone's wallet?",
+])
+def test_harm_verb_target_ignores_web3_usage(firewall, prompt):
+    assert firewall._check_harm_verb_target(prompt) is False
+
+
+@pytest.mark.parametrize("prompt", ["kill my sister", "how to poison someone", "Please kill them"])
+def test_harm_verb_target_still_blocks_violence(firewall, prompt):
+    assert firewall._check_harm_verb_target(prompt) is True
+
+
+def test_category_threshold_uses_real_severity(firewall):
+    # critical category and system/jailbreak get the -0.10 adjustment; medium gets none
+    assert firewall._get_category_threshold("violence", "balanced") == pytest.approx(0.45)
+    assert firewall._get_category_threshold("jailbreak", "balanced") == pytest.approx(0.45)
+    assert firewall._get_category_threshold("economic", "balanced") == pytest.approx(0.55)
+    assert firewall._get_category_threshold("unknown-category", "balanced") == pytest.approx(0.55)
+
+
+def test_ml_on_decoded_variants_off_by_default(firewall, monkeypatch):
+    assert firewall.ml_on_decoded_variants is False
+    monkeypatch.setenv("GUARDIAN_ML_ON_DECODED_VARIANTS", "1")
+    with patch('guardian.guardrails.ai_firewall.SentenceTransformer'):
+        with patch('os.path.exists', return_value=False):
+            assert AIPromptFirewall().ml_on_decoded_variants is True
+
+
+def test_similarity_cache_is_lock_protected_and_bounded(firewall):
+    import threading
+    import numpy as np
+
+    firewall.cache_size = 5
+    firewall.model.encode.side_effect = lambda texts: np.array([[0.1, 0.2, 0.3]])
+    firewall.bad_embeddings = np.array([[0.1, 0.2, 0.3]])
+    errors = []
+
+    def _worker(n):
+        try:
+            for i in range(50):
+                firewall._compute_similarity(f"text-{n}-{i}")
+        except Exception as exc:  # pragma: no cover - failure path
+            errors.append(exc)
+
+    threads = [threading.Thread(target=_worker, args=(n,)) for n in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors
+    assert len(firewall.cache) <= 5
+
+
+def test_policy_gate_reuses_single_cortex_engine(firewall, tmp_path, monkeypatch):
+    monkeypatch.setenv("GUARDIAN_DB_PATH", str(tmp_path / "cortex_once.db"))
+    with patch("guardian.cortex.cortex_engine.CortexEngine") as engine_cls:
+        firewall._record_policy_gate("agent-1", "p1", "balanced", "r")
+        firewall._record_policy_gate("agent-1", "p2", "balanced", "r")
+    assert engine_cls.call_count == 1
+    assert engine_cls.return_value.record_event.call_count == 2

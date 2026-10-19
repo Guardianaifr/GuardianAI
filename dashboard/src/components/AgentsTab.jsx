@@ -152,7 +152,7 @@ export function AgentsTab({
         isSimulated: true,
         details: {
           agent: "0x742d...f44e",
-          target: "0x90Fd...EF60 (PolicyGuard)",
+          target: "0xa0ae...bB7d (PolicyGuard)",
           reason: "Prompt injection contained: 50.0 MON drain rejected on Monad Testnet",
           riskScore: 96,
           status: "BLOCKED"
@@ -205,7 +205,7 @@ export function AgentsTab({
       isSimulated: true,
       details: {
         agent: "0x742d...f44e",
-        target: "0x90Fd...EF60 (PolicyGuard)",
+        target: "0xa0ae...bB7d (PolicyGuard)",
         riskScore: 6,
         status: "EXECUTED",
         tx: null
@@ -343,8 +343,8 @@ export function AgentsTab({
           isBlocked: false,
           isSimulated: true,
           details: {
-            agent: "0xDA5f...2Cff",
-            target: "0xDA5f...2Cff (PassportRegistry)",
+            agent: "0xb2a8...3566",
+            target: "0xb2a8...3566 (PassportRegistry)",
             reason: "No active passport for test ID revoked-agent-01",
             riskScore: null,
             status: "INACTIVE"
@@ -358,7 +358,7 @@ export function AgentsTab({
           isBlocked: false,
           isSimulated: true,
           details: {
-            agent: "0xDA5f...2Cff",
+            agent: "0xb2a8...3566",
             status: "UNKNOWN",
             reason: result.message
           }
@@ -385,7 +385,7 @@ export function AgentsTab({
         isBlocked: false,
         isSimulated: true,
         details: {
-          agent: "0xDA5f...2Cff",
+          agent: "0xb2a8...3566",
           status: "UNKNOWN",
           reason: errMsg
         }
@@ -428,8 +428,8 @@ export function AgentsTab({
           isBlocked: false,
           isSimulated: true,
           details: {
-            agent: "0xDA5f...2Cff",
-            target: "0xDA5f...2Cff (PassportRegistry)",
+            agent: "0xb2a8...3566",
+            target: "0xb2a8...3566 (PassportRegistry)",
             riskScore: 2,
             status: "EXECUTED"
           }
@@ -442,7 +442,7 @@ export function AgentsTab({
           isBlocked: false,
           isSimulated: true,
           details: {
-            agent: "0xDA5f...2Cff",
+            agent: "0xb2a8...3566",
             status: "UNKNOWN",
             reason: result.message
           }
@@ -761,7 +761,7 @@ console.log('Status: ' + (isActive ? 'ACTIVE' : 'REVOKED') + ', Score: ' + (pass
                   <span className="text-slate-500">// 2. Import cryptographic guardrails</span>{'\n'}
                   <span className="text-purple-400">import</span> {'{ withGuardianSecurity }'} <span className="text-purple-400">from</span> <span className="text-amber-300">'@guardianai/middleware'</span>;{'\n\n'}
                   <span className="text-slate-500">// 3. Wrap your agent runtime with on-chain policy enforcement</span>{'\n'}
-                  <span className="text-purple-400">const</span> guardedAgent = <span className="text-blue-400">withGuardianSecurity</span>(runtime, {'{'} chainId: <span className="text-amber-300">10143</span>, policyGuard: <span className="text-amber-300">'0x90Fd...EF60'</span> {'}'});
+                  <span className="text-purple-400">const</span> guardedAgent = <span className="text-blue-400">withGuardianSecurity</span>(runtime, {'{'} chainId: <span className="text-amber-300">10143</span>, policyGuard: <span className="text-amber-300">'0xa0ae...bB7d'</span> {'}'});
                 </pre>
               </div>
 
@@ -1355,7 +1355,7 @@ console.log('Status: ' + (isActive ? 'ACTIVE' : 'REVOKED') + ', Score: ' + (pass
                           rel="noreferrer"
                           className="text-blue-300 font-semibold hover:underline flex items-center gap-1"
                         >
-                          0xDA5f...2Cff
+                          0xb2a8...3566
                           <ExternalLink className="h-2.5 w-2.5" />
                         </a>
                       </div>

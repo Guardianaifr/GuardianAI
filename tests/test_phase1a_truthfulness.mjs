@@ -635,7 +635,7 @@ describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
       const events = [
         {
           event_type: "ON-CHAIN ACTION",
-          details: { target: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60", riskScore: 5 },
+          details: { target: "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d", riskScore: 5 },
           severity: "INFO",
           isBlocked: false
         }
@@ -858,8 +858,8 @@ describe('Phase 1a Truthfulness Unit Tests (Real Shared Modules)', () => {
         "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
         "0x1142f8c90Ab361B8c764b85994FCda30089eC890",
         "0x51b981E8fc89011424e650A1E704b1EC4dF7166e",
-        "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
-        "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
+        "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
+        "0xb2a8FeF3591efbd385778906207A054af0Ca3566",
         "0x9999120485f8064FF369dCDe4bA4eC1101f08E00",
         "0x0000000000000000000000000000000000000100"
       ];

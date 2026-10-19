@@ -1,8 +1,7 @@
 {
-  "GuardianPassportIssuer": "0x09AAc2dA0A263323585620A55fcCDb89dea960a6",
-  "passport": "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
-  "factory": "0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6",
+  "GuardianPassportIssuer": "0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1",
+  "passport": "0xb2a8FeF3591efbd385778906207A054af0Ca3566",
+  "factory": "0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03",
   "claimCap": "200",
-  "deployTx": "0x232239feca3ce14ff30635e5f4ba99d18a3d70c09826ddf064d1c948b4eb548b",
-  "at": "2026-10-11T08:49:18.932Z"
+  "at": "2026-10-19T07:26:05.738Z"
 }

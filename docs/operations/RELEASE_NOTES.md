@@ -4,6 +4,22 @@
 
 GuardianAI v1.0 is a production-ready security layer designed to protect LLM applications from Prompt Injection, PII Leaks, and unauthorized access. It operates on the philosophy of **"Protecting the AI from Blabbing, not the Database from Leaking."**
 
+## GuardianAI v1.3.1 On-Chain Caps, Allowlist and Redeploy (October 19, 2026)
+
+`GuardianAgentWallet` now enforces a daily native outflow cap, per-token daily caps and an optional target/selector allowlist on-chain (owner-configured). `GuardianPolicyGuard` rejects EOA targets when calldata is present and `GuardianPassportSBT` exposes `revokedTokenOf`. The contracts were redeployed to Monad Testnet (10143); the old contracts are left running and untouched.
+
+| Contract | Old address | New address |
+|---|---|---|
+| GuardianPassportSBT | `0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff` | `0xb2a8FeF3591efbd385778906207A054af0Ca3566` |
+| GuardianPolicyGuard | `0x90Fdc8E1e5C951701eCd84677038B38560CdEF60` | `0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d` |
+| GuardianAgentWalletFactory | `0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6` | `0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03` |
+| GuardianAgentWallet (Privy agent) | `0xCCb137694f2910c8Ec4883d108c989648019D335` | `0x356EfbC397B104F90795E89F0b755aa5AE4967DD` |
+| GuardianPassportIssuer | `0x09AAc2dA0A263323585620A55fcCDb89dea960a6` | `0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1` |
+
+The threat oracle (`0x26144375c4f846174A386C464aC5F2e671EbdA95`) and the other suite contracts are unchanged. The new wallet has a 1 MON native daily cap. Indexer: PolicyGuard and Factory list both generations, the SBT is the new address only. Existing ID cards on the old SBT are not migrated.
+
+---
+
 ## 🧱 GuardianAI v1.3.0 On-Chain Enforcement & Live Integrations (October 2026)
 
 Built for the Monad Metropolis hackathon (Track 04). Details, transactions and limitations: `metropolis/README.md`.

@@ -1,10 +1,10 @@
 {
   "name": "GuardianPolicyGuard",
-  "address": "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+  "address": "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
   "network": "monad_testnet",
   "chainId": 10143,
   "deployer": "0x1D4549B95dccAC8203393543187b25B3137D0bf6",
-  "deployedAt": "2026-09-28T16:06:40.001Z",
+  "deployedAt": "2026-10-19",
   "abi": [
     {
       "inputs": [

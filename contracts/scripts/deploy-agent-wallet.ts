@@ -3,7 +3,8 @@
  *   1. GuardianThreatOracle  (Chainlink CRE receiver; forwarder = CRE_FORWARDER or the simulation MockKeystoneForwarder)
  *   2. GuardianAgentWalletFactory (guardianSigner = GUARDIAN_ATTESTATION_SIGNER, passport = PassportSBT)
  *   3. a GuardianAgentWallet for the Privy agent (operator = Privy wallet, owner = deployer), wired to the oracle
- *   4. funds the wallet with AGENT_WALLET_FUND_MON (default 0.2) MON
+ *   4. optionally sets on-chain caps: AGENT_WALLET_DAILY_LIMIT_MON (native), AGENT_WALLET_TOKEN + AGENT_WALLET_TOKEN_DAILY_LIMIT (raw units)
+ *   5. funds the wallet with AGENT_WALLET_FUND_MON (default 0.2) MON
  * Results are merged into metropolis/deployments-monad.json.
  *
  *   node node_modules/hardhat/internal/cli/bootstrap.js run scripts/deploy-agent-wallet.ts --network monad_testnet
@@ -45,7 +46,7 @@ async function main() {
     const f = await (await ethers.getContractFactory("GuardianAgentWalletFactory")).deploy(signer, passport);
     await f.waitForDeployment();
     factoryAddr = await f.getAddress();
-    console.log(`GuardianAgentWalletFactory ${factoryAddr}`);
+    console.log(`GuardianAgentWalletFactory ${factoryAddr}  tx ${f.deploymentTransaction()?.hash}`);
   }
   const factory = await ethers.getContractAt("GuardianAgentWalletFactory", factoryAddr);
 
@@ -60,6 +61,23 @@ async function main() {
   if ((await wallet.threatOracle()) !== oracleAddr) {
     await (await wallet.setThreatOracle(oracleAddr)).wait();
     console.log(`wallet.setThreatOracle(${oracleAddr})`);
+  }
+  // On-chain spend caps (owner-configured). Native cap per UTC day; optional USDC-style token cap.
+  const dailyMon = process.env.AGENT_WALLET_DAILY_LIMIT_MON;
+  if (dailyMon) {
+    const lim = ethers.parseEther(dailyMon);
+    if ((await wallet.dailyOutflowLimit()) !== lim) {
+      const tx = await wallet.setDailyOutflowLimit(lim);
+      await tx.wait();
+      console.log(`wallet.setDailyOutflowLimit(${dailyMon} MON)  tx ${tx.hash}`);
+    }
+  }
+  const tokenAddr = process.env.AGENT_WALLET_TOKEN;
+  const tokenLimit = process.env.AGENT_WALLET_TOKEN_DAILY_LIMIT; // raw token units
+  if (tokenAddr && tokenLimit) {
+    const tx = await wallet.setTokenDailyLimit(tokenAddr, BigInt(tokenLimit));
+    await tx.wait();
+    console.log(`wallet.setTokenDailyLimit(${tokenAddr}, ${tokenLimit})  tx ${tx.hash}`);
   }
   const fund = ethers.parseEther(process.env.AGENT_WALLET_FUND_MON || "0.2");
   if ((await ethers.provider.getBalance(walletAddr)) < fund) {

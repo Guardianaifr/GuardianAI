@@ -92,7 +92,6 @@ indexer.onEvent({ contract: "GuardianPassportSBT", event: "ScoreUpdated" }, asyn
 
 // Passport issuance emits only Transfer + Locked (no agent hash, score or tier), so read the
 // passport struct on-chain at the mint block. Cached, so re-syncs do not repeat the RPC call.
-const PASSPORT_SBT = "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff";
 const PASSPORTS_SELECTOR = "0xcb22f5fd"; // passports(uint256)
 const RPC_URL = (globalThis as any).process?.env?.ENVIO_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -100,7 +99,7 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const readPassport = createEffect(
   {
     name: "readPassport",
-    input: { tokenId: S.string, blockNumber: S.number },
+    input: { contract: S.string, tokenId: S.string, blockNumber: S.number },
     output: { agentHash: S.string, tier: S.number, score: S.string },
     rateLimit: { calls: 10, per: "second" },
     cache: true,
@@ -115,7 +114,7 @@ const readPassport = createEffect(
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             jsonrpc: "2.0", id: 1, method: "eth_call",
-            params: [{ to: PASSPORT_SBT, data }, "0x" + input.blockNumber.toString(16)],
+            params: [{ to: input.contract, data }, "0x" + input.blockNumber.toString(16)],
           }),
         });
         const json: any = await res.json();
@@ -138,7 +137,7 @@ indexer.onEvent({ contract: "GuardianPassportSBT", event: "Transfer" }, async ({
   const db = H.createInMemoryDb();
   await loadGlobal(context, db);
   await loadInto(context.PassportRecord, db.passportRecords, tokenId);
-  const p = await context.effect(readPassport, { tokenId, blockNumber: event.block.number });
+  const p = await context.effect(readPassport, { contract: event.srcAddress, tokenId, blockNumber: event.block.number });
   context.PassportRecord.set(passport(H.handlePassportMinted(event, { ...p, score: BigInt(p.score) }, db)));
   saveGlobal(context, db);
 });

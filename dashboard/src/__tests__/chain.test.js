@@ -108,7 +108,7 @@ describe('chain.js against real Monad replies', () => {
     expect(Number(att.riskScore)).toBe(5)
     expect((sig.length - 2) / 2).toBe(65)
     const recovered = verifyTypedData(
-      { name: 'GuardianPolicyGuard', version: '1', chainId: 10143, verifyingContract: '0x90Fdc8E1e5C951701eCd84677038B38560CdEF60' },
+      { name: 'GuardianPolicyGuard', version: '1', chainId: 10143, verifyingContract: '0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d' },
       { SafetyAttestation: [
         { name: 'agentId', type: 'bytes32' }, { name: 'targetContract', type: 'address' }, { name: 'calldataHash', type: 'bytes32' },
         { name: 'value', type: 'uint256' }, { name: 'riskScore', type: 'uint8' }, { name: 'nonce', type: 'uint256' }, { name: 'deadline', type: 'uint256' },

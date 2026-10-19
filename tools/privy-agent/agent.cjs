@@ -52,8 +52,8 @@ const {
 const { guardianAgentPolicy } = require('./policy.cjs');
 
 const CHAIN_ID = 10143;
-const POLICY_GUARD = '0x90Fdc8E1e5C951701eCd84677038B38560CdEF60';
-const PASSPORT = '0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff';
+const POLICY_GUARD = '0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d';
+const PASSPORT = '0xb2a8FeF3591efbd385778906207A054af0Ca3566';
 const USDC = '0x534b2f3A21130d7a60830c2Df862319e593943A3';
 const RPC = process.env.MONAD_TESTNET_RPC || 'https://testnet-rpc.monad.xyz';
 const RELAY = (process.env.GUARDIAN_RELAY_URL || 'http://127.0.0.1:8546').replace(/\/$/, '');

@@ -1,10 +1,10 @@
 {
   "name": "GuardianPassportSBT",
-  "address": "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff",
+  "address": "0xb2a8FeF3591efbd385778906207A054af0Ca3566",
   "network": "monad_testnet",
   "chainId": 10143,
   "deployer": "0x1D4549B95dccAC8203393543187b25B3137D0bf6",
-  "deployedAt": "2026-09-28T16:06:39.998Z",
+  "deployedAt": "2026-10-19",
   "abi": [
     {
       "inputs": [],
@@ -843,6 +843,25 @@
       "name": "revoke",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "revokedTokenOf",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {

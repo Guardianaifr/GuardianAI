@@ -5,7 +5,7 @@
  * and Policy Guard transaction wrapping for AI agents on Monad Testnet (10143).
  */
 
-export const DEFAULT_MONAD_POLICY_GUARD = "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60";
+export const DEFAULT_MONAD_POLICY_GUARD = "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d";
 export const DEFAULT_MONAD_CHAIN_ID = 10143;
 export const POLICY_GUARD_SELECTOR = "0x3cb7461c";
 

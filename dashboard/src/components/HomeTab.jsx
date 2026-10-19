@@ -250,7 +250,7 @@ export function HomeTab({
                       rel="noreferrer"
                       className="text-foreground hover:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
                     >
-                      0x90Fd...EF60 (Approved)
+                      0xa0ae...bB7d (Approved)
                       <ExternalLink className="h-2.5 w-2.5 inline" />
                     </a>
                   ) : (

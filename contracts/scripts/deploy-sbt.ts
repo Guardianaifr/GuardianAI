@@ -10,7 +10,7 @@ async function main() {
   await passport.waitForDeployment();
 
   const address = await passport.getAddress();
-  console.log("GuardianPassportSBT deployed to:", address);
+  console.log("GuardianPassportSBT deployed to:", address, "tx", passport.deploymentTransaction()?.hash);
   console.log("");
   console.log("Add to your .env:");
   console.log(`GUARDIAN_SBT_CONTRACT_MONAD=${address}`);

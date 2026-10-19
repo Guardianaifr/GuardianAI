@@ -12,13 +12,13 @@ export const RPC_URL = import.meta.env.VITE_MONAD_RPC_URL || 'https://testnet-rp
 export const EXPLORER = 'https://testnet.monadscan.com'
 
 export const CONTRACTS = {
-  policyGuard: { name: 'GuardianPolicyGuard', label: 'Payment guard', address: '0x90Fdc8E1e5C951701eCd84677038B38560CdEF60' },
-  passport: { name: 'GuardianPassportSBT', label: 'Agent ID cards', address: '0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff' },
+  policyGuard: { name: 'GuardianPolicyGuard', label: 'Payment guard', address: '0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d' },
+  passport: { name: 'GuardianPassportSBT', label: 'Agent ID cards', address: '0xb2a8FeF3591efbd385778906207A054af0Ca3566' },
   threatFeed: { name: 'GuardianThreatFeedRegistry', label: 'Scam address list', address: '0x576CC248D8c406ac302b74e7BFd571E9F989f467' },
-  agentWallet: { name: 'GuardianAgentWallet', label: 'Agent wallet (Privy agent)', address: '0xCCb137694f2910c8Ec4883d108c989648019D335' },
-  walletFactory: { name: 'GuardianAgentWalletFactory', label: 'Agent wallet factory', address: '0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6' },
+  agentWallet: { name: 'GuardianAgentWallet', label: 'Agent wallet (Privy agent)', address: '0x356EfbC397B104F90795E89F0b755aa5AE4967DD' },
+  walletFactory: { name: 'GuardianAgentWalletFactory', label: 'Agent wallet factory', address: '0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03' },
   threatOracle: { name: 'GuardianThreatOracle', label: 'Chainlink CRE threat oracle', address: '0x26144375c4f846174A386C464aC5F2e671EbdA95' },
-  passportIssuer: { name: 'GuardianPassportIssuer', label: 'Agent ID card issuer', address: '0x09AAc2dA0A263323585620A55fcCDb89dea960a6' },
+  passportIssuer: { name: 'GuardianPassportIssuer', label: 'Agent ID card issuer', address: '0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1' },
 }
 
 // Enforcement on GuardianAgentWallet (metropolis/README.md §4.D and §5). Status checked on MonadScan.
@@ -332,8 +332,8 @@ export function explainRefusal(errorName, args = []) {
 
 /** Every contract in contracts/deployments/monad_testnet_10143/deployment-summary.json. */
 export const ALL_CONTRACTS = [
-  { name: 'GuardianPolicyGuard', role: 'Checks GuardianAI’s signed approval before any agent payment runs', address: '0x90Fdc8E1e5C951701eCd84677038B38560CdEF60' },
-  { name: 'GuardianPassportSBT', role: 'Agent ID cards that can’t be transferred, and can be revoked', address: '0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff' },
+  { name: 'GuardianPolicyGuard', role: 'Checks GuardianAI’s signed approval before any agent payment runs', address: '0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d' },
+  { name: 'GuardianPassportSBT', role: 'Agent ID cards that can’t be transferred, and can be revoked', address: '0xb2a8FeF3591efbd385778906207A054af0Ca3566' },
   { name: 'IdentityRegistryTestnet', role: 'ERC-8004 agent identity registry', address: '0xda5dA75777d30d6d7586b97965dD906AD032E3ff' },
   { name: 'GuardianThreatFeedRegistry', role: 'On-chain list of known scam wallets', address: '0x576CC248D8c406ac302b74e7BFd571E9F989f467' },
   { name: 'GuardianRiskAttestation', role: 'Publishes risk scores for smart contracts', address: '0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87' },
@@ -341,10 +341,10 @@ export const ALL_CONTRACTS = [
   { name: 'GuardianInterlockRegistry', role: 'Lets two agents mutually authorize each other', address: '0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d' },
   { name: 'GuardianInsuranceLedger', role: 'Records protection certificates on-chain', address: '0x671F73068BF55a30299719D76db0d3031A64Bb22' },
   { name: 'GuardianTimelock', role: 'Timelock controller for delayed admin changes', address: '0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc' },
-  { name: 'GuardianAgentWallet', role: 'The Privy agent’s funds: every call needs the agent’s key AND a GuardianAI signature', address: '0xCCb137694f2910c8Ec4883d108c989648019D335' },
-  { name: 'GuardianAgentWalletFactory', role: 'Creates one GuardianAgentWallet per agent', address: '0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6' },
+  { name: 'GuardianAgentWallet', role: 'The Privy agent’s funds: every call needs the agent’s key AND a GuardianAI signature', address: '0x356EfbC397B104F90795E89F0b755aa5AE4967DD' },
+  { name: 'GuardianAgentWalletFactory', role: 'Creates one GuardianAgentWallet per agent', address: '0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03' },
   { name: 'GuardianThreatOracle', role: 'Chainlink CRE receiver: scam list agreed by the DON, written only by the Chainlink forwarder', address: '0x26144375c4f846174A386C464aC5F2e671EbdA95' },
-  { name: 'GuardianPassportIssuer', role: 'Owns the ID cards: wallet owners claim one entry-level card for their own agent; GuardianAI can revoke', address: '0x09AAc2dA0A263323585620A55fcCDb89dea960a6' },
+  { name: 'GuardianPassportIssuer', role: 'Owns the ID cards: wallet owners claim one entry-level card for their own agent; GuardianAI can revoke', address: '0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1' },
 ]
 
 /** Asks the chain whether code exists at each address. Returns { [address]: bytecodeBytes }. */

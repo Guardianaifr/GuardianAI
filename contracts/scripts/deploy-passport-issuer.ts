@@ -15,8 +15,8 @@ import { ethers, network } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 
-export const SBT = "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff";
-export const FACTORY = "0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6";
+export const SBT = "0xb2a8FeF3591efbd385778906207A054af0Ca3566";
+export const FACTORY = "0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03";
 
 export async function handOff(deployer: any, opts: { issuer?: string; cap: bigint; confirm: boolean; log?: (s: string) => void }) {
   const log = opts.log ?? console.log;

@@ -47,9 +47,9 @@ from guardian.web3sec.tx_analyzer import TransactionAnalyzer
 MONAD_RPC_URL = os.getenv("MONAD_TESTNET_RPC") or os.getenv("MONAD_RPC_URL") or "https://testnet-rpc.monad.xyz"
 DEPLOYER_KEY = os.getenv("GUARDIAN_DEPLOYER_PRIVATE_KEY") or os.getenv("GUARDIAN_ERC8004_REGISTRAR_KEY")
 
-POLICY_GUARD_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD") or "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60")
+POLICY_GUARD_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_POLICY_GUARD_CONTRACT_MONAD") or "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d")
 THREAT_FEED_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_THREATFEED_CONTRACT_MONAD") or "0x576CC248D8c406ac302b74e7BFd571E9F989f467")
-PASSPORT_SBT_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_SBT_CONTRACT_MONAD") or "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff")
+PASSPORT_SBT_ADDR = Web3.to_checksum_address(os.getenv("GUARDIAN_SBT_CONTRACT_MONAD") or "0xb2a8FeF3591efbd385778906207A054af0Ca3566")
 
 w3 = Web3(Web3.HTTPProvider(MONAD_RPC_URL))
 deployer_account = Account.from_key(DEPLOYER_KEY)

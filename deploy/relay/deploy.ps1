@@ -101,7 +101,7 @@ foreach ($f in @("agent_passkey_identities.json", "threat_oracle_feed.json")) {
 $envVars = @(
     "GUARDIAN_ENV=production",
     "MONAD_TESTNET_RPC=https://testnet-rpc.monad.xyz",
-    "GUARDIAN_POLICY_GUARD_CONTRACT_MONAD=0x90Fdc8E1e5C951701eCd84677038B38560CdEF60"
+    "GUARDIAN_POLICY_GUARD_CONTRACT_MONAD=0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d"
 )
 if ($CorsOrigins) { $envVars += "GUARDIAN_CORS_ORIGINS=$CorsOrigins" }
 # "^;^" switches gcloud's list separator to ';' so a comma-separated CORS list survives.

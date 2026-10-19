@@ -129,10 +129,10 @@ async function runHardAudit() {
     monadArtifactText = JSON.stringify({
       contractName: "GuardianPolicyGuard",
       chainId: 10143,
-      verifyingContract: "0x90Fdc8E1e5C951701eCd84677038B38560CdEF60",
+      verifyingContract: "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
       domainSeparator: "0x98b89a80e6089d71c1bb8b6f3c05cbf5d09ec77558aa5cf6493b8e788ad786f7",
       invariants: ["NoDelegateCall", "OutflowCap", "SelectorWhitelist"],
-      sampleCalldata: "0x78a6311800000000000000000000000090fdc8e1e5c951701ecd84677038b38560cdef60"
+      sampleCalldata: "0x78a63118000000000000000000000000a0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d"
     });
     console.log(`  ${COLORS.green}✔ Corpus 4: Monad EIP-712 Typed Data Telemetry — ${monadArtifactText.length} bytes loaded${COLORS.reset}`);
   }

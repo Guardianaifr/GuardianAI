@@ -41,8 +41,8 @@ Autonomous AI agents are increasingly entrusted with private keys, smart contrac
 
 ### The Solution: Dual-Layer Defense
 GuardianAI enforces security at two distinct boundaries:
-1. **Edge AI Security Firewall (<5ms latency):** Intercepts prompt injections, jailbreaks, data exfiltration, and PII fishing *before* instructions reach the LLM or tool-execution layer.
-2. **Monad On-Chain Policy Guard (Parallel EVM):** Implements an on-chain execution firewall (`GuardianPolicyGuard.sol`) with **storage-slot isolation** designed for Monad's 10,000 TPS parallel throughput, enforcing cryptographic contract call allowlists (RBAC) and hard-capping 24-hour cumulative outflows.
+1. **Edge AI Security Firewall (~3 ms input filter, ~13 ms with an uncached ML check):** Intercepts prompt injections, jailbreaks, data exfiltration, and PII fishing *before* instructions reach the LLM or tool-execution layer.
+2. **Monad On-Chain Enforcement (Parallel EVM):** `GuardianPolicyGuard.sol` verifies a signed EIP-712 attestation bound to the call's value and calldata hash, uses namespaced nonces (conflict-free under Monad's parallel execution), checks the agent's passport, and checks that the target has code when calldata is sent. It does **not** enforce spend caps or allowlists. Those live in `GuardianAgentWallet.sol`: owner-configured daily native/token outflow caps and a target/selector allowlist enforced on-chain, plus the relay's per-agent rules off-chain. The demo wallet is configured with a 1 MON/day native cap.
 3. **Verifiable Agent Identity & Enclave Memory:** Uses **Category Labs Mera Passkey PRF** and canonical **ERC-8004** to mint cryptographic agent credentials and secure tamper-evident encrypted long-term memory.
 
 ---
@@ -148,7 +148,7 @@ docker compose up -d
                                                  │
                                                  ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ 1. OFF-CHAIN SECURITY FIREWALL (<5ms) — guardian/runtime/interceptor.py                              │
+│ 1. OFF-CHAIN SECURITY FIREWALL (~3 ms; ~13 ms uncached ML) — guardian/runtime/interceptor.py         │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ • Advanced De-obfuscation: Morse code, Base64, Hex, Braille Steganography, ROT13, Homoglyphs        │
 │ • Semantic Firewall: 18+ Persona/Roleplay heuristics detecting intent-level jailbreaks              │
@@ -168,13 +168,13 @@ docker compose up -d
                                          │ Signed Attestation + Calldata
                                          ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ 3. ON-CHAIN EXECUTION CONTAINMENT (MONAD) — contracts/GuardianPolicyGuard.sol                        │
+│ 3. ON-CHAIN ENFORCEMENT (MONAD) — GuardianPolicyGuard.sol + GuardianAgentWallet.sol                  │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ • Unordered Namespaced Nonces: Conflict-free parallel execution scaling up to 10,000 TPS            │
-│ • Zero-Trust Selector Allowlists: Strict RBAC restricting agent calldata to authorized targets      │
-│ • Rolling Outflow Caps: 24-hour cumulative spending budgets preventing treasury drains               │
-│ • Reentrancy & EOA Protections: Non-reentrant sweeps and contract code verification                 │
-│ • ERC-8004 Identity & SBT Passports: Non-transferable Soulbound Tokens with revocation tombstones   │
+│ • PolicyGuard: EIP-712 attestation bound to value + keccak256(calldata); namespaced nonces           │
+│ • PolicyGuard: passport check; target code check only when calldata is present                       │
+│ • AgentWallet (owner-set): daily native/token caps + target/selector allowlist, on-chain             │
+│ • Relay per-agent rules enforce the same caps off-chain; PolicyGuard enforces neither                │
+│ • ERC-8004 identity and non-transferable SBT passports with revocation tombstones                    │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -186,44 +186,46 @@ All tests across smart contracts, Python security modules, and enclave implement
 
 | Suite | Component | Command | Result |
 |---|---|---|---|
-| **Smart Contracts** | Hardhat / Solidity | `npx hardhat test` (in `contracts/`) | **271 Passing** (re-run Oct 13) |
-| **Python Security & E2E** | Core Firewall, RPC Relay, Identity | `pytest tests/` | **1,490+ Passing (100%)** |
+| **Smart Contracts** | Hardhat / Solidity | `npx hardhat test` (in `contracts/`) | **286 Passing** (re-run Oct 19) |
+| **Python Security & E2E** | Core Firewall, RPC Relay, Identity | `pytest tests/` | **1,868 Passing** (Oct 19; 1 env-only failure: `x402` package not installed locally) |
 | **Mera Core Enclave**| Vitest / WebAuthn PRF | `npm test` (in `metropolis/mera/`) | **26 / 26 Passing (100%)** |
 | **Mera Stress Audit**| SecLists, Naughty Strings, Freqtrade| `npm run test:hard` (in `metropolis/mera/`) | **166 / 166 Passing (100%)** |
-| **Envio HyperIndex** | Real-Time Contract Indexer | `npm test` (in `metropolis/indexer/`, `envio` branch) | **48 Passing** (re-run Oct 13) |
+| **Envio HyperIndex** | Real-Time Contract Indexer | `npm test` (in `metropolis/indexer/`, `envio` branch) | **48 Passing** (re-run Oct 19) |
 | **Agent Middleware** | ElizaOS & Viem SDK Decorator | `npm test` (in `packages/guardian-middleware/`)| **49 + 15 Passing** |
 | **Hosted ElizaOS agent** | LLM failover (Groq → OpenRouter free) | `npm test` (in `packages/eliza-host/`) | **10 Passing** |
 | **Website / console** | Vitest | `npm test` (in `dashboard/`) | **52 Passing** |
-| **Adversarial Exploits**| Real-world hack reproduction | `python tools/reproduce_realworld_exploits.py`| **5 / 5 Neutralized (100%)** |
+| **Adversarial Exploits**| Real-world hack reproduction | `python tools/reproduce_realworld_exploits.py`| **4 / 4 Neutralized, 1 skipped** (nonce replay needs a live tx) |
 
 ### Reproduced real-world exploit patterns (`tools/reproduce_realworld_exploits.py`):
 - **Bankrbot ($204k):** Multi-hop Morse-code injection stopped by de-obfuscation pipeline.
-- **Freysa ($47k):** Unauthorized calldata transfer stopped by function selector allowlist.
-- **aixbt ($104k):** Context poisoning neutralized by Mera PRF enclave tripwire.
-- **Permit2 Phishing ($1.4M):** Infinite allowance signature rejected by EIP-712 policy guard.
-- **Monad Double-Spend:** Concurrent nonce replay eliminated via namespaced bitmask nonces.
+- **Freysa ($47k):** Session-reset prompt refused by the input filter; calldata substitution blocked by the keccak256(calldata) hash binding in the attestation (`CalldataHashMismatch`).
+- **aixbt ($104k):** Poisoned prompt context stopped pre-flight by the middleware / InputFilter.
+- **Permit2 Phishing ($1.4M):** Unlimited allowance flagged by the relay `InfiniteApprovalDetector` (risk above threshold, no attestation issued).
+- **Monad Double-Spend:** Nonce replay is blocked by namespaced bitmask nonces; this case only runs live (`GUARDIAN_EXPLOIT_LIVE_TX=1`) and is skipped by default.
 
 ---
 
 ## 🔗 Verified Monad Testnet Deployments (Chain ID 10143)
 
-GuardianAI's smart contract layer is deployed and verified on Monad Testnet:
+GuardianAI's smart contract layer is deployed on Monad Testnet. The five contracts redeployed on 2026-10-19 (PolicyGuard, ID card SBT, wallet factory, issuer, demo wallet) are source-verified on Sourcify / MonadVision; MonadScan source verification is pending an API key.
 
 | Contract | Address | Verification & Explorer |
 |---|---|---|
-| **GuardianPolicyGuard** | `0x90Fdc8E1e5C951701eCd84677038B38560CdEF60` | [MonadScan](https://testnet.monadscan.com/address/0x90Fdc8E1e5C951701eCd84677038B38560CdEF60) |
+| **GuardianPolicyGuard** | `0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d` | [MonadScan](https://testnet.monadscan.com/address/0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d) |
 | **GuardianThreatFeedRegistry** | `0x576CC248D8c406ac302b74e7BFd571E9F989f467` | [MonadScan](https://testnet.monadscan.com/address/0x576CC248D8c406ac302b74e7BFd571E9F989f467) |
-| **GuardianPassportSBT** | `0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff` | [MonadScan](https://testnet.monadscan.com/address/0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff) |
+| **GuardianPassportSBT** | `0xb2a8FeF3591efbd385778906207A054af0Ca3566` | [MonadScan](https://testnet.monadscan.com/address/0xb2a8FeF3591efbd385778906207A054af0Ca3566) |
 | **IdentityRegistryTestnet** | `0xda5dA75777d30d6d7586b97965dD906AD032E3ff` | [MonadScan](https://testnet.monadscan.com/address/0xda5dA75777d30d6d7586b97965dD906AD032E3ff) |
 | **GuardianInsuranceLedger** | `0x671F73068BF55a30299719D76db0d3031A64Bb22` | [MonadScan](https://testnet.monadscan.com/address/0x671F73068BF55a30299719D76db0d3031A64Bb22) |
 | **GuardianCortexAnchor** | `0x78aFC34a9653c762cA9827370A94a02f7412dBfa` | [MonadScan](https://testnet.monadscan.com/address/0x78aFC34a9653c762cA9827370A94a02f7412dBfa) |
 | **GuardianInterlockRegistry** | `0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d` | [MonadScan](https://testnet.monadscan.com/address/0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d) |
 | **GuardianRiskAttestation** | `0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87` | [MonadScan](https://testnet.monadscan.com/address/0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87) |
 | **GuardianTimelock** | `0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc` | [MonadScan](https://testnet.monadscan.com/address/0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc) |
-| **GuardianAgentWalletFactory** | `0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6` | [MonadScan](https://testnet.monadscan.com/address/0x25A4A3cC1483F8Ca67ED6D33938974Ed0aa119c6) |
+| **GuardianAgentWalletFactory** | `0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03` | [MonadScan](https://testnet.monadscan.com/address/0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03) |
+| **GuardianAgentWallet** (Privy demo agent; owner-set 1 MON/day native cap) | `0x356EfbC397B104F90795E89F0b755aa5AE4967DD` | [MonadScan](https://testnet.monadscan.com/address/0x356EfbC397B104F90795E89F0b755aa5AE4967DD) |
 | **GuardianThreatOracle** (Chainlink CRE receiver) | `0x26144375c4f846174A386C464aC5F2e671EbdA95` | [MonadScan](https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95) |
-| **GuardianPassportIssuer** (owns the ID card SBT) | `0x09AAc2dA0A263323585620A55fcCDb89dea960a6` | [MonadScan](https://testnet.monadscan.com/address/0x09AAc2dA0A263323585620A55fcCDb89dea960a6) |
+| **GuardianPassportIssuer** (owns the ID card SBT) | `0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1` | [MonadScan](https://testnet.monadscan.com/address/0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1) |
 
+- **Previous deployment (superseded, still running):** PolicyGuard `0x90Fd…EF60`, SBT `0xDA5f…2Cff`, Factory `0x25A4…19c6`, Wallet `0xCCb1…D335`, Issuer `0x09AA…60a6`. See `docs/operations/RELEASE_NOTES.md`.
 - **Confirmed On-Chain Receipt:** Monad Block `#66,451,553` (Tx: [`0xda14b65c...`](https://testnet.monadscan.com/tx/0xda14b65c639fe6fe7b160bb8610524c429b1bdb9b73f208ba9ae1e6d67481c87))
 - **Interactive Simulation:** [Tenderly Monad Testnet Simulation Trace](https://dashboard.tenderly.co/shared/simulation/b45791d7-a479-475a-a4c7-b26f34f9fc8e)
 
@@ -234,7 +236,7 @@ GuardianAI's smart contract layer is deployed and verified on Monad Testnet:
 ```
 guardianai/
 ├── guardian/                  # Core Python Security Engine & Control Plane
-│   ├── runtime/interceptor.py # Production ASGI security proxy (<5ms latency)
+│   ├── runtime/interceptor.py # Production ASGI security proxy (~3 ms input filter)
 │   ├── passport/              # ERC-8004 identity registrar & SBT issuing engine
 │   ├── cortex/                # Verifiable decision tree & Merkle anchoring
 │   └── web3sec/               # Web3 phishing, address poisoning, OFAC intel

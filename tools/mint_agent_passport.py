@@ -19,14 +19,17 @@ for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
         k, v = line.split("=", 1)
         os.environ.setdefault(k.strip(), v.strip().strip("'\""))
 
-PASSPORT = "0xDA5f4E1cC2174A75dA63BD37606D2b7960862Cff"
+PASSPORT = Web3.to_checksum_address(os.environ.get("GUARDIAN_SBT_CONTRACT_MONAD") or "0xb2a8FeF3591efbd385778906207A054af0Ca3566")
 # After the handoff (contracts/scripts/deploy-passport-issuer.ts) the SBT is owned by GuardianPassportIssuer,
 # which exposes the same mint(...) to its owner (the deployer). Mint through it when it exists.
 _ISSUER_FILE = ROOT / "contracts" / "deployments" / "monad_testnet_10143" / "passport-issuer.json"
 MINT_VIA = PASSPORT
 if _ISSUER_FILE.exists():
     import json as _json
-    MINT_VIA = _json.loads(_ISSUER_FILE.read_text(encoding="utf-8"))["GuardianPassportIssuer"]
+    _issuer = _json.loads(_ISSUER_FILE.read_text(encoding="utf-8"))
+    # only use the issuer when it was deployed for this SBT
+    if _issuer.get("passport", "").lower() == PASSPORT.lower():
+        MINT_VIA = _issuer["GuardianPassportIssuer"]
 ABI = [
     {"name": "mint", "type": "function", "stateMutability": "nonpayable",
      "inputs": [{"name": "_to", "type": "address"}, {"name": "_agentHash", "type": "bytes32"},

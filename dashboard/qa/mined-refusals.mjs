@@ -3,6 +3,7 @@
 //   node qa/e2e/mined-refusals.mjs            (waits up to WAIT_MIN for the burner to hold MIN_BURNER)
 import { ethers } from 'ethers'
 import fs from 'fs'
+import { fileURLToPath } from 'url'
 
 const RPC = 'https://testnet-rpc.monad.xyz'
 const RELAY = 'https://guardian-relay-production.up.railway.app'
@@ -11,7 +12,7 @@ const W = '0x821FbF05AE42998259E3a752932eeEd807bdE614'
 const FLAGGED = '0x7a3b9c1d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b'
 const REVERT_GAS = 160000n
 const MIN_BURNER = ethers.parseEther(process.env.MIN_BURNER || '0.25')
-const DIR = new URL('../real/', import.meta.url).pathname
+const DIR = fileURLToPath(new URL('../real/', import.meta.url))
 
 const p = new ethers.JsonRpcProvider(RPC, 10143, { staticNetwork: true })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -19,7 +20,7 @@ const retry = async (f) => { for (let i = 0; ; i++) { try { return await f() } c
 const fmt = (w) => Number(ethers.formatEther(w)).toFixed(5)
 const log = (...a) => console.log(...a)
 
-const contractArtifact = process.env.WALLET_ARTIFACT || new URL('../../contracts/artifacts/contracts/GuardianAgentWallet.sol/GuardianAgentWallet.json', import.meta.url).pathname
+const contractArtifact = process.env.WALLET_ARTIFACT || fileURLToPath(new URL('../../contracts/artifacts/contracts/GuardianAgentWallet.sol/GuardianAgentWallet.json', import.meta.url))
 const abi = JSON.parse(fs.readFileSync(contractArtifact, 'utf8')).abi
 const iface = new ethers.Interface(abi)
 const burnerKeyPath = process.env.BURNER_KEY_FILE || DIR + 'burner.key'

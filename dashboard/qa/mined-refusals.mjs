@@ -19,9 +19,11 @@ const retry = async (f) => { for (let i = 0; ; i++) { try { return await f() } c
 const fmt = (w) => Number(ethers.formatEther(w)).toFixed(5)
 const log = (...a) => console.log(...a)
 
-const abi = JSON.parse(fs.readFileSync('/home/claude/c/contracts/artifacts/contracts/GuardianAgentWallet.sol/GuardianAgentWallet.json', 'utf8')).abi
+const contractArtifact = process.env.WALLET_ARTIFACT || new URL('../../contracts/artifacts/contracts/GuardianAgentWallet.sol/GuardianAgentWallet.json', import.meta.url).pathname
+const abi = JSON.parse(fs.readFileSync(contractArtifact, 'utf8')).abi
 const iface = new ethers.Interface(abi)
-const burner = new ethers.Wallet(fs.readFileSync('/home/claude/burner/key', 'utf8').trim(), p)
+const burnerKeyPath = process.env.BURNER_KEY_FILE || DIR + 'burner.key'
+const burner = new ethers.Wallet(fs.readFileSync(burnerKeyPath, 'utf8').trim(), p)
 const owner = new ethers.Wallet(fs.readFileSync(DIR + 'owner-0x729BCCea35194c926Ff0BcA776B425012e88c23C.key', 'utf8').trim(), p)
 const keyFile = DIR + 'mined-refusal-agent-keys.txt'
 const [A, B] = (fs.existsSync(keyFile) ? fs.readFileSync(keyFile, 'utf8').trim().split(/\s+/) : (() => {

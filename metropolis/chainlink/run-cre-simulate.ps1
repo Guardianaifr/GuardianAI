@@ -4,7 +4,7 @@
 #   cd F:\Saas\guardianai-basic-launch
 #   powershell -ExecutionPolicy Bypass -File metropolis\chainlink\run-cre-simulate.ps1
 #
-# Output is saved to metropolis\chainlink\cre_simulate_output.txt so Claude can read and verify it.
+# Output is saved to metropolis\chainlink\cre_simulate_output.txt for verification.
 $ErrorActionPreference = "Continue"
 $Root  = (Resolve-Path "$PSScriptRoot\..\..").Path
 $Cre   = "$Root\metropolis\chainlink"
@@ -63,4 +63,4 @@ try {
 } finally {
   Stop-Process -Id $relay.Id -ErrorAction SilentlyContinue
 }
-Write-Host "`nSaved output to $Out. Tell Claude it's done." -ForegroundColor Green
+Write-Host "`nSaved output to $Out. Simulation complete." -ForegroundColor Green

@@ -33,7 +33,7 @@
     "./guarded-wallet": "./src/guarded-wallet.ts"
   },
   "engines": {
-    "node": ">=22.18"
+    "node": ">=22.23.4"
   },
   "peerDependencies": {
     "@elizaos/core": ">=1.7.0",

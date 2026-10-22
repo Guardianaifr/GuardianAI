@@ -64,7 +64,7 @@ python demo/full_demo.py --preview
 ### Prerequisites
 
 - **Python 3.12** installed (recommended: repository virtual environment `.venv312`)
-- **Node.js 18+** (for contracts or frontend/enclave tests)
+- **Node.js 22.23.4+** (for contracts or frontend/enclave tests)
 
 ```powershell
 # Windows (PowerShell)

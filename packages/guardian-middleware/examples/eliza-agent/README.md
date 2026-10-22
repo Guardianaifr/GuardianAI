@@ -15,7 +15,7 @@ Three layers stop a tricked agent, even when the LLM itself obeys the attacker:
 
 ## Run it
 
-Needs Node 22.18+ (runs the `.ts` source directly) and a free Groq key.
+Needs Node 22.23.4+ (runs the `.ts` source directly) and a free Groq key.
 
 ```bash
 cd packages/guardian-middleware

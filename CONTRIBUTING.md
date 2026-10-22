@@ -22,8 +22,8 @@ Welcome! We are thrilled that you want to help make AI agents safer.
    pytest
    ```
 
-The JavaScript/TypeScript parts have their own `package.json` and tests (Node.js 20+; Node 22+ for the
-indexer and the hosted agent). Run `npm install && npm test` in the folder you change:
+The JavaScript/TypeScript parts have their own `package.json` and tests (Node.js 22.23.4+, the October 2026
+security release; `.nvmrc` pins it). Run `npm install && npm test` in the folder you change:
 
 | Folder | What it is |
 |---|---|

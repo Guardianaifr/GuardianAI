@@ -80,7 +80,7 @@ metropolis/indexer/
 
 ## 3. Run it
 
-Requires Node.js 22+ (the tests run `.ts` files directly with Node's type stripping).
+Requires Node.js 22.23.4+ (the tests run `.ts` files directly with Node's type stripping).
 
 ```bash
 cd metropolis/indexer

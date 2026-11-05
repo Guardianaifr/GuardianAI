@@ -61,12 +61,12 @@ Services: `redis` (rate limits, lockouts), `guardian` (proxy on 8081, backend on
 | Service | Where | Deploy |
 |---|---|---|
 | Website, Attack Lab, Console, Mera console | Firebase Hosting (`firebase.json`, site `aiguardian-site`) | `firebase deploy --only hosting`; see `website/README.md` |
-| Public relay (approvals, threat feed) | Railway, `guardian-relay-production.up.railway.app` | `deploy/relay/deploy-railway.ps1`; see `deploy/relay/README.md` |
-| Hosted ElizaOS agent | Railway, `guardian-eliza-production.up.railway.app` | see `packages/eliza-host/README.md` |
+| Public relay (approvals, threat feed) | Render, `guardian-relay-k0co.onrender.com` | `render.yaml`; see `deploy/relay/README.md` |
+| Hosted ElizaOS agent | Render, `guardian-eliza.onrender.com` | see `packages/eliza-host/README.md` |
 | Envio indexer | Envio Cloud (built from the `envio` branch) | see `metropolis/indexer/README.md` |
 
 The repo-root `railway.json` deploys the full one-click firewall stack from the root `Dockerfile`; the relay
-and the ElizaOS host use their own Railway configs.
+and the ElizaOS host are deployed to Render from `render.yaml`.
 
 ## Production checklist
 

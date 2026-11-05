@@ -11,8 +11,8 @@
 | Website, Attack Lab | https://aiguardian.dev/explorer/ |
 | Console (guarded agent wallet + hosted ElizaOS agent) | https://aiguardian.dev/explorer/?view=console |
 | Mera passkey console | https://aiguardian.dev/mera/ |
-| GuardianAI relay: public threat feed (approvals are `POST /api/v1/attest`) | https://guardian-relay-production.up.railway.app/api/v1/threat-oracle/feed |
-| Hosted ElizaOS agent service | https://guardian-eliza-production.up.railway.app/health |
+| GuardianAI relay: public threat feed (approvals are `POST /api/v1/attest`) | https://guardian-relay-k0co.onrender.com/api/v1/threat-oracle/feed |
+| Hosted ElizaOS agent service | https://guardian-eliza.onrender.com/health |
 | Envio GraphQL (Envio Cloud, deployment `2a8fc2b`) | https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql |
 
 ---
@@ -69,7 +69,7 @@
 | **Chainlink CRE threat oracle** | **New (Hackathon)** | DON consensus writes GuardianAI's scam list on-chain; agent wallets check it before every call | ✅ Simulated with `--broadcast` on Monad testnet (Oct 4): report [`0x82d1…b1f`](https://testnet.monadscan.com/tx/0x82d12165a70412c6171eb15a268a2bbe4251278e2438aa96babdb336a9723b1f) flagged 2 addresses; flagged payment reverted on-chain | Workflow `metropolis/chainlink/guardian-threat-sync`, receiver [`GuardianThreatOracle`](https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95). 9 Hardhat tests. See §4.D. |
 | **Envio HyperIndex** | **New (Hackathon)** | Every wallet, payment, ID card, scam-list entry and oracle report in one GraphQL API | ✅ Live on Envio Cloud (Oct 12) | Synced to chain tip with HyperSync; 42/42 indexed wallets and payments checked against Monad receipts. See §4.B. |
 | **Privy policy-locked agent key** | **New (Hackathon)** | The agent's signing key can only call GuardianAI's contracts | ✅ Live | `node agent.cjs lock-test`: 6/6 forbidden actions refused by Privy (re-run Oct 13). See §4.F. |
-| **Hosted ElizaOS agent + console** | **New (Hackathon)** | Create a guarded wallet in the browser and talk to a real ElizaOS agent that pays through GuardianAI | ✅ Live on Railway | Non-custodial: the agent key stays in the browser. See §4.C. |
+| **Hosted ElizaOS agent + console** | **New (Hackathon)** | Create a guarded wallet in the browser and talk to a real ElizaOS agent that pays through GuardianAI | ✅ Live on Render | Non-custodial: the agent key stays in the browser. See §4.C. |
 
 ---
 
@@ -132,7 +132,7 @@ curl -s https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql -H 'content-type: 
 - [x] Pre-flight interception wrapping transactions into Monad `GuardianPolicyGuard` (`0x3cb7461c`) with strict fail-closed security.
 - [x] 100% test coverage (12 Python unit tests + 49 standalone TypeScript unit tests passing).
 - [x] **ElizaOS 1.7 plugin for the guarded wallet** (`packages/guardian-middleware/src/elizaos.ts`): `GUARDED_PAYMENT` action runs the memory guard over the request and recent room messages, asks the relay for an approval bound to the wallet, dry-runs `execute`, then sends from the agent key. 15 more tests.
-- [x] **Hosted ElizaOS agent** (`packages/eliza-host`, Railway): every console wallet gets its own ElizaOS runtime. The browser signs a session message with the agent key; the server checks it against `GuardianAgentWalletFactory.walletOf` and the wallet's operator. The plugin returns the approved call and the **browser** checks and sends it, so the server never holds a key that can spend. LLM: Groq, failing over to OpenRouter free models only.
+- [x] **Hosted ElizaOS agent** (`packages/eliza-host`, Render): every console wallet gets its own ElizaOS runtime. The browser signs a session message with the agent key; the server checks it against `GuardianAgentWalletFactory.walletOf` and the wallet's operator. The plugin returns the approved call and the **browser** checks and sends it, so the server never holds a key that can spend. LLM: Groq, failing over to OpenRouter free models only.
 - [x] Console (`aiguardian.dev/explorer/?view=console`): create a guarded wallet, claim an ID card, fund it, then use the chat chips: pay me, prompt injection, scam-list address, Chainlink-flagged address, and an agent that skips GuardianAI (refused on-chain).
 - [x] Real runs, all status 1 from the agent key: hosted chat [`0x8890…f46d`](https://testnet.monadscan.com/tx/0x88905ce1b92864e2bc88bd88b0251592c7401aebb71603f5262c3d366b12f46d), [`0x4ee4…0266`](https://testnet.monadscan.com/tx/0x4ee453118608db2668931e9a8f5950bd339d410e18463ecd956681370efd0266); local ElizaOS on Windows [`0x24af…c152`](https://testnet.monadscan.com/tx/0x24af57e1260ddb97a9d0cbef8571ebf61dee641891a80520132c874133b5c152).
 - [ ] `guardianai-eliza` CLI (one-command local agent) is built and dry-run published, not yet on npm.
@@ -182,7 +182,7 @@ So neither key alone moves funds: a compromised agent key cannot skip GuardianAI
 | 3. Agent skips GuardianAI, self-signs | `node agent.cjs wallet-bypass` | **reverted on-chain**: `InvalidAttestationSignature` → [tx](https://testnet.monadscan.com/tx/0xa8bd211dfec3f0531f48f8ff0fefc000edc5bccb9fb875ff79fc5bfb9c6aa492); wallet balance unchanged |
 | 4. Shared PolicyGuard path | `node agent.cjs wallet-fund 5` | owner-authorized pull → [tx](https://testnet.monadscan.com/tx/0x7cd6ac5669aa8f149fc628891be835ea656fcf3ce1d04467e794979515a5a873) |
 
-The relay is live at `https://guardian-relay-production.up.railway.app`; `agent.cjs` defaults to a local relay (`python tools/run_relay.py`), so set `GUARDIAN_RELAY_URL` to use the hosted one. Deploy script: `contracts/scripts/deploy-agent-wallet.ts`.
+The relay is live at `https://guardian-relay-k0co.onrender.com`; `agent.cjs` defaults to a local relay (`python tools/run_relay.py`), so set `GUARDIAN_RELAY_URL` to use the hosted one. Deploy script: `contracts/scripts/deploy-agent-wallet.ts`.
 
 ---
 
@@ -195,7 +195,7 @@ The relay is live at `https://guardian-relay-production.up.railway.app`; `agent.
 - **Fixed Nov 5: contract ownership.** All nine deployer-owned contracts (PolicyGuard, ThreatFeedRegistry, InsuranceLedger, CortexAnchor, InterlockRegistry, RiskAttestation, ThreatOracle, PassportIssuer, demo AgentWallet) were handed to the 2-of-3 Safe `0x402b0Dad9098942c9fF34c8Be1da037C72BFd81a` with `contracts/scripts/handover-ownership.ts`; the passport SBT follows through the issuer. The deployer key no longer controls them. Admin actions are immediate (no timelock delay), so emergency pause still works; `GuardianTimelock` owns nothing and still lists the deployer as proposer/admin, to be cleaned up.
 - **CRE**: simulated with a real on-chain broadcast through the simulation forwarder; not yet deployed to a live DON. DON nodes all fetch the same GuardianAI endpoint, so consensus proves the nodes agree on what GuardianAI published and removes GuardianAI's write key from the path; it does not make the scam list itself independent of GuardianAI.
 - **Envio**: live on an Envio Cloud development deployment. Its URL changes on every redeploy, and the indexer code with the Oct 12 fixes is on the `envio` branch.
-- **Hosted ElizaOS agent**: demo service on Railway with free LLM tiers (Groq, then OpenRouter free models), one LLM call at a time, so replies can take up to a minute when busy. The console's agent key is a demo key kept in the browser's local storage.
+- **Hosted ElizaOS agent**: demo service on Render's free plan (sleeps when idle; first request takes about a minute) with free LLM tiers (Groq, then OpenRouter free models), one LLM call at a time, so replies can take up to a minute when busy. The console's agent key is a demo key kept in the browser's local storage.
 - **Not re-verified in this pass:** the middleware rows above, and the throughput figures in §3 (those are Monad's network figures, not GuardianAI measurements).
 - Contracts are unaudited by a third party.
 

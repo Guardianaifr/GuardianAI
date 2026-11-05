@@ -11,7 +11,7 @@ https://aiguardian.dev/explorer/?view=console gets a "Talk to your agent" chat b
 3. If approved, the server returns the signed `execute(...)` call. The browser checks it is for this wallet and
    exactly the payment shown, then sends it from its own agent key.
 
-Live: https://guardian-eliza-production.up.railway.app/health (Railway project `guardian-relay`, service `guardian-eliza`).
+Live: https://guardian-eliza.onrender.com/health (Render service `guardian-eliza`, defined in `render.yaml`).
 
 **LLM failover** (`src/llm.ts`): Groq first; on a 429 / 5xx / timeout the same message goes straight to OpenRouter, and Groq
 is skipped until its retry-after passes. OpenRouter defaults to free models (`nvidia/nemotron-3-super-120b-a12b:free`, then
@@ -32,5 +32,4 @@ npm test                                                                        
 HOST=http://localhost:8099 OWNER=0x… WALLET=0x… AGENT_KEY_FILE=agent.key npm run test:live   # live: sends one 0.001 MON payment
 ```
 
-Deploy: put `Dockerfile`, `package.json`, `dist/` and a `railway.json` (builder DOCKERFILE, healthcheck `/health`)
-in a folder, then `RAILWAY_TOKEN=<project token> railway up --service guardian-eliza --detach`.
+Deploy: Render Blueprint (`render.yaml` at the repo root), built by `deploy/render/eliza.Dockerfile`.

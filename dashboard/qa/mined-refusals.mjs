@@ -6,7 +6,7 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 
 const RPC = 'https://testnet-rpc.monad.xyz'
-const RELAY = 'https://guardian-relay-production.up.railway.app'
+const RELAY = 'https://guardian-relay-k0co.onrender.com'
 const REFUND = process.env.REFUND || '0x1D4549B95dccAC8203393543187b25B3137D0bf6'
 const W = '0x821FbF05AE42998259E3a752932eeEd807bdE614'
 const FLAGGED = '0x7a3b9c1d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b'

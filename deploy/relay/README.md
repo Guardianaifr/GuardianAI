@@ -3,7 +3,7 @@
 The relay signs GuardianAI's EIP-712 approvals (`POST /api/v1/attest`) and serves the threat feed that the
 Chainlink CRE workflow reads.
 
-**Live:** `https://guardian-relay-production.up.railway.app` (Railway service `guardian-relay`).
+**Live:** `https://guardian-relay-k0co.onrender.com` (Render service `guardian-relay`, defined in `render.yaml`).
 The explorer and console call this URL directly (`VITE_GUARDIAN_RELAY_URL` in `dashboard/`), allowed by
 `GUARDIAN_CORS_ORIGINS`. The Chainlink staging config reads its feed from the same URL.
 
@@ -24,9 +24,9 @@ It refuses to start without `GUARDIAN_ATTESTATION_SIGNER_KEY`, and refuses to st
 Check it:
 
 ```bash
-curl -s https://guardian-relay-production.up.railway.app/health
-curl -s https://guardian-relay-production.up.railway.app/api/v1/threat-oracle/feed
-curl -s -X POST https://guardian-relay-production.up.railway.app/api/v1/attest -H "content-type: application/json" \
+curl -s https://guardian-relay-k0co.onrender.com/health
+curl -s https://guardian-relay-k0co.onrender.com/api/v1/threat-oracle/feed
+curl -s -X POST https://guardian-relay-k0co.onrender.com/api/v1/attest -H "content-type: application/json" \
   -d '{"agent_id":"smoke","target":"0x00000000000000000000000000000000000000c1","value":1}'
 ```
 

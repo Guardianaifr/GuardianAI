@@ -121,7 +121,7 @@ export function newAgentKey() {
 
 /* ---------------- Hosted ElizaOS agent (non-custodial) ---------------- */
 
-export const ELIZA_URL = (import.meta.env?.VITE_GUARDIAN_ELIZA_URL || 'https://guardian-eliza-production.up.railway.app').replace(/\/$/, '')
+export const ELIZA_URL = (import.meta.env?.VITE_GUARDIAN_ELIZA_URL || 'https://guardian-eliza.onrender.com').replace(/\/$/, '')
 const EXECUTE_SELECTOR = '0x29e30039'
 
 /** Must match packages/eliza-host sessionMessage(). The agent key signs it; the server never gets the key. */
@@ -355,8 +355,8 @@ export function explainTxError(err) {
 /* Step 4: ID card, agent gas, and letting the agent try              */
 /* ================================================================== */
 
-/** GuardianAI's public relay (Railway). The browser calls it directly; it allows aiguardian.dev and localhost:5173. */
-export const RELAY_URL = (import.meta.env?.VITE_GUARDIAN_RELAY_URL || 'https://guardian-relay-production.up.railway.app').replace(/\/$/, '')
+/** GuardianAI's public relay (Render). The browser calls it directly; it allows aiguardian.dev and localhost:5173. */
+export const RELAY_URL = (import.meta.env?.VITE_GUARDIAN_RELAY_URL || 'https://guardian-relay-k0co.onrender.com').replace(/\/$/, '')
 
 export const PAY_BACK_WEI = 10n ** 15n // 0.001 MON
 export const AGENT_GAS_WEI = parseEther('0.1')

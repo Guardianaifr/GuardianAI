@@ -158,7 +158,7 @@ Public ERC-8004 registration file served at the on-chain `agentURI`. 404 while t
 
 ## 6) Guardian Relayer & Attestation API (RPC Relay, port 8546)
 
-Run locally with `python tools/run_relay.py`. The public deployment (`https://guardian-relay-production.up.railway.app`, see `deploy/relay/README.md`) exposes only `GET /health`, `POST /api/v1/attest`, `GET /api/v1/agents/<id>/rules` and `GET /api/v1/threat-oracle/feed`.
+Run locally with `python tools/run_relay.py`. The public deployment (`https://guardian-relay-k0co.onrender.com`, see `deploy/relay/README.md`) exposes only `GET /health`, `POST /api/v1/attest`, `GET /api/v1/agents/<id>/rules` and `GET /api/v1/threat-oracle/feed`.
 
 | Route | Purpose |
 |---|---|

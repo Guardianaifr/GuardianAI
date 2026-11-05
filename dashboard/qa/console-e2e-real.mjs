@@ -142,7 +142,7 @@ try {
   await act('Replace agent key', 'Agent key replaced. The old key can no longer request anything.')
   agentKeys.push(await readAgentKey())
   const newOp = await w.operator()
-  const ap = await (await fetch('https://guardian-relay-production.up.railway.app/api/v1/attest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agent_id: `console:${owner.address.toLowerCase()}`, target: owner.address, value: '1000000000000000', wallet: walletAddr, data: '0x' }) })).text()
+  const ap = await (await fetch('https://guardian-relay-k0co.onrender.com/api/v1/attest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agent_id: `console:${owner.address.toLowerCase()}`, target: owner.address, value: '1000000000000000', wallet: walletAddr, data: '0x' }) })).text()
   const wrapped = ap.match(/"wrapped_calldata"\s*:\s*"(0x[0-9a-fA-F]*)"/)[1]
   try { await provider.call({ from: oldOp, to: walletAddr, data: wrapped }); res.oldKey = 'NOT refused' } catch (e) {
     res.oldKey = new ethers.Interface(['error NotOperator(address)']).parseError(e.data)?.name || e.shortMessage

@@ -23,7 +23,7 @@ destination is refused on-chain.
 |------|---------|
 | `main.ts` | Workflow: fetch → consensus → digest check → report → `writeReport` (`@chainlink/cre-sdk` ^1.23) |
 | `workflow.yaml` | Maps `staging-settings` / `production-settings` to entry point and config |
-| `config.staging.json` | 30 s schedule, feed from the live Railway relay, oracle `0x2614…dA95` |
+| `config.staging.json` | 30 s schedule, feed from the live Render relay, oracle `0x2614…dA95` |
 | `config.production.json` | 10 min schedule; oracle address is still `0x0` until the production oracle is deployed |
 | `tests/fixtures/` | Sample feed responses |
 | `package.json` | `@chainlink/cre-sdk`, `viem`; `postinstall` runs `cre-setup` (Javy toolchain) |
@@ -45,5 +45,5 @@ cre workflow simulate guardian-threat-sync --target staging-settings -e .env --b
 ```
 
 The staging config reads the hosted feed at
-`https://guardian-relay-production.up.railway.app/api/v1/threat-oracle/feed`. To use a local relay instead,
+`https://guardian-relay-k0co.onrender.com/api/v1/threat-oracle/feed`. To use a local relay instead,
 run `python tools/run_relay.py` (port 8546) and point `feedUrl` at `http://127.0.0.1:8546/api/v1/threat-oracle/feed`.

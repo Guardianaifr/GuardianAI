@@ -18,8 +18,8 @@ the hosted agent returns the approved call and the browser checks and sends it.
 | Service | Default | Override |
 |---|---|---|
 | Monad testnet RPC | `https://testnet-rpc.monad.xyz` | `VITE_MONAD_RPC_URL` |
-| GuardianAI relay (approvals, rules, threat feed) | `https://guardian-relay-production.up.railway.app` | `VITE_GUARDIAN_RELAY_URL` |
-| Hosted ElizaOS agent (`packages/eliza-host`) | `https://guardian-eliza-production.up.railway.app` | `VITE_GUARDIAN_ELIZA_URL` |
+| GuardianAI relay (approvals, rules, threat feed) | `https://guardian-relay-k0co.onrender.com` | `VITE_GUARDIAN_RELAY_URL` |
+| Hosted ElizaOS agent (`packages/eliza-host`) | `https://guardian-eliza.onrender.com` | `VITE_GUARDIAN_ELIZA_URL` |
 | Envio GraphQL | `ENVIO_GRAPHQL` in `src/explorer/siteConfig.js` | edit the file |
 
 Contract addresses come from `src/explorer/chain.js`. `src/explorer/siteConfig.js` holds the repo link, the

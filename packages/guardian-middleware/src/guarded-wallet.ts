@@ -12,7 +12,7 @@
 
 import { GuardianConnectionError, GuardianSecurityError } from "./interceptor.ts";
 
-export const DEFAULT_GUARDIAN_RELAY = "https://guardian-relay-production.up.railway.app";
+export const DEFAULT_GUARDIAN_RELAY = "https://guardian-relay-k0co.onrender.com";
 /** execute(address,uint256,bytes,(bytes32,address,bytes32,uint256,uint8,uint256,uint256),bytes) */
 export const GUARDED_WALLET_EXECUTE_SELECTOR = "0x29e30039";
 

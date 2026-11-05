@@ -21,7 +21,7 @@ AI agents hold money and read untrusted text. `GuardianAgentWallet` on Monad onl
 | **Supporting** | Agent identity (Mera passkey, ERC-8004 passport) | Signed agent card checked by the relay | By default enforced only for passkey-registered agents; for others `agent_id` is caller-supplied. Set `GUARDIAN_REQUIRE_AGENT_CARD=1` to refuse every unregistered agent. |
 | **Optional** | Chainlink CRE threat oracle | Updates `GuardianThreatOracle` so wallets refuse flagged destinations | **Simulation** broadcast to Monad. Not on a live DON. |
 | **Optional** | Envio indexer | GraphQL view of wallets, payments, oracle reports | Dev deployment; URL changes on redeploy |
-| **Demo** | Hosted ElizaOS agent, Attack Lab, console | Shows an agent paying through GuardianAI | Railway demo on free LLM tiers |
+| **Demo** | Hosted ElizaOS agent, Attack Lab, console | Shows an agent paying through GuardianAI | Render free-plan demo on free LLM tiers (first request after idle takes about a minute) |
 | **Demo** | `demo/`, dashboard, SIEM, insurance ledger, cortex memory | Illustrative lifecycle and analytics; not required for the core mechanism | Prototype / stand-ins |
 
 Contract ownership: a 2-of-3 Safe multisig (`0x402b0Dad9098942c9fF34c8Be1da037C72BFd81a`) since 2026-11-05. Known limitations (owner bypass via `ownerExecute`, single signer, no audit): [metropolis/README.md](metropolis/README.md#6-known-limitations-updated-oct-13).
@@ -260,7 +260,7 @@ guardianai/
 ├── dashboard/                 # Vite / React Security Analytics Interface
 └── packages/
     ├── guardian-middleware/   # Drop-in SDK for ElizaOS (ai16z) & Viem, guarded-wallet client
-    ├── eliza-host/            # Hosted ElizaOS agent service (Railway)
+    ├── eliza-host/            # Hosted ElizaOS agent service (Render)
     └── guardianai-eliza/      # One-command local ElizaOS agent CLI (not yet on npm)
 ```
 

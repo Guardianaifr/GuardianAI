@@ -1,5 +1,5 @@
 // node test/guarded-wallet.test.ts   (LIVE=1 also checks the public relay; nothing is sent on-chain)
-import { GuardedWalletClient, GUARDED_WALLET_EXECUTE_SELECTOR, decodeExecuteHead } from "../src/guarded-wallet.ts";
+import { GuardedWalletClient, GUARDED_WALLET_EXECUTE_SELECTOR, decodeExecuteHead, isLookalike } from "../src/guarded-wallet.ts";
 import { GuardianConnectionError, GuardianSecurityError } from "../src/interceptor.ts";
 import { detectInjection } from "../src/eliza.ts";
 import { parsePayment } from "../src/elizaos.ts";
@@ -13,6 +13,21 @@ const WALLET = "0x821FbF05AE42998259E3a752932eeEd807bdE614";
 const pad = (h: string) => h.replace(/^0x/, "").padStart(64, "0");
 const execData = (target: string, value: bigint) => GUARDED_WALLET_EXECUTE_SELECTOR + pad(target) + pad(value.toString(16)) + "00".repeat(32 * 4);
 const mock = (status: number, body: string, seen?: any[]) => (async (_u: any, init: any) => { seen?.push(JSON.parse(init.body)); return new Response(body, { status }); }) as typeof fetch;
+
+console.log("[guarded-wallet] address poisoning");
+{
+  const real = "0xAbCd1234567890abcdef1234567890abcdef9876";
+  const fake = "0xAbCd9999999999999999999999999999999f9876";
+  ok(isLookalike(fake, real) && !isLookalike(real, real) && !isLookalike(OWNER, real), "isLookalike: same ends, different middle only");
+  const seen: any[] = [];
+  const c = new GuardedWalletClient({ wallet: WALLET, owner: OWNER, trustedRecipients: [real], fetchImpl: mock(200, "{}", seen) });
+  let err: any; try { await c.approve({ to: fake, value: 1 }); } catch (e) { err = e; }
+  ok(err instanceof GuardianSecurityError && err.reasons[0] === "address_poisoning_lookalike" && seen.length === 0, "lookalike of trusted recipient refused before contacting relay");
+  const mid = "0x1111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2222", mid2 = "0x1111bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2222";
+  const c2 = new GuardedWalletClient({ wallet: WALLET, owner: OWNER, fetchImpl: mock(200, `{"status":"approved","risk_score":0,"wrapped_calldata":"${execData(mid, 1n)}"}`) });
+  await c2.approve({ to: mid, value: 1n });
+  ok(await throwsAsync(() => c2.approve({ to: mid2, value: 1n }), GuardianSecurityError), "lookalike of a recipient already paid is refused");
+}
 
 console.log("[guarded-wallet] client");
 {

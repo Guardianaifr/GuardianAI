@@ -1,0 +1,48 @@
+# Render Blueprint: the public GuardianAI relay and the hosted ElizaOS agent.
+# Render dashboard -> New -> Blueprint -> pick this repo. Values marked sync: false are asked for once
+# in the dashboard and never stored in git. Free instances sleep after ~15 idle minutes; the first request
+# after that takes about a minute. Keep each service at one instance (state is in memory).
+services:
+  - type: web
+    name: guardian-relay
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render/relay.Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    buildFilter:
+      paths: [guardian/**, config/**, deploy/relay/requirements.txt, deploy/render/relay.Dockerfile]
+    envVars:
+      - key: GUARDIAN_ATTESTATION_SIGNER_KEY
+        sync: false            # from .env; must not be the deployer key
+      - key: GUARDIAN_ENV
+        value: production
+      - key: MONAD_TESTNET_RPC
+        value: https://testnet-rpc.monad.xyz
+      - key: GUARDIAN_POLICY_GUARD_CONTRACT_MONAD
+        value: "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d"
+      - key: GUARDIAN_CORS_ORIGINS
+        value: https://aiguardian.dev,http://localhost:5173
+
+  - type: web
+    name: guardian-eliza
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render/eliza.Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    buildFilter:
+      paths: [packages/eliza-host/**, packages/guardian-middleware/src/**, deploy/render/eliza.Dockerfile]
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false            # use a NEW key: the old one was on Railway
+      - key: OPENROUTER_API_KEY
+        sync: false            # inference key with a spend limit, new
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://aiguardian.dev,http://localhost:5173
+      - key: GUARDIAN_RELAY_URL
+        sync: false            # the relay's https://….onrender.com URL once it is live

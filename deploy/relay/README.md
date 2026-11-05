@@ -33,7 +33,15 @@ curl -s -X POST https://guardian-relay-production.up.railway.app/api/v1/attest -
 The last call should return `"status": "approved"` with a signature from the attestation signer that
 PolicyGuard and the agent-wallet factory trust.
 
-## Deploy to Railway (Windows PowerShell, from the repo root)
+## Deploy to Render (current)
+
+`render.yaml` at the repo root defines `guardian-relay` (this relay, built by `deploy/render/relay.Dockerfile`)
+and `guardian-eliza` (the hosted agent, `deploy/render/eliza.Dockerfile`). Render dashboard → New → Blueprint →
+pick the GitHub repo, then fill in the secrets it asks for (`GUARDIAN_ATTESTATION_SIGNER_KEY` from `.env`; new
+Groq/OpenRouter keys; for the agent, `GUARDIAN_RELAY_URL` = the relay's `onrender.com` URL). Free instances sleep
+when idle, so the first request after a pause takes about a minute.
+
+## Deploy to Railway (previous host; trial ended Nov 2026)
 
 ```powershell
 npm i -g @railway/cli; railway login

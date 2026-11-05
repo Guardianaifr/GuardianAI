@@ -220,11 +220,12 @@ GuardianAI's smart contract layer is deployed on Monad Testnet. The five contrac
 | **GuardianInterlockRegistry** | `0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d` | [MonadScan](https://testnet.monadscan.com/address/0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d) |
 | **GuardianRiskAttestation** | `0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87` | [MonadScan](https://testnet.monadscan.com/address/0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87) |
 | **GuardianTimelock** | `0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc` | [MonadScan](https://testnet.monadscan.com/address/0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc) |
-| **GuardianAgentWalletFactory** | `0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03` | [MonadScan](https://testnet.monadscan.com/address/0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03) |
+| **GuardianAgentWalletFactory** | `0xF67538deD617AfbEE4561f8130CDE3CA83A84D65` | [MonadScan](https://testnet.monadscan.com/address/0xF67538deD617AfbEE4561f8130CDE3CA83A84D65) |
 | **GuardianAgentWallet** (Privy demo agent; owner-set 1 MON/day native cap) | `0x356EfbC397B104F90795E89F0b755aa5AE4967DD` | [MonadScan](https://testnet.monadscan.com/address/0x356EfbC397B104F90795E89F0b755aa5AE4967DD) |
 | **GuardianThreatOracle** (Chainlink CRE receiver) | `0x26144375c4f846174A386C464aC5F2e671EbdA95` | [MonadScan](https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95) |
-| **GuardianPassportIssuer** (owns the ID card SBT) | `0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1` | [MonadScan](https://testnet.monadscan.com/address/0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1) |
+| **GuardianPassportIssuer** (owns the ID card SBT) | `0x61D10f07a8Da2142eDBF4181dDc45De713334242` | [MonadScan](https://testnet.monadscan.com/address/0x61D10f07a8Da2142eDBF4181dDc45De713334242) |
 
+- **Nov 6 2026:** wallet factory and ID card issuer redeployed so new wallets trust the rotated attestation signer (`contracts/scripts/redeploy-factory-issuer.ts`). Previous factory `0xAb3a…Ef03` and issuer `0x9c4a…2Dd1` are retired; wallets made by the old factory still trust the old signer until their owner calls `setGuardianSigner`.
 - **Previous deployment (superseded; old PolicyGuard and wallet paused, funds moved to the new wallet):** PolicyGuard `0x90Fd…EF60`, SBT `0xDA5f…2Cff`, Factory `0x25A4…19c6`, Wallet `0xCCb1…D335`, Issuer `0x09AA…60a6`. See `docs/operations/RELEASE_NOTES.md`.
 - **Confirmed On-Chain Receipt:** Monad Block `#66,451,553` (Tx: [`0xda14b65c...`](https://testnet.monadscan.com/tx/0xda14b65c639fe6fe7b160bb8610524c429b1bdb9b73f208ba9ae1e6d67481c87))
 - **Interactive Simulation:** [Tenderly Monad Testnet Simulation Trace](https://dashboard.tenderly.co/shared/simulation/b45791d7-a479-475a-a4c7-b26f34f9fc8e)

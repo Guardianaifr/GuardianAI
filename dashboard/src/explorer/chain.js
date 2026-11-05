@@ -16,9 +16,9 @@ export const CONTRACTS = {
   passport: { name: 'GuardianPassportSBT', label: 'Agent ID cards', address: '0xb2a8FeF3591efbd385778906207A054af0Ca3566' },
   threatFeed: { name: 'GuardianThreatFeedRegistry', label: 'Scam address list', address: '0x576CC248D8c406ac302b74e7BFd571E9F989f467' },
   agentWallet: { name: 'GuardianAgentWallet', label: 'Agent wallet (Privy agent)', address: '0x356EfbC397B104F90795E89F0b755aa5AE4967DD' },
-  walletFactory: { name: 'GuardianAgentWalletFactory', label: 'Agent wallet factory', address: '0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03' },
+  walletFactory: { name: 'GuardianAgentWalletFactory', label: 'Agent wallet factory', address: '0xF67538deD617AfbEE4561f8130CDE3CA83A84D65' },
   threatOracle: { name: 'GuardianThreatOracle', label: 'Chainlink CRE threat oracle', address: '0x26144375c4f846174A386C464aC5F2e671EbdA95' },
-  passportIssuer: { name: 'GuardianPassportIssuer', label: 'Agent ID card issuer', address: '0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1' },
+  passportIssuer: { name: 'GuardianPassportIssuer', label: 'Agent ID card issuer', address: '0x61D10f07a8Da2142eDBF4181dDc45De713334242' },
 }
 
 // Enforcement on GuardianAgentWallet (metropolis/README.md §4.D and §5). Status checked on MonadScan.
@@ -342,9 +342,9 @@ export const ALL_CONTRACTS = [
   { name: 'GuardianInsuranceLedger', role: 'Records protection certificates on-chain', address: '0x671F73068BF55a30299719D76db0d3031A64Bb22' },
   { name: 'GuardianTimelock', role: 'Timelock controller for delayed admin changes', address: '0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc' },
   { name: 'GuardianAgentWallet', role: 'The Privy agent’s funds: every call needs the agent’s key AND a GuardianAI signature', address: '0x356EfbC397B104F90795E89F0b755aa5AE4967DD' },
-  { name: 'GuardianAgentWalletFactory', role: 'Creates one GuardianAgentWallet per agent', address: '0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03' },
+  { name: 'GuardianAgentWalletFactory', role: 'Creates one GuardianAgentWallet per agent', address: '0xF67538deD617AfbEE4561f8130CDE3CA83A84D65' },
   { name: 'GuardianThreatOracle', role: 'Chainlink CRE receiver: scam list agreed by the DON, written only by the Chainlink forwarder', address: '0x26144375c4f846174A386C464aC5F2e671EbdA95' },
-  { name: 'GuardianPassportIssuer', role: 'Owns the ID cards: wallet owners claim one entry-level card for their own agent; GuardianAI can revoke', address: '0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1' },
+  { name: 'GuardianPassportIssuer', role: 'Owns the ID cards: wallet owners claim one entry-level card for their own agent; GuardianAI can revoke', address: '0x61D10f07a8Da2142eDBF4181dDc45De713334242' },
 ]
 
 /** Asks the chain whether code exists at each address. Returns { [address]: bytecodeBytes }. */

@@ -15,7 +15,7 @@
     "GuardianRiskAttestation": "0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87",
     "GuardianTimelock": "0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc",
     "GuardianThreatOracle": "0x26144375c4f846174A386C464aC5F2e671EbdA95",
-    "GuardianAgentWalletFactory": "0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03"
+    "GuardianAgentWalletFactory": "0xF67538deD617AfbEE4561f8130CDE3CA83A84D65"
   },
   "explorerUrls": {
     "GuardianPolicyGuard": "https://testnet.monadscan.com/address/0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
@@ -28,7 +28,7 @@
     "GuardianRiskAttestation": "https://testnet.monadscan.com/address/0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87",
     "GuardianTimelock": "https://testnet.monadscan.com/address/0xBBcBd965DB982d4A1aC01CADb1C98d4e86a2b1dc",
     "GuardianThreatOracle": "https://testnet.monadscan.com/address/0x26144375c4f846174A386C464aC5F2e671EbdA95",
-    "GuardianAgentWalletFactory": "https://testnet.monadscan.com/address/0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03",
+    "GuardianAgentWalletFactory": "https://testnet.monadscan.com/address/0xF67538deD617AfbEE4561f8130CDE3CA83A84D65",
     "GuardianAgentWallet": "https://testnet.monadscan.com/address/0x356EfbC397B104F90795E89F0b755aa5AE4967DD"
   },
   "agentWallets": {

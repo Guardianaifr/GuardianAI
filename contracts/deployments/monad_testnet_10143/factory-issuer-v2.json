@@ -1,0 +1,18 @@
+{
+  "network": "monad_testnet",
+  "chainId": 10143,
+  "deployedAt": "2026-11-05T18:30:00.958Z",
+  "guardianSigner": "0x4d559B209De060C83e155172f0B4F59f01684287",
+  "passportSBT": "0xb2a8FeF3591efbd385778906207A054af0Ca3566",
+  "safe": "0x402b0Dad9098942c9fF34c8Be1da037C72BFd81a",
+  "replaces": {
+    "factory": "0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03",
+    "issuer": "0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1"
+  },
+  "GuardianAgentWalletFactory": "0xF67538deD617AfbEE4561f8130CDE3CA83A84D65",
+  "GuardianPassportIssuer": "0x61D10f07a8Da2142eDBF4181dDc45De713334242",
+  "txs": {
+    "factory": "0x1accadafa00a70bccbcf9d91149488114f7f91a6cbfbd4e5c75c55915dfaa289",
+    "issuer": "0x4054ead79d148baa53e2728fbc3c43b112fd63162def1279c55818667c55a9c6"
+  }
+}

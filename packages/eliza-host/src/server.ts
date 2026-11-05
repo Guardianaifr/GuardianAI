@@ -23,7 +23,7 @@ const llm = new FailoverLlm(providersFromEnv());
 const llmPlugin = failoverPlugin(llm);
 const SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const ORIGINS = (process.env.CORS_ORIGINS || "https://aiguardian.dev,http://localhost:5173,http://localhost:4173").split(",").map((s) => s.trim());
-const FACTORY = "0xAb3aE67587D946e63b3cfFb32C9e32d701B8Ef03";
+const FACTORY = "0xF67538deD617AfbEE4561f8130CDE3CA83A84D65";
 const MAX_AGENTS = Number(process.env.MAX_AGENTS || 25);
 const SESSION_MS = 2 * 60 * 60 * 1000;
 const DATA_DIR = process.env.ELIZA_DATA_DIR || "/tmp/guardian-eliza-db";

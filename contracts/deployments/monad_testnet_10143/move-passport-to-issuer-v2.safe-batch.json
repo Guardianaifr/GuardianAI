@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "chainId": "10143",
+  "createdAt": 1793903401937,
+  "meta": {
+    "name": "GuardianAI: move passport SBT to issuer v2",
+    "description": "Old issuer hands the SBT to 0x61D10f07a8Da2142eDBF4181dDc45De713334242; it accepts and copies the claim settings"
+  },
+  "transactions": [
+    {
+      "to": "0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1",
+      "value": "0",
+      "data": "0xb943c44800000000000000000000000061d10f07a8da2142edbf4181ddc45de713334242",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x61D10f07a8Da2142eDBF4181dDc45De713334242",
+      "value": "0",
+      "data": "0x567e38a9",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x61D10f07a8Da2142eDBF4181dDc45De713334242",
+      "value": "0",
+      "data": "0xe9e370d6000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000c8",
+      "contractMethod": null,
+      "contractInputsValues": null
+    }
+  ]
+}

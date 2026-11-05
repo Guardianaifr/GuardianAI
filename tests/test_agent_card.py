@@ -40,6 +40,21 @@ def test_unregistered_agent_needs_no_card():
     assert not r.required and r.ok
 
 
+def test_require_all_refuses_unregistered_agent():
+    r = verify_card("someone-else", WALLET, None, REGISTRY, now=NOW, require_all=True)
+    assert r.required and not r.ok and "not registered" in r.reason
+    # A registered agent with a valid card still passes in strict mode.
+    assert verify_card("treasury-agent", WALLET, BROWSER_CARD, REGISTRY, now=NOW, require_all=True).ok
+
+
+@pytest.mark.parametrize("value, expected", [("1", True), ("true", True), ("ON", True),
+                                             ("", False), ("0", False), ("no", False)])
+def test_require_all_env_flag(monkeypatch, value, expected):
+    from guardian.relayer.agent_card import require_all_agents
+    monkeypatch.setenv("GUARDIAN_REQUIRE_AGENT_CARD", value)
+    assert require_all_agents() is expected
+
+
 @pytest.mark.parametrize("mutate, reason", [
     (lambda c: None, "agent card required"),
     (lambda c: {**c, "expires_at": c["expires_at"] + 1}, "invalid agent card signature"),

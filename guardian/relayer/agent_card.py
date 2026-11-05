@@ -71,18 +71,34 @@ def load_registry(path: Optional[str] = None) -> Dict[str, str]:
     return registry
 
 
+def require_all_agents() -> bool:
+    """``GUARDIAN_REQUIRE_AGENT_CARD=1`` makes the relay refuse every agent that has no registered passkey.
+
+    Off by default so unregistered (demo) agents keep working; turn it on for any deployment where
+    ``agent_id`` must not be caller-supplied.
+    """
+    return os.environ.get("GUARDIAN_REQUIRE_AGENT_CARD", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def verify_card(
     agent_id: str,
     wallet: Optional[str],
     card: Any,
     registry: Dict[str, str],
     now: Optional[int] = None,
+    require_all: bool = False,
 ) -> CardCheck:
-    """Checks the card for a registered agent. Unregistered agents return required=False, ok=True."""
+    """Checks the card for a registered agent.
+
+    Unregistered agents return required=False, ok=True, unless ``require_all`` is set, in which case
+    they are refused because their ``agent_id`` cannot be proven.
+    """
     # The registry may name the agent in any spelling (raw name, keccak hex, bytes32): match canonically.
     norm = normalize_agent_id(agent_id)
     registered = next((k for k in registry if normalize_agent_id(k) == norm), None)
     if registered is None:
+        if require_all:
+            return CardCheck(True, False, "agent is not registered to an operator passkey (GUARDIAN_REQUIRE_AGENT_CARD is on)")
         return CardCheck(required=False, ok=True)
     did = registry[registered]
     if not isinstance(card, dict):

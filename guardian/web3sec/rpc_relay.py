@@ -343,14 +343,15 @@ class GuardianRPCRelay:
             )
 
         # Agents registered to an operator passkey (Mera) must prove it with a signed agent card.
-        from guardian.relayer.agent_card import load_registry, verify_card
+        from guardian.relayer.agent_card import load_registry, require_all_agents, verify_card
         try:
             card_registry = load_registry()
         except (OSError, ValueError) as e:
             logger.error(f"Agent card registry unreadable, refusing approvals: {e}")
             return Response(json.dumps({"error": "Agent identity registry unavailable"}),
                             status=503, mimetype="application/json")
-        card = verify_card(agent_id, req_data.get("wallet"), req_data.get("agent_card"), card_registry)
+        card = verify_card(agent_id, req_data.get("wallet"), req_data.get("agent_card"), card_registry,
+                           require_all=require_all_agents())
         if not card.ok:
             self.stats["attest_blocked"] = self.stats.get("attest_blocked", 0) + 1
             return Response(

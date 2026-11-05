@@ -1,36 +1,36 @@
-# GuardianAI: Trust, Identity & Security Firewall for AI Agents on Monad
+# GuardianAI
 
 [![Monad Testnet](https://img.shields.io/badge/Monad%20Testnet-Chain%20ID%2010143-8A2BE2.svg)](https://testnet.monadvision.com/)
-[![Hardhat Tests](https://img.shields.io/badge/Smart%20Contracts-271%20Passing-brightgreen.svg)](contracts/)
-[![Python Tests](https://img.shields.io/badge/Python%20Suites-1490%2B%20Passing-brightgreen.svg)](tests/)
-[![Mera Enclave Tests](https://img.shields.io/badge/Mera%20Enclave-192%2F192%20Passing-brightgreen.svg)](metropolis/mera/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python: 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](requirements.txt)
 
-> **GuardianAI** is a dual-layer security control plane and cryptographic execution firewall for autonomous AI agents and LLM applications. It combines an **off-chain AI firewall** that neutralizes prompt injections, jailbreaks, and data leaks at the edge, with an **on-chain Web3 trust and identity layer on Monad** enforcing cryptographic attestations, hardware-isolated passkey identity (Mera PRF), and execution-layer outflow containment.
+> **A wallet that only pays what GuardianAI signed.**
 
----
+AI agents hold money and read untrusted text. `GuardianAgentWallet` on Monad only executes a payment when it carries GuardianAI's EIP-712 signature for that exact call, so even a fully fooled agent cannot move funds on its own. Everything else in this repository supports, demonstrates, or extends that one mechanism.
 
-## Monad Metropolis submission (Oct 2026)
+**Status: testnet prototype. The contracts have not had a third-party audit. Do not use with real funds.**
 
-AI agents now hold money and read untrusted text. GuardianAI puts two gates between the AI and the money: an off-chain firewall that checks every message and payment, and a guarded wallet on Monad that only pays when GuardianAI has signed that exact payment. Even a fully fooled agent can't move the funds.
+## What is core, what is supporting, what is demo
 
-**Try it live**
+| Tier | Component | What it does | Honest status |
+| :--- | :--- | :--- | :--- |
+| **Core** | `GuardianAgentWallet` + `GuardianPolicyGuard` (`contracts/`) | Wallet checks the agent key, GuardianAI's signature bound to value + calldata hash, nonce, daily caps and target allowlist, in one transaction | Live on Monad testnet. Unaudited. |
+| **Core** | Relay (`guardian/`, `backend/`) | Scores each payment, applies per-agent rules, signs the attestation | Works. Signer is a single hot key; KMS/HSM is the next step. |
+| **Supporting** | Off-chain input firewall (`guardian/runtime/interceptor.py`) | Regex/keyword and optional ML checks for prompt injection and PII before text reaches the LLM | Defense in depth, not the guarantee. No published detection-rate benchmark yet. Falls back to regex-only if the ML layer is unavailable. |
+| **Supporting** | Privy server wallet | Agent key whose policy only permits calls to GuardianAI contracts | Live |
+| **Supporting** | Agent identity (Mera passkey, ERC-8004 passport) | Signed agent card checked by the relay | Enforced only for passkey-registered agents; for others `agent_id` is caller-supplied |
+| **Optional** | Chainlink CRE threat oracle | Updates `GuardianThreatOracle` so wallets refuse flagged destinations | **Simulation** broadcast to Monad. Not on a live DON. |
+| **Optional** | Envio indexer | GraphQL view of wallets, payments, oracle reports | Dev deployment; URL changes on redeploy |
+| **Demo** | Hosted ElizaOS agent, Attack Lab, console | Shows an agent paying through GuardianAI | Railway demo on free LLM tiers |
+| **Demo** | `demo/`, dashboard, SIEM, insurance ledger, cortex memory | Illustrative lifecycle and analytics; not required for the core mechanism | Prototype / stand-ins |
+
+Known limitations (owner bypass via `ownerExecute`, deployer-owned contracts, single signer, no audit): [metropolis/README.md](metropolis/README.md#6-known-limitations-updated-oct-13).
+
+**Try it**
 - Attack Lab and website: https://aiguardian.dev/explorer/
-- Console: create a guarded agent wallet, then talk to a real ElizaOS agent that pays through GuardianAI: https://aiguardian.dev/explorer/?view=console
+- Console (guarded wallet + hosted agent): https://aiguardian.dev/explorer/?view=console
 - Mera passkey console: https://aiguardian.dev/mera/
-- Envio GraphQL: https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql
-
-| Integration | What it does in GuardianAI | Status |
-| :--- | :--- | :--- |
-| **Monad** | `GuardianAgentWallet` holds the agent's funds and checks the agent key, GuardianAI's EIP-712 approval for the exact call, the nonce, the risk limit, the agent's ID card and the threat oracle in one transaction | Live on testnet |
-| **Category Labs Mera** | One passkey derives the agent's identity key, encrypts its memory (1-bit tamper is refused) and signs the agent card the relay checks | Live in the browser |
-| **Privy** | The agent's key is a Privy server wallet whose policy only allows calls to GuardianAI's contracts: 6/6 forbidden actions refused | Live |
-| **Chainlink CRE** | Nodes agree on GuardianAI's threat feed and a signed report updates `GuardianThreatOracle`; every agent wallet refuses flagged destinations | CRE simulation broadcasting to Monad; live DON pending deploy access |
-| **Envio** | Indexes every wallet, payment, ID card, scam-list entry and oracle report into one GraphQL API | Live on Envio Cloud |
-| **ElizaOS** | Plugin + hosted agent: the agent decides, GuardianAI approves, the wallet enforces | Live on Railway |
-
-Full details, transactions and known limitations: [metropolis/README.md](metropolis/README.md).
+- Envio GraphQL (dev deployment): https://indexer.dev.hyperindex.xyz/15eb1b4/v1/graphql
 
 ---
 
@@ -39,9 +39,9 @@ Full details, transactions and known limitations: [metropolis/README.md](metropo
 ### The Problem: Autonomous Agent Vulnerability
 Autonomous AI agents are increasingly entrusted with private keys, smart contract permissions, and on-chain treasuries. However, because Large Language Models follow natural language instructions without inherent trust boundaries, **indirect prompt injections** (delivered via user prompts, retrieved RAG context, web pages, or transaction calldata) can trick models into executing unauthorized transactions, approving infinite allowances, or leaking confidential credentials.
 
-### The Solution: Dual-Layer Defense
-GuardianAI enforces security at two distinct boundaries:
-1. **Edge AI Security Firewall (~3 ms input filter, ~13 ms with an uncached ML check):** Intercepts prompt injections, jailbreaks, data exfiltration, and PII fishing *before* instructions reach the LLM or tool-execution layer.
+### The Solution: On-Chain Enforcement First, Input Filtering as Defense in Depth
+The on-chain gate (item 2) is the actual guarantee. The off-chain filter (item 1) reduces how often it is tested but can be bypassed by a determined attacker and should not be relied on alone.
+1. **Edge input filter (~3 ms regex/keyword, ~13 ms with an uncached ML check):** Flags likely prompt injections, jailbreaks, data exfiltration, and PII fishing before instructions reach the LLM. Heuristic; detection rates are not yet benchmarked.
 2. **Monad On-Chain Enforcement (Parallel EVM):** `GuardianPolicyGuard.sol` verifies a signed EIP-712 attestation bound to the call's value and calldata hash, uses namespaced nonces (conflict-free under Monad's parallel execution), checks the agent's passport, and checks that the target has code when calldata is sent. It does **not** enforce spend caps or allowlists. Those live in `GuardianAgentWallet.sol`: owner-configured daily native/token outflow caps and a target/selector allowlist enforced on-chain, plus the relay's per-agent rules off-chain. The demo wallet is configured with a 1 MON/day native cap.
 3. **Verifiable Agent Identity & Enclave Memory:** Uses **Category Labs Mera Passkey PRF** and canonical **ERC-8004** to mint cryptographic agent credentials and secure tamper-evident encrypted long-term memory.
 
@@ -182,7 +182,7 @@ docker compose up -d
 
 ## 🧪 Comprehensive Test Suites & Verification Record
 
-All tests across smart contracts, Python security modules, and enclave implementations are fully green:
+Results below are self-reported from manual runs on the dates shown (no CI badge backs them), and are not a substitute for an independent audit:
 
 | Suite | Component | Command | Result |
 |---|---|---|---|

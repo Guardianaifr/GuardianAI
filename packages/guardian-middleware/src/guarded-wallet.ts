@@ -27,6 +27,11 @@ export interface GuardedWalletConfig {
   timeoutMs?: number;
   /** Injectable for tests. */
   fetchImpl?: typeof fetch;
+  /** Addresses you trust (contacts, vendors). A payment to a lookalike of one of these is refused. */
+  trustedRecipients?: string[];
+  /** Hex chars compared at each end when looking for lookalikes. Default 4 and 4. */
+  lookalikePrefix?: number;
+  lookalikeSuffix?: number;
 }
 
 export interface PaymentRequest {
@@ -50,6 +55,16 @@ export interface ApprovedCall {
 const isAddr = (a: string) => /^0x[0-9a-fA-F]{40}$/.test(a);
 const word = (hex: string, i: number) => hex.slice(10 + i * 64, 10 + (i + 1) * 64);
 
+/**
+ * Address-poisoning check: true when `candidate` shows the same first/last characters as `known`
+ * but is a different address (the pattern an attacker's dust-transfer lookalike has).
+ */
+export function isLookalike(candidate: string, known: string, prefix = 4, suffix = 4): boolean {
+  const a = candidate.toLowerCase(), b = known.toLowerCase();
+  if (a === b || !isAddr(a) || !isAddr(b)) return false;
+  return a.slice(0, 2 + prefix) === b.slice(0, 2 + prefix) && a.slice(-suffix) === b.slice(-suffix);
+}
+
 /** Read target and value out of execute(...) calldata without an ABI library. */
 export function decodeExecuteHead(data: string): { target: string; value: bigint } {
   if (!data.toLowerCase().startsWith(GUARDED_WALLET_EXECUTE_SELECTOR) || data.length < 10 + 64 * 2) {
@@ -65,6 +80,11 @@ export class GuardedWalletClient {
   readonly relayerUrl: string;
   readonly timeoutMs: number;
   private readonly fetchImpl: typeof fetch;
+  private readonly trusted = new Set<string>();
+  /** Recipients this client already paid (bounded), used as extra lookalike references. */
+  private readonly recent: string[] = [];
+  private readonly lookalikePrefix: number;
+  private readonly lookalikeSuffix: number;
 
   constructor(cfg: GuardedWalletConfig) {
     if (!isAddr(cfg.wallet)) throw new Error(`GuardedWalletClient: invalid wallet address ${cfg.wallet}`);
@@ -75,6 +95,23 @@ export class GuardedWalletClient {
     this.relayerUrl = (cfg.relayerUrl || DEFAULT_GUARDIAN_RELAY).replace(/\/$/, "");
     this.timeoutMs = cfg.timeoutMs ?? 20000;
     this.fetchImpl = cfg.fetchImpl || globalThis.fetch.bind(globalThis);
+    this.lookalikePrefix = Math.max(3, cfg.lookalikePrefix ?? 4);
+    this.lookalikeSuffix = Math.max(3, cfg.lookalikeSuffix ?? 4);
+    for (const a of cfg.trustedRecipients || []) this.trustRecipient(a);
+  }
+
+  /** Add an address to the trusted list. */
+  trustRecipient(addr: string): void {
+    if (!isAddr(addr)) throw new Error(`GuardedWalletClient: invalid trusted recipient ${addr}`);
+    this.trusted.add(addr.toLowerCase());
+  }
+
+  /** Known address that `to` imitates, or undefined. */
+  findLookalike(to: string): string | undefined {
+    for (const k of [...this.trusted, this.owner.toLowerCase(), ...this.recent]) {
+      if (isLookalike(to, k, this.lookalikePrefix, this.lookalikeSuffix)) return k;
+    }
+    return undefined;
   }
 
   /**
@@ -83,6 +120,13 @@ export class GuardedWalletClient {
    */
   async approve(req: PaymentRequest): Promise<ApprovedCall> {
     if (!isAddr(req.to)) throw new GuardianSecurityError("Invalid destination address", 100, ["invalid_address"], String(req.to), req.data || "0x");
+    const imitated = this.findLookalike(req.to);
+    if (imitated) {
+      throw new GuardianSecurityError(
+        `Address poisoning suspected: ${req.to} imitates known address ${imitated}`,
+        100, ["address_poisoning_lookalike"], req.to, req.data || "0x",
+      );
+    }
     const value = BigInt(req.value);
     const body: Record<string, string> = {
       agent_id: this.agentId,
@@ -124,6 +168,11 @@ export class GuardedWalletClient {
     const head = decodeExecuteHead(data);
     if (head.target !== req.to.toLowerCase() || head.value !== value) {
       throw new GuardianConnectionError(`relay approval does not match the request (target ${head.target}, value ${head.value})`);
+    }
+    const paid = req.to.toLowerCase();
+    if (!this.trusted.has(paid) && !this.recent.includes(paid)) {
+      this.recent.push(paid);
+      if (this.recent.length > 50) this.recent.shift();
     }
     return { to: this.wallet, data, value: 0n, riskScore: Number(d.risk_score ?? 0), reasons: d.reasons || [] };
   }

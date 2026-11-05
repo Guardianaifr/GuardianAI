@@ -58,7 +58,7 @@ GuardianAI provides verifiable security primitives for autonomous AI agents on M
 
 ## 4. Access Control Matrix
 
-Core contracts inherit from `Ownable2Step`. Ownership is intended to move to `GuardianTimelock` (`scripts/transfer_ownership_to_timelock.js`); **on testnet the deployed suite is still owned by the deployer EOA.**
+Core contracts inherit from `Ownable2Step`. On testnet the deployed suite is owned by a 2-of-3 Safe multisig (`0x402b0Dad9098942c9fF34c8Be1da037C72BFd81a`) since 2026-11-05 (`scripts/handover-ownership.ts`). It is not behind `GuardianTimelock`, so owner actions take effect immediately.
 
 | Contract / Role | Privileged Capabilities |
 | --- | --- |

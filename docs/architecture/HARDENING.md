@@ -100,7 +100,7 @@ Follow these practices to secure your GuardianAI deployment against advanced thr
 
 ## 9. Smart Contract Safety & Timelocks
 
-- **Timelock Governance:** `GuardianTimelock.sol` enforces a 24-hour minimum execution delay (`MIN_DELAY = 24 hours`) and is deployed on Monad testnet. Ownership of the deployed suite has **not** been transferred to it yet (still the deployer EOA); `contracts/scripts/transfer_ownership_to_timelock.js` does the handoff.
+- **Timelock Governance:** `GuardianTimelock.sol` enforces a 24-hour minimum execution delay (`MIN_DELAY = 24 hours`) and is deployed on Monad testnet. The deployed suite is owned by a 2-of-3 Safe multisig (`0x402b0Dad9098942c9fF34c8Be1da037C72BFd81a`) rather than the timelock, so emergency pause is not delayed; `contracts/scripts/handover-ownership.ts` can also hand off to the timelock.
 - **Certificate Capping:** `GuardianInsuranceLedger.sol` enforces `MAX_CERTIFICATES = 100,000` with custom error `CertificateLimitReached()` as the first line of execution.
 
 ## 10. Web3 Identity & Hot-Wallet Collision Defense

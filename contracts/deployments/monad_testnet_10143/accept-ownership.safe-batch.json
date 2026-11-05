@@ -1,0 +1,74 @@
+{
+  "version": "1.0",
+  "chainId": "10143",
+  "createdAt": 1793899837814,
+  "meta": {
+    "name": "GuardianAI: accept contract ownership",
+    "description": "acceptOwnership() on every GuardianAI contract nominated to 0x402b0Dad9098942c9fF34c8Be1da037C72BFd81a"
+  },
+  "transactions": [
+    {
+      "to": "0xa0ae75AaaB1c05D49fd5D15a0a95e0171aEDbB7d",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x576CC248D8c406ac302b74e7BFd571E9F989f467",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x671F73068BF55a30299719D76db0d3031A64Bb22",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x78aFC34a9653c762cA9827370A94a02f7412dBfa",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x03bd6268f886DE88670B66FAC71cBd3CcC35D67d",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x7e0631bB10ABAE7dd6D8b7A0762e9f9Ab81d6c87",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x26144375c4f846174A386C464aC5F2e671EbdA95",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x9c4acFb906EBF32c2C5115F3D84ab6Db809f2Dd1",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    },
+    {
+      "to": "0x356EfbC397B104F90795E89F0b755aa5AE4967DD",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": null,
+      "contractInputsValues": null
+    }
+  ]
+}

@@ -39,7 +39,7 @@ AI agents now hold money and read untrusted text. GuardianAI puts two gates betw
 
 ## Open items
 
-1. Third-party smart-contract audit; move suite ownership from the deployer EOA to `GuardianTimelock`.
+1. Third-party smart-contract audit. (Suite ownership moved from the deployer EOA to a 2-of-3 Safe multisig on Nov 5.)
 2. Relay signer is a single hot key: move to KMS/HSM or threshold signing.
 3. CRE: deploy to a live DON with the production Forwarder; add independent feed sources.
 4. Envio: static production endpoint (paid plan).

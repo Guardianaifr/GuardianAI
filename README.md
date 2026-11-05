@@ -24,7 +24,7 @@ AI agents hold money and read untrusted text. `GuardianAgentWallet` on Monad onl
 | **Demo** | Hosted ElizaOS agent, Attack Lab, console | Shows an agent paying through GuardianAI | Railway demo on free LLM tiers |
 | **Demo** | `demo/`, dashboard, SIEM, insurance ledger, cortex memory | Illustrative lifecycle and analytics; not required for the core mechanism | Prototype / stand-ins |
 
-Known limitations (owner bypass via `ownerExecute`, deployer-owned contracts, single signer, no audit): [metropolis/README.md](metropolis/README.md#6-known-limitations-updated-oct-13).
+Contract ownership: a 2-of-3 Safe multisig (`0x402b0Dad9098942c9fF34c8Be1da037C72BFd81a`) since 2026-11-05. Known limitations (owner bypass via `ownerExecute`, single signer, no audit): [metropolis/README.md](metropolis/README.md#6-known-limitations-updated-oct-13).
 
 **Try it**
 - Attack Lab and website: https://aiguardian.dev/explorer/

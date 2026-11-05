@@ -201,7 +201,7 @@ Goal: Platform ecosystem with long-term enterprise lock-in and recurring revenue
 Goal: move the on-chain layer from testnet demo to something a treasury can rely on. Source: `metropolis/README.md` §6.
 
 28. **Third-party smart-contract audit** 🔴 **TO DO** (scope in `contracts/AUDIT_PACKAGE.md`)
-29. **Governance handoff** 🟠 **TO DO**: move suite ownership from the deployer EOA to `GuardianTimelock`; wallet owners on passkeys or multisigs
+29. **Governance handoff** 🟡 **IN PROGRESS**: suite ownership moved from the deployer EOA to a 2-of-3 Safe multisig (Nov 5). Remaining: timelock for non-emergency changes with a separate pauser, clean up the timelock's deployer roles, customer wallet owners on passkeys or multisigs
 30. **Relay signer hardening** 🟠 **TO DO**: KMS/HSM or threshold signing for the attestation key; shared replay store (Redis) for multi-replica relays
 31. **Live Chainlink DON** 🟡 **IN PROGRESS**: deploy the production oracle with the KeystoneForwarder, deploy the workflow, add independent feed sources
 32. **Envio production endpoint** 🟡 **TO DO**: static URL (paid plan)

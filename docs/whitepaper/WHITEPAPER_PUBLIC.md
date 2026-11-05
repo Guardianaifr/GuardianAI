@@ -903,7 +903,7 @@ GuardianAI's off-chain AI Gateway is delivered as a hosted service. Enterprise c
 
 ### On-Chain Layer
 
-On-chain contracts (PolicyGuard, PassportSBT and PassportIssuer, ThreatFeedRegistry, RiskAttestation, InterlockRegistry, InsuranceLedger, CortexAnchor, Timelock, ERC-8004 testnet registry, AgentWalletFactory, ThreatOracle) are deployed by GuardianAI on **Monad testnet**; ownership is still the deployer key, with a planned handoff to the timelock. Each agent gets its own `GuardianAgentWallet` from the factory, owned by the customer: the console at `aiguardian.dev/explorer/?view=console` creates one in the browser. ERC-8004 registrations use the canonical registries. The contracts have not yet been audited by a third party.
+On-chain contracts (PolicyGuard, PassportSBT and PassportIssuer, ThreatFeedRegistry, RiskAttestation, InterlockRegistry, InsuranceLedger, CortexAnchor, Timelock, ERC-8004 testnet registry, AgentWalletFactory, ThreatOracle) are deployed by GuardianAI on **Monad testnet**; ownership is a 2-of-3 Safe multisig (since 2026-11-05), no longer the deployer key. Each agent gets its own `GuardianAgentWallet` from the factory, owned by the customer: the console at `aiguardian.dev/explorer/?view=console` creates one in the browser. ERC-8004 registrations use the canonical registries. The contracts have not yet been audited by a third party.
 
 ---
 

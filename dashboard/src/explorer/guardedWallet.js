@@ -358,6 +358,16 @@ export function explainTxError(err) {
 /** GuardianAI's public relay (Render). The browser calls it directly; it allows aiguardian.dev and localhost:5173. */
 export const RELAY_URL = (import.meta.env?.VITE_GUARDIAN_RELAY_URL || 'https://guardian-relay-k0co.onrender.com').replace(/\/$/, '')
 
+/**
+ * Start waking the relay and the hosted agent. Both run on a free plan that sleeps when idle and takes
+ * ~20-60 s to start, so the console calls this on load, before the first payment. Fire and forget.
+ */
+export function wakeServices(fetchImpl = globalThis.fetch) {
+  for (const url of [RELAY_URL, ELIZA_URL]) {
+    try { fetchImpl(`${url}/health`, { method: 'GET' }).catch(() => {}) } catch { /* ignore */ }
+  }
+}
+
 export const PAY_BACK_WEI = 10n ** 15n // 0.001 MON
 export const AGENT_GAS_WEI = parseEther('0.1')
 /**

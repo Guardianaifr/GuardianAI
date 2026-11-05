@@ -25,8 +25,16 @@ export interface GuardedWalletConfig {
   agentId?: string;
   relayerUrl?: string;
   timeoutMs?: number;
+  /**
+   * How long to keep retrying while the relay is waking up (HTTP 502/503/504 from the host's proxy, or no
+   * connection). Hosts like Render's free plan answer 502 for ~20-60 s while a sleeping service starts.
+   * Only those answers are retried; any answer from the relay itself is final. 0 disables. Default 60000.
+   */
+  wakeRetryMs?: number;
   /** Injectable for tests. */
   fetchImpl?: typeof fetch;
+  /** Injectable for tests. */
+  sleepImpl?: (ms: number) => Promise<void>;
   /** Addresses you trust (contacts, vendors). A payment to a lookalike of one of these is refused. */
   trustedRecipients?: string[];
   /** Hex chars compared at each end when looking for lookalikes. Default 4 and 4. */
@@ -79,7 +87,9 @@ export class GuardedWalletClient {
   readonly agentId: string;
   readonly relayerUrl: string;
   readonly timeoutMs: number;
+  readonly wakeRetryMs: number;
   private readonly fetchImpl: typeof fetch;
+  private readonly sleep: (ms: number) => Promise<void>;
   private readonly trusted = new Set<string>();
   /** Recipients this client already paid (bounded), used as extra lookalike references. */
   private readonly recent: string[] = [];
@@ -94,7 +104,9 @@ export class GuardedWalletClient {
     this.agentId = cfg.agentId || `console:${cfg.owner.toLowerCase()}`;
     this.relayerUrl = (cfg.relayerUrl || DEFAULT_GUARDIAN_RELAY).replace(/\/$/, "");
     this.timeoutMs = cfg.timeoutMs ?? 20000;
+    this.wakeRetryMs = Math.max(0, cfg.wakeRetryMs ?? 60000);
     this.fetchImpl = cfg.fetchImpl || globalThis.fetch.bind(globalThis);
+    this.sleep = cfg.sleepImpl || ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.lookalikePrefix = Math.max(3, cfg.lookalikePrefix ?? 4);
     this.lookalikeSuffix = Math.max(3, cfg.lookalikeSuffix ?? 4);
     for (const a of cfg.trustedRecipients || []) this.trustRecipient(a);
@@ -137,24 +149,7 @@ export class GuardedWalletClient {
     };
     if (req.prompt) body.prompt = req.prompt;
 
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
-    let text: string;
-    let status: number;
-    try {
-      const res = await this.fetchImpl(`${this.relayerUrl}/api/v1/attest`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-        signal: ctrl.signal,
-      });
-      status = res.status;
-      text = await res.text();
-    } catch (err: any) {
-      throw new GuardianConnectionError(`relay unreachable (${err?.name === "AbortError" ? "timeout" : err?.message || err}). Payment blocked.`);
-    } finally {
-      clearTimeout(timer);
-    }
+    const { status, text } = await this.postAttest(JSON.stringify(body));
 
     let d: any;
     try { d = JSON.parse(text); } catch { throw new GuardianConnectionError(`relay answered HTTP ${status} with non-JSON. Payment blocked.`); }
@@ -175,5 +170,44 @@ export class GuardedWalletClient {
       if (this.recent.length > 50) this.recent.shift();
     }
     return { to: this.wallet, data, value: 0n, riskScore: Number(d.risk_score ?? 0), reasons: d.reasons || [] };
+  }
+
+  /**
+   * POST /api/v1/attest, retrying only while the relay is waking up. Retrying is safe: an approval that never
+   * reaches the agent is never used, and each approval has its own nonce. Still fails closed when time runs out.
+   */
+  private async postAttest(body: string): Promise<{ status: number; text: string }> {
+    // Stop at whichever runs out first: wall-clock time, or total time spent waiting between attempts.
+    const deadline = Date.now() + this.wakeRetryMs;
+    let budget = this.wakeRetryMs;
+    let delay = 2000;
+    for (let attempt = 1; ; attempt++) {
+      let failure: string;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
+      try {
+        const res = await this.fetchImpl(`${this.relayerUrl}/api/v1/attest`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body,
+          signal: ctrl.signal,
+        });
+        const text = await res.text();
+        if (![502, 503, 504].includes(res.status)) return { status: res.status, text };
+        failure = `relay answered HTTP ${res.status}${text.trim().startsWith("{") ? "" : " with non-JSON"} (still starting?)`;
+      } catch (err: any) {
+        failure = `relay unreachable (${err?.name === "AbortError" ? "timeout" : err?.message || err})`;
+      } finally {
+        clearTimeout(timer);
+      }
+      const wait = Math.min(delay, budget, deadline - Date.now());
+      budget -= wait;
+      if (wait <= 0) {
+        const tries = attempt > 1 ? ` after ${attempt} attempts` : "";
+        throw new GuardianConnectionError(`${failure}${tries}. Payment blocked.`);
+      }
+      await this.sleep(wait);
+      delay = Math.min(delay * 2, 10000);
+    }
   }
 }

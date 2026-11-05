@@ -6,6 +6,7 @@ import './theme.css'
 import { Header, Footer, useTheme } from './layout.jsx'
 import { useWallet, WalletPicker } from './wallet.jsx'
 import GuardedAgent from './GuardedAgent.jsx'
+import { wakeServices } from './guardedWallet.js'
 import {
   CONTRACTS, TEAM_WALLET, addressUrl, getBalance, formatMon, listPassports, isSelfServeCard, listScamWallets, readGuardSettings, checkAddress, ipfsToHttp, getBlockNumber, getFirstScamAddress,
 } from './chain.js'
@@ -345,6 +346,7 @@ function GuardSettings() {
 
 export default function Console() {
   const [theme, toggleTheme] = useTheme()
+  useEffect(() => { wakeServices() }, [])
   return (
     <div className="gx min-h-screen antialiased" data-theme={theme}>
       <Header page="console" theme={theme} toggleTheme={toggleTheme} />

@@ -14,11 +14,11 @@ AI agents hold money and read untrusted text. `GuardianAgentWallet` on Monad onl
 
 | Tier | Component | What it does | Honest status |
 | :--- | :--- | :--- | :--- |
-| **Core** | `GuardianAgentWallet` + `GuardianPolicyGuard` (`contracts/`) | Wallet checks the agent key, GuardianAI's signature bound to value + calldata hash, nonce, daily caps and target allowlist, in one transaction | Live on Monad testnet. Unaudited. |
-| **Core** | Relay (`guardian/`, `backend/`) | Scores each payment, applies per-agent rules, signs the attestation | Works. Signer is a single hot key; KMS/HSM is the next step. |
-| **Supporting** | Off-chain input firewall (`guardian/runtime/interceptor.py`) | Regex/keyword and optional ML checks for prompt injection and PII before text reaches the LLM | Defense in depth, not the guarantee. No published detection-rate benchmark yet. Falls back to regex-only if the ML layer is unavailable. |
+| **Core** | `GuardianAgentWallet` + `GuardianPolicyGuard` (`contracts/`) | Wallet checks the agent key, GuardianAI's signature bound to value + calldata hash, nonce, daily caps and target allowlist, in one transaction | Live on Monad testnet. No third-party audit; Slither run and triaged in [SLITHER_2026-11-05.md](docs/audits/SLITHER_2026-11-05.md) (no exploitable High/Medium found). |
+| **Core** | Relay (`guardian/web3sec/rpc_relay.py`) | Scores each payment, applies per-agent rules, signs the attestation | Relay, rules and identity tests pass (61 tests, Nov 5). Signer is a single hot key; KMS/HSM is the next step. |
+| **Supporting** | Off-chain input firewall (`guardian/runtime/interceptor.py`) | De-obfuscation, regex/keyword and optional ML checks for prompt injection and PII before text reaches the LLM | Defense in depth, not the guarantee. [Aug 20 benchmark](artifacts/evidence/live_unseen_benchmark_report.md), 1,299 public prompts: balanced mode blocks 80.0% of attacks at 6.4% false positives (strict: 88.7% at 29.2%). Most samples are harmful-content datasets; only 15 are prompt injections. Falls back to regex-only if the ML dependencies are missing (`guardian/guardrails/ai_firewall.py`). |
 | **Supporting** | Privy server wallet | Agent key whose policy only permits calls to GuardianAI contracts | Live |
-| **Supporting** | Agent identity (Mera passkey, ERC-8004 passport) | Signed agent card checked by the relay | Enforced only for passkey-registered agents; for others `agent_id` is caller-supplied |
+| **Supporting** | Agent identity (Mera passkey, ERC-8004 passport) | Signed agent card checked by the relay | By default enforced only for passkey-registered agents; for others `agent_id` is caller-supplied. Set `GUARDIAN_REQUIRE_AGENT_CARD=1` to refuse every unregistered agent. |
 | **Optional** | Chainlink CRE threat oracle | Updates `GuardianThreatOracle` so wallets refuse flagged destinations | **Simulation** broadcast to Monad. Not on a live DON. |
 | **Optional** | Envio indexer | GraphQL view of wallets, payments, oracle reports | Dev deployment; URL changes on redeploy |
 | **Demo** | Hosted ElizaOS agent, Attack Lab, console | Shows an agent paying through GuardianAI | Railway demo on free LLM tiers |
@@ -41,7 +41,7 @@ Autonomous AI agents are increasingly entrusted with private keys, smart contrac
 
 ### The Solution: On-Chain Enforcement First, Input Filtering as Defense in Depth
 The on-chain gate (item 2) is the actual guarantee. The off-chain filter (item 1) reduces how often it is tested but can be bypassed by a determined attacker and should not be relied on alone.
-1. **Edge input filter (~3 ms regex/keyword, ~13 ms with an uncached ML check):** Flags likely prompt injections, jailbreaks, data exfiltration, and PII fishing before instructions reach the LLM. Heuristic; detection rates are not yet benchmarked.
+1. **Edge input filter (~3 ms regex/keyword, ~13 ms with an uncached ML check):** Flags likely prompt injections, jailbreaks, data exfiltration, and PII fishing before instructions reach the LLM. Heuristic: on public datasets it blocks about 80% of attacks at a 6.4% false-positive rate in balanced mode (see the status table above).
 2. **Monad On-Chain Enforcement (Parallel EVM):** `GuardianPolicyGuard.sol` verifies a signed EIP-712 attestation bound to the call's value and calldata hash, uses namespaced nonces (conflict-free under Monad's parallel execution), checks the agent's passport, and checks that the target has code when calldata is sent. It does **not** enforce spend caps or allowlists. Those live in `GuardianAgentWallet.sol`: owner-configured daily native/token outflow caps and a target/selector allowlist enforced on-chain, plus the relay's per-agent rules off-chain. The demo wallet is configured with a 1 MON/day native cap.
 3. **Verifiable Agent Identity & Enclave Memory:** Uses **Category Labs Mera Passkey PRF** and canonical **ERC-8004** to mint cryptographic agent credentials and secure tamper-evident encrypted long-term memory.
 
@@ -245,7 +245,7 @@ guardianai/
 │   │   ├── GuardianPolicyGuard.sol # Execution firewall (EIP-712, nonces, RBAC)
 │   │   ├── GuardianPassportSBT.sol# Soulbound Token identity (ERC-5192)
 │   │   └── GuardianTimelock.sol   # 24-hour governance execution delay
-│   └── test/                  # 271 smart contract unit & adversarial tests
+│   └── test/                  # Hardhat unit & adversarial tests (counts in the table above)
 ├── metropolis/                # Monad Metropolis Track 04 Integrations
 │   ├── mera/                  # Category Labs Mera Passkey PRF Enclave (TypeScript)
 │   ├── indexer/               # Envio HyperIndex indexer (live deployment built from the `envio` branch)
